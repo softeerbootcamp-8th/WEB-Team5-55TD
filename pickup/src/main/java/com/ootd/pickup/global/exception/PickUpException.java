@@ -9,7 +9,7 @@ public class PickUpException extends RuntimeException{
 
     @Override
     public String getMessage() {
-        return exceptionCode.toString();
+        return exceptionCode.getMessage();
     }
 
     public HttpStatusCode getHttpStatusCode() {
