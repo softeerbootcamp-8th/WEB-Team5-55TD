@@ -1,0 +1,34 @@
+package com.ootd.pickup.health.controller;
+
+import com.ootd.pickup.health.controller.dto.response.HealthCheckResponse;
+import com.ootd.pickup.health.service.HealthCheckService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(HealthCheckController.class)
+class HealthCheckControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private HealthCheckService healthCheckService;
+
+    @Test
+    void 헬스체크_API_호출_시_서버_상태를_반환한다() throws Exception {
+        given(healthCheckService.getHealthCheckStatus())
+                .willReturn(new HealthCheckResponse("OK"));
+
+        mockMvc.perform(get("/healthcheck"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OK"));
+    }
+}
