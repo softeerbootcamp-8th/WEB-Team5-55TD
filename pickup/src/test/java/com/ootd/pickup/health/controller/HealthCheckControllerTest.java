@@ -1,6 +1,6 @@
 package com.ootd.pickup.health.controller;
 
-import com.ootd.pickup.health.controller.dto.response.HealthCheckResponse;
+import com.ootd.pickup.health.dto.response.HealthCheckResponse;
 import com.ootd.pickup.health.service.HealthCheckService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
