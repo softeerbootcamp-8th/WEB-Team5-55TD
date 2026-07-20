@@ -1,6 +1,6 @@
-package com.ootd.pickup.healthCheck.service;
+package com.ootd.pickup.health.service;
 
-import com.ootd.pickup.healthCheck.controller.dto.response.HealthCheckResponse;
+import com.ootd.pickup.health.controller.dto.response.HealthCheckResponse;
 import org.springframework.stereotype.Service;
 
 @Service

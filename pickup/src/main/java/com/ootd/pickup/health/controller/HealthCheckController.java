@@ -1,8 +1,8 @@
-package com.ootd.pickup.healthCheck.controller;
+package com.ootd.pickup.health.controller;
 
-import com.ootd.pickup.healthCheck.api.HealthCheckApi;
-import com.ootd.pickup.healthCheck.controller.dto.response.HealthCheckResponse;
-import com.ootd.pickup.healthCheck.service.HealthCheckService;
+import com.ootd.pickup.health.api.HealthCheckApi;
+import com.ootd.pickup.health.controller.dto.response.HealthCheckResponse;
+import com.ootd.pickup.health.service.HealthCheckService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
