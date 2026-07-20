@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     @ExceptionHandler(PickUpException.class)
-    public ResponseEntity<ExceptionResponse> handleYbcException(PickUpException e, HttpServletRequest request) {
+    public ResponseEntity<ExceptionResponse> handlePickUpException(PickUpException e, HttpServletRequest request) {
         ExceptionResponse response = ExceptionResponseFactory.from(e, request.getRequestURI());
         return ResponseEntity.status(e.getHttpStatusCode())
                 .body(response);
