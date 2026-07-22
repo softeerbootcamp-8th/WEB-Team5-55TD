@@ -27,9 +27,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // 백엔드 API 프록시 — 실제 백엔드 주소에 맞게 조정하세요.
+      // 백엔드는 "/api" 접두사 없이 라우팅하므로(예: GET /healthcheck) rewrite 로 제거한다.
       "/api": {
         target: "http://localhost:8080",
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },

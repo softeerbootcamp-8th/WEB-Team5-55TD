@@ -9,6 +9,8 @@ info:
 servers:
   - url: /api
 tags:
+  - name: health
+    description: 서버 상태 확인
   - name: auth
     description: 인증 (로그인 · 회원가입)
   - name: auctions
@@ -16,6 +18,19 @@ tags:
   - name: bids
     description: 입찰
 paths:
+  /healthcheck:
+    get:
+      tags: [health]
+      operationId: healthCheck
+      summary: 헬스체크
+      description: 서버가 정상적으로 동작 중인지 확인합니다.
+      responses:
+        "200":
+          description: 서버 정상 동작
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResponse"
   /auth/login:
     post:
       tags: [auth]
@@ -144,6 +159,13 @@ paths:
                 $ref: "#/components/schemas/Bid"
 components:
   schemas:
+    HealthCheckResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: OK
     LoginRequest:
       type: object
       required: [username, password]
