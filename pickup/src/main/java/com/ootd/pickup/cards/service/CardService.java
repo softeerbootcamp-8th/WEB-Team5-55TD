@@ -3,6 +3,7 @@ package com.ootd.pickup.cards.service;
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CardService {
 
     private final CardRepository cardRepository;
