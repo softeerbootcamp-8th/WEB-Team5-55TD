@@ -5,5 +5,5 @@ import java.util.Optional;
 import com.ootd.pickup.cards.domain.Card;
 
 public interface CardRepository {
-    public Optional<Card> findCardById(Long Id);
+    public Optional<Card> findCardById(Long id);
 }
