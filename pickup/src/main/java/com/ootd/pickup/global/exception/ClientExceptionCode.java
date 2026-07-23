@@ -4,4 +4,5 @@ public enum ClientExceptionCode {
     INTERNAL_SERVER_ERROR,
     ILLEGAL_ARGUMENT,
     PIKACHU_NOT_FOUND,
+    CARD_NOT_FOUND,
 }
