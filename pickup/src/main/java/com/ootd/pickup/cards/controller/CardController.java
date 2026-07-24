@@ -27,6 +27,7 @@ public class CardController implements CardApi {
     }
 
     @GetMapping
+    @Override
     public ResponseEntity<CursorPageResponse<SearchCardsResponse, Long>> searchCards(
             @Valid @ModelAttribute SearchCardsRequest searchCardsRequest
     ) {
