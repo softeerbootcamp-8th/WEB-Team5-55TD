@@ -11,9 +11,12 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 
 @Entity
 @Getter
+@SoftDelete(columnName = "is_deleted", strategy = SoftDeleteType.DELETED)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Card {
 
