@@ -5,7 +5,9 @@ import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
 import java.util.Arrays;
 
 import com.ootd.pickup.global.exception.PickUpException;
+import lombok.Getter;
 
+@Getter
 public enum Language {
     ENGLISH("영어"),
     JAPANESE("일본어"),
@@ -16,11 +18,6 @@ public enum Language {
     Language(String displayName) {
         this.displayName = displayName;
     }
-
-    public String getDisplayName() {
-        return displayName;
-    }
-
     public static Language from(String language) {
         if (language == null || language.isBlank()) {
             return null;
