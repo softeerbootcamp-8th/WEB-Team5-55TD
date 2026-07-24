@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
@@ -32,20 +31,20 @@ public class CardService {
         return GetCardDetailResponse.from(card);
     }
 
-    public CursorPageResponse<SearchCardsResponse> searchCards(SearchCardsRequest searchCardsRequest) {
+    public CursorPageResponse<SearchCardsResponse, Long> searchCards(SearchCardsRequest searchCardsRequest) {
         validateSize(searchCardsRequest.size());
 
         List<Card> searchedCards = cardRepository.searchCards(
                 searchCardsRequest.keyword(),
                 searchCardsRequest.setName(),
                 Language.from(searchCardsRequest.language()),
-                parseCursor(searchCardsRequest.cursor()),
+                searchCardsRequest.cursor(),
                 searchCardsRequest.size() + 1
         );
 
         boolean hasNext = searchedCards.size() > searchCardsRequest.size();
         List<Card> cards = hasNext ? searchedCards.subList(0, searchCardsRequest.size()) : searchedCards;
-        String nextCursor = hasNext ? String.valueOf(cards.getLast().getCardId()) : null;
+        Long nextCursor = hasNext ? cards.getLast().getCardId() : null;
 
         List<SearchCardsResponse> items = cards.stream()
                 .map(SearchCardsResponse::from)
@@ -59,17 +58,4 @@ public class CardService {
             throw new PickUpException(ILLEGAL_ARGUMENT);
         }
     }
-
-    private Long parseCursor(String cursor) {
-        if (!StringUtils.hasText(cursor)) {
-            return null;
-        }
-
-        try {
-            return Long.valueOf(cursor);
-        } catch (NumberFormatException e) {
-            throw new PickUpException(ILLEGAL_ARGUMENT);
-        }
-    }
-
 }

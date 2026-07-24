@@ -6,7 +6,7 @@ public record SearchCardsRequest(
         String keyword,
         String setName,
         String language,
-        String cursor,
+        Long cursor,
         @NotNull Integer size
 ) {
 }

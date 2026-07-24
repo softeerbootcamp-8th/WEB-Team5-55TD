@@ -2,16 +2,16 @@ package com.ootd.pickup.global.dto.response;
 
 import java.util.List;
 
-public record CursorPageResponse<T>(
+public record CursorPageResponse<T, C>(
         boolean hasNext,
-        String cursor,
+        C cursor,
         int size,
         List<T> items
 ) {
-    public static <T> CursorPageResponse<T> from(
+    public static <T, C> CursorPageResponse<T, C> from(
             List<T> items,
             boolean hasNext,
-            String cursor
+            C cursor
     ) {
         return new CursorPageResponse<>(
                 hasNext,
