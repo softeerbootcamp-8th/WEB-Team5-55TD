@@ -67,7 +67,7 @@ class CardSearchIntegrationTest {
                         .param("size", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasNext").value(true))
-                .andExpect(jsonPath("$.cursor").value(String.valueOf(newMatchedCard.getCardId())))
+                .andExpect(jsonPath("$.cursor").value(newMatchedCard.getCardId()))
                 .andExpect(jsonPath("$.size").value(1))
                 .andExpect(jsonPath("$.items[0].cardId").value(newMatchedCard.getCardId()))
                 .andExpect(jsonPath("$.items[0].cardName").value("리자몽 1st Edition Holo"))

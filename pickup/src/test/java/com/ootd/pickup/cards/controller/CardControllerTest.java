@@ -76,8 +76,8 @@ class CardControllerTest {
                 "MINT",
                 "https://image.example.com/9.png"
         );
-        CursorPageResponse<SearchCardsResponse> response =
-                new CursorPageResponse<>(true, "9", 1, List.of(item));
+        CursorPageResponse<SearchCardsResponse, Long> response =
+                new CursorPageResponse<>(true, 9L, 1, List.of(item));
         given(cardService.searchCards(any(SearchCardsRequest.class))).willReturn(response);
 
         // when & then
@@ -89,7 +89,7 @@ class CardControllerTest {
                         .param("size", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasNext").value(true))
-                .andExpect(jsonPath("$.cursor").value("9"))
+                .andExpect(jsonPath("$.cursor").value(9L))
                 .andExpect(jsonPath("$.size").value(1))
                 .andExpect(jsonPath("$.items[0].cardId").value(9L))
                 .andExpect(jsonPath("$.items[0].cardName").value("리자몽 1st Edition Holo"))
@@ -103,7 +103,7 @@ class CardControllerTest {
                 request.keyword().equals("리자몽")
                         && request.setName().equals("Base Set")
                         && request.language().equals("한국어")
-                        && request.cursor().equals("10")
+                        && request.cursor().equals(10L)
                         && request.size().equals(1)
         ));
     }

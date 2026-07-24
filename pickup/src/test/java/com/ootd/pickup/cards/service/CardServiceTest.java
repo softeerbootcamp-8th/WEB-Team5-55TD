@@ -75,7 +75,7 @@ class CardServiceTest {
     void 검색결과가_요청크기보다_많으면_다음페이지_커서를_반환한다() {
         // given
         SearchCardsRequest request = new SearchCardsRequest(
-                "리자몽", "Base Set", "한국어", "10", 2
+                "리자몽", "Base Set", "한국어", 10L, 2
         );
         Card firstCard = createCard(9L, "리자몽 V", "001/100");
         Card secondCard = createCard(8L, "리자몽 EX", "002/100");
@@ -85,11 +85,11 @@ class CardServiceTest {
         )).willReturn(List.of(firstCard, secondCard, nextCard));
 
         // when
-        CursorPageResponse<SearchCardsResponse> response = cardService.searchCards(request);
+        CursorPageResponse<SearchCardsResponse, Long> response = cardService.searchCards(request);
 
         // then
         assertThat(response.hasNext()).isTrue();
-        assertThat(response.cursor()).isEqualTo("8");
+        assertThat(response.cursor()).isEqualTo(8L);
         assertThat(response.size()).isEqualTo(2);
         assertThat(response.items())
                 .extracting(SearchCardsResponse::cardId)
@@ -109,7 +109,7 @@ class CardServiceTest {
                 .willReturn(List.of(firstCard, secondCard));
 
         // when
-        CursorPageResponse<SearchCardsResponse> response = cardService.searchCards(request);
+        CursorPageResponse<SearchCardsResponse, Long> response = cardService.searchCards(request);
 
         // then
         assertThat(response.hasNext()).isFalse();
@@ -124,17 +124,6 @@ class CardServiceTest {
     void 크기가_1보다_작으면_예외가_발생한다() {
         // given
         SearchCardsRequest request = new SearchCardsRequest(null, null, null, null, 0);
-
-        // when & then
-        assertThatThrownBy(() -> cardService.searchCards(request))
-                .isInstanceOf(PickUpException.class);
-        then(cardRepository).shouldHaveNoInteractions();
-    }
-
-    @Test
-    void 커서가_숫자가_아니면_예외가_발생한다() {
-        // given
-        SearchCardsRequest request = new SearchCardsRequest(null, null, null, "invalid", 20);
 
         // when & then
         assertThatThrownBy(() -> cardService.searchCards(request))
