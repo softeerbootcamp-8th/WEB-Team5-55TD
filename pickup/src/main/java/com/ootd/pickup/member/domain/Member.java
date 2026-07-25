@@ -1,16 +1,20 @@
 package com.ootd.pickup.member.domain;
 
+import at.favre.lib.crypto.bcrypt.BCrypt;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class Member {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long memberId;
 
     @Column(nullable = true, unique = true)
@@ -39,21 +43,5 @@ public class Member {
         member.joinedAt = LocalDateTime.now();
         member.updatedAt = member.joinedAt;
         return member;
-    }
-
-    public Long getMemberId() {
-        return memberId;
-    }
-
-    public String getLoginId() {
-        return loginId;
-    }
-
-    public String getNickname() {
-        return nickname;
-    }
-
-    public String getProfileImageUrl() {
-        return profileImageUrl;
     }
 }
