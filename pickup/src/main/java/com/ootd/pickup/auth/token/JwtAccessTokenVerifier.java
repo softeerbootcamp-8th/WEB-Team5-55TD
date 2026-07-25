@@ -5,10 +5,12 @@ import com.ootd.pickup.global.exception.PickUpException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import lombok.RequiredArgsConstructor;
 
 import javax.crypto.SecretKey;
 import java.time.Instant;
 
+@RequiredArgsConstructor
 public class JwtAccessTokenVerifier implements AccessTokenVerifier {
     private static final String TOKEN_TYPE_CLAIM = "token_type";
     private static final String ACCESS_TOKEN_TYPE = "access";
@@ -16,13 +18,8 @@ public class JwtAccessTokenVerifier implements AccessTokenVerifier {
     private final String issuer;
     private final SecretKey signingKey;
 
-    public JwtAccessTokenVerifier(String issuer, SecretKey signingKey) {
-        this.issuer = issuer;
-        this.signingKey = signingKey;
-    }
-
     @Override
-    public AuthenticatedToken verify(String accessToken) {
+    public Authentication verify(String accessToken) {
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(signingKey)
@@ -39,7 +36,7 @@ public class JwtAccessTokenVerifier implements AccessTokenVerifier {
             String tokenId = claims.getId();
             Long memberId = Long.valueOf(claims.getSubject());
             Instant expiresAt = claims.getExpiration().toInstant();
-            return new AuthenticatedToken(memberId, sessionId, tokenId, expiresAt);
+            return new Authentication(memberId, sessionId, tokenId, expiresAt);
         } catch (JwtException | IllegalArgumentException exception) {
             throw new InvalidAccessTokenException();
         }

@@ -1,6 +1,7 @@
 package com.ootd.pickup.auth.token;
 
 import io.jsonwebtoken.Jwts;
+import lombok.RequiredArgsConstructor;
 
 import javax.crypto.SecretKey;
 import java.time.Duration;
@@ -8,6 +9,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
+@RequiredArgsConstructor
 public class JwtAccessTokenGenerator implements AccessTokenGenerator {
     private static final String TOKEN_TYPE_CLAIM = "token_type";
     private static final String ACCESS_TOKEN_TYPE = "access";
@@ -15,12 +17,6 @@ public class JwtAccessTokenGenerator implements AccessTokenGenerator {
     private final String issuer;
     private final SecretKey signingKey;
     private final Duration accessTokenTtl;
-
-    public JwtAccessTokenGenerator(String issuer, SecretKey signingKey, Duration accessTokenTtl) {
-        this.issuer = issuer;
-        this.signingKey = signingKey;
-        this.accessTokenTtl = accessTokenTtl;
-    }
 
     @Override
     public GeneratedAccessToken generate(Long memberId, String sessionId) {
