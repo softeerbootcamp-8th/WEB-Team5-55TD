@@ -9,12 +9,15 @@ import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class MemberService {
 
     private final MemberRepository memberRepository;
+    private static final int BCRYPT_COST_FACTOR = 12;
 
     public MemberResponse createMember(MemberRequest memberRequest) {
         if (memberRepository.existsByLoginId(memberRequest.loginId())) {
@@ -26,7 +29,7 @@ public class MemberService {
         }
 
         String passwordHash = BCrypt.withDefaults()
-                .hashToString(12, memberRequest.password().toCharArray());
+                .hashToString(BCRYPT_COST_FACTOR, memberRequest.password().toCharArray());
 
         Member member = Member.create(
                 memberRequest.loginId(),
