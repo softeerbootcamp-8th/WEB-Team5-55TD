@@ -67,7 +67,6 @@ class ConsignmentControllerTest {
 
         // when & then
         mockMvc.perform(post("/consignments")
-                        .param("sellerMemberId", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -87,6 +86,7 @@ class ConsignmentControllerTest {
         // given
         RegisterConsignmentRequest request = new RegisterConsignmentRequest(
                 null,
+                1L,
                 null,
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
                 List.of(
@@ -97,7 +97,6 @@ class ConsignmentControllerTest {
 
         // when & then
         mockMvc.perform(post("/consignments")
-                        .param("sellerMemberId", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -110,6 +109,7 @@ class ConsignmentControllerTest {
         // given
         RegisterConsignmentRequest request = new RegisterConsignmentRequest(
                 10L,
+                1L,
                 null,
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
                 List.of(new ConsignmentImageRequest(1, "https://image.example.com/front.png"))
@@ -117,7 +117,6 @@ class ConsignmentControllerTest {
 
         // when & then
         mockMvc.perform(post("/consignments")
-                        .param("sellerMemberId", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -134,7 +133,6 @@ class ConsignmentControllerTest {
 
         // when & then
         mockMvc.perform(post("/consignments")
-                        .param("sellerMemberId", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -144,6 +142,7 @@ class ConsignmentControllerTest {
     private RegisterConsignmentRequest createRequest() {
         return new RegisterConsignmentRequest(
                 10L,
+                1L,
                 "모서리에 약간의 마모",
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
                 List.of(

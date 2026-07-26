@@ -77,6 +77,7 @@ class ConsignmentServiceTest {
 
         RegisterConsignmentRequest request = new RegisterConsignmentRequest(
                 cardId,
+                sellerMemberId,
                 "모서리에 약간의 마모",
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
                 List.of(
@@ -121,6 +122,7 @@ class ConsignmentServiceTest {
 
         RegisterConsignmentRequest request = new RegisterConsignmentRequest(
                 notExistCardId,
+                sellerMemberId,
                 null,
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
                 List.of(
@@ -150,6 +152,7 @@ class ConsignmentServiceTest {
 
         RegisterConsignmentRequest request = new RegisterConsignmentRequest(
                 cardId,
+                sellerMemberId,
                 null,
                 new CertificateRequest("PSA-84213907", "PSA", "S급", LocalDate.of(2026, 6, 30)),
                 List.of(
