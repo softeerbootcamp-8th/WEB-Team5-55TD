@@ -1,20 +1,16 @@
 package com.ootd.pickup.consignments.service;
 
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.service.CardManageService;
-import com.ootd.pickup.consignments.domain.Certificate;
-import com.ootd.pickup.consignments.domain.Consignment;
-import com.ootd.pickup.consignments.domain.ConsignmentStatus;
+import com.ootd.pickup.consignments.domain.*;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.repository.CertificateRepository;
 import com.ootd.pickup.consignments.repository.ConsignmentImageRepository;
 import com.ootd.pickup.consignments.repository.ConsignmentRepository;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +26,9 @@ public class ConsignmentService {
     @Transactional
     public RegisterConsignmentResponse registerConsignment(Long sellerMemberId, RegisterConsignmentRequest request) {
         Card card = cardManageService.getCardByCardId(request.cardId());
+        // Consignment를 저장하기 전에 인증서 값부터 검증해 불필요한 INSERT를 막는다.
+        Grade.from(request.certificate().grade());
+        CertificationBody.from(request.certificate().certificationBody());
 
         Consignment consignment = consignmentRepository.save(
                 Consignment.builder()

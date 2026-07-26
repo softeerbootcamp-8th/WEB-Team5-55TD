@@ -1,28 +1,10 @@
 package com.ootd.pickup.consignments.service;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.BDDMockito.*;
-
-import java.time.LocalDate;
-import java.util.List;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
 import com.ootd.pickup.cards.service.CardManageService;
-import com.ootd.pickup.consignments.domain.Certificate;
-import com.ootd.pickup.consignments.domain.CertificationBody;
-import com.ootd.pickup.consignments.domain.Consignment;
-import com.ootd.pickup.consignments.domain.ConsignmentImage;
-import com.ootd.pickup.consignments.domain.ConsignmentStatus;
+import com.ootd.pickup.consignments.domain.*;
 import com.ootd.pickup.consignments.dto.request.CertificateRequest;
 import com.ootd.pickup.consignments.dto.request.ConsignmentImageRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
@@ -32,6 +14,19 @@ import com.ootd.pickup.consignments.repository.ConsignmentImageRepository;
 import com.ootd.pickup.consignments.repository.ConsignmentRepository;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ConsignmentServiceTest {
@@ -144,11 +139,6 @@ class ConsignmentServiceTest {
         Long cardId = 10L;
         Card card = createCard(cardId);
         given(cardManageService.getCardByCardId(cardId)).willReturn(card);
-        given(consignmentRepository.save(any(Consignment.class))).willAnswer(invocation -> {
-            Consignment consignment = invocation.getArgument(0);
-            ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
-            return consignment;
-        });
 
         RegisterConsignmentRequest request = new RegisterConsignmentRequest(
                 cardId,
@@ -164,6 +154,7 @@ class ConsignmentServiceTest {
         // when & then
         assertThatThrownBy(() -> consignmentService.registerConsignment(sellerMemberId, request))
                 .isInstanceOf(PickUpException.class);
+        then(consignmentRepository).shouldHaveNoInteractions();
         then(certificateRepository).shouldHaveNoInteractions();
     }
 
