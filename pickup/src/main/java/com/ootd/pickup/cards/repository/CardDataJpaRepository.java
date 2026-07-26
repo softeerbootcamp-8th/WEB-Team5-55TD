@@ -23,7 +23,7 @@ public class CardDataJpaRepository implements CardRepository {
 
     @Override
     public Optional<Card> findCardById(Long cardId) {
-        return cardJpaRepository.findCardByCardId(cardId);
+        return cardJpaRepository.findById(cardId);
     }
 
     @Override
