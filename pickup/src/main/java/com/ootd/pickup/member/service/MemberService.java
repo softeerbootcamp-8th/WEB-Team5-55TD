@@ -8,6 +8,7 @@ import com.ootd.pickup.member.dto.MemberRequest;
 import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,14 +38,18 @@ public class MemberService {
                 memberRequest.nickname()
         );
 
-        Member savedMember = memberRepository.save(member);
+        try {
+            Member savedMember = memberRepository.save(member);
 
-        return new MemberResponse(
-                savedMember.getMemberId(),
-                savedMember.getLoginId(),
-                savedMember.getNickname(),
-                savedMember.getProfileImageUrl()
-        );
+            return new MemberResponse(
+                    savedMember.getMemberId(),
+                    savedMember.getLoginId(),
+                    savedMember.getNickname(),
+                    savedMember.getProfileImageUrl()
+            );
+        } catch (DataIntegrityViolationException exception) {
+            throw new PickUpException(ExceptionCode.MEMBER_LOGIN_ID_ALREADY_EXISTS);
+        }
     }
 
 }
