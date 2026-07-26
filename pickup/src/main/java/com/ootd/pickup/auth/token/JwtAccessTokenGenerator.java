@@ -7,33 +7,26 @@ import javax.crypto.SecretKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
-import java.util.UUID;
 
 @RequiredArgsConstructor
 public class JwtAccessTokenGenerator implements AccessTokenGenerator {
-    private static final String TOKEN_TYPE_CLAIM = "token_type";
-    private static final String ACCESS_TOKEN_TYPE = "access";
-
     private final String issuer;
     private final SecretKey signingKey;
     private final Duration accessTokenTtl;
 
     @Override
-    public GeneratedAccessToken generate(Long memberId, String sessionId) {
+    public GeneratedAccessToken generate(Long memberId) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plus(accessTokenTtl);
-        String tokenId = UUID.randomUUID().toString();
         String token = Jwts.builder()
                 .issuer(issuer)
                 .subject(memberId.toString())
-                .id(tokenId)
-                .claim("sid", sessionId)
-                .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
+                .claim(JwtTokenClaims.TOKEN_TYPE, JwtTokenClaims.ACCESS_TOKEN_TYPE)
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(expiresAt))
                 .signWith(signingKey)
                 .compact();
 
-        return new GeneratedAccessToken(token, tokenId, sessionId, expiresAt);
+        return new GeneratedAccessToken(token, expiresAt);
     }
 }

@@ -8,13 +8,9 @@ import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 
 import javax.crypto.SecretKey;
-import java.time.Instant;
 
 @RequiredArgsConstructor
 public class JwtAccessTokenVerifier implements AccessTokenVerifier {
-    private static final String TOKEN_TYPE_CLAIM = "token_type";
-    private static final String ACCESS_TOKEN_TYPE = "access";
-
     private final String issuer;
     private final SecretKey signingKey;
 
@@ -28,15 +24,13 @@ public class JwtAccessTokenVerifier implements AccessTokenVerifier {
                     .parseSignedClaims(accessToken)
                     .getPayload();
 
-            if (!ACCESS_TOKEN_TYPE.equals(claims.get(TOKEN_TYPE_CLAIM, String.class))) {
+            String tokenType = claims.get(JwtTokenClaims.TOKEN_TYPE, String.class);
+            if (!JwtTokenClaims.ACCESS_TOKEN_TYPE.equals(tokenType)) {
                 throw new InvalidAccessTokenException();
             }
 
-            String sessionId = claims.get("sid", String.class);
-            String tokenId = claims.getId();
             Long memberId = Long.valueOf(claims.getSubject());
-            Instant expiresAt = claims.getExpiration().toInstant();
-            return new Authentication(memberId, sessionId, tokenId, expiresAt);
+            return new Authentication(memberId);
         } catch (JwtException | IllegalArgumentException exception) {
             throw new InvalidAccessTokenException();
         }
