@@ -55,7 +55,7 @@ class CardServiceTest {
         // then
         assertThat(response.cardName()).isEqualTo("피카츄");
         assertThat(response.setName()).isEqualTo("베이스셋");
-        assertThat(response.language()).isEqualTo(Language.KOREAN);
+        assertThat(response.language()).isEqualTo(Language.KOREAN.getDisplayName());
         assertThat(response.rarity()).isEqualTo("MINT");
         assertThat(response.imageUrl()).isEqualTo("https://image.example.com/1.png");
     }

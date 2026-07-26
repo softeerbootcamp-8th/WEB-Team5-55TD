@@ -13,7 +13,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.dto.request.SearchCardsRequest;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
 import com.ootd.pickup.cards.dto.response.SearchCardsResponse;
@@ -35,7 +34,7 @@ class CardControllerTest {
         // given
         Long cardId = 1L;
         GetCardDetailResponse response = new GetCardDetailResponse(
-                cardId, "피카츄", "베이스셋", "025/102", Language.KOREAN, "MINT", "https://image.example.com/1.png"
+                cardId, "피카츄", "베이스셋", "025/102", "한국어", "MINT", "https://image.example.com/1.png"
         );
         given(cardService.getCardDetail(cardId)).willReturn(response);
 
@@ -46,7 +45,7 @@ class CardControllerTest {
                 .andExpect(jsonPath("$.cardName").value("피카츄"))
                 .andExpect(jsonPath("$.setName").value("베이스셋"))
                 .andExpect(jsonPath("$.cardNumber").value("025/102"))
-                .andExpect(jsonPath("$.language").value("KOREAN"))
+                .andExpect(jsonPath("$.language").value("한국어"))
                 .andExpect(jsonPath("$.rarity").value("MINT"))
                 .andExpect(jsonPath("$.imageUrl").value("https://image.example.com/1.png"));
     }
