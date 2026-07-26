@@ -10,7 +10,9 @@ public enum ExceptionCode {
     PIKACHU_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.PIKACHU_NOT_FOUND, "피카츄를 찾을 수 없습니다."),
     CARD_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.CARD_NOT_FOUND, "카드를 찾을 수 없습니다."),
     INVALID_GRADE(HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_GRADE, "유효하지 않은 카드 등급입니다."),
-    INVALID_CERTIFICATION_BODY(HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CERTIFICATION_BODY, "유효하지 않은 감정 기관입니다.");
+    INVALID_CERTIFICATION_BODY(HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CERTIFICATION_BODY, "유효하지 않은 감정 기관입니다."),
+    CONSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.CONSIGNMENT_NOT_FOUND, "상품을 찾을 수 없습니다."),
+    CERTIFICATE_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.CERTIFICATE_NOT_FOUND, "인증서를 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final ClientExceptionCode clientExceptionCode;

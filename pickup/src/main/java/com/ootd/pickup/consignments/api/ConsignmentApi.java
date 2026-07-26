@@ -1,9 +1,11 @@
 package com.ootd.pickup.consignments.api;
 
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
+import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -97,4 +99,59 @@ public interface ConsignmentApi {
             }
     )
     ResponseEntity<RegisterConsignmentResponse> registerConsignment(RegisterConsignmentRequest registerConsignmentRequest);
+
+    @Operation(
+            summary = "상품 상세 조회",
+            description = "상품 ID로 상품 상세 정보를 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "상품 상세 조회 성공",
+                            content = @Content(
+                                    schema = @Schema(implementation = GetConsignmentDetailResponse.class),
+                                    examples = @ExampleObject(
+                                            name = "상품 상세 조회 결과",
+                                            value = """
+                                                    {
+                                                      "consignmentId": 100,
+                                                      "card": {
+                                                        "cardId": 10,
+                                                        "cardName": "리자몽 1st Edition Holo",
+                                                        "setName": "Base Set",
+                                                        "cardNumber": "4/102",
+                                                        "language": "일본어",
+                                                        "rarity": "MINT",
+                                                        "imageUrl": "https://example.com/cards/10.png"
+                                                      },
+                                                      "sellerMemberNickname": "피카츄",
+                                                      "majorDefect": "모서리에 약간의 마모",
+                                                      "status": "REGISTERABLE",
+                                                      "certificate": {
+                                                        "certificateId": 200,
+                                                        "serialNumber": "PSA-84213907",
+                                                        "certificationBody": "PSA",
+                                                        "grade": "10",
+                                                        "gradeCode": "GEM_MINT",
+                                                        "inspectedAt": "2026-06-30"
+                                                      },
+                                                      "images": [
+                                                        { "productImageId": 1, "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
+                                                        { "productImageId": 2, "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
+                                                      ],
+                                                      "auctionRegistered": false
+                                                    }
+                                                    """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "상품을 찾을 수 없음",
+                            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))
+                    )
+            }
+    )
+    ResponseEntity<GetConsignmentDetailResponse> getConsignment(
+            @Parameter(description = "상품 ID", required = true) Long consignmentId
+    );
 }

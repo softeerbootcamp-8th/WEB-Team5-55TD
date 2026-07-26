@@ -22,8 +22,7 @@ public record GetConsignmentDetailResponse(
             Consignment consignment,
             Certificate certificate,
             List<ConsignmentImage> images,
-            String sellerMemberNickname,
-            boolean auctionRegistered
+            String sellerMemberNickname
     ) {
         return new GetConsignmentDetailResponse(
                 consignment.getConsignmentId(),
@@ -33,7 +32,7 @@ public record GetConsignmentDetailResponse(
                 consignment.getStatus(),
                 CertificateResponse.from(certificate),
                 images.stream().map(ConsignmentImageResponse::from).toList(),
-                auctionRegistered
+                consignment.getStatus() != ConsignmentStatus.REGISTERABLE
         );
     }
 }

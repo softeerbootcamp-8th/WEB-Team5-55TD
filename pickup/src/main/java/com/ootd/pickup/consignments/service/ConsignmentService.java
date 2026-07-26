@@ -1,13 +1,20 @@
 package com.ootd.pickup.consignments.service;
 
+import static com.ootd.pickup.global.exception.ExceptionCode.CERTIFICATE_NOT_FOUND;
+import static com.ootd.pickup.global.exception.ExceptionCode.CONSIGNMENT_NOT_FOUND;
+
+import java.util.List;
+
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.service.CardManageService;
 import com.ootd.pickup.consignments.domain.*;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
+import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.repository.CertificateRepository;
 import com.ootd.pickup.consignments.repository.ConsignmentImageRepository;
 import com.ootd.pickup.consignments.repository.ConsignmentRepository;
+import com.ootd.pickup.global.exception.PickUpException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,5 +51,20 @@ public class ConsignmentService {
         consignmentImageRepository.saveAll(request.toConsignmentImages(consignment));
 
         return RegisterConsignmentResponse.of(consignment, certificate);
+    }
+
+    public GetConsignmentDetailResponse getConsignment(Long consignmentId) {
+        Consignment consignment = consignmentRepository.findConsignmentById(consignmentId)
+                .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+        Certificate certificate = certificateRepository.findCertificateByConsignment(consignment)
+                .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
+
+        List<ConsignmentImage> images = consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
+
+        // TODO: 회원 도메인 구현 후 실제 판매자 닉네임으로 교체
+        String sellerMemberNickname = "피카츄";
+
+        return GetConsignmentDetailResponse.of(consignment, certificate, images, sellerMemberNickname);
     }
 }

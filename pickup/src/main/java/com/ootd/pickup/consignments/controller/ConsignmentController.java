@@ -2,16 +2,14 @@ package com.ootd.pickup.consignments.controller;
 
 import com.ootd.pickup.consignments.api.ConsignmentApi;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
+import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/consignments")
@@ -30,5 +28,11 @@ public class ConsignmentController implements ConsignmentApi {
                 .body(consignmentService.registerConsignment(
                         registerConsignmentRequest.sellerMemberId(), registerConsignmentRequest
                 ));
+    }
+
+    @GetMapping("/{consignmentId}")
+    @Override
+    public ResponseEntity<GetConsignmentDetailResponse> getConsignment(@PathVariable Long consignmentId) {
+        return ResponseEntity.ok(consignmentService.getConsignment(consignmentId));
     }
 }
