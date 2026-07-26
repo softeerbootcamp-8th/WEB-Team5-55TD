@@ -1,12 +1,10 @@
 package com.ootd.pickup.consignments.repository;
 
-import java.util.Optional;
-
+import com.ootd.pickup.consignments.domain.Consignment;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import com.ootd.pickup.consignments.domain.Consignment;
-
-import lombok.RequiredArgsConstructor;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -21,6 +19,6 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
 
     @Override
     public Optional<Consignment> findConsignmentById(Long consignmentId) {
-        return consignmentJpaRepository.findConsignmentByConsignmentId(consignmentId);
+        return consignmentJpaRepository.findById(consignmentId);
     }
 }
