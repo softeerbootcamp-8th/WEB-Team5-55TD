@@ -1,12 +1,11 @@
 package com.ootd.pickup.consignments.domain;
 
-import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CERTIFICATION_BODY;
+import com.ootd.pickup.global.exception.PickUpException;
+import lombok.Getter;
 
 import java.util.Arrays;
 
-import com.ootd.pickup.global.exception.PickUpException;
-
-import lombok.Getter;
+import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CERTIFICATION_BODY;
 
 @Getter
 public enum CertificationBody {
@@ -24,7 +23,7 @@ public enum CertificationBody {
 
     public static CertificationBody from(String certificationBody) {
         if (certificationBody == null || certificationBody.isBlank()) {
-            return null;
+            throw new PickUpException(INVALID_CERTIFICATION_BODY);
         }
 
         return Arrays.stream(values())
