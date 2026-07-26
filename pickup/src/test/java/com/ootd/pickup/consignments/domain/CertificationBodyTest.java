@@ -18,12 +18,10 @@ class CertificationBodyTest {
     }
 
     @Test
-    void 빈_문자열이면_null을_반환한다() {
-        // when
-        CertificationBody certificationBody = CertificationBody.from(" ");
-
-        // then
-        assertThat(certificationBody).isNull();
+    void 빈_문자열이면_예외가_발생한다() {
+        // when & then
+        assertThatThrownBy(() -> CertificationBody.from(" "))
+                .isInstanceOf(PickUpException.class);
     }
 
     @Test
