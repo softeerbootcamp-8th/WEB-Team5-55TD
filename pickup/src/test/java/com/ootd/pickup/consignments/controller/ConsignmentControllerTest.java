@@ -1,20 +1,5 @@
 package com.ootd.pickup.consignments.controller;
 
-import static com.ootd.pickup.global.exception.ExceptionCode.*;
-import static org.mockito.BDDMockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-import java.time.LocalDate;
-import java.util.List;
-
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-
 import com.ootd.pickup.cards.dto.response.SearchCardsResponse;
 import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
@@ -25,8 +10,22 @@ import com.ootd.pickup.consignments.dto.response.CertificateResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.exception.PickUpException;
-
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import static com.ootd.pickup.global.exception.ExceptionCode.CARD_NOT_FOUND;
+import static org.mockito.BDDMockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ConsignmentController.class)
 class ConsignmentControllerTest {
@@ -90,8 +89,8 @@ class ConsignmentControllerTest {
                 null,
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
                 List.of(
-                        new ConsignmentImageRequest(1, "https://image.example.com/front.png"),
-                        new ConsignmentImageRequest(2, "https://image.example.com/back.png")
+                        new ConsignmentImageRequest("https://image.example.com/front.png"),
+                        new ConsignmentImageRequest("https://image.example.com/back.png")
                 )
         );
 
@@ -112,7 +111,7 @@ class ConsignmentControllerTest {
                 1L,
                 null,
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
-                List.of(new ConsignmentImageRequest(1, "https://image.example.com/front.png"))
+                List.of(new ConsignmentImageRequest("https://image.example.com/front.png"))
         );
 
         // when & then
@@ -146,8 +145,8 @@ class ConsignmentControllerTest {
                 "모서리에 약간의 마모",
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
                 List.of(
-                        new ConsignmentImageRequest(1, "https://image.example.com/front.png"),
-                        new ConsignmentImageRequest(2, "https://image.example.com/back.png")
+                        new ConsignmentImageRequest("https://image.example.com/front.png"),
+                        new ConsignmentImageRequest("https://image.example.com/back.png")
                 )
         );
     }

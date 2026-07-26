@@ -1,11 +1,8 @@
 package com.ootd.pickup.consignments.api;
 
-import org.springframework.http.ResponseEntity;
-
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -13,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Consignment", description = "상품 등록 API")
 public interface ConsignmentApi {
@@ -21,7 +19,8 @@ public interface ConsignmentApi {
             summary = "상품 등록",
             description = """
                     카드 검색으로 선택한 카드와 감정서, 이미지(앞/뒤 최소 2장) 정보를 받아
-                    상품을 등록합니다. 등록 직후 상태는 REGISTERABLE(등록 가능)로 설정됩니다.
+                    상품을 등록합니다. 이미지 순서는 요청 배열에 담긴 순서를 그대로 사용합니다.
+                    등록 직후 상태는 REGISTERABLE(등록 가능)로 설정됩니다.
                     """,
             requestBody = @RequestBody(
                     required = true,
@@ -41,8 +40,8 @@ public interface ConsignmentApi {
                                                 "inspectedAt": "2026-06-30"
                                               },
                                               "images": [
-                                                { "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
-                                                { "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
+                                                { "imageUrl": "https://example.com/cards/10-front.png" },
+                                                { "imageUrl": "https://example.com/cards/10-back.png" }
                                               ]
                                             }
                                             """

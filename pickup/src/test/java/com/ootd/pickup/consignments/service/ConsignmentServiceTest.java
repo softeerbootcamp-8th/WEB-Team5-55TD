@@ -76,8 +76,8 @@ class ConsignmentServiceTest {
                 "모서리에 약간의 마모",
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
                 List.of(
-                        new ConsignmentImageRequest(1, "https://image.example.com/front.png"),
-                        new ConsignmentImageRequest(2, "https://image.example.com/back.png")
+                        new ConsignmentImageRequest("https://image.example.com/front.png"),
+                        new ConsignmentImageRequest("https://image.example.com/back.png")
                 )
         );
 
@@ -121,8 +121,8 @@ class ConsignmentServiceTest {
                 null,
                 new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
                 List.of(
-                        new ConsignmentImageRequest(1, "https://image.example.com/front.png"),
-                        new ConsignmentImageRequest(2, "https://image.example.com/back.png")
+                        new ConsignmentImageRequest("https://image.example.com/front.png"),
+                        new ConsignmentImageRequest("https://image.example.com/back.png")
                 )
         );
 
@@ -146,8 +146,8 @@ class ConsignmentServiceTest {
                 null,
                 new CertificateRequest("PSA-84213907", "PSA", "S급", LocalDate.of(2026, 6, 30)),
                 List.of(
-                        new ConsignmentImageRequest(1, "https://image.example.com/front.png"),
-                        new ConsignmentImageRequest(2, "https://image.example.com/back.png")
+                        new ConsignmentImageRequest("https://image.example.com/front.png"),
+                        new ConsignmentImageRequest("https://image.example.com/back.png")
                 )
         );
 

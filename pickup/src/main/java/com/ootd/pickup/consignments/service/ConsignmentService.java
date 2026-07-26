@@ -41,11 +41,7 @@ public class ConsignmentService {
 
         Certificate certificate = certificateRepository.save(request.certificate().toEntity(consignment));
 
-        consignmentImageRepository.saveAll(
-                request.images().stream()
-                        .map(imageRequest -> imageRequest.toEntity(consignment))
-                        .toList()
-        );
+        consignmentImageRepository.saveAll(request.toConsignmentImages(consignment));
 
         return RegisterConsignmentResponse.of(consignment, certificate);
     }
