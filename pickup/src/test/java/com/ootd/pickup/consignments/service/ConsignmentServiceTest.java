@@ -8,6 +8,7 @@ import com.ootd.pickup.consignments.domain.*;
 import com.ootd.pickup.consignments.dto.request.CertificateRequest;
 import com.ootd.pickup.consignments.dto.request.ConsignmentImageRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
+import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.repository.CertificateRepository;
 import com.ootd.pickup.consignments.repository.ConsignmentImageRepository;
@@ -24,6 +25,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
@@ -158,6 +160,84 @@ class ConsignmentServiceTest {
         then(certificateRepository).shouldHaveNoInteractions();
     }
 
+    @Test
+    void 존재하는_상품ID로_조회하면_상품_상세정보를_반환한다() {
+        // given
+        Long consignmentId = 100L;
+        Card card = createCard(10L);
+        Consignment consignment = createConsignment(consignmentId, card, ConsignmentStatus.REGISTERABLE);
+        Certificate certificate = createCertificate(200L, consignment);
+        List<ConsignmentImage> images = List.of(
+                createConsignmentImage(1L, consignment, 1, "https://image.example.com/front.png"),
+                createConsignmentImage(2L, consignment, 2, "https://image.example.com/back.png")
+        );
+        given(consignmentRepository.findConsignmentById(consignmentId)).willReturn(Optional.of(consignment));
+        given(certificateRepository.findCertificateByConsignment(consignment)).willReturn(Optional.of(certificate));
+        given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment)).willReturn(images);
+
+        // when
+        GetConsignmentDetailResponse response = consignmentService.getConsignment(consignmentId);
+
+        // then
+        assertThat(response.consignmentId()).isEqualTo(consignmentId);
+        assertThat(response.card().cardId()).isEqualTo(10L);
+        assertThat(response.sellerMemberNickname()).isEqualTo("피카츄");
+        assertThat(response.status()).isEqualTo(ConsignmentStatus.REGISTERABLE);
+        assertThat(response.certificate().certificateId()).isEqualTo(200L);
+        assertThat(response.auctionRegistered()).isFalse();
+        assertThat(response.images())
+                .extracting(imageResponse -> imageResponse.imageOrder(), imageResponse -> imageResponse.imageUrl())
+                .containsExactly(
+                        tuple(1, "https://image.example.com/front.png"),
+                        tuple(2, "https://image.example.com/back.png")
+                );
+    }
+
+    @Test
+    void REGISTERABLE이_아닌_상품을_조회하면_경매등록상태가_true다() {
+        // given
+        Long consignmentId = 100L;
+        Card card = createCard(10L);
+        Consignment consignment = createConsignment(consignmentId, card, ConsignmentStatus.AUCTION_ONGOING);
+        Certificate certificate = createCertificate(200L, consignment);
+        given(consignmentRepository.findConsignmentById(consignmentId)).willReturn(Optional.of(consignment));
+        given(certificateRepository.findCertificateByConsignment(consignment)).willReturn(Optional.of(certificate));
+        given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment)).willReturn(List.of());
+
+        // when
+        GetConsignmentDetailResponse response = consignmentService.getConsignment(consignmentId);
+
+        // then
+        assertThat(response.auctionRegistered()).isTrue();
+    }
+
+    @Test
+    void 존재하지_않는_상품ID로_조회하면_예외가_발생한다() {
+        // given
+        Long notExistConsignmentId = 999L;
+        given(consignmentRepository.findConsignmentById(notExistConsignmentId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> consignmentService.getConsignment(notExistConsignmentId))
+                .isInstanceOf(PickUpException.class);
+        then(certificateRepository).shouldHaveNoInteractions();
+        then(consignmentImageRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void 상품에_연결된_인증서를_찾을_수_없으면_예외가_발생한다() {
+        // given
+        Long consignmentId = 100L;
+        Consignment consignment = createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+        given(consignmentRepository.findConsignmentById(consignmentId)).willReturn(Optional.of(consignment));
+        given(certificateRepository.findCertificateByConsignment(consignment)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> consignmentService.getConsignment(consignmentId))
+                .isInstanceOf(PickUpException.class);
+        then(consignmentImageRepository).shouldHaveNoInteractions();
+    }
+
     private Card createCard(Long cardId) {
         Card card = Card.builder()
                 .cardName("리자몽 1st Edition Holo")
@@ -169,5 +249,43 @@ class ConsignmentServiceTest {
                 .build();
         ReflectionTestUtils.setField(card, "cardId", cardId);
         return card;
+    }
+
+    private Consignment createConsignment(Long consignmentId, Card card, ConsignmentStatus status) {
+        Consignment consignment = Consignment.builder()
+                .card(card)
+                .sellerMemberId(1L)
+                .majorDefect(null)
+                .status(status)
+                .build();
+        ReflectionTestUtils.setField(consignment, "consignmentId", consignmentId);
+        return consignment;
+    }
+
+    private Certificate createCertificate(Long certificateId, Consignment consignment) {
+        Certificate certificate = Certificate.builder()
+                .consignment(consignment)
+                .serialNumber("PSA-84213907")
+                .certificationBody(CertificationBody.PSA)
+                .grade(Grade.GEM_MINT)
+                .inspectedAt(LocalDate.of(2026, 6, 30))
+                .build();
+        ReflectionTestUtils.setField(certificate, "certificateId", certificateId);
+        return certificate;
+    }
+
+    private ConsignmentImage createConsignmentImage(
+            Long consignmentImageId,
+            Consignment consignment,
+            int imageOrder,
+            String imageUrl
+    ) {
+        ConsignmentImage consignmentImage = ConsignmentImage.builder()
+                .consignment(consignment)
+                .imageOrder(imageOrder)
+                .imageUrl(imageUrl)
+                .build();
+        ReflectionTestUtils.setField(consignmentImage, "consignmentImageId", consignmentImageId);
+        return consignmentImage;
     }
 }
