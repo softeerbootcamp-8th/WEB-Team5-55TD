@@ -5,4 +5,6 @@ public enum ClientExceptionCode {
     ILLEGAL_ARGUMENT,
     PIKACHU_NOT_FOUND,
     CARD_NOT_FOUND,
+    INVALID_GRADE,
+    INVALID_CERTIFICATION_BODY,
 }

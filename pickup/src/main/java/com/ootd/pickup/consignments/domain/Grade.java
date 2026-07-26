@@ -1,5 +1,11 @@
 package com.ootd.pickup.consignments.domain;
 
+import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_GRADE;
+
+import java.util.Arrays;
+
+import com.ootd.pickup.global.exception.PickUpException;
+
 import lombok.Getter;
 
 @Getter
@@ -21,5 +27,17 @@ public enum Grade {
     Grade(int score, String displayName) {
         this.score = score;
         this.displayName = displayName;
+    }
+
+    public static Grade from(String grade) {
+        if (grade == null || grade.isBlank()) {
+            return null;
+        }
+
+        return Arrays.stream(values())
+                .filter(value -> value.name().equalsIgnoreCase(grade)
+                        || String.valueOf(value.score).equals(grade))
+                .findFirst()
+                .orElseThrow(() -> new PickUpException(INVALID_GRADE));
     }
 }
