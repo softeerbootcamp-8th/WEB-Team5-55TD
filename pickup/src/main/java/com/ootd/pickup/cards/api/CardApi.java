@@ -7,6 +7,7 @@ import com.ootd.pickup.cards.dto.request.SearchCardsRequest;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
 import com.ootd.pickup.cards.dto.response.SearchCardsResponse;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
 
 import io.swagger.v3.oas.annotations.Operation;

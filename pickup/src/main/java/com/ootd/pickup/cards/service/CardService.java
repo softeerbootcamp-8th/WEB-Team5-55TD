@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ootd.pickup.cards.domain.Card;
+
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.dto.request.SearchCardsRequest;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;

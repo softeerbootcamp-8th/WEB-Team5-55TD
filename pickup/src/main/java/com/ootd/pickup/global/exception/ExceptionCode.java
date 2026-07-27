@@ -13,6 +13,9 @@ public enum ExceptionCode {
     INVALID_CERTIFICATION_BODY(HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CERTIFICATION_BODY, "유효하지 않은 감정 기관입니다."),
     CONSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.CONSIGNMENT_NOT_FOUND, "상품을 찾을 수 없습니다."),
     CERTIFICATE_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.CERTIFICATE_NOT_FOUND, "인증서를 찾을 수 없습니다.");
+    MEMBER_LOGIN_ID_ALREADY_EXISTS(HttpStatus.CONFLICT, ClientExceptionCode.MEMBER_LOGIN_ID_ALREADY_EXISTS, "이미 사용 중인 아이디입니다."),
+    MEMBER_NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, ClientExceptionCode.MEMBER_NICKNAME_ALREADY_EXISTS, "이미 사용 중인 닉네임입니다."),
+    INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_ACCESS_TOKEN, "유효하지 않은 액세스 토큰입니다.");
 
     private final HttpStatus httpStatus;
     private final ClientExceptionCode clientExceptionCode;

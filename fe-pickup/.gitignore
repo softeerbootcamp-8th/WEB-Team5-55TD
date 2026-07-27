@@ -1,0 +1,26 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# build
+dist
+dist-ssr
+*.local
+
+# generated
+src/api/generated
+src/routeTree.gen.ts
+
+# env
+.env
+.env.*
+!.env.example
+
+# editor / os
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.log
+node_modules/.tmp
+.tanstack
