@@ -44,4 +44,10 @@ public class Member {
         member.updatedAt = member.joinedAt;
         return member;
     }
+
+    public boolean isPasswordMatched(String rawPassword) {
+        return BCrypt.verifyer()
+                .verify(rawPassword.toCharArray(), password)
+                .verified;
+    }
 }
