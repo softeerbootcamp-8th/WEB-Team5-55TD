@@ -27,12 +27,12 @@ class JwtAccessTokenTest {
     void 액세스_토큰을_생성하고_인증한다() {
         GeneratedAccessToken generatedToken = generator.generate(1L, "session-1");
 
-        AuthenticatedToken authenticatedToken = verifier.verify(generatedToken.value());
+        Authentication authentication = verifier.verify(generatedToken.value());
 
-        assertThat(authenticatedToken.memberId()).isEqualTo(1L);
-        assertThat(authenticatedToken.sessionId()).isEqualTo("session-1");
-        assertThat(authenticatedToken.tokenId()).isEqualTo(generatedToken.tokenId());
-        assertThat(authenticatedToken.expiresAt()).isEqualTo(generatedToken.expiresAt());
+        assertThat(authentication.memberId()).isEqualTo(1L);
+        assertThat(authentication.sessionId()).isEqualTo("session-1");
+        assertThat(authentication.tokenId()).isEqualTo(generatedToken.tokenId());
+        assertThat(authentication.expiresAt()).isEqualTo(generatedToken.expiresAt());
     }
 
     @Test
