@@ -1,0 +1,296 @@
+openapi: 3.0.3
+info:
+  title: 카디언(Cardian) API
+  version: 0.1.0
+  description: >
+    TCG 실물 카드 경매 플랫폼 API. 백엔드 스펙 확정 전까지 사용하는 스타터
+    스펙입니다. 실제 스펙이 준비되면 이 파일을 교체하거나 orval.config.ts 의
+    input.target 을 스펙 URL 로 변경하세요.
+servers:
+  - url: /api
+tags:
+  - name: health
+    description: 서버 상태 확인
+  - name: auth
+    description: 인증 (로그인 · 회원가입)
+  - name: auctions
+    description: 경매
+  - name: bids
+    description: 입찰
+paths:
+  /healthcheck:
+    get:
+      tags: [health]
+      operationId: healthCheck
+      summary: 헬스체크
+      description: 서버가 정상적으로 동작 중인지 확인합니다.
+      responses:
+        "200":
+          description: 서버 정상 동작
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResponse"
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: 로그인
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: 로그인 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+  /auth/signup:
+    post:
+      tags: [auth]
+      operationId: signup
+      summary: 회원가입
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+      responses:
+        "201":
+          description: 가입 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+  /auctions:
+    get:
+      tags: [auctions]
+      operationId: listAuctions
+      summary: 경매 목록
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/AuctionStatus"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 경매 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuctionSummary"
+  /auctions/{auctionId}:
+    get:
+      tags: [auctions]
+      operationId: getAuction
+      summary: 경매 상세
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 경매 상세
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuctionDetail"
+  /auctions/{auctionId}/bids:
+    get:
+      tags: [bids]
+      operationId: listBids
+      summary: 입찰 내역
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 입찰 내역
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bid"
+    post:
+      tags: [bids]
+      operationId: placeBid
+      summary: 입찰하기
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaceBidRequest"
+      responses:
+        "201":
+          description: 입찰 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bid"
+components:
+  schemas:
+    HealthCheckResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: OK
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 4
+        password:
+          type: string
+          minLength: 4
+    SignupRequest:
+      type: object
+      required: [username, nickname, password]
+      properties:
+        username:
+          type: string
+          minLength: 4
+        nickname:
+          type: string
+          minLength: 4
+        password:
+          type: string
+          minLength: 4
+    AuthResponse:
+      type: object
+      required: [accessToken, user]
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+    User:
+      type: object
+      required: [id, nickname, role, points]
+      properties:
+        id:
+          type: string
+        nickname:
+          type: string
+        role:
+          type: string
+          enum: [BUYER, SELLER]
+        points:
+          type: integer
+          description: 보유 가상 포인트(P)
+    AuctionStatus:
+      type: string
+      enum: [LIVE, UPCOMING, ENDED]
+      description: 진행 중 · 예정 · 종료
+    Grade:
+      type: object
+      properties:
+        agency:
+          type: string
+          enum: [PSA, BGS, CGC]
+          description: 인증기관
+        score:
+          type: string
+          example: "10"
+        serial:
+          type: string
+          description: 인증서 일련번호
+          example: PSA-84213907
+    AuctionSummary:
+      type: object
+      required: [id, cardName, status]
+      properties:
+        id:
+          type: string
+        cardName:
+          type: string
+        thumbnailUrl:
+          type: string
+        status:
+          $ref: "#/components/schemas/AuctionStatus"
+        grade:
+          $ref: "#/components/schemas/Grade"
+        currentPrice:
+          type: integer
+        startPrice:
+          type: integer
+        endsAt:
+          type: string
+          format: date-time
+        startsAt:
+          type: string
+          format: date-time
+        watchCount:
+          type: integer
+    AuctionDetail:
+      allOf:
+        - $ref: "#/components/schemas/AuctionSummary"
+        - type: object
+          properties:
+            sellerNickname:
+              type: string
+            minBidUnit:
+              type: integer
+              description: 최소 입찰 단위 (시작가의 5%)
+            images:
+              type: array
+              items:
+                type: string
+            bidCount:
+              type: integer
+    Bid:
+      type: object
+      required: [id, maskedNickname, amount, createdAt]
+      properties:
+        id:
+          type: string
+        maskedNickname:
+          type: string
+          example: bid***23
+        amount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        isMine:
+          type: boolean
+    PlaceBidRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: integer
+          description: 현재가 + 최소 입찰 단위 이상
