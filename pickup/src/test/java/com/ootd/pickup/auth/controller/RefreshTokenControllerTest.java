@@ -2,6 +2,8 @@ package com.ootd.pickup.auth.controller;
 
 import com.ootd.pickup.auth.service.RefreshResult;
 import com.ootd.pickup.auth.service.RefreshTokenService;
+import com.ootd.pickup.auth.service.LoginService;
+import com.ootd.pickup.auth.service.LogoutService;
 import com.ootd.pickup.auth.token.GeneratedAccessToken;
 import com.ootd.pickup.auth.token.JwtTokenProperties;
 import com.ootd.pickup.auth.web.AuthenticationAttributes;
@@ -39,8 +41,10 @@ class RefreshTokenControllerTest {
                 Duration.ofDays(14)
         );
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new RefreshTokenController(
+                new AuthController(
+                        mock(LoginService.class),
                         refreshTokenService,
+                        mock(LogoutService.class),
                         new TokenCookieManager(tokenProperties)
                 )
         ).build();

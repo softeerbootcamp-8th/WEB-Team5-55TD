@@ -4,6 +4,8 @@ import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.dto.LoginResponse;
 import com.ootd.pickup.auth.service.LoginResult;
 import com.ootd.pickup.auth.service.LoginService;
+import com.ootd.pickup.auth.service.LogoutService;
+import com.ootd.pickup.auth.service.RefreshTokenService;
 import com.ootd.pickup.auth.token.JwtTokenProperties;
 import com.ootd.pickup.auth.token.GeneratedAccessToken;
 import com.ootd.pickup.auth.web.TokenCookieManager;
@@ -42,7 +44,12 @@ class LoginControllerTest {
                 Duration.ofDays(14)
         );
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new LoginController(loginService, new TokenCookieManager(tokenProperties))
+                new AuthController(
+                        loginService,
+                        mock(RefreshTokenService.class),
+                        mock(LogoutService.class),
+                        new TokenCookieManager(tokenProperties)
+                )
         ).build();
     }
 

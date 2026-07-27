@@ -1,6 +1,8 @@
 package com.ootd.pickup.auth.controller;
 
 import com.ootd.pickup.auth.service.LogoutService;
+import com.ootd.pickup.auth.service.LoginService;
+import com.ootd.pickup.auth.service.RefreshTokenService;
 import com.ootd.pickup.auth.token.JwtTokenProperties;
 import com.ootd.pickup.auth.web.AuthenticationAttributes;
 import com.ootd.pickup.auth.web.TokenCookieManager;
@@ -37,7 +39,9 @@ class LogoutControllerTest {
                 Duration.ofDays(14)
         );
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new LogoutController(
+                new AuthController(
+                        mock(LoginService.class),
+                        mock(RefreshTokenService.class),
                         logoutService,
                         new TokenCookieManager(tokenProperties)
                 )
