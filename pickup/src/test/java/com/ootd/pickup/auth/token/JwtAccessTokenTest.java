@@ -46,10 +46,12 @@ class JwtAccessTokenTest {
     void 리프레시_토큰은_서로_다른_보안_문자열로_생성한다() {
         SecureRefreshTokenGenerator refreshTokenGenerator = new SecureRefreshTokenGenerator();
 
-        String firstToken = refreshTokenGenerator.generate();
-        String secondToken = refreshTokenGenerator.generate();
+        GeneratedRefreshToken firstToken = refreshTokenGenerator.generate();
+        GeneratedRefreshToken secondToken = refreshTokenGenerator.generate();
 
-        assertThat(firstToken).isNotEqualTo(secondToken);
-        assertThat(Base64.getUrlDecoder().decode(firstToken)).hasSize(32);
+        assertThat(firstToken.value()).isNotEqualTo(secondToken.value());
+        assertThat(Base64.getUrlDecoder().decode(firstToken.value())).hasSize(32);
+        assertThat(refreshTokenGenerator.hash(firstToken.value()))
+                .isEqualTo(firstToken.hash());
     }
 }

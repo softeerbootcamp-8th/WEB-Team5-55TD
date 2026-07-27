@@ -1,5 +1,7 @@
 package com.ootd.pickup.auth.token;
 
 public interface RefreshTokenGenerator {
-    String generate();
+    GeneratedRefreshToken generate();
+
+    String hash(String refreshToken);
 }
