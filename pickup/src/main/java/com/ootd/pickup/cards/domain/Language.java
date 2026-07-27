@@ -18,6 +18,7 @@ public enum Language {
     Language(String displayName) {
         this.displayName = displayName;
     }
+
     public static Language from(String language) {
         if (language == null || language.isBlank()) {
             return null;
@@ -28,5 +29,8 @@ public enum Language {
                         || value.displayName.equals(language))
                 .findFirst()
                 .orElseThrow(() -> new PickUpException(ILLEGAL_ARGUMENT));
+
+    public String getDisplayName() {
+        return displayName;
     }
 }
