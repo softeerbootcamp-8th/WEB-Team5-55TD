@@ -8,7 +8,7 @@ public record GetCardDetailResponse(
         String cardName,
         String setName,
         String cardNumber,
-        Language language,
+        String language,
         String rarity,
         String imageUrl
 ) {
@@ -18,7 +18,7 @@ public record GetCardDetailResponse(
             card.getCardName(),
             card.getSetName(),
             card.getCardNumber(),
-            card.getLanguage(),
+            card.getLanguage().getDisplayName(),
             card.getRarity().name(),
             card.getImageUrl()
         );
