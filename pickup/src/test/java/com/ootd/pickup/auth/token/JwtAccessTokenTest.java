@@ -25,19 +25,16 @@ class JwtAccessTokenTest {
 
     @Test
     void 액세스_토큰을_생성하고_인증한다() {
-        GeneratedAccessToken generatedToken = generator.generate(1L, "session-1");
+        GeneratedAccessToken generatedToken = generator.generate(1L);
 
-        AuthenticatedToken authenticatedToken = verifier.verify(generatedToken.value());
+        Authentication authentication = verifier.verify(generatedToken.value());
 
-        assertThat(authenticatedToken.memberId()).isEqualTo(1L);
-        assertThat(authenticatedToken.sessionId()).isEqualTo("session-1");
-        assertThat(authenticatedToken.tokenId()).isEqualTo(generatedToken.tokenId());
-        assertThat(authenticatedToken.expiresAt()).isEqualTo(generatedToken.expiresAt());
+        assertThat(authentication.memberId()).isEqualTo(1L);
     }
 
     @Test
     void 서명이_다른_액세스_토큰은_인증하지_않는다() {
-        GeneratedAccessToken generatedToken = generator.generate(1L, "session-1");
+        GeneratedAccessToken generatedToken = generator.generate(1L);
         byte[] anotherKeyBytes = new byte[32];
         anotherKeyBytes[0] = 1;
         SecretKey anotherKey = Keys.hmacShaKeyFor(anotherKeyBytes);
