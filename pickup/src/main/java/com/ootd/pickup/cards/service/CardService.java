@@ -8,12 +8,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ootd.pickup.cards.domain.Card;
+
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.dto.request.SearchCardsRequest;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
 import com.ootd.pickup.cards.dto.response.SearchCardsResponse;
 import com.ootd.pickup.cards.repository.CardRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+
 import com.ootd.pickup.global.exception.PickUpException;
 
 import lombok.RequiredArgsConstructor;

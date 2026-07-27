@@ -18,6 +18,7 @@ import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
 import com.ootd.pickup.cards.dto.response.SearchCardsResponse;
 import com.ootd.pickup.cards.service.CardService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+
 import com.ootd.pickup.global.exception.PickUpException;
 
 @WebMvcTest(CardController.class)
