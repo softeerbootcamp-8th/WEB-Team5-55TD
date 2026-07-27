@@ -41,7 +41,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: 'upload/app.jar'
-          target: '/home/ec2-user/pickup'
+          target: '/home/ubuntu/pickup'
           strip_components: 1
 
       - name: Restart service & health check
