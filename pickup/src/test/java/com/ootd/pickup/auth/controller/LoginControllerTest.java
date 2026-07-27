@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItems;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -72,5 +73,15 @@ class LoginControllerTest {
                                 containsString("SameSite=None")
                         )
                 ));
+    }
+
+    @Test
+    void 아이디나_비밀번호가_4자_미만이면_로그인하지_않는다() throws Exception {
+        mockMvc.perform(post("/auth")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"loginId\":\"abc\",\"password\":\"123\"}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(loginService);
     }
 }

@@ -5,6 +5,7 @@ import com.ootd.pickup.auth.dto.LoginResponse;
 import com.ootd.pickup.auth.service.LoginResult;
 import com.ootd.pickup.auth.service.LoginService;
 import com.ootd.pickup.auth.web.TokenCookieManager;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,7 +21,7 @@ public class LoginController {
     private final TokenCookieManager tokenCookieManager;
 
     @PostMapping
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         LoginResult loginResult = loginService.login(loginRequest);
         return ResponseEntity.ok()
                 .headers(tokenCookieManager.createTokenCookieHeaders(
