@@ -8,6 +8,12 @@ on:
     paths:
       - 'pickup/**'
       - '.github/workflows/backend-ci.yml'
+  workflow_call:
+    inputs:
+      upload-jar:
+        description: '빌드된 실행형 jar를 아티팩트로 업로드할지 여부 (CD에서 사용)'
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -47,3 +53,13 @@ jobs:
             pickup/build/test-results/test
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: Upload application jar
+        if: ${{ inputs.upload-jar }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: |
+            pickup/build/libs/pickup-*.jar
+            !pickup/build/libs/*-plain.jar
+          if-no-files-found: error
