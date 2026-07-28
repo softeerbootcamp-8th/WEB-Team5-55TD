@@ -67,11 +67,11 @@ class AuthServiceTest {
         given(refreshTokenGenerator.generate()).willReturn(refreshToken);
         given(jwtTokenProperties.refreshTokenTtl()).willReturn(refreshTokenTtl);
 
-        LoginResult result = authService.login(request);
+        LoginResponse response = authService.login(request);
 
-        assertThat(result.response().memberId()).isEqualTo(member.getMemberId());
-        assertThat(result.accessToken()).isEqualTo(accessToken);
-        assertThat(result.refreshToken()).isEqualTo("refresh-token");
+        assertThat(response.body().memberId()).isEqualTo(member.getMemberId());
+        assertThat(response.accessToken()).isEqualTo(accessToken);
+        assertThat(response.refreshToken()).isEqualTo("refresh-token");
         then(accessTokenGenerator).should().generate(member.getMemberId());
         then(refreshTokenGenerator).should().generate();
         then(refreshTokenRepository).should().save(
@@ -151,10 +151,11 @@ class AuthServiceTest {
         given(jwtTokenProperties.refreshTokenTtl()).willReturn(refreshTokenTtl);
         given(accessTokenGenerator.generate(1L)).willReturn(newAccessToken);
 
-        RefreshResult result = authService.refresh("old-refresh-token");
+        RefreshResponse response = authService.refresh("old-refresh-token");
 
-        assertThat(result.accessToken()).isEqualTo(newAccessToken);
-        assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
+        assertThat(response.body().expiresAt()).isEqualTo(newAccessToken.expiresAt());
+        assertThat(response.accessToken()).isEqualTo(newAccessToken);
+        assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
         then(refreshTokenRepository).should().save(
                 "new-refresh-token-hash",
                 1L,

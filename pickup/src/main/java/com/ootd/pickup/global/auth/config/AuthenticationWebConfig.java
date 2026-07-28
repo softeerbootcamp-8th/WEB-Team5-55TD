@@ -1,11 +1,13 @@
 package com.ootd.pickup.global.auth.config;
 
 import com.ootd.pickup.auth.token.AccessTokenVerifier;
+import com.ootd.pickup.global.auth.TokenCookieProperties;
 import com.ootd.pickup.global.auth.filter.AuthenticationFilter;
 import com.ootd.pickup.global.auth.interceptor.AuthenticationInterceptor;
 import com.ootd.pickup.global.auth.resolver.MemberIdArgumentResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +19,7 @@ import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
+@EnableConfigurationProperties(TokenCookieProperties.class)
 public class AuthenticationWebConfig implements WebMvcConfigurer {
 
     private final AuthenticationInterceptor authenticationInterceptor;

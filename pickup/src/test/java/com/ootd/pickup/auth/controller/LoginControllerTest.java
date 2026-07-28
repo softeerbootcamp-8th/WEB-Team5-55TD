@@ -1,11 +1,12 @@
 package com.ootd.pickup.auth.controller;
 
 import com.ootd.pickup.auth.dto.LoginRequest;
-import com.ootd.pickup.auth.dto.LoginResponse;
+import com.ootd.pickup.auth.dto.LoginResponseBody;
 import com.ootd.pickup.auth.service.AuthService;
-import com.ootd.pickup.auth.service.LoginResult;
+import com.ootd.pickup.auth.service.LoginResponse;
 import com.ootd.pickup.auth.token.AccessToken;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
+import com.ootd.pickup.global.auth.TokenCookieProperties;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,7 +47,10 @@ class LoginControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(
                 new AuthController(
                         authService,
-                        new TokenCookieManager(tokenProperties)
+                        new TokenCookieManager(
+                                tokenProperties,
+                                new TokenCookieProperties(true, "None")
+                        )
                 )
         ).build();
     }
@@ -55,13 +59,18 @@ class LoginControllerTest {
     void 로그인에_성공하면_두_토큰을_보안_쿠키로_전달한다() throws Exception {
         // given
         LoginRequest request = new LoginRequest("pickup-user", "password1234");
-        LoginResponse response = new LoginResponse(1L, "pickup-user", "픽업회원", null);
-        LoginResult result = new LoginResult(
-                response,
+        LoginResponseBody body = new LoginResponseBody(
+                1L,
+                "pickup-user",
+                "픽업회원",
+                null
+        );
+        LoginResponse response = new LoginResponse(
+                body,
                 new AccessToken("access-token", Instant.now().plusSeconds(900)),
                 "refresh-token"
         );
-        given(authService.login(request)).willReturn(result);
+        given(authService.login(request)).willReturn(response);
 
         // when & then
         mockMvc.perform(post("/auth")
@@ -70,6 +79,8 @@ class LoginControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").value(1L))
                 .andExpect(jsonPath("$.loginId").value("pickup-user"))
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(header().stringValues(
                         HttpHeaders.SET_COOKIE,
                         contains(

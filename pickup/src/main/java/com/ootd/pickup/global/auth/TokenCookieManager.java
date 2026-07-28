@@ -13,6 +13,7 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class TokenCookieManager {
     private final JwtTokenProperties jwtTokenProperties;
+    private final TokenCookieProperties tokenCookieProperties;
 
     public HttpHeaders createTokenCookieHeaders(
             AccessToken accessToken,
@@ -64,8 +65,8 @@ public class TokenCookieManager {
     ) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("None")
+                .secure(tokenCookieProperties.secure())
+                .sameSite(tokenCookieProperties.sameSite())
                 .path(path)
                 .maxAge(maxAge)
                 .build();

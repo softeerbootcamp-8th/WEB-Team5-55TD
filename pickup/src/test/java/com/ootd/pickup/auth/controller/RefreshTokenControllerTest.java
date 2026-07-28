@@ -1,10 +1,12 @@
 package com.ootd.pickup.auth.controller;
 
+import com.ootd.pickup.auth.dto.RefreshResponseBody;
 import com.ootd.pickup.auth.service.AuthService;
-import com.ootd.pickup.auth.service.RefreshResult;
+import com.ootd.pickup.auth.service.RefreshResponse;
 import com.ootd.pickup.auth.token.AccessToken;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.auth.TokenCookieProperties;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +44,10 @@ class RefreshTokenControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(
                 new AuthController(
                         authService,
-                        new TokenCookieManager(tokenProperties)
+                        new TokenCookieManager(
+                                tokenProperties,
+                                new TokenCookieProperties(true, "None")
+                        )
                 )
         ).build();
     }
@@ -52,7 +57,8 @@ class RefreshTokenControllerTest {
         // given
         Instant expiresAt = Instant.parse("2026-07-26T05:00:00Z");
         given(authService.refresh("old-refresh-token"))
-                .willReturn(new RefreshResult(
+                .willReturn(new RefreshResponse(
+                        new RefreshResponseBody(expiresAt),
                         new AccessToken("new-access-token", expiresAt),
                         "new-refresh-token"
                 ));
@@ -65,6 +71,8 @@ class RefreshTokenControllerTest {
                         )))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expiresAt").value(expiresAt.toString()))
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(header().stringValues(
                         HttpHeaders.SET_COOKIE,
                         contains(

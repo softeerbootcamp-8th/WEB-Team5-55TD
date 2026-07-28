@@ -1,7 +1,8 @@
 package com.ootd.pickup.auth.service;
 
 import com.ootd.pickup.auth.dto.LoginRequest;
-import com.ootd.pickup.auth.dto.LoginResponse;
+import com.ootd.pickup.auth.dto.LoginResponseBody;
+import com.ootd.pickup.auth.dto.RefreshResponseBody;
 import com.ootd.pickup.auth.repository.RefreshTokenRepository;
 import com.ootd.pickup.auth.token.AccessToken;
 import com.ootd.pickup.auth.token.AccessTokenGenerator;
@@ -25,7 +26,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProperties jwtTokenProperties;
 
-    public LoginResult login(LoginRequest loginRequest) {
+    public LoginResponse login(LoginRequest loginRequest) {
         Member member = memberRepository.findByLoginId(loginRequest.loginId())
                 .orElseThrow(() -> new PickUpException(ExceptionCode.INVALID_PASSWORD));
 
@@ -42,14 +43,14 @@ public class AuthService {
                 jwtTokenProperties.refreshTokenTtl()
         );
 
-        LoginResponse response = new LoginResponse(
+        LoginResponseBody body = new LoginResponseBody(
                 member.getMemberId(),
                 member.getLoginId(),
                 member.getNickname(),
                 member.getProfileImageUrl()
         );
 
-        return new LoginResult(response, accessToken, refreshToken.value());
+        return new LoginResponse(body, accessToken, refreshToken.value());
     }
 
     public void logout(String refreshToken) {
@@ -61,7 +62,7 @@ public class AuthService {
         refreshTokenRepository.delete(tokenHash);
     }
 
-    public RefreshResult refresh(String refreshToken) {
+    public RefreshResponse refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new PickUpException(ExceptionCode.INVALID_REFRESH_TOKEN);
         }
@@ -78,6 +79,7 @@ public class AuthService {
         );
 
         AccessToken newAccessToken = accessTokenGenerator.generate(memberId);
-        return new RefreshResult(newAccessToken, newRefreshToken.value());
+        RefreshResponseBody body = new RefreshResponseBody(newAccessToken.expiresAt());
+        return new RefreshResponse(body, newAccessToken, newRefreshToken.value());
     }
 }

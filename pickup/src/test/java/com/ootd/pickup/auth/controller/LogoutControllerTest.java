@@ -3,6 +3,7 @@ package com.ootd.pickup.auth.controller;
 import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.auth.TokenCookieProperties;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +40,10 @@ class LogoutControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(
                 new AuthController(
                         authService,
-                        new TokenCookieManager(tokenProperties)
+                        new TokenCookieManager(
+                                tokenProperties,
+                                new TokenCookieProperties(true, "None")
+                        )
                 )
         ).build();
     }

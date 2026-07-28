@@ -1,8 +1,8 @@
 package com.ootd.pickup.auth.api;
 
 import com.ootd.pickup.auth.dto.LoginRequest;
-import com.ootd.pickup.auth.dto.LoginResponse;
-import com.ootd.pickup.auth.dto.RefreshResponse;
+import com.ootd.pickup.auth.dto.LoginResponseBody;
+import com.ootd.pickup.auth.dto.RefreshResponseBody;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.headers.Header;
@@ -27,7 +27,7 @@ public interface AuthApi {
                                     description = "access-token과 refresh-token 쿠키를 발급합니다.",
                                     schema = @Schema(type = "string")
                             ),
-                            content = @Content(schema = @Schema(implementation = LoginResponse.class))
+                            content = @Content(schema = @Schema(implementation = LoginResponseBody.class))
                     ),
                     @ApiResponse(
                             responseCode = "400",
@@ -41,7 +41,7 @@ public interface AuthApi {
                     )
             }
     )
-    ResponseEntity<LoginResponse> login(LoginRequest loginRequest);
+    ResponseEntity<LoginResponseBody> login(LoginRequest loginRequest);
 
     @Operation(
             summary = "토큰 갱신",
@@ -55,7 +55,7 @@ public interface AuthApi {
                                     description = "새 access-token과 refresh-token 쿠키를 발급합니다.",
                                     schema = @Schema(type = "string")
                             ),
-                            content = @Content(schema = @Schema(implementation = RefreshResponse.class))
+                            content = @Content(schema = @Schema(implementation = RefreshResponseBody.class))
                     ),
                     @ApiResponse(
                             responseCode = "401",
@@ -64,7 +64,7 @@ public interface AuthApi {
                     )
             }
     )
-    ResponseEntity<RefreshResponse> refresh(String refreshToken);
+    ResponseEntity<RefreshResponseBody> refresh(String refreshToken);
 
     @Operation(
             summary = "로그아웃",

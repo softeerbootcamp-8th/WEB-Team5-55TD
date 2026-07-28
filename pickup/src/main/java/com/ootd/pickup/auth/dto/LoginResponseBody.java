@@ -1,8 +1,9 @@
 package com.ootd.pickup.auth.dto;
 
-public record LoginResponse(
+public record LoginResponseBody(
         Long memberId,
         String loginId,
         String nickname,
         String profileImageUrl
-) { }
+) {
+}
