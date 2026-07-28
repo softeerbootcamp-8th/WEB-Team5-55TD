@@ -1,7 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronDown,
+  Gavel,
+  Heart,
   LogOut,
+  Package,
+  Receipt,
   Repeat,
   Settings,
   User as UserIcon,
@@ -32,7 +36,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: "홈", to: "/home" },
     { label: "경매", to: "/auctions" },
     { label: "관심", to: "/watchlist" },
-    { label: "마이페이지", to: "/mypage" },
+    { label: "입찰 / 낙찰 내역", to: "/bids" },
   ],
   seller: [
     { label: "PickUp 홈", to: "/seller" },
@@ -119,14 +123,14 @@ export function Gnb({ role }: { role: Role }) {
               {role === "buyer" ? (
                 <>
                   <DropdownMenuItem
-                    onSelect={() => navigate({ to: "/mypage" })}
+                    onSelect={() => navigate({ to: "/bids" })}
                   >
-                    입찰 / 낙찰 내역
+                    <Gavel /> 입찰 / 낙찰 내역
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => navigate({ to: "/watchlist" })}
                   >
-                    관심 목록
+                    <Heart /> 관심 목록
                   </DropdownMenuItem>
                 </>
               ) : (
@@ -134,16 +138,22 @@ export function Gnb({ role }: { role: Role }) {
                   <DropdownMenuItem
                     onSelect={() => navigate({ to: "/seller/products" })}
                   >
-                    상품 목록
+                    <Package /> 상품 목록
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => navigate({ to: "/seller/sales" })}
                   >
-                    판매 내역
+                    <Receipt /> 판매 내역
                   </DropdownMenuItem>
                 </>
               )}
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() =>
+                  navigate({
+                    to: role === "buyer" ? "/settings" : "/seller/settings",
+                  })
+                }
+              >
                 <Settings /> 계정 설정
               </DropdownMenuItem>
               <DropdownMenuSeparator />

@@ -27,6 +27,7 @@ export interface User {
   nickname: string;
   role: UserRole;
   points: number; // 보유 가상 포인트(P)
+  avatarUrl?: string; // 프로필 이미지 — 없으면 닉네임 이니셜 아바타로 대체
 }
 
 /** 셀러 상품 상태 (DESIGN.md §8 product list — 검수/반려 없음) */
