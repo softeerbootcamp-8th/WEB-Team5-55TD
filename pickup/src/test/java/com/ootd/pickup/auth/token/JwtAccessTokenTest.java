@@ -1,12 +1,18 @@
 package com.ootd.pickup.auth.token;
 
+import com.ootd.pickup.auth.token.jwt.JwtAccessTokenGenerator;
+import com.ootd.pickup.auth.token.jwt.JwtAccessTokenVerifier;
+import com.ootd.pickup.global.auth.Authentication;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.crypto.SecretKey;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
+import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,34 +31,73 @@ class JwtAccessTokenTest {
 
     @Test
     void 액세스_토큰을_생성하고_인증한다() {
-        GeneratedAccessToken generatedToken = generator.generate(1L, "session-1");
+        AccessToken generatedToken = generator.generate(1L);
 
         Authentication authentication = verifier.verify(generatedToken.value());
 
         assertThat(authentication.memberId()).isEqualTo(1L);
-        assertThat(authentication.sessionId()).isEqualTo("session-1");
-        assertThat(authentication.tokenId()).isEqualTo(generatedToken.tokenId());
-        assertThat(authentication.expiresAt()).isEqualTo(generatedToken.expiresAt());
     }
 
     @Test
     void 서명이_다른_액세스_토큰은_인증하지_않는다() {
-        GeneratedAccessToken generatedToken = generator.generate(1L, "session-1");
+        AccessToken generatedToken = generator.generate(1L);
         byte[] anotherKeyBytes = new byte[32];
         anotherKeyBytes[0] = 1;
         SecretKey anotherKey = Keys.hmacShaKeyFor(anotherKeyBytes);
         assertThatThrownBy(() -> new JwtAccessTokenVerifier(ISSUER, anotherKey).verify(generatedToken.value()))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOf(InvalidAccessTokenException.class);
+    }
+
+    @Test
+    void 빈_액세스_토큰은_인증하지_않는다() {
+        assertThatThrownBy(() -> verifier.verify(" "))
+                .isInstanceOf(InvalidAccessTokenException.class);
+    }
+
+    @Test
+    void 액세스_토큰이_아닌_JWT는_인증하지_않는다() {
+        String refreshToken = createToken("1", "refresh", Instant.now().plusSeconds(60));
+
+        assertThatThrownBy(() -> verifier.verify(refreshToken))
+                .isInstanceOf(InvalidAccessTokenException.class);
+    }
+
+    @Test
+    void 회원_ID가_숫자가_아니면_인증하지_않는다() {
+        String accessToken = createToken("member", "access", Instant.now().plusSeconds(60));
+
+        assertThatThrownBy(() -> verifier.verify(accessToken))
+                .isInstanceOf(InvalidAccessTokenException.class);
+    }
+
+    @Test
+    void 만료된_액세스_토큰은_인증하지_않는다() {
+        String accessToken = createToken("1", "access", Instant.now().minusSeconds(1));
+
+        assertThatThrownBy(() -> verifier.verify(accessToken))
+                .isInstanceOf(InvalidAccessTokenException.class);
     }
 
     @Test
     void 리프레시_토큰은_서로_다른_보안_문자열로_생성한다() {
-        SecureRefreshTokenGenerator refreshTokenGenerator = new SecureRefreshTokenGenerator();
+        RefreshTokenGenerator refreshTokenGenerator = new RefreshTokenGenerator();
 
-        String firstToken = refreshTokenGenerator.generate();
-        String secondToken = refreshTokenGenerator.generate();
+        RefreshToken firstToken = refreshTokenGenerator.generate();
+        RefreshToken secondToken = refreshTokenGenerator.generate();
 
-        assertThat(firstToken).isNotEqualTo(secondToken);
-        assertThat(Base64.getUrlDecoder().decode(firstToken)).hasSize(32);
+        assertThat(firstToken.value()).isNotEqualTo(secondToken.value());
+        assertThat(Base64.getUrlDecoder().decode(firstToken.value())).hasSize(32);
+        assertThat(refreshTokenGenerator.hash(firstToken.value()))
+                .isEqualTo(firstToken.hash());
+    }
+
+    private String createToken(String subject, String tokenType, Instant expiresAt) {
+        return Jwts.builder()
+                .issuer(ISSUER)
+                .subject(subject)
+                .claim("token_type", tokenType)
+                .expiration(Date.from(expiresAt))
+                .signWith(signingKey)
+                .compact();
     }
 }

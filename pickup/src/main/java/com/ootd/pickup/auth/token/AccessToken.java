@@ -2,10 +2,8 @@ package com.ootd.pickup.auth.token;
 
 import java.time.Instant;
 
-public record GeneratedAccessToken(
+public record AccessToken(
         String value,
-        String tokenId,
-        String sessionId,
         Instant expiresAt
 ) {
 }
