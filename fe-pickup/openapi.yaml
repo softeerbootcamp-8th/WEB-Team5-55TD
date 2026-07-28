@@ -13,6 +13,8 @@ tags:
     description: 서버 상태 확인
   - name: auth
     description: 인증 (로그인 · 회원가입)
+  - name: member
+    description: 회원 (실제 백엔드 스펙 — POST /members)
   - name: auctions
     description: 경매
   - name: bids
@@ -49,24 +51,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
-  /auth/signup:
+  /members:
     post:
-      tags: [auth]
-      operationId: signup
+      tags: [member]
+      operationId: createMember
       summary: 회원가입
+      description: 로그인 ID, 닉네임, 비밀번호로 회원을 생성합니다.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SignupRequest"
+              $ref: "#/components/schemas/MemberRequest"
       responses:
         "201":
-          description: 가입 성공
+          description: 회원가입 성공
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
+                $ref: "#/components/schemas/MemberResponse"
+        "409":
+          description: 로그인 ID 또는 닉네임 중복
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
   /auctions:
     get:
       tags: [auctions]
@@ -176,11 +185,11 @@ components:
         password:
           type: string
           minLength: 4
-    SignupRequest:
+    MemberRequest:
       type: object
-      required: [username, nickname, password]
+      required: [loginId, nickname, password]
       properties:
-        username:
+        loginId:
           type: string
           minLength: 4
         nickname:
@@ -189,6 +198,33 @@ components:
         password:
           type: string
           minLength: 4
+    MemberResponse:
+      type: object
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        loginId:
+          type: string
+        nickname:
+          type: string
+        profileImageUrl:
+          type: string
+    ExceptionResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          format: int32
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
     AuthResponse:
       type: object
       required: [accessToken, user]
