@@ -8,7 +8,10 @@
 
 인증기관 감정 정보를 기반으로 중고 포켓몬(TCG) 카드를 실시간 경매로 거래하는 플랫폼입니다.
 
-<a href="">트러블슈팅</a> · <a href="">데일리 스크럼</a> · <a href="">팀 위키</a>
+<p>
+<a href="https://artistic-emery-094.notion.site/Softeer8th-55TD-39d2861022fb80ba9396fa43a9fcdece"><img src="https://img.shields.io/badge/팀_노션-000000?style=for-the-badge&logo=notion&logoColor=white" alt="Notion" /></a>
+<a href="https://app.notion.com/p/39e2861022fb80c4bc11fd5c37e23650?v=39f2861022fb80c78030000cd935ebb2&source=copy_link"><img src="https://img.shields.io/badge/데일리스크럼-181717?style=for-the-badge&logo=notion&logoColor=white" alt="Wiki" /></a>
+</p>
 
 </div>
 
@@ -18,6 +21,8 @@
 
 요구사항 명세서와 설계 문서를 바탕으로, PickUp은 크게 **구매자**와 **셀러** 두 역할을 중심으로 기능이 구성되어 있습니다.
 
+<a href="https://artistic-emery-094.notion.site/3a22861022fb80de82fbe11db8077ec5"><img src="https://img.shields.io/badge/요구사항_명세서-000000?style=for-the-badge&logo=notion&logoColor=white" alt="Notion" /></a>
+<a href="https://www.figma.com/design/X8rBmtMD8DAyKOjz07tRpA/Softeer5-55TD?node-id=0-1&t=B5vdByJBCjBul7vp-1"><img src="https://img.shields.io/badge/와이어프레임-000000?style=for-the-badge&logo=figma&logoColor=white" alt="Figma" /></a>
 - **회원**: 로그인/회원가입, 구매자·셀러 역할 전환, 닉네임/비밀번호 변경, 탈퇴
 - **경매 탐색 (구매자)**: 홈 대표 경매 노출, 진행 중/예정/종료 필터, 검색·정렬, 관심 등록
 - **경매 상세 (구매자)**: 감정 등급·현재가·최소 입찰 단위 등 상세 정보, 실시간 현재가·남은 시간 확인
