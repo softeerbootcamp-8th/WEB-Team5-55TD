@@ -1,0 +1,57 @@
+package com.ootd.pickup.global.filter;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ootd.pickup.auth.token.InvalidAccessTokenException;
+import jakarta.servlet.FilterChain;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+
+class ExceptionHandlingFilterTest {
+
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ExceptionHandlingFilter exceptionHandlingFilter =
+            new ExceptionHandlingFilter(objectMapper);
+
+    @Test
+    void 유효하지_않은_액세스_토큰을_401_응답으로_변환한다() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/members/me");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain filterChain = mock(FilterChain.class);
+        doThrow(new InvalidAccessTokenException())
+                .when(filterChain)
+                .doFilter(request, response);
+
+        exceptionHandlingFilter.doFilter(request, response, filterChain);
+
+        JsonNode body = objectMapper.readTree(response.getContentAsByteArray());
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+        assertThat(response.getContentType()).startsWith("application/json");
+        assertThat(body.get("status").asInt()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+        assertThat(body.get("error").asText()).isEqualTo("INVALID_ACCESS_TOKEN");
+        assertThat(body.get("message").asText()).isEqualTo("유효하지 않은 액세스 토큰입니다.");
+        assertThat(body.get("path").asText()).isEqualTo("/members/me");
+        assertThat(body.get("timestamp").asText()).isNotBlank();
+    }
+
+    @Test
+    void 예상하지_못한_예외는_그대로_전파한다() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/members/me");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain filterChain = mock(FilterChain.class);
+        doThrow(new IllegalStateException("unexpected"))
+                .when(filterChain)
+                .doFilter(request, response);
+
+        assertThatThrownBy(() -> exceptionHandlingFilter.doFilter(request, response, filterChain))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("unexpected");
+    }
+}

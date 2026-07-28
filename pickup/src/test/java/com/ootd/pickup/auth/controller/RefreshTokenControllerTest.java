@@ -4,10 +4,10 @@ import com.ootd.pickup.auth.service.RefreshResult;
 import com.ootd.pickup.auth.service.RefreshTokenService;
 import com.ootd.pickup.auth.service.LoginService;
 import com.ootd.pickup.auth.service.LogoutService;
-import com.ootd.pickup.auth.token.GeneratedAccessToken;
-import com.ootd.pickup.auth.token.JwtTokenProperties;
-import com.ootd.pickup.auth.web.AuthenticationAttributes;
-import com.ootd.pickup.auth.web.TokenCookieManager;
+import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
+import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.auth.TokenCookieManager;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,7 +55,7 @@ class RefreshTokenControllerTest {
         Instant expiresAt = Instant.parse("2026-07-26T05:00:00Z");
         given(refreshTokenService.refresh("old-refresh-token"))
                 .willReturn(new RefreshResult(
-                        new GeneratedAccessToken("new-access-token", expiresAt),
+                        new AccessToken("new-access-token", expiresAt),
                         "new-refresh-token"
                 ));
 

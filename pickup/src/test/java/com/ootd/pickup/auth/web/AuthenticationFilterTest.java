@@ -1,9 +1,10 @@
 package com.ootd.pickup.auth.web;
 
 import com.ootd.pickup.auth.token.AccessTokenVerifier;
-import com.ootd.pickup.auth.token.Authentication;
-import com.ootd.pickup.global.exception.ExceptionCode;
-import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.auth.token.InvalidAccessTokenException;
+import com.ootd.pickup.global.auth.Authentication;
+import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.auth.filter.AuthenticationFilter;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
@@ -11,10 +12,10 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class AuthenticationFilterTest {
 
@@ -45,13 +46,10 @@ class AuthenticationFilterTest {
         request.setCookies(new Cookie(AuthenticationAttributes.COOKIE_NAME, "expired-token"));
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain filterChain = new MockFilterChain();
-        doThrow(new PickUpException(ExceptionCode.INVALID_ACCESS_TOKEN))
-                .when(accessTokenVerifier)
-                .verify("expired-token");
 
         authenticationFilter.doFilter(request, response, filterChain);
 
-        verify(accessTokenVerifier).verify("expired-token");
+        verifyNoInteractions(accessTokenVerifier);
         assertThat(filterChain.getRequest()).isSameAs(request);
     }
 
@@ -64,30 +62,28 @@ class AuthenticationFilterTest {
         request.setCookies(new Cookie(AuthenticationAttributes.COOKIE_NAME, "expired-token"));
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain filterChain = new MockFilterChain();
-        doThrow(new PickUpException(ExceptionCode.INVALID_ACCESS_TOKEN))
-                .when(accessTokenVerifier)
-                .verify("expired-token");
 
         authenticationFilter.doFilter(request, response, filterChain);
 
-        verify(accessTokenVerifier).verify("expired-token");
+        verifyNoInteractions(accessTokenVerifier);
         assertThat(filterChain.getRequest()).isSameAs(request);
     }
 
     @Test
-    void 유효하지_않은_토큰은_인증_객체_없이_다음_체인으로_넘긴다() throws Exception {
+    void 유효하지_않은_토큰의_예외를_전파한다() {
         AccessTokenVerifier accessTokenVerifier = mock(AccessTokenVerifier.class);
         AuthenticationFilter authenticationFilter = new AuthenticationFilter(accessTokenVerifier);
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/members");
         request.setCookies(new Cookie(AuthenticationAttributes.COOKIE_NAME, "invalid-token"));
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain filterChain = new MockFilterChain();
-        PickUpException exception = new PickUpException(ExceptionCode.INVALID_ACCESS_TOKEN);
-        doThrow(exception).when(accessTokenVerifier).verify("invalid-token");
+        given(accessTokenVerifier.verify("invalid-token"))
+                .willThrow(new InvalidAccessTokenException());
 
-        authenticationFilter.doFilter(request, response, filterChain);
+        assertThatThrownBy(() -> authenticationFilter.doFilter(request, response, filterChain))
+                .isInstanceOf(InvalidAccessTokenException.class);
 
         assertThat(request.getAttribute(AuthenticationAttributes.ATTRIBUTE_NAME)).isNull();
-        assertThat(filterChain.getRequest()).isSameAs(request);
+        assertThat(filterChain.getRequest()).isNull();
     }
 }
