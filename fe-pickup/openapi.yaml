@@ -33,11 +33,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthCheckResponse"
-  /auth/login:
+  /auth:
     post:
       tags: [auth]
       operationId: login
       summary: 로그인
+      description: 아이디와 비밀번호를 검증하고 Access Token과 Refresh Token을 HttpOnly 쿠키로 발급합니다.
       requestBody:
         required: true
         content:
@@ -50,7 +51,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: 아이디 또는 비밀번호 형식 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 아이디 또는 비밀번호 불일치
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
   /members:
     post:
       tags: [member]
@@ -177,14 +190,26 @@ components:
           example: OK
     LoginRequest:
       type: object
-      required: [username, password]
+      required: [loginId, password]
       properties:
-        username:
+        loginId:
           type: string
           minLength: 4
         password:
           type: string
           minLength: 4
+    LoginResponse:
+      type: object
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        loginId:
+          type: string
+        nickname:
+          type: string
+        profileImageUrl:
+          type: string
     MemberRequest:
       type: object
       required: [loginId, nickname, password]
@@ -225,28 +250,6 @@ components:
         timestamp:
           type: string
           format: date-time
-    AuthResponse:
-      type: object
-      required: [accessToken, user]
-      properties:
-        accessToken:
-          type: string
-        user:
-          $ref: "#/components/schemas/User"
-    User:
-      type: object
-      required: [id, nickname, role, points]
-      properties:
-        id:
-          type: string
-        nickname:
-          type: string
-        role:
-          type: string
-          enum: [BUYER, SELLER]
-        points:
-          type: integer
-          description: 보유 가상 포인트(P)
     AuctionStatus:
       type: string
       enum: [LIVE, UPCOMING, ENDED]
