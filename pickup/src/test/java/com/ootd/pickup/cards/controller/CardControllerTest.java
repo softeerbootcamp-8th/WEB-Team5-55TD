@@ -20,6 +20,7 @@ import com.ootd.pickup.cards.service.CardService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.global.slack.SlackErrorNotifier;
 
 @WebMvcTest(CardController.class)
 class CardControllerTest {
@@ -29,6 +30,9 @@ class CardControllerTest {
 
     @MockitoBean
     private CardService cardService;
+
+    @MockitoBean
+    private SlackErrorNotifier slackErrorNotifier;
 
     @Test
     void 존재하는_카드ID로_조회하면_카드_상세정보를_반환한다() throws Exception {

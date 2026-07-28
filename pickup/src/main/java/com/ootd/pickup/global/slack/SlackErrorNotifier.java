@@ -21,25 +21,36 @@ public class SlackErrorNotifier {
     public SlackErrorNotifier(RestClient slackRestClient, SlackProperties slackProperties, Environment environment) {
         this.slackRestClient = slackRestClient;
         this.slackProperties = slackProperties;
-        this.activeProfile = String.join(",", environment.getActiveProfiles());
+        String[] profiles = environment.getActiveProfiles().length > 0
+                ? environment.getActiveProfiles()
+                : environment.getDefaultProfiles();
+        this.activeProfile = String.join(",", profiles);
     }
 
     @Async("slackNotificationExecutor")
     public void notifyError(RuntimeException exception, ErrorRequestContext context) {
-        if (!slackProperties.enabled() || !StringUtils.hasText(slackProperties.webhookUrl())) {
+        if (!slackProperties.enabled()
+                || !StringUtils.hasText(slackProperties.botToken())
+                || !StringUtils.hasText(slackProperties.channel())) {
             return;
         }
 
         try {
-            Map<String, Object> payload = SlackErrorMessageFactory.buildPayload(exception, context, activeProfile);
-            slackRestClient.post()
-                    .uri(slackProperties.webhookUrl())
+            Map<String, Object> payload = SlackErrorMessageFactory.buildPayload(
+                    exception, context, activeProfile, slackProperties.channel());
+            SlackChatPostMessageResponse response = slackRestClient.post()
+                    .uri("/chat.postMessage")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()
-                    .toBodilessEntity();
+                    .body(SlackChatPostMessageResponse.class);
+
+            if (response == null || !response.ok()) {
+                String error = response == null ? "응답 없음" : response.error();
+                log.warn("Slack 에러 알림 전송이 거절되었습니다 - channel={}, error={}", slackProperties.channel(), error);
+            }
         } catch (Exception sendFailure) {
-            log.error("Slack 에러 알림 전송에 실패했습니다.", sendFailure);
+            log.error("Slack 에러 알림 전송에 실패했습니다 - channel={}", slackProperties.channel(), sendFailure);
         }
     }
 }

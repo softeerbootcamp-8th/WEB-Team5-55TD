@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 @ConfigurationProperties(prefix = "slack")
 public record SlackProperties(
         @DefaultValue("false") boolean enabled,
-        String webhookUrl
+        String botToken,
+        String channel
 ) {
 }

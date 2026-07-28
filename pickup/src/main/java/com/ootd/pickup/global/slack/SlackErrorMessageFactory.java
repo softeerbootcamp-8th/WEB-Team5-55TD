@@ -16,20 +16,24 @@ final class SlackErrorMessageFactory {
     private SlackErrorMessageFactory() {
     }
 
-    static Map<String, Object> buildPayload(RuntimeException exception, ErrorRequestContext context, String activeProfile) {
+
+    static Map<String, Object> buildPayload(RuntimeException exception, ErrorRequestContext context, String activeProfile, String channel) {
         List<Map<String, Object>> blocks = new ArrayList<>();
-        blocks.add(headerBlock());
+        blocks.add(headerBlock(activeProfile));
         blocks.add(summaryBlock(exception, context, activeProfile));
         blocks.add(dividerBlock());
         blocks.add(messageBlock(exception));
         blocks.add(stackTraceBlock(exception));
-        return Map.of("blocks", blocks);
+        return Map.of("channel", channel, "blocks", blocks);
     }
 
-    private static Map<String, Object> headerBlock() {
+    private static Map<String, Object> headerBlock(String activeProfile) {
+        String profilePrefix = (activeProfile == null || activeProfile.isBlank())
+                ? "-"
+                : activeProfile.toUpperCase();
         return Map.of(
                 "type", "header",
-                "text", Map.of("type", "plain_text", "text", "🚨 500 Internal Server Error 발생", "emoji", true)
+                "text", Map.of("type", "plain_text", "text", "[" + profilePrefix + "] 🚨 500 Internal Server Error 발생", "emoji", true)
         );
     }
 
@@ -64,14 +68,14 @@ final class SlackErrorMessageFactory {
         String message = exception.getMessage() == null ? "(메시지 없음)" : exception.getMessage();
         return Map.of(
                 "type", "section",
-                "text", Map.of("type", "mrkdwn", "text", "*예외 메시지:*\n```" + truncate(message) + "```")
+                "text", Map.of("type", "mrkdwn", "text", "*Error Message:*\n```" + truncate(message) + "```")
         );
     }
 
     private static Map<String, Object> stackTraceBlock(RuntimeException exception) {
         return Map.of(
                 "type", "section",
-                "text", Map.of("type", "mrkdwn", "text", "*스택 트레이스:*\n```" + truncate(formatStackTrace(exception)) + "```")
+                "text", Map.of("type", "mrkdwn", "text", "*Stack Trace:*\n```" + truncate(formatStackTrace(exception)) + "```")
         );
     }
 
