@@ -147,7 +147,13 @@ export function Gnb({ role }: { role: Role }) {
                   </DropdownMenuItem>
                 </>
               )}
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() =>
+                  navigate({
+                    to: role === "buyer" ? "/settings" : "/seller/settings",
+                  })
+                }
+              >
                 <Settings /> 계정 설정
               </DropdownMenuItem>
               <DropdownMenuSeparator />
