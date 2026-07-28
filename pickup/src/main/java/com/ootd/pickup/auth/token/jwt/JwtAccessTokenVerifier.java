@@ -1,14 +1,14 @@
-package com.ootd.pickup.auth.token;
+package com.ootd.pickup.auth.token.jwt;
 
-import com.ootd.pickup.global.exception.ExceptionCode;
-import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.auth.token.AccessTokenVerifier;
+import com.ootd.pickup.auth.token.InvalidAccessTokenException;
+import com.ootd.pickup.global.auth.Authentication;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 
 import javax.crypto.SecretKey;
-import java.time.Instant;
 
 @RequiredArgsConstructor
 public class JwtAccessTokenVerifier implements AccessTokenVerifier {
@@ -17,6 +17,10 @@ public class JwtAccessTokenVerifier implements AccessTokenVerifier {
 
     @Override
     public Authentication verify(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new InvalidAccessTokenException();
+        }
+
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(signingKey)
@@ -31,18 +35,9 @@ public class JwtAccessTokenVerifier implements AccessTokenVerifier {
             }
 
             Long memberId = Long.valueOf(claims.getSubject());
-            String sessionId = claims.get(JwtTokenClaims.SESSION_ID, String.class);
-            String tokenId = claims.getId();
-            Instant expiresAt = claims.getExpiration().toInstant();
-            return new Authentication(memberId, sessionId, tokenId, expiresAt);
-        } catch (JwtException | IllegalArgumentException exception) {
-            throw new InvalidAccessTokenException();
-        }
-    }
-
-    private static final class InvalidAccessTokenException extends PickUpException {
-        private InvalidAccessTokenException() {
-            super(ExceptionCode.INVALID_ACCESS_TOKEN);
+            return new Authentication(memberId);
+        } catch (JwtException | NumberFormatException exception) {
+            throw new InvalidAccessTokenException(exception);
         }
     }
 }

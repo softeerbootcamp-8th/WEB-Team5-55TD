@@ -1,4 +1,4 @@
-package com.ootd.pickup.auth.token;
+package com.ootd.pickup.auth.token.jwt;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -8,6 +8,7 @@ import java.time.Duration;
 public record JwtTokenProperties(
         String issuer,
         String secret,
-        Duration accessTokenTtl
+        Duration accessTokenTtl,
+        Duration refreshTokenTtl
 ) {
 }
