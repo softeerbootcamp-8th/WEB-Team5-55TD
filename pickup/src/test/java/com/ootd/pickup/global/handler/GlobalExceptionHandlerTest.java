@@ -1,5 +1,6 @@
-package com.ootd.pickup.health.controller;
+package com.ootd.pickup.global.handler;
 
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -10,12 +11,13 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.ootd.pickup.global.slack.ErrorRequestContext;
 import com.ootd.pickup.global.slack.SlackErrorNotifier;
-import com.ootd.pickup.health.dto.response.HealthCheckResponse;
+import com.ootd.pickup.health.controller.HealthCheckController;
 import com.ootd.pickup.health.service.HealthCheckService;
 
 @WebMvcTest(HealthCheckController.class)
-class HealthCheckControllerTest {
+class GlobalExceptionHandlerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -27,12 +29,15 @@ class HealthCheckControllerTest {
     private SlackErrorNotifier slackErrorNotifier;
 
     @Test
-    void 헬스체크_API_호출_시_서버_상태를_반환한다() throws Exception {
-        given(healthCheckService.getHealthCheckStatus())
-            .willReturn(new HealthCheckResponse("OK"));
+    void 처리되지_않은_런타임_예외가_발생하면_500과_함께_슬랙_알림을_전송한다() throws Exception {
+        // given
+        given(healthCheckService.getHealthCheckStatus()).willThrow(new IllegalStateException("헬스체크 실패"));
 
+        // when
         mockMvc.perform(get("/healthcheck"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value("OK"));
+            .andExpect(status().isInternalServerError());
+
+        // then
+        then(slackErrorNotifier).should().notifyError(any(RuntimeException.class), any(ErrorRequestContext.class));
     }
 }
