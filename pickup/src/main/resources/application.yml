@@ -3,6 +3,8 @@ spring:
     name: pickup
   profiles:
     default: dev
+    group:
+      local: dev
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/pickup?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:pickup}
@@ -23,3 +25,7 @@ auth:
     issuer: ${JWT_ISSUER:pickup}
     secret: ${JWT_SECRET:}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
+slack:
+  enabled: ${SLACK_ENABLED:false}
+  bot-token: ${SLACK_BOT_TOKEN:}
+  channel: ${SLACK_CHANNEL:}
