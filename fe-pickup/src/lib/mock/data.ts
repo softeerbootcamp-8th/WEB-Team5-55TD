@@ -32,7 +32,7 @@ const iso = (offsetMs: number) => new Date(NOW + offsetMs).toISOString();
 
 export const currentUser: User = {
   id: "u_me",
-  nickname: "cardianKim",
+  nickname: "pickupKim",
   role: UserRole.BUYER,
   points: 5_000_000,
 };
@@ -240,7 +240,7 @@ export const bidsByAuction: Record<string, Bid[]> = {
   a1: [
     {
       id: "b1",
-      maskedNickname: "cardianKim",
+      maskedNickname: "pickupKim",
       amount: 1_280_000,
       createdAt: iso(-min(0.2)),
       isMine: true,
@@ -291,7 +291,7 @@ export const bidsByAuction: Record<string, Bid[]> = {
     },
     {
       id: "c2",
-      maskedNickname: "cardianKim",
+      maskedNickname: "pickupKim",
       amount: 9_400_000,
       createdAt: iso(-min(2)),
       isMine: true,
