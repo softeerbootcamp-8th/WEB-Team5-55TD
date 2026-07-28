@@ -1,6 +1,5 @@
 package com.ootd.pickup.global.filter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ootd.pickup.auth.token.InvalidAccessTokenException;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.ExceptionResponseFactory;
@@ -12,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

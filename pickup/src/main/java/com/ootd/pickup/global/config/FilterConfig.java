@@ -1,12 +1,12 @@
 package com.ootd.pickup.global.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ootd.pickup.auth.token.AccessTokenVerifier;
 import com.ootd.pickup.global.filter.ExceptionHandlingFilter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 public class FilterConfig {

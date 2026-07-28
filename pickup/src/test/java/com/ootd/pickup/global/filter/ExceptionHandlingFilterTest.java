@@ -1,13 +1,14 @@
 package com.ootd.pickup.global.filter;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ootd.pickup.auth.token.InvalidAccessTokenException;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -16,7 +17,9 @@ import static org.mockito.Mockito.mock;
 
 class ExceptionHandlingFilterTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper objectMapper = JsonMapper.builder()
+            .findAndAddModules()
+            .build();
     private final ExceptionHandlingFilter exceptionHandlingFilter =
             new ExceptionHandlingFilter(objectMapper);
 
