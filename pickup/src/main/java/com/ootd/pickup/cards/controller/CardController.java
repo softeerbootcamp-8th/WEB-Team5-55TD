@@ -1,7 +1,6 @@
 package com.ootd.pickup.cards.controller;
 
 import org.springframework.http.ResponseEntity;
-
 import org.springframework.web.bind.annotation.*;
 
 import com.ootd.pickup.cards.api.CardApi;
