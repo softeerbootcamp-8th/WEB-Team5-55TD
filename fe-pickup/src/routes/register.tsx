@@ -19,9 +19,16 @@ function RegisterPage() {
   const [username, setUsername] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+
+  const passwordMismatch =
+    passwordConfirm.length > 0 && password !== passwordConfirm;
 
   const valid =
-    username.length >= 4 && nickname.length >= 4 && password.length >= 4;
+    username.length >= 4 &&
+    nickname.length >= 4 &&
+    password.length >= 4 &&
+    password === passwordConfirm;
 
   const { mutate, isPending } = useMutation({
     mutationFn: (memberRequest: MemberRequest) => createMember(memberRequest),
@@ -97,6 +104,24 @@ function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="비밀번호 (4자 이상)"
           />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="passwordConfirm">
+            비밀번호 확인 <span className="text-[var(--color-danger)]">*</span>
+          </Label>
+          <Input
+            id="passwordConfirm"
+            type="password"
+            value={passwordConfirm}
+            onChange={(e) => setPasswordConfirm(e.target.value)}
+            placeholder="비밀번호를 한 번 더 입력해 주세요"
+          />
+          {passwordMismatch && (
+            <p className="text-xs text-[var(--color-danger)]">
+              비밀번호가 일치하지 않습니다.
+            </p>
+          )}
         </div>
 
         <Button
