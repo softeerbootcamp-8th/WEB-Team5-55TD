@@ -6,9 +6,9 @@ import com.ootd.pickup.auth.service.LoginResult;
 import com.ootd.pickup.auth.service.LoginService;
 import com.ootd.pickup.auth.service.LogoutService;
 import com.ootd.pickup.auth.service.RefreshTokenService;
-import com.ootd.pickup.auth.token.JwtTokenProperties;
-import com.ootd.pickup.auth.token.GeneratedAccessToken;
-import com.ootd.pickup.auth.web.TokenCookieManager;
+import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
+import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.global.auth.TokenCookieManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -59,7 +59,7 @@ class LoginControllerTest {
         LoginResponse response = new LoginResponse(1L, "pickup-user", "픽업회원", null);
         LoginResult result = new LoginResult(
                 response,
-                new GeneratedAccessToken("access-token", Instant.now().plusSeconds(900)),
+                new AccessToken("access-token", Instant.now().plusSeconds(900)),
                 "refresh-token"
         );
         given(loginService.login(request)).willReturn(result);

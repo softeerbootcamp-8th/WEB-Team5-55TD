@@ -4,10 +4,10 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.repository.RefreshTokenRepository;
 import com.ootd.pickup.auth.token.AccessTokenGenerator;
-import com.ootd.pickup.auth.token.GeneratedAccessToken;
-import com.ootd.pickup.auth.token.GeneratedRefreshToken;
-import com.ootd.pickup.auth.token.JwtTokenProperties;
+import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.auth.token.RefreshToken;
 import com.ootd.pickup.auth.token.RefreshTokenGenerator;
+import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
@@ -52,11 +52,11 @@ class LoginServiceTest {
     void 로그인에_성공하면_액세스_토큰과_리프레시_토큰을_발급한다() {
         LoginRequest request = new LoginRequest("pickup-user", "password1234");
         Member member = createMember(request.loginId(), request.password());
-        GeneratedAccessToken accessToken = new GeneratedAccessToken(
+        AccessToken accessToken = new AccessToken(
                 "access-token",
                 Instant.now().plusSeconds(900)
         );
-        GeneratedRefreshToken refreshToken = new GeneratedRefreshToken(
+        RefreshToken refreshToken = new RefreshToken(
                 "refresh-token",
                 "refresh-token-hash"
         );

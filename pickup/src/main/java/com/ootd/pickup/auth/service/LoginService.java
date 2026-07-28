@@ -4,10 +4,10 @@ import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.dto.LoginResponse;
 import com.ootd.pickup.auth.repository.RefreshTokenRepository;
 import com.ootd.pickup.auth.token.AccessTokenGenerator;
-import com.ootd.pickup.auth.token.GeneratedAccessToken;
-import com.ootd.pickup.auth.token.GeneratedRefreshToken;
-import com.ootd.pickup.auth.token.JwtTokenProperties;
+import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.auth.token.RefreshToken;
 import com.ootd.pickup.auth.token.RefreshTokenGenerator;
+import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
@@ -33,8 +33,8 @@ public class LoginService {
             throw new PickUpException(ExceptionCode.INVALID_PASSWORD);
         }
 
-        GeneratedAccessToken accessToken = accessTokenGenerator.generate(member.getMemberId());
-        GeneratedRefreshToken refreshToken = refreshTokenGenerator.generate();
+        AccessToken accessToken = accessTokenGenerator.generate(member.getMemberId());
+        RefreshToken refreshToken = refreshTokenGenerator.generate();
 
         refreshTokenRepository.save(
                 refreshToken.hash(),
