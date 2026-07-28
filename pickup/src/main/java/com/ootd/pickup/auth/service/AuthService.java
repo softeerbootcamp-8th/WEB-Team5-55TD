@@ -9,12 +9,14 @@ import com.ootd.pickup.auth.token.AccessTokenGenerator;
 import com.ootd.pickup.auth.token.RefreshToken;
 import com.ootd.pickup.auth.token.RefreshTokenGenerator;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
-import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_PASSWORD;
+import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_REFRESH_TOKEN;
 
 @Service
 @RequiredArgsConstructor
@@ -28,10 +30,10 @@ public class AuthService {
 
     public LoginResponse login(LoginRequest loginRequest) {
         Member member = memberRepository.findByLoginId(loginRequest.loginId())
-                .orElseThrow(() -> new PickUpException(ExceptionCode.INVALID_PASSWORD));
+                .orElseThrow(() -> new PickUpException(INVALID_PASSWORD));
 
         if (!member.isPasswordMatched(loginRequest.password())) {
-            throw new PickUpException(ExceptionCode.INVALID_PASSWORD);
+            throw new PickUpException(INVALID_PASSWORD);
         }
 
         AccessToken accessToken = accessTokenGenerator.generate(member.getMemberId());
@@ -64,12 +66,12 @@ public class AuthService {
 
     public RefreshResponse refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
-            throw new PickUpException(ExceptionCode.INVALID_REFRESH_TOKEN);
+            throw new PickUpException(INVALID_REFRESH_TOKEN);
         }
 
         String oldTokenHash = refreshTokenGenerator.hash(refreshToken);
         Long memberId = refreshTokenRepository.consume(oldTokenHash)
-                .orElseThrow(() -> new PickUpException(ExceptionCode.INVALID_REFRESH_TOKEN));
+                .orElseThrow(() -> new PickUpException(INVALID_REFRESH_TOKEN));
 
         RefreshToken newRefreshToken = refreshTokenGenerator.generate();
         refreshTokenRepository.save(
