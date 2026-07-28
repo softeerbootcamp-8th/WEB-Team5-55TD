@@ -1,0 +1,110 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "ko-KR"
+early_access: false
+
+tone_instructions: >-
+  핵심 문제와 수정 이유를 간결하게 설명해 주세요.
+  사소한 스타일보다 실제 버그, 보안, 데이터 정합성,
+  트랜잭션, 성능, 타입 안정성, 테스트 누락을 우선해서 검토해 주세요.
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  changed_files_summary: true
+  sequence_diagrams: true
+  poem: false
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+    drafts: false
+
+    # 기본 브랜치 외에 자동 리뷰를 허용할 PR 대상 브랜치
+    # 실제 통합 브랜치명이 dev라면 develop을 dev로 변경하세요.
+    base_branches:
+      - "develop"
+
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT REVIEW"
+
+  path_filters:
+    # 공통
+    - "!**/.idea/**"
+    - "!**/.vscode/**"
+    - "!**/out/**"
+    - "!**/generated/**"
+    - "!**/*.class"
+    - "!**/*.jar"
+
+    # 백엔드(pickup)
+    - "!pickup/build/**"
+    - "!pickup/.gradle/**"
+
+    # 프론트엔드(fe-pickup)
+    - "!fe-pickup/node_modules/**"
+    - "!fe-pickup/dist/**"
+    - "!fe-pickup/build/**"
+    - "!fe-pickup/.next/**"
+    - "!fe-pickup/coverage/**"
+
+  path_instructions:
+    # 백엔드 운영 코드
+    - path: "pickup/src/main/java/**/*.java"
+      instructions: |
+        Spring 백엔드 운영 코드로 검토해 주세요.
+        다음 항목을 우선 확인해 주세요.
+        - 인증·인가 및 토큰 처리의 보안 문제
+        - 트랜잭션 범위와 데이터 정합성
+        - 동시성 문제와 중복 요청 처리
+        - 예외 처리와 null 안전성
+        - JPA N+1, 불필요한 쿼리와 성능 문제
+        - 계층 간 책임 분리와 의존 방향
+        단순 취향이나 사소한 스타일 차이는 낮은 우선순위로 다뤄 주세요.
+
+    # 백엔드 테스트
+    - path: "pickup/src/test/java/**/*.java"
+      instructions: |
+        테스트 코드로 검토해 주세요.
+        정상 경로뿐 아니라 실패 경로, 경계값, 인증 실패,
+        시간 정밀도와 동시성 상황을 검증하는지 확인해 주세요.
+        구현 세부사항에 과도하게 결합된 테스트와 의미 없는 단언도 확인해 주세요.
+
+    # 백엔드 설정과 데이터베이스
+    - path: "pickup/src/main/resources/**"
+      instructions: |
+        환경별 설정 분리, 민감정보 노출, 잘못된 기본값,
+        데이터베이스 마이그레이션의 안전성과 롤백 가능성을 확인해 주세요.
+
+    # 프론트엔드 코드
+    - path: "fe-pickup/**/*.{ts,tsx,js,jsx}"
+      instructions: |
+        프론트엔드 코드로 검토해 주세요.
+        다음 항목을 우선 확인해 주세요.
+        - 타입 안정성과 any 남용
+        - 컴포넌트 책임 분리와 재사용성
+        - 상태 관리와 비동기 요청의 오류 처리
+        - 불필요한 렌더링과 성능 문제
+        - 인증 상태와 민감정보 처리
+        - 접근성과 사용자 입력 검증
+        단순 취향이나 사소한 스타일 차이는 낮은 우선순위로 다뤄 주세요.
+
+    # 프론트엔드 테스트
+    - path: "fe-pickup/**/*.{test,spec}.{ts,tsx,js,jsx}"
+      instructions: |
+        사용자 동작과 화면 결과를 중심으로 검증하는지 확인해 주세요.
+        성공 케이스뿐 아니라 로딩, 오류, 빈 데이터,
+        권한 없음과 네트워크 실패 상황도 다루는지 확인해 주세요.
+
+    # 프론트엔드 스타일
+    - path: "fe-pickup/**/*.{css,scss,sass}"
+      instructions: |
+        반응형 레이아웃, 접근성, 중복 스타일,
+        전역 스타일 충돌과 유지보수성을 확인해 주세요.
+
+chat:
+  auto_reply: true

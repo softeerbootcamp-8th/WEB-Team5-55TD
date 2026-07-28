@@ -1,0 +1,66 @@
+name: Backend CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pickup/**'
+      - '.github/workflows/backend-cd.yml'
+      - '.github/workflows/backend-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: CI (build & test)
+    uses: ./.github/workflows/backend-ci.yml
+    with:
+      upload-jar: true
+
+  deploy:
+    name: Deploy to EC2
+    needs: ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download application jar
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: artifact
+
+      - name: Prepare jar
+        run: |
+          mkdir -p upload
+          cp artifact/pickup-*.jar upload/app.jar
+
+      - name: Copy jar to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: 'upload/app.jar'
+          target: '/home/ubuntu/pickup'
+          strip_components: 1
+
+      - name: Restart service & health check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            sudo systemctl restart pickup
+            for i in $(seq 1 20); do
+              if curl -fsS http://localhost:8080/healthcheck | grep -q '"status":"OK"'; then
+                echo "healthy"
+                exit 0
+              fi
+              echo "waiting for healthy... ($i)"
+              sleep 3
+            done
+            echo "health check failed"
+            sudo journalctl -u pickup -n 50 --no-pager
+            exit 1
