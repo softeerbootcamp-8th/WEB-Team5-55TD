@@ -21,7 +21,8 @@ class ExceptionHandlingFilterTest {
             new ExceptionHandlingFilter(objectMapper);
 
     @Test
-    void 유효하지_않은_액세스_토큰을_401_응답으로_변환한다() throws Exception {
+    void 액세스_토큰이_유효하지_않으면_401_응답을_반환한다() throws Exception {
+        // given
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/members/me");
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain filterChain = mock(FilterChain.class);
@@ -29,8 +30,10 @@ class ExceptionHandlingFilterTest {
                 .when(filterChain)
                 .doFilter(request, response);
 
+        // when
         exceptionHandlingFilter.doFilter(request, response, filterChain);
 
+        // then
         JsonNode body = objectMapper.readTree(response.getContentAsByteArray());
         assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
         assertThat(response.getContentType()).startsWith("application/json");
@@ -42,7 +45,8 @@ class ExceptionHandlingFilterTest {
     }
 
     @Test
-    void 예상하지_못한_예외는_그대로_전파한다() throws Exception {
+    void 예상하지_못한_예외가_발생하면_그대로_전파한다() throws Exception {
+        // given
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/members/me");
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain filterChain = mock(FilterChain.class);
@@ -50,6 +54,7 @@ class ExceptionHandlingFilterTest {
                 .when(filterChain)
                 .doFilter(request, response);
 
+        // when & then
         assertThatThrownBy(() -> exceptionHandlingFilter.doFilter(request, response, filterChain))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("unexpected");

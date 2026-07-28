@@ -12,13 +12,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.Duration;
 import java.time.Instant;
 
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasItems;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -50,7 +52,8 @@ class LoginControllerTest {
     }
 
     @Test
-    void 로그인_성공_시_두_토큰을_HttpOnly_쿠키로_전달한다() throws Exception {
+    void 로그인에_성공하면_두_토큰을_보안_쿠키로_전달한다() throws Exception {
+        // given
         LoginRequest request = new LoginRequest("pickup-user", "password1234");
         LoginResponse response = new LoginResponse(1L, "pickup-user", "픽업회원", null);
         LoginResult result = new LoginResult(
@@ -60,6 +63,7 @@ class LoginControllerTest {
         );
         given(authService.login(request)).willReturn(result);
 
+        // when & then
         mockMvc.perform(post("/auth")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"loginId\":\"pickup-user\",\"password\":\"password1234\"}"))
@@ -68,23 +72,35 @@ class LoginControllerTest {
                 .andExpect(jsonPath("$.loginId").value("pickup-user"))
                 .andExpect(header().stringValues(
                         HttpHeaders.SET_COOKIE,
-                        hasItems(
-                                containsString("access-token=access-token"),
-                                containsString("refresh-token=refresh-token"),
-                                containsString("HttpOnly"),
-                                containsString("Secure"),
-                                containsString("SameSite=None")
+                        contains(
+                                allOf(
+                                        containsString("access-token=access-token"),
+                                        containsString("HttpOnly"),
+                                        containsString("Secure"),
+                                        containsString("SameSite=None")
+                                ),
+                                allOf(
+                                        containsString("refresh-token=refresh-token"),
+                                        containsString("HttpOnly"),
+                                        containsString("Secure"),
+                                        containsString("SameSite=None")
+                                )
                         )
                 ));
     }
 
     @Test
     void 아이디나_비밀번호가_4자_미만이면_로그인하지_않는다() throws Exception {
-        mockMvc.perform(post("/auth")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"loginId\":\"abc\",\"password\":\"123\"}"))
-                .andExpect(status().isBadRequest());
+        // given
+        String requestBody = "{\"loginId\":\"abc\",\"password\":\"123\"}";
 
+        // when
+        ResultActions result = mockMvc.perform(post("/auth")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody));
+
+        // then
+        result.andExpect(status().isBadRequest());
         verifyNoInteractions(authService);
     }
 }

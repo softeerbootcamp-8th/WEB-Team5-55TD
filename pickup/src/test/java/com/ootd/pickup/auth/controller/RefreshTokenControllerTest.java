@@ -16,8 +16,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.time.Duration;
 import java.time.Instant;
 
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasItems;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -48,6 +49,7 @@ class RefreshTokenControllerTest {
 
     @Test
     void 재발급에_성공하면_두_토큰을_쿠키로_전달한다() throws Exception {
+        // given
         Instant expiresAt = Instant.parse("2026-07-26T05:00:00Z");
         given(authService.refresh("old-refresh-token"))
                 .willReturn(new RefreshResult(
@@ -55,6 +57,7 @@ class RefreshTokenControllerTest {
                         "new-refresh-token"
                 ));
 
+        // when & then
         mockMvc.perform(post("/auth/refresh")
                         .cookie(new Cookie(
                                 AuthenticationAttributes.REFRESH_TOKEN_COOKIE_NAME,
@@ -64,11 +67,19 @@ class RefreshTokenControllerTest {
                 .andExpect(jsonPath("$.expiresAt").value(expiresAt.toString()))
                 .andExpect(header().stringValues(
                         HttpHeaders.SET_COOKIE,
-                        hasItems(
-                                containsString("access-token=new-access-token"),
-                                containsString("refresh-token=new-refresh-token"),
-                                containsString("HttpOnly"),
-                                containsString("SameSite=None")
+                        contains(
+                                allOf(
+                                        containsString("access-token=new-access-token"),
+                                        containsString("HttpOnly"),
+                                        containsString("Secure"),
+                                        containsString("SameSite=None")
+                                ),
+                                allOf(
+                                        containsString("refresh-token=new-refresh-token"),
+                                        containsString("HttpOnly"),
+                                        containsString("Secure"),
+                                        containsString("SameSite=None")
+                                )
                         )
                 ));
     }
