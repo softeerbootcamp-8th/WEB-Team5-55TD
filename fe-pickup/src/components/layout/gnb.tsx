@@ -1,7 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronDown,
+  Gavel,
+  Heart,
   LogOut,
+  Package,
+  Receipt,
   Repeat,
   Settings,
   User as UserIcon,
@@ -121,12 +125,12 @@ export function Gnb({ role }: { role: Role }) {
                   <DropdownMenuItem
                     onSelect={() => navigate({ to: "/mypage" })}
                   >
-                    입찰 / 낙찰 내역
+                    <Gavel /> 입찰 / 낙찰 내역
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => navigate({ to: "/watchlist" })}
                   >
-                    관심 목록
+                    <Heart /> 관심 목록
                   </DropdownMenuItem>
                 </>
               ) : (
@@ -134,12 +138,12 @@ export function Gnb({ role }: { role: Role }) {
                   <DropdownMenuItem
                     onSelect={() => navigate({ to: "/seller/products" })}
                   >
-                    상품 목록
+                    <Package /> 상품 목록
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => navigate({ to: "/seller/sales" })}
                   >
-                    판매 내역
+                    <Receipt /> 판매 내역
                   </DropdownMenuItem>
                 </>
               )}
