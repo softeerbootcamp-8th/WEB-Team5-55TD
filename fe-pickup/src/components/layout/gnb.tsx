@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { formatPoint } from "@/lib/format";
 import { currentUser } from "@/lib/mock/data";
-import { setAuthenticated, useIsAuthenticated } from "@/lib/auth";
+import { setAuthenticated, useIsAuthenticated, useNickname } from "@/lib/auth";
 import { logout } from "@/api/generated/auth/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +49,7 @@ const NAV: Record<Role, NavItem[]> = {
 export function Gnb({ role }: { role: Role }) {
   const navigate = useNavigate();
   const isAuthenticated = useIsAuthenticated();
+  const nickname = useNickname() ?? currentUser.nickname;
   const items = NAV[role];
 
   const handleLogout = () => {
@@ -110,7 +111,7 @@ export function Gnb({ role }: { role: Role }) {
               <ChevronDown className="size-4 text-[var(--color-text-muted)]" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{currentUser.nickname} 님</DropdownMenuLabel>
+              <DropdownMenuLabel>{nickname} 님</DropdownMenuLabel>
               <div className="flex items-center justify-between px-3 py-1.5">
                 <span className="text-xs text-[var(--color-text-muted)]">
                   보유 포인트
