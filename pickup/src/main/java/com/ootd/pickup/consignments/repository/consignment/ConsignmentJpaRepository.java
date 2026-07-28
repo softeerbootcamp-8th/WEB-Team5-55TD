@@ -1,4 +1,4 @@
-package com.ootd.pickup.consignments.repository;
+package com.ootd.pickup.consignments.repository.consignment;
 
 import com.ootd.pickup.consignments.domain.Consignment;
 import org.springframework.data.jpa.repository.JpaRepository;

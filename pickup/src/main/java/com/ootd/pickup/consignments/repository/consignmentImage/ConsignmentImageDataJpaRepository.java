@@ -1,12 +1,10 @@
-package com.ootd.pickup.consignments.repository;
-
-import java.util.List;
-
-import org.springframework.stereotype.Repository;
+package com.ootd.pickup.consignments.repository.consignmentImage;
 
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
 
 @Repository
 @RequiredArgsConstructor

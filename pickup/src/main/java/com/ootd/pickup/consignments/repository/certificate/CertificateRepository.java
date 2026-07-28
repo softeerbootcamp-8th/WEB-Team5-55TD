@@ -1,4 +1,4 @@
-package com.ootd.pickup.consignments.repository;
+package com.ootd.pickup.consignments.repository.certificate;
 
 import com.ootd.pickup.consignments.domain.Certificate;
 
