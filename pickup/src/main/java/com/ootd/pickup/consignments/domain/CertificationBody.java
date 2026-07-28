@@ -23,7 +23,7 @@ public enum CertificationBody {
 
     public static CertificationBody from(String certificationBody) {
         if (certificationBody == null || certificationBody.isBlank()) {
-            throw new PickUpException(INVALID_CERTIFICATION_BODY);
+            return null;
         }
 
         return Arrays.stream(values())
