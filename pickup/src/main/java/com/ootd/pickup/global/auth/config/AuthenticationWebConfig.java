@@ -27,14 +27,13 @@ public class AuthenticationWebConfig implements WebMvcConfigurer {
 
     @Bean
     @ConditionalOnBean(AccessTokenVerifier.class)
-    public AuthenticationFilter authenticationFilter(AccessTokenVerifier accessTokenVerifier) {
-        return new AuthenticationFilter(accessTokenVerifier);
-    }
-
-    @Bean
-    @ConditionalOnBean(AccessTokenVerifier.class)
-    public FilterRegistrationBean<AuthenticationFilter> authenticationFilterRegistration(AuthenticationFilter authenticationFilter) {
-        FilterRegistrationBean<AuthenticationFilter> filterRegistrationBean = new FilterRegistrationBean<>(authenticationFilter);
+    public FilterRegistrationBean<AuthenticationFilter> authenticationFilterRegistration(
+            AccessTokenVerifier accessTokenVerifier
+    ) {
+        AuthenticationFilter authenticationFilter =
+                new AuthenticationFilter(accessTokenVerifier);
+        FilterRegistrationBean<AuthenticationFilter> filterRegistrationBean =
+                new FilterRegistrationBean<>(authenticationFilter);
         filterRegistrationBean.addUrlPatterns("/*");
         filterRegistrationBean.setOrder(1);
         return filterRegistrationBean;
