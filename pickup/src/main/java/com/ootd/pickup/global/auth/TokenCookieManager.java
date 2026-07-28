@@ -1,7 +1,7 @@
-package com.ootd.pickup.auth.web;
+package com.ootd.pickup.global.auth;
 
-import com.ootd.pickup.auth.token.GeneratedAccessToken;
-import com.ootd.pickup.auth.token.JwtTokenProperties;
+import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -15,7 +15,7 @@ public class TokenCookieManager {
     private final JwtTokenProperties jwtTokenProperties;
 
     public HttpHeaders createTokenCookieHeaders(
-            GeneratedAccessToken accessToken,
+            AccessToken accessToken,
             String refreshToken
     ) {
         HttpHeaders headers = new HttpHeaders();

@@ -1,5 +1,7 @@
-package com.ootd.pickup.auth.token;
+package com.ootd.pickup.auth.token.jwt;
 
+import com.ootd.pickup.auth.token.AccessTokenGenerator;
+import com.ootd.pickup.auth.token.AccessToken;
 import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 
@@ -15,7 +17,7 @@ public class JwtAccessTokenGenerator implements AccessTokenGenerator {
     private final Duration accessTokenTtl;
 
     @Override
-    public GeneratedAccessToken generate(Long memberId) {
+    public AccessToken generate(Long memberId) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plus(accessTokenTtl);
         String token = Jwts.builder()
@@ -27,6 +29,6 @@ public class JwtAccessTokenGenerator implements AccessTokenGenerator {
                 .signWith(signingKey)
                 .compact();
 
-        return new GeneratedAccessToken(token, expiresAt);
+        return new AccessToken(token, expiresAt);
     }
 }

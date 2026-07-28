@@ -2,10 +2,10 @@ package com.ootd.pickup.auth.service;
 
 import com.ootd.pickup.auth.repository.RefreshTokenRepository;
 import com.ootd.pickup.auth.token.AccessTokenGenerator;
-import com.ootd.pickup.auth.token.GeneratedAccessToken;
-import com.ootd.pickup.auth.token.GeneratedRefreshToken;
-import com.ootd.pickup.auth.token.JwtTokenProperties;
+import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.auth.token.RefreshToken;
 import com.ootd.pickup.auth.token.RefreshTokenGenerator;
+import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.exception.PickUpException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,11 +42,11 @@ class RefreshTokenServiceTest {
     @Test
     void 유효한_리프레시_토큰을_새_토큰으로_교체한다() {
         Duration refreshTokenTtl = Duration.ofDays(14);
-        GeneratedRefreshToken newRefreshToken = new GeneratedRefreshToken(
+        RefreshToken newRefreshToken = new RefreshToken(
                 "new-refresh-token",
                 "new-refresh-token-hash"
         );
-        GeneratedAccessToken newAccessToken = new GeneratedAccessToken(
+        AccessToken newAccessToken = new AccessToken(
                 "new-access-token",
                 Instant.now().plusSeconds(900)
         );

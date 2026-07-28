@@ -1,5 +1,5 @@
 package com.ootd.pickup.auth.token;
 
 public interface AccessTokenGenerator {
-    GeneratedAccessToken generate(Long memberId);
+    AccessToken generate(Long memberId);
 }

@@ -1,6 +1,9 @@
-package com.ootd.pickup.auth.web;
+package com.ootd.pickup.global.auth.resolver;
 
-import com.ootd.pickup.auth.token.Authentication;
+import com.ootd.pickup.global.auth.Authentication;
+import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.auth.annotation.MemberId;
+import com.ootd.pickup.global.auth.annotation.RequireAuthentication;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import org.springframework.core.MethodParameter;

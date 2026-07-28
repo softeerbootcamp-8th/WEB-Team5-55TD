@@ -1,4 +1,4 @@
-package com.ootd.pickup.auth.web;
+package com.ootd.pickup.global.auth;
 
 public class AuthenticationAttributes {
 
