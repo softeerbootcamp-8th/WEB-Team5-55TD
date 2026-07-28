@@ -46,6 +46,10 @@ public class Member {
     }
 
     public boolean isPasswordMatched(String rawPassword) {
+        if (password == null) {
+            return false;
+        }
+
         return BCrypt.verifyer()
                 .verify(rawPassword.toCharArray(), password)
                 .verified;
