@@ -1,5 +1,5 @@
 {
-  "name": "cardian-fe",
+  "name": "pickup-fe",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -31,6 +31,7 @@
     "lucide-react": "^1.25.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

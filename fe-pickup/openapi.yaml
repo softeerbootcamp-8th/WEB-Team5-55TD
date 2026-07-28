@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: 카디언(Cardian) API
+  title: PickUp API
   version: 0.1.0
   description: >
     TCG 실물 카드 경매 플랫폼 API. 백엔드 스펙 확정 전까지 사용하는 스타터
@@ -13,6 +13,8 @@ tags:
     description: 서버 상태 확인
   - name: auth
     description: 인증 (로그인 · 회원가입)
+  - name: member
+    description: 회원 (실제 백엔드 스펙 — POST /members)
   - name: auctions
     description: 경매
   - name: bids
@@ -31,11 +33,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthCheckResponse"
-  /auth/login:
+  /auth:
     post:
       tags: [auth]
       operationId: login
       summary: 로그인
+      description: 아이디와 비밀번호를 검증하고 Access Token과 Refresh Token을 HttpOnly 쿠키로 발급합니다.
       requestBody:
         required: true
         content:
@@ -48,25 +51,72 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
-  /auth/signup:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: 아이디 또는 비밀번호 형식 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 아이디 또는 비밀번호 불일치
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /auth/refresh:
     post:
       tags: [auth]
-      operationId: signup
+      operationId: refresh
+      summary: 토큰 갱신
+      description: refresh-token 쿠키를 검증하고 기존 토큰을 폐기한 뒤 새 Access Token과 Refresh Token을 발급합니다.
+      responses:
+        "200":
+          description: 토큰 갱신 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResponse"
+        "401":
+          description: Refresh Token이 없거나 유효하지 않음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: 로그아웃
+      description: refresh-token 쿠키를 폐기하고 Access Token과 Refresh Token 쿠키를 만료합니다.
+      responses:
+        "204":
+          description: 로그아웃 성공
+  /members:
+    post:
+      tags: [member]
+      operationId: createMember
       summary: 회원가입
+      description: 로그인 ID, 닉네임, 비밀번호로 회원을 생성합니다.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SignupRequest"
+              $ref: "#/components/schemas/MemberRequest"
       responses:
         "201":
-          description: 가입 성공
+          description: 회원가입 성공
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
+                $ref: "#/components/schemas/MemberResponse"
+        "409":
+          description: 로그인 ID 또는 닉네임 중복
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
   /auctions:
     get:
       tags: [auctions]
@@ -168,49 +218,72 @@ components:
           example: OK
     LoginRequest:
       type: object
-      required: [username, password]
+      required: [loginId, password]
       properties:
-        username:
+        loginId:
           type: string
           minLength: 4
         password:
           type: string
           minLength: 4
-    SignupRequest:
+    LoginResponse:
       type: object
-      required: [username, nickname, password]
       properties:
-        username:
-          type: string
-          minLength: 4
-        nickname:
-          type: string
-          minLength: 4
-        password:
-          type: string
-          minLength: 4
-    AuthResponse:
-      type: object
-      required: [accessToken, user]
-      properties:
-        accessToken:
-          type: string
-        user:
-          $ref: "#/components/schemas/User"
-    User:
-      type: object
-      required: [id, nickname, role, points]
-      properties:
-        id:
-          type: string
-        nickname:
-          type: string
-        role:
-          type: string
-          enum: [BUYER, SELLER]
-        points:
+        memberId:
           type: integer
-          description: 보유 가상 포인트(P)
+          format: int64
+        loginId:
+          type: string
+        nickname:
+          type: string
+        profileImageUrl:
+          type: string
+    RefreshResponse:
+      type: object
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
+    MemberRequest:
+      type: object
+      required: [loginId, nickname, password]
+      properties:
+        loginId:
+          type: string
+          minLength: 4
+        nickname:
+          type: string
+          minLength: 4
+        password:
+          type: string
+          minLength: 4
+    MemberResponse:
+      type: object
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        loginId:
+          type: string
+        nickname:
+          type: string
+        profileImageUrl:
+          type: string
+    ExceptionResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          format: int32
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
     AuctionStatus:
       type: string
       enum: [LIVE, UPCOMING, ENDED]

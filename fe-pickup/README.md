@@ -1,4 +1,4 @@
-# 카디언(Cardian) · Frontend
+# PickUp · Frontend
 
 > **검증된 카드, 안심 경매** — 인증기관 감정 정보 기반 TCG 카드 경매 플랫폼의 프런트엔드.
 

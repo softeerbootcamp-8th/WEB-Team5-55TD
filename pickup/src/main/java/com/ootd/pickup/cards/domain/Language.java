@@ -1,11 +1,11 @@
 package com.ootd.pickup.cards.domain;
 
-import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
+import com.ootd.pickup.global.exception.PickUpException;
+import lombok.Getter;
 
 import java.util.Arrays;
 
-import com.ootd.pickup.global.exception.PickUpException;
-import lombok.Getter;
+import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
 
 @Getter
 public enum Language {
@@ -29,7 +29,7 @@ public enum Language {
                         || value.displayName.equals(language))
                 .findFirst()
                 .orElseThrow(() -> new PickUpException(ILLEGAL_ARGUMENT));
-
+    }
 
     public String getDisplayName() {
         return displayName;
