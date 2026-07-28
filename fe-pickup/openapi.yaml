@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: 카디언(Cardian) API
+  title: PickUp API
   version: 0.1.0
   description: >
     TCG 실물 카드 경매 플랫폼 API. 백엔드 스펙 확정 전까지 사용하는 스타터

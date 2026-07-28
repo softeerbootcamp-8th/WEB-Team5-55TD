@@ -9,7 +9,7 @@ import { defineConfig } from "orval";
  * 실행: pnpm gen:api
  */
 export default defineConfig({
-  cardian: {
+  pickup: {
     input: {
       target: "./openapi.yaml",
     },
