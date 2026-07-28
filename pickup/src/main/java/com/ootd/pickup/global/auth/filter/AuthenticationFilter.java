@@ -1,26 +1,28 @@
 package com.ootd.pickup.global.auth.filter;
 
+import java.io.IOException;
+import java.util.Optional;
+import java.util.Set;
+
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import com.ootd.pickup.auth.token.AccessTokenVerifier;
 import com.ootd.pickup.global.auth.Authentication;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.filter.OncePerRequestFilter;
-
-import java.io.IOException;
-import java.util.Optional;
-import java.util.Set;
 
 @RequiredArgsConstructor
 public class AuthenticationFilter extends OncePerRequestFilter {
 
     private static final Set<String> ACCESS_TOKEN_AUTHENTICATION_EXCLUDED_PATHS = Set.of(
-            "/auth/refresh",
-            "/auth/logout"
+        "/auth/refresh",
+        "/auth/logout"
     );
 
     private final AccessTokenVerifier accessTokenVerifier;
@@ -32,13 +34,13 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain filterChain
     ) throws ServletException, IOException {
         Optional<String> accessToken = getCookieValue(
-                request,
-                AuthenticationAttributes.COOKIE_NAME
+            request,
+            AuthenticationAttributes.COOKIE_NAME
         );
 
         if (accessToken.isEmpty()) {
@@ -48,8 +50,8 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
         Authentication authentication = accessTokenVerifier.verify(accessToken.get());
         request.setAttribute(
-                AuthenticationAttributes.ATTRIBUTE_NAME,
-                authentication
+            AuthenticationAttributes.ATTRIBUTE_NAME,
+            authentication
         );
 
         filterChain.doFilter(request, response);

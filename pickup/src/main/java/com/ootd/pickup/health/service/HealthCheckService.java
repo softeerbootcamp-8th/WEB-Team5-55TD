@@ -1,7 +1,8 @@
 package com.ootd.pickup.health.service;
 
-import com.ootd.pickup.health.dto.response.HealthCheckResponse;
 import org.springframework.stereotype.Service;
+
+import com.ootd.pickup.health.dto.response.HealthCheckResponse;
 
 @Service
 public class HealthCheckService {

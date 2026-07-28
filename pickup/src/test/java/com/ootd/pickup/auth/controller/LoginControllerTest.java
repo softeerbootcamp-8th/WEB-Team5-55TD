@@ -1,13 +1,15 @@
 package com.ootd.pickup.auth.controller;
 
-import com.ootd.pickup.auth.dto.LoginRequest;
-import com.ootd.pickup.auth.dto.LoginResponseBody;
-import com.ootd.pickup.auth.service.AuthService;
-import com.ootd.pickup.auth.service.LoginResponse;
-import com.ootd.pickup.auth.token.AccessToken;
-import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
-import com.ootd.pickup.global.auth.TokenCookieManager;
-import com.ootd.pickup.global.auth.TokenCookieProperties;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.contains;
+import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.time.Duration;
+import java.time.Instant;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -16,15 +18,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.Duration;
-import java.time.Instant;
-
-import static org.hamcrest.Matchers.*;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import com.ootd.pickup.auth.dto.LoginRequest;
+import com.ootd.pickup.auth.dto.LoginResponseBody;
+import com.ootd.pickup.auth.service.AuthService;
+import com.ootd.pickup.auth.service.LoginResponse;
+import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
+import com.ootd.pickup.global.auth.TokenCookieManager;
+import com.ootd.pickup.global.auth.TokenCookieProperties;
 
 class LoginControllerTest {
 
@@ -35,19 +36,19 @@ class LoginControllerTest {
     void setUp() {
         authService = mock(AuthService.class);
         JwtTokenProperties tokenProperties = new JwtTokenProperties(
-                "pickup-test",
-                "secret",
-                Duration.ofMinutes(15),
-                Duration.ofDays(14)
+            "pickup-test",
+            "secret",
+            Duration.ofMinutes(15),
+            Duration.ofDays(14)
         );
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new AuthController(
-                        authService,
-                        new TokenCookieManager(
-                                tokenProperties,
-                                new TokenCookieProperties(true, "None")
-                        )
+            new AuthController(
+                authService,
+                new TokenCookieManager(
+                    tokenProperties,
+                    new TokenCookieProperties(true, "None")
                 )
+            )
         ).build();
     }
 
@@ -56,44 +57,44 @@ class LoginControllerTest {
         // given
         LoginRequest request = new LoginRequest("pickup-user", "password1234");
         LoginResponseBody body = new LoginResponseBody(
-                1L,
-                "pickup-user",
-                "픽업회원",
-                null
+            1L,
+            "pickup-user",
+            "픽업회원",
+            null
         );
         LoginResponse response = new LoginResponse(
-                body,
-                new AccessToken("access-token", Instant.now().plusSeconds(900)),
-                "refresh-token"
+            body,
+            new AccessToken("access-token", Instant.now().plusSeconds(900)),
+            "refresh-token"
         );
         given(authService.login(request)).willReturn(response);
 
         // when & then
         mockMvc.perform(post("/auth")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"loginId\":\"pickup-user\",\"password\":\"password1234\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.memberId").value(1L))
-                .andExpect(jsonPath("$.loginId").value("pickup-user"))
-                .andExpect(jsonPath("$.accessToken").doesNotExist())
-                .andExpect(jsonPath("$.refreshToken").doesNotExist())
-                .andExpect(header().stringValues(
-                        HttpHeaders.SET_COOKIE,
-                        contains(
-                                allOf(
-                                        containsString("access-token=access-token"),
-                                        containsString("HttpOnly"),
-                                        containsString("Secure"),
-                                        containsString("SameSite=None")
-                                ),
-                                allOf(
-                                        containsString("refresh-token=refresh-token"),
-                                        containsString("HttpOnly"),
-                                        containsString("Secure"),
-                                        containsString("SameSite=None")
-                                )
-                        )
-                ));
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"loginId\":\"pickup-user\",\"password\":\"password1234\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.memberId").value(1L))
+            .andExpect(jsonPath("$.loginId").value("pickup-user"))
+            .andExpect(jsonPath("$.accessToken").doesNotExist())
+            .andExpect(jsonPath("$.refreshToken").doesNotExist())
+            .andExpect(header().stringValues(
+                HttpHeaders.SET_COOKIE,
+                contains(
+                    allOf(
+                        containsString("access-token=access-token"),
+                        containsString("HttpOnly"),
+                        containsString("Secure"),
+                        containsString("SameSite=None")
+                    ),
+                    allOf(
+                        containsString("refresh-token=refresh-token"),
+                        containsString("HttpOnly"),
+                        containsString("Secure"),
+                        containsString("SameSite=None")
+                    )
+                )
+            ));
     }
 
     @Test
@@ -103,8 +104,8 @@ class LoginControllerTest {
 
         // when
         ResultActions result = mockMvc.perform(post("/auth")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody));
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(requestBody));
 
         // then
         result.andExpect(status().isBadRequest());

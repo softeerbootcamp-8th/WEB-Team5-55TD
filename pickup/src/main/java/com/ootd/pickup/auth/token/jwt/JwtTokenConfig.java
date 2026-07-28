@@ -1,15 +1,17 @@
 package com.ootd.pickup.auth.token.jwt;
 
-import com.ootd.pickup.auth.token.AccessTokenGenerator;
-import com.ootd.pickup.auth.token.AccessTokenVerifier;
-import com.ootd.pickup.auth.token.RefreshTokenGenerator;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
+import javax.crypto.SecretKey;
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.crypto.SecretKey;
+import com.ootd.pickup.auth.token.AccessTokenGenerator;
+import com.ootd.pickup.auth.token.AccessTokenVerifier;
+import com.ootd.pickup.auth.token.RefreshTokenGenerator;
+
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 
 @Configuration
 @EnableConfigurationProperties(JwtTokenProperties.class)

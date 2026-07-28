@@ -1,6 +1,7 @@
 package com.ootd.pickup.consignments.domain;
 
 import com.ootd.pickup.cards.domain.Card;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -43,10 +44,10 @@ public class Consignment {
 
     @Builder
     public Consignment(
-            Card card,
-            Long sellerMemberId,
-            String majorDefect,
-            ConsignmentStatus status
+        Card card,
+        Long sellerMemberId,
+        String majorDefect,
+        ConsignmentStatus status
     ) {
         this.card = card;
         this.sellerMemberId = sellerMemberId;

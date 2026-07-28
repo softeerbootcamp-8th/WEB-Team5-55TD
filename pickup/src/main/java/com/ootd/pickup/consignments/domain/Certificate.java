@@ -1,4 +1,4 @@
- package com.ootd.pickup.consignments.domain;
+package com.ootd.pickup.consignments.domain;
 
 import java.time.LocalDate;
 
@@ -47,11 +47,11 @@ public class Certificate {
 
     @Builder
     public Certificate(
-            String serialNumber,
-            Consignment consignment,
-            Grade grade,
-            CertificationBody certificationBody,
-            LocalDate inspectedAt
+        String serialNumber,
+        Consignment consignment,
+        Grade grade,
+        CertificationBody certificationBody,
+        LocalDate inspectedAt
     ) {
         this.serialNumber = serialNumber;
         this.consignment = consignment;

@@ -1,20 +1,22 @@
 package com.ootd.pickup.global.filter;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+import org.springframework.http.MediaType;
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import com.ootd.pickup.auth.token.InvalidAccessTokenException;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.ExceptionResponseFactory;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
-import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 @RequiredArgsConstructor
 public class ExceptionHandlingFilter extends OncePerRequestFilter {
@@ -23,9 +25,9 @@ public class ExceptionHandlingFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain filterChain
     ) throws ServletException, IOException {
         try {
             filterChain.doFilter(request, response);
@@ -35,13 +37,13 @@ public class ExceptionHandlingFilter extends OncePerRequestFilter {
     }
 
     private void writeInvalidAccessTokenResponse(
-            HttpServletRequest request,
-            HttpServletResponse response
+        HttpServletRequest request,
+        HttpServletResponse response
     ) throws IOException {
         ExceptionCode exceptionCode = ExceptionCode.INVALID_ACCESS_TOKEN;
         ExceptionResponse body = ExceptionResponseFactory.from(
-                exceptionCode,
-                request.getRequestURI()
+            exceptionCode,
+            request.getRequestURI()
         );
 
         response.setStatus(exceptionCode.getHttpStatus().value());

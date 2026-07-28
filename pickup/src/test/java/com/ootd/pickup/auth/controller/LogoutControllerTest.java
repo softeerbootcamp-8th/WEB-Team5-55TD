@@ -1,24 +1,27 @@
 package com.ootd.pickup.auth.controller;
 
-import com.ootd.pickup.auth.service.AuthService;
-import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
-import com.ootd.pickup.global.auth.AuthenticationAttributes;
-import com.ootd.pickup.global.auth.TokenCookieManager;
-import com.ootd.pickup.global.auth.TokenCookieProperties;
-import jakarta.servlet.http.Cookie;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.contains;
+import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.time.Duration;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.Duration;
+import com.ootd.pickup.auth.service.AuthService;
+import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
+import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.auth.TokenCookieManager;
+import com.ootd.pickup.global.auth.TokenCookieProperties;
 
-import static org.hamcrest.Matchers.*;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.mock;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import jakarta.servlet.http.Cookie;
 
 class LogoutControllerTest {
     private AuthService authService;
@@ -28,52 +31,52 @@ class LogoutControllerTest {
     void setUp() {
         authService = mock(AuthService.class);
         JwtTokenProperties tokenProperties = new JwtTokenProperties(
-                "pickup-test",
-                "secret",
-                Duration.ofMinutes(15),
-                Duration.ofDays(14)
+            "pickup-test",
+            "secret",
+            Duration.ofMinutes(15),
+            Duration.ofDays(14)
         );
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new AuthController(
-                        authService,
-                        new TokenCookieManager(
-                                tokenProperties,
-                                new TokenCookieProperties(true, "None")
-                        )
+            new AuthController(
+                authService,
+                new TokenCookieManager(
+                    tokenProperties,
+                    new TokenCookieProperties(true, "None")
                 )
+            )
         ).build();
     }
 
     @Test
     void 로그아웃하면_리프레시_토큰을_폐기하고_두_쿠키를_만료한다() throws Exception {
         mockMvc.perform(post("/auth/logout")
-                        .cookie(new Cookie(
-                                AuthenticationAttributes.REFRESH_TOKEN_COOKIE_NAME,
-                                "refresh-token"
-                        )))
-                .andExpect(status().isNoContent())
-                .andExpect(content().string(""))
-                .andExpect(header().stringValues(
-                        HttpHeaders.SET_COOKIE,
-                        contains(
-                                allOf(
-                                        containsString("access-token="),
-                                        containsString("Path=/;"),
-                                        containsString("Max-Age=0"),
-                                        containsString("HttpOnly"),
-                                        containsString("Secure"),
-                                        containsString("SameSite=None")
-                                ),
-                                allOf(
-                                        containsString("refresh-token="),
-                                        containsString("Path=/auth;"),
-                                        containsString("Max-Age=0"),
-                                        containsString("HttpOnly"),
-                                        containsString("Secure"),
-                                        containsString("SameSite=None")
-                                )
-                        )
-                ));
+                .cookie(new Cookie(
+                    AuthenticationAttributes.REFRESH_TOKEN_COOKIE_NAME,
+                    "refresh-token"
+                )))
+            .andExpect(status().isNoContent())
+            .andExpect(content().string(""))
+            .andExpect(header().stringValues(
+                HttpHeaders.SET_COOKIE,
+                contains(
+                    allOf(
+                        containsString("access-token="),
+                        containsString("Path=/;"),
+                        containsString("Max-Age=0"),
+                        containsString("HttpOnly"),
+                        containsString("Secure"),
+                        containsString("SameSite=None")
+                    ),
+                    allOf(
+                        containsString("refresh-token="),
+                        containsString("Path=/auth;"),
+                        containsString("Max-Age=0"),
+                        containsString("HttpOnly"),
+                        containsString("Secure"),
+                        containsString("SameSite=None")
+                    )
+                )
+            ));
 
         then(authService).should().logout("refresh-token");
     }
@@ -81,7 +84,7 @@ class LogoutControllerTest {
     @Test
     void 리프레시_토큰이_없어도_로그아웃에_성공한다() throws Exception {
         mockMvc.perform(post("/auth/logout"))
-                .andExpect(status().isNoContent());
+            .andExpect(status().isNoContent());
 
         then(authService).should().logout(null);
     }

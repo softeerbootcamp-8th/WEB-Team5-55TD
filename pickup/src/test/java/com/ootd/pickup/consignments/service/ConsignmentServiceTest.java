@@ -1,10 +1,30 @@
 package com.ootd.pickup.consignments.service;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.BDDMockito.*;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
 import com.ootd.pickup.cards.service.CardManageService;
-import com.ootd.pickup.consignments.domain.*;
+import com.ootd.pickup.consignments.domain.Certificate;
+import com.ootd.pickup.consignments.domain.CertificationBody;
+import com.ootd.pickup.consignments.domain.Consignment;
+import com.ootd.pickup.consignments.domain.ConsignmentImage;
+import com.ootd.pickup.consignments.domain.ConsignmentStatus;
+import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.dto.request.CertificateRequest;
 import com.ootd.pickup.consignments.dto.request.ConsignmentImageRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
@@ -15,20 +35,6 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ConsignmentServiceTest {
@@ -50,7 +56,7 @@ class ConsignmentServiceTest {
     @BeforeEach
     void setUp() {
         consignmentService = new ConsignmentService(
-                cardManageService, consignmentRepository, certificateRepository, consignmentImageRepository
+            cardManageService, consignmentRepository, certificateRepository, consignmentImageRepository
         );
     }
 
@@ -73,14 +79,14 @@ class ConsignmentServiceTest {
         });
 
         RegisterConsignmentRequest request = new RegisterConsignmentRequest(
-                cardId,
-                sellerMemberId,
-                "모서리에 약간의 마모",
-                new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
-                List.of(
-                        new ConsignmentImageRequest("https://image.example.com/front.png"),
-                        new ConsignmentImageRequest("https://image.example.com/back.png")
-                )
+            cardId,
+            sellerMemberId,
+            "모서리에 약간의 마모",
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")
+            )
         );
 
         // when
@@ -102,11 +108,11 @@ class ConsignmentServiceTest {
         ArgumentCaptor<List<ConsignmentImage>> imagesCaptor = ArgumentCaptor.forClass(List.class);
         then(consignmentImageRepository).should().saveAll(imagesCaptor.capture());
         assertThat(imagesCaptor.getValue())
-                .extracting(ConsignmentImage::getImageOrder, ConsignmentImage::getImageUrl)
-                .containsExactly(
-                        tuple(1, "https://image.example.com/front.png"),
-                        tuple(2, "https://image.example.com/back.png")
-                );
+            .extracting(ConsignmentImage::getImageOrder, ConsignmentImage::getImageUrl)
+            .containsExactly(
+                tuple(1, "https://image.example.com/front.png"),
+                tuple(2, "https://image.example.com/back.png")
+            );
     }
 
     @Test
@@ -115,22 +121,22 @@ class ConsignmentServiceTest {
         Long sellerMemberId = 1L;
         Long notExistCardId = 999L;
         given(cardManageService.getCardByCardId(notExistCardId))
-                .willThrow(new PickUpException(ExceptionCode.CARD_NOT_FOUND));
+            .willThrow(new PickUpException(ExceptionCode.CARD_NOT_FOUND));
 
         RegisterConsignmentRequest request = new RegisterConsignmentRequest(
-                notExistCardId,
-                sellerMemberId,
-                null,
-                new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
-                List.of(
-                        new ConsignmentImageRequest("https://image.example.com/front.png"),
-                        new ConsignmentImageRequest("https://image.example.com/back.png")
-                )
+            notExistCardId,
+            sellerMemberId,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")
+            )
         );
 
         // when & then
         assertThatThrownBy(() -> consignmentService.registerConsignment(sellerMemberId, request))
-                .isInstanceOf(PickUpException.class);
+            .isInstanceOf(PickUpException.class);
         then(consignmentRepository).shouldHaveNoInteractions();
     }
 
@@ -143,19 +149,19 @@ class ConsignmentServiceTest {
         given(cardManageService.getCardByCardId(cardId)).willReturn(card);
 
         RegisterConsignmentRequest request = new RegisterConsignmentRequest(
-                cardId,
-                sellerMemberId,
-                null,
-                new CertificateRequest("PSA-84213907", "PSA", "S급", LocalDate.of(2026, 6, 30)),
-                List.of(
-                        new ConsignmentImageRequest("https://image.example.com/front.png"),
-                        new ConsignmentImageRequest("https://image.example.com/back.png")
-                )
+            cardId,
+            sellerMemberId,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "S급", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")
+            )
         );
 
         // when & then
         assertThatThrownBy(() -> consignmentService.registerConsignment(sellerMemberId, request))
-                .isInstanceOf(PickUpException.class);
+            .isInstanceOf(PickUpException.class);
         then(consignmentRepository).shouldHaveNoInteractions();
         then(certificateRepository).shouldHaveNoInteractions();
     }
@@ -168,8 +174,8 @@ class ConsignmentServiceTest {
         Consignment consignment = createConsignment(consignmentId, card, ConsignmentStatus.REGISTERABLE);
         Certificate certificate = createCertificate(200L, consignment);
         List<ConsignmentImage> images = List.of(
-                createConsignmentImage(1L, consignment, 1, "https://image.example.com/front.png"),
-                createConsignmentImage(2L, consignment, 2, "https://image.example.com/back.png")
+            createConsignmentImage(1L, consignment, 1, "https://image.example.com/front.png"),
+            createConsignmentImage(2L, consignment, 2, "https://image.example.com/back.png")
         );
         given(consignmentRepository.findConsignmentById(consignmentId)).willReturn(Optional.of(consignment));
         given(certificateRepository.findCertificateByConsignment(consignment)).willReturn(Optional.of(certificate));
@@ -186,11 +192,11 @@ class ConsignmentServiceTest {
         assertThat(response.certificate().certificateId()).isEqualTo(200L);
         assertThat(response.auctionRegistered()).isFalse();
         assertThat(response.images())
-                .extracting(imageResponse -> imageResponse.imageOrder(), imageResponse -> imageResponse.imageUrl())
-                .containsExactly(
-                        tuple(1, "https://image.example.com/front.png"),
-                        tuple(2, "https://image.example.com/back.png")
-                );
+            .extracting(imageResponse -> imageResponse.imageOrder(), imageResponse -> imageResponse.imageUrl())
+            .containsExactly(
+                tuple(1, "https://image.example.com/front.png"),
+                tuple(2, "https://image.example.com/back.png")
+            );
     }
 
     @Test
@@ -219,7 +225,7 @@ class ConsignmentServiceTest {
 
         // when & then
         assertThatThrownBy(() -> consignmentService.getConsignment(notExistConsignmentId))
-                .isInstanceOf(PickUpException.class);
+            .isInstanceOf(PickUpException.class);
         then(certificateRepository).shouldHaveNoInteractions();
         then(consignmentImageRepository).shouldHaveNoInteractions();
     }
@@ -234,57 +240,57 @@ class ConsignmentServiceTest {
 
         // when & then
         assertThatThrownBy(() -> consignmentService.getConsignment(consignmentId))
-                .isInstanceOf(PickUpException.class);
+            .isInstanceOf(PickUpException.class);
         then(consignmentImageRepository).shouldHaveNoInteractions();
     }
 
     private Card createCard(Long cardId) {
         Card card = Card.builder()
-                .cardName("리자몽 1st Edition Holo")
-                .cardNumber("4/102")
-                .setName("Base Set")
-                .language(Language.JAPANESE)
-                .rarity(Rarity.MINT)
-                .imageUrl("https://image.example.com/card.png")
-                .build();
+            .cardName("리자몽 1st Edition Holo")
+            .cardNumber("4/102")
+            .setName("Base Set")
+            .language(Language.JAPANESE)
+            .rarity(Rarity.MINT)
+            .imageUrl("https://image.example.com/card.png")
+            .build();
         ReflectionTestUtils.setField(card, "cardId", cardId);
         return card;
     }
 
     private Consignment createConsignment(Long consignmentId, Card card, ConsignmentStatus status) {
         Consignment consignment = Consignment.builder()
-                .card(card)
-                .sellerMemberId(1L)
-                .majorDefect(null)
-                .status(status)
-                .build();
+            .card(card)
+            .sellerMemberId(1L)
+            .majorDefect(null)
+            .status(status)
+            .build();
         ReflectionTestUtils.setField(consignment, "consignmentId", consignmentId);
         return consignment;
     }
 
     private Certificate createCertificate(Long certificateId, Consignment consignment) {
         Certificate certificate = Certificate.builder()
-                .consignment(consignment)
-                .serialNumber("PSA-84213907")
-                .certificationBody(CertificationBody.PSA)
-                .grade(Grade.GEM_MINT)
-                .inspectedAt(LocalDate.of(2026, 6, 30))
-                .build();
+            .consignment(consignment)
+            .serialNumber("PSA-84213907")
+            .certificationBody(CertificationBody.PSA)
+            .grade(Grade.GEM_MINT)
+            .inspectedAt(LocalDate.of(2026, 6, 30))
+            .build();
         ReflectionTestUtils.setField(certificate, "certificateId", certificateId);
         return certificate;
     }
 
     private ConsignmentImage createConsignmentImage(
-            Long consignmentImageId,
-            Consignment consignment,
-            int imageOrder,
-            String imageUrl
+        Long consignmentImageId,
+        Consignment consignment,
+        int imageOrder,
+        String imageUrl
     ) {
         ConsignmentImage consignmentImage = ConsignmentImage.builder()
-                .consignment(consignment)
-                .imageOrder(imageOrder)
-                .imageUrl(imageUrl)
-                .build();
+            .consignment(consignment)
+            .imageOrder(imageOrder)
+            .imageUrl(imageUrl)
+            .build();
         ReflectionTestUtils.setField(consignmentImage, "consignmentImageId", consignmentImageId);
         return consignmentImage;
     }

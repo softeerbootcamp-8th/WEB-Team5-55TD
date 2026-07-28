@@ -1,11 +1,12 @@
 package com.ootd.pickup.auth.repository;
 
-import lombok.RequiredArgsConstructor;
+import java.time.Duration;
+import java.util.Optional;
+
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.time.Duration;
-import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 
 @Repository
 @RequiredArgsConstructor
@@ -17,16 +18,16 @@ public class RefreshTokenRedisRepository implements RefreshTokenRepository {
     @Override
     public void save(String tokenHash, Long memberId, Duration ttl) {
         redisTemplate.opsForValue().set(
-                key(tokenHash),
-                memberId.toString(),
-                ttl
+            key(tokenHash),
+            memberId.toString(),
+            ttl
         );
     }
 
     @Override
     public Optional<Long> consume(String tokenHash) {
         String memberId = redisTemplate.opsForValue()
-                .getAndDelete(key(tokenHash));
+            .getAndDelete(key(tokenHash));
 
         if (memberId == null) {
             return Optional.empty();

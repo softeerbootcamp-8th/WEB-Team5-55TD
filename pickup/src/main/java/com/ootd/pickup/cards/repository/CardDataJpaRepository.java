@@ -1,6 +1,6 @@
 package com.ootd.pickup.cards.repository;
 
-import static com.ootd.pickup.cards.domain.QCard.card;
+import static com.ootd.pickup.cards.domain.QCard.*;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,23 +28,23 @@ public class CardDataJpaRepository implements CardRepository {
 
     @Override
     public List<Card> searchCards(
-            String keyword,
-            String setName,
-            Language language,
-            Long cursor,
-            int size
+        String keyword,
+        String setName,
+        Language language,
+        Long cursor,
+        int size
     ) {
         return queryFactory
-                .selectFrom(card)
-                .where(
-                        cardNameContains(keyword),
-                        setNameEq(setName),
-                        languageEq(language),
-                        cardIdLt(cursor)
-                )
-                .orderBy(card.cardId.desc())
-                .limit(size)
-                .fetch();
+            .selectFrom(card)
+            .where(
+                cardNameContains(keyword),
+                setNameEq(setName),
+                languageEq(language),
+                cardIdLt(cursor)
+            )
+            .orderBy(card.cardId.desc())
+            .limit(size)
+            .fetch();
     }
 
     private BooleanExpression cardNameContains(String keyword) {

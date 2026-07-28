@@ -35,9 +35,9 @@ public class ConsignmentImage {
 
     @Builder
     public ConsignmentImage(
-            Consignment consignment,
-            int imageOrder,
-            String imageUrl
+        Consignment consignment,
+        int imageOrder,
+        String imageUrl
     ) {
         this.consignment = consignment;
         this.imageOrder = imageOrder;

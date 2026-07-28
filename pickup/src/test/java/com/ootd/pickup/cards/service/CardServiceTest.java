@@ -41,12 +41,12 @@ class CardServiceTest {
         // given
         Long cardId = 1L;
         Card card = Card.builder()
-                .cardName("피카츄")
-                .setName("베이스셋")
-                .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
-                .imageUrl("https://image.example.com/1.png")
-                .build();
+            .cardName("피카츄")
+            .setName("베이스셋")
+            .language(Language.KOREAN)
+            .rarity(Rarity.MINT)
+            .imageUrl("https://image.example.com/1.png")
+            .build();
         given(cardRepository.findCardById(cardId)).willReturn(Optional.of(card));
 
         // when
@@ -68,20 +68,20 @@ class CardServiceTest {
 
         // when & then
         assertThatThrownBy(() -> cardService.getCardDetail(notExistCardId))
-                .isInstanceOf(PickUpException.class);
+            .isInstanceOf(PickUpException.class);
     }
 
     @Test
     void 검색결과가_요청크기보다_많으면_다음페이지_커서를_반환한다() {
         // given
         SearchCardsRequest request = new SearchCardsRequest(
-                "리자몽", "Base Set", "한국어", 10L, 2
+            "리자몽", "Base Set", "한국어", 10L, 2
         );
         Card firstCard = createCard(9L, "리자몽 V", "001/100");
         Card secondCard = createCard(8L, "리자몽 EX", "002/100");
         Card nextCard = createCard(7L, "리자몽 GX", "003/100");
         given(cardRepository.searchCards(
-                "리자몽", "Base Set", Language.KOREAN, 10L, 3
+            "리자몽", "Base Set", Language.KOREAN, 10L, 3
         )).willReturn(List.of(firstCard, secondCard, nextCard));
 
         // when
@@ -92,10 +92,10 @@ class CardServiceTest {
         assertThat(response.cursor()).isEqualTo(8L);
         assertThat(response.size()).isEqualTo(2);
         assertThat(response.items())
-                .extracting(SearchCardsResponse::cardId)
-                .containsExactly(9L, 8L);
+            .extracting(SearchCardsResponse::cardId)
+            .containsExactly(9L, 8L);
         then(cardRepository).should().searchCards(
-                "리자몽", "Base Set", Language.KOREAN, 10L, 3
+            "리자몽", "Base Set", Language.KOREAN, 10L, 3
         );
     }
 
@@ -106,7 +106,7 @@ class CardServiceTest {
         Card firstCard = createCard(2L, "피카츄", "025/102");
         Card secondCard = createCard(1L, "라이츄", "026/102");
         given(cardRepository.searchCards(null, null, null, null, 3))
-                .willReturn(List.of(firstCard, secondCard));
+            .willReturn(List.of(firstCard, secondCard));
 
         // when
         CursorPageResponse<SearchCardsResponse, Long> response = cardService.searchCards(request);
@@ -116,8 +116,8 @@ class CardServiceTest {
         assertThat(response.cursor()).isNull();
         assertThat(response.size()).isEqualTo(2);
         assertThat(response.items())
-                .extracting(SearchCardsResponse::cardName)
-                .containsExactly("피카츄", "라이츄");
+            .extracting(SearchCardsResponse::cardName)
+            .containsExactly("피카츄", "라이츄");
     }
 
     @Test
@@ -127,7 +127,7 @@ class CardServiceTest {
 
         // when & then
         assertThatThrownBy(() -> cardService.searchCards(request))
-                .isInstanceOf(PickUpException.class);
+            .isInstanceOf(PickUpException.class);
         then(cardRepository).shouldHaveNoInteractions();
     }
 
@@ -138,19 +138,19 @@ class CardServiceTest {
 
         // when & then
         assertThatThrownBy(() -> cardService.searchCards(request))
-                .isInstanceOf(PickUpException.class);
+            .isInstanceOf(PickUpException.class);
         then(cardRepository).shouldHaveNoInteractions();
     }
 
     private Card createCard(Long cardId, String cardName, String cardNumber) {
         Card card = Card.builder()
-                .cardName(cardName)
-                .cardNumber(cardNumber)
-                .setName("Base Set")
-                .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
-                .imageUrl("https://image.example.com/" + cardId + ".png")
-                .build();
+            .cardName(cardName)
+            .cardNumber(cardNumber)
+            .setName("Base Set")
+            .language(Language.KOREAN)
+            .rarity(Rarity.MINT)
+            .imageUrl("https://image.example.com/" + cardId + ".png")
+            .build();
         ReflectionTestUtils.setField(card, "cardId", cardId);
         return card;
     }

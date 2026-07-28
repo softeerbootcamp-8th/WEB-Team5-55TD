@@ -1,14 +1,14 @@
 package com.ootd.pickup.auth.repository;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.time.Duration;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-
-import java.time.Duration;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
 
 class RefreshTokenRedisRepositoryTest {
     private StringRedisTemplate redisTemplate;
@@ -36,10 +36,10 @@ class RefreshTokenRedisRepositoryTest {
     @Test
     void 리프레시_토큰을_조회하면서_삭제한다() {
         when(valueOperations.getAndDelete("auth:refresh:token-hash"))
-                .thenReturn("1");
+            .thenReturn("1");
 
         assertThat(refreshTokenRepository.consume("token-hash"))
-                .contains(1L);
+            .contains(1L);
 
         verify(valueOperations).getAndDelete("auth:refresh:token-hash");
     }
