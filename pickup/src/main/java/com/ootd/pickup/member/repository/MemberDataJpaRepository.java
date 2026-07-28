@@ -1,10 +1,12 @@
 package com.ootd.pickup.member.repository;
 
-import com.ootd.pickup.member.domain.Member;
-import lombok.RequiredArgsConstructor;
+import java.util.Optional;
+
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.ootd.pickup.member.domain.Member;
+
+import lombok.RequiredArgsConstructor;
 
 @Repository
 @RequiredArgsConstructor

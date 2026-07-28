@@ -16,8 +16,8 @@ final class SlackErrorMessageFactory {
     private SlackErrorMessageFactory() {
     }
 
-
-    static Map<String, Object> buildPayload(RuntimeException exception, ErrorRequestContext context, String activeProfile, String channel) {
+    static Map<String, Object> buildPayload(RuntimeException exception, ErrorRequestContext context,
+        String activeProfile, String channel) {
         List<Map<String, Object>> blocks = new ArrayList<>();
         blocks.add(headerBlock(activeProfile));
         blocks.add(summaryBlock(exception, context, activeProfile));
@@ -29,11 +29,13 @@ final class SlackErrorMessageFactory {
 
     private static Map<String, Object> headerBlock(String activeProfile) {
         String profilePrefix = (activeProfile == null || activeProfile.isBlank())
-                ? "-"
-                : activeProfile.toUpperCase();
+            ? "-"
+            : activeProfile.toUpperCase();
         return Map.of(
-                "type", "header",
-                "text", Map.of("type", "plain_text", "text", "[" + profilePrefix + "] 🚨 500 Internal Server Error 발생", "emoji", true)
+            "type", "header",
+            "text",
+            Map.of("type", "plain_text", "text", "[" + profilePrefix + "] 🚨 500 Internal Server Error 발생", "emoji",
+                true)
         );
     }
 
@@ -41,7 +43,8 @@ final class SlackErrorMessageFactory {
         return Map.of("type", "divider");
     }
 
-    private static Map<String, Object> summaryBlock(RuntimeException exception, ErrorRequestContext context, String activeProfile) {
+    private static Map<String, Object> summaryBlock(RuntimeException exception, ErrorRequestContext context,
+        String activeProfile) {
         List<Map<String, Object>> fields = new ArrayList<>();
         fields.add(field("발생 시각", context.occurredAt().format(TIMESTAMP_FORMAT)));
         fields.add(field("프로필", activeProfile));
@@ -67,15 +70,16 @@ final class SlackErrorMessageFactory {
     private static Map<String, Object> messageBlock(RuntimeException exception) {
         String message = exception.getMessage() == null ? "(메시지 없음)" : exception.getMessage();
         return Map.of(
-                "type", "section",
-                "text", Map.of("type", "mrkdwn", "text", "*Error Message:*\n```" + truncate(message) + "```")
+            "type", "section",
+            "text", Map.of("type", "mrkdwn", "text", "*Error Message:*\n```" + truncate(message) + "```")
         );
     }
 
     private static Map<String, Object> stackTraceBlock(RuntimeException exception) {
         return Map.of(
-                "type", "section",
-                "text", Map.of("type", "mrkdwn", "text", "*Stack Trace:*\n```" + truncate(formatStackTrace(exception)) + "```")
+            "type", "section",
+            "text",
+            Map.of("type", "mrkdwn", "text", "*Stack Trace:*\n```" + truncate(formatStackTrace(exception)) + "```")
         );
     }
 

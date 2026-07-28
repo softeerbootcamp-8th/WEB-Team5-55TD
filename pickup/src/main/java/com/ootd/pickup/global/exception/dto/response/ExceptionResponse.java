@@ -1,9 +1,8 @@
 package com.ootd.pickup.global.exception.dto.response;
 
+import java.time.ZonedDateTime;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-
-import java.time.ZonedDateTime;
 
 public record ExceptionResponse(int status,
                                 String error,

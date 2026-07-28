@@ -1,11 +1,12 @@
 package com.ootd.pickup.member.service;
 
-import at.favre.lib.crypto.bcrypt.BCrypt;
-import com.ootd.pickup.global.exception.PickUpException;
-import com.ootd.pickup.member.domain.Member;
-import com.ootd.pickup.member.dto.MemberRequest;
-import com.ootd.pickup.member.dto.MemberResponse;
-import com.ootd.pickup.member.repository.MemberRepository;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.*;
+
+import java.lang.reflect.Field;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -13,15 +14,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
+import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.member.domain.Member;
+import com.ootd.pickup.member.dto.MemberRequest;
+import com.ootd.pickup.member.dto.MemberResponse;
+import com.ootd.pickup.member.repository.MemberRepository;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import at.favre.lib.crypto.bcrypt.BCrypt;
 
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
@@ -38,7 +37,7 @@ class MemberServiceTest {
         given(memberRepository.existsByLoginId(request.loginId())).willReturn(false);
         given(memberRepository.existsByNickname(request.nickname())).willReturn(false);
         given(memberRepository.save(any(Member.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
+            .willAnswer(invocation -> invocation.getArgument(0));
 
         MemberResponse response = memberService.createMember(request);
 
@@ -50,11 +49,11 @@ class MemberServiceTest {
         assertThat(memberCaptor.getValue()).isNotNull();
 
         assertThat(readPasswordHash(memberCaptor.getValue()))
-                .isNotEqualTo(request.password());
+            .isNotEqualTo(request.password());
         assertThat(BCrypt.verifyer()
-                .verify(request.password().toCharArray(), readPasswordHash(memberCaptor.getValue()))
-                .verified)
-                .isTrue();
+            .verify(request.password().toCharArray(), readPasswordHash(memberCaptor.getValue()))
+            .verified)
+            .isTrue();
     }
 
     @Test
@@ -63,8 +62,8 @@ class MemberServiceTest {
         given(memberRepository.existsByLoginId(request.loginId())).willReturn(true);
 
         assertThatThrownBy(() -> memberService.createMember(request))
-                .isInstanceOf(PickUpException.class)
-                .hasMessage("이미 사용 중인 아이디입니다.");
+            .isInstanceOf(PickUpException.class)
+            .hasMessage("이미 사용 중인 아이디입니다.");
 
         verify(memberRepository, never()).save(any(Member.class));
     }
@@ -76,8 +75,8 @@ class MemberServiceTest {
         given(memberRepository.existsByNickname(request.nickname())).willReturn(true);
 
         assertThatThrownBy(() -> memberService.createMember(request))
-                .isInstanceOf(PickUpException.class)
-                .hasMessage("이미 사용 중인 닉네임입니다.");
+            .isInstanceOf(PickUpException.class)
+            .hasMessage("이미 사용 중인 닉네임입니다.");
 
         verify(memberRepository, never()).save(any(Member.class));
     }
@@ -86,7 +85,7 @@ class MemberServiceTest {
         try {
             Field passwordField = Member.class.getDeclaredField("password");
             passwordField.setAccessible(true);
-            return (String) passwordField.get(member);
+            return (String)passwordField.get(member);
         } catch (ReflectiveOperationException exception) {
             throw new AssertionError(exception);
         }

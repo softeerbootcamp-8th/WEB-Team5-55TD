@@ -1,15 +1,16 @@
 package com.ootd.pickup.auth.token;
 
-import io.jsonwebtoken.security.Keys;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.*;
 
-import javax.crypto.SecretKey;
 import java.time.Duration;
 import java.util.Base64;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import javax.crypto.SecretKey;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import io.jsonwebtoken.security.Keys;
 
 class JwtAccessTokenTest {
     private static final String ISSUER = "pickup-test";
@@ -42,7 +43,7 @@ class JwtAccessTokenTest {
         anotherKeyBytes[0] = 1;
         SecretKey anotherKey = Keys.hmacShaKeyFor(anotherKeyBytes);
         assertThatThrownBy(() -> new JwtAccessTokenVerifier(ISSUER, anotherKey).verify(generatedToken.value()))
-                .isInstanceOf(RuntimeException.class);
+            .isInstanceOf(RuntimeException.class);
     }
 
     @Test

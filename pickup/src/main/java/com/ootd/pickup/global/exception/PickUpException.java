@@ -1,10 +1,11 @@
 package com.ootd.pickup.global.exception;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatusCode;
 
+import lombok.RequiredArgsConstructor;
+
 @RequiredArgsConstructor
-public class PickUpException extends RuntimeException{
+public class PickUpException extends RuntimeException {
     private final ExceptionCode exceptionCode;
 
     @Override
@@ -16,7 +17,7 @@ public class PickUpException extends RuntimeException{
         return exceptionCode.getHttpStatus();
     }
 
-    public String getExceptionCodeName(){
+    public String getExceptionCodeName() {
         return exceptionCode.getClientExceptionCode().name();
     }
 }

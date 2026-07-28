@@ -44,12 +44,12 @@ public class Card {
 
     @Builder
     public Card(
-            String cardName,
-            String cardNumber,
-            String setName,
-            Language language,
-            Rarity rarity,
-            String imageUrl
+        String cardName,
+        String cardNumber,
+        String setName,
+        Language language,
+        Rarity rarity,
+        String imageUrl
     ) {
         this.cardName = cardName;
         this.cardNumber = cardNumber;
