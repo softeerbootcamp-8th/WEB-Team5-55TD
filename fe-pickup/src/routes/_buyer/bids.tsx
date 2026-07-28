@@ -11,8 +11,8 @@ import type { MyBidItem } from "@/lib/types";
 import { MyBidStatus } from "@/lib/types";
 import { formatWon } from "@/lib/format";
 
-export const Route = createFileRoute("/_buyer/mypage")({
-  component: MyPage,
+export const Route = createFileRoute("/_buyer/bids")({
+  component: BidHistoryPage,
 });
 
 const STATUS_META: Record<
@@ -26,10 +26,10 @@ const STATUS_META: Record<
 };
 
 /** DESIGN.md · mypage.html — 입찰 내역 / 낙찰 내역 */
-function MyPage() {
+function BidHistoryPage() {
   return (
     <PageContainer className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">마이페이지</h1>
+      <h1 className="text-2xl font-bold">입찰 / 낙찰 내역</h1>
 
       <Tabs defaultValue="bids">
         <TabsList>
