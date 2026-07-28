@@ -47,12 +47,18 @@ function RegisterPage() {
       data-role="buyer"
       className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-8 px-8 py-12"
     >
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">회원가입</h1>
-        <p className="text-sm text-[var(--color-text-sub)]">
-          <span className="text-[var(--color-danger)]">*</span> 표시는 필수
-          항목입니다.
-        </p>
+      <div className="flex flex-col gap-4">
+        <Link to="/home" className="flex items-center gap-2 self-start">
+          <span className="inline-block size-6 rounded-[6px] bg-primary" />
+          <span className="text-lg font-bold">PickUp</span>
+        </Link>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold">회원가입</h1>
+          <p className="text-sm text-[var(--color-text-sub)]">
+            <span className="text-[var(--color-danger)]">*</span> 표시는 필수
+            항목입니다.
+          </p>
+        </div>
       </div>
 
       <form onSubmit={submit} className="flex flex-col gap-4">
