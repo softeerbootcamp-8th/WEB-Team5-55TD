@@ -1,38 +1,45 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import type { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createMember } from "@/api/generated/member/member";
+import type { ExceptionResponse, MemberRequest } from "@/api/generated/model";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
 });
 
-const TAKEN_NICKNAMES = ["cardianKim", "admin", "pokemart"];
-
-/** DESIGN.md · register.html — 모두 4자 이상, 닉네임 중복 확인 */
+/** DESIGN.md · register.html — 아이디·닉네임·비밀번호 모두 4자 이상 */
 function RegisterPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
-  const [nickCheck, setNickCheck] = useState<"idle" | "ok" | "dup">("idle");
 
   const valid =
-    username.length >= 4 &&
-    nickname.length >= 4 &&
-    password.length >= 4 &&
-    nickCheck === "ok";
+    username.length >= 4 && nickname.length >= 4 && password.length >= 4;
 
-  const checkNickname = () => {
-    if (nickname.length < 4) return;
-    setNickCheck(TAKEN_NICKNAMES.includes(nickname) ? "dup" : "ok");
-  };
+  const { mutate, isPending } = useMutation({
+    mutationFn: (memberRequest: MemberRequest) => createMember(memberRequest),
+    onSuccess: () => {
+      navigate({ to: "/login" });
+    },
+    onError: (error: AxiosError<ExceptionResponse>) => {
+      toast.error(
+        error.response?.data?.message ??
+          "회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+    },
+  });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid) return;
-    navigate({ to: "/login" });
+    if (!valid || isPending) return;
+    mutate({ loginId: username, nickname, password });
   };
 
   return (
@@ -65,36 +72,12 @@ function RegisterPage() {
           <Label htmlFor="nickname">
             닉네임 <span className="text-[var(--color-danger)]">*</span>
           </Label>
-          <div className="flex gap-2">
-            <Input
-              id="nickname"
-              value={nickname}
-              onChange={(e) => {
-                setNickname(e.target.value);
-                setNickCheck("idle");
-              }}
-              placeholder="닉네임 (4자 이상)"
-              aria-invalid={nickCheck === "dup"}
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={checkNickname}
-              disabled={nickname.length < 4}
-            >
-              중복 확인
-            </Button>
-          </div>
-          {nickCheck === "dup" && (
-            <p className="text-xs text-[var(--color-danger)]">
-              닉네임은 중복할 수 없습니다.
-            </p>
-          )}
-          {nickCheck === "ok" && (
-            <p className="text-xs text-[var(--color-success)]">
-              사용 가능한 닉네임입니다.
-            </p>
-          )}
+          <Input
+            id="nickname"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="닉네임 (4자 이상)"
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -113,10 +96,10 @@ function RegisterPage() {
         <Button
           type="submit"
           size="lg"
-          disabled={!valid}
+          disabled={!valid || isPending}
           className="mt-2 w-full"
         >
-          가입하기
+          {isPending ? "가입 중..." : "가입하기"}
         </Button>
       </form>
 
