@@ -47,8 +47,10 @@ function LoginPage() {
       className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-8 px-8"
     >
       <div className="flex flex-col items-center gap-2 text-center">
-        <span className="inline-block size-8 rounded-[8px] bg-primary" />
-        <h1 className="text-2xl font-bold">PickUp</h1>
+        <Link to="/home" className="flex flex-col items-center gap-2">
+          <span className="inline-block size-8 rounded-[8px] bg-primary" />
+          <h1 className="text-2xl font-bold">PickUp</h1>
+        </Link>
         <p className="text-sm text-[var(--color-text-sub)]">
           피카! 맘에 드는 포켓몬카드 픽업!
         </p>
