@@ -10,3 +10,7 @@ spring:
     hibernate:
       ddl-auto: create-drop
     open-in-view: false
+auth:
+  cookie:
+    secure: true
+    same-site: None
