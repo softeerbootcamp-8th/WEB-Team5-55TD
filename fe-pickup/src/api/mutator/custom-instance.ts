@@ -13,15 +13,8 @@ export const axiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-});
-
-// 요청 인터셉터 — 토큰 주입 지점 (인증 도입 시 확장)
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+  // 로그인 시 발급되는 access-token/refresh-token 이 HttpOnly 쿠키이므로 요청에 동봉한다.
+  withCredentials: true,
 });
 
 export const customInstance = <T>(
