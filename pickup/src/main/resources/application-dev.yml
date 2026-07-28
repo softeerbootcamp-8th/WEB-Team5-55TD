@@ -4,3 +4,7 @@ spring:
       maximum-pool-size: 5
       minimum-idle: 2
       connection-timeout: 3000
+auth:
+  cookie:
+    secure: true
+    same-site: None
