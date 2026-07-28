@@ -12,10 +12,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class RedisRefreshTokenRepositoryTest {
+class RefreshTokenRedisRepositoryTest {
     private StringRedisTemplate redisTemplate;
     private ValueOperations<String, String> valueOperations;
-    private RedisRefreshTokenRepository refreshTokenRepository;
+    private RefreshTokenRedisRepository refreshTokenRepository;
 
     @SuppressWarnings("unchecked")
     @BeforeEach
@@ -23,7 +23,7 @@ class RedisRefreshTokenRepositoryTest {
         redisTemplate = mock(StringRedisTemplate.class);
         valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        refreshTokenRepository = new RedisRefreshTokenRepository(redisTemplate);
+        refreshTokenRepository = new RefreshTokenRedisRepository(redisTemplate);
     }
 
     @Test

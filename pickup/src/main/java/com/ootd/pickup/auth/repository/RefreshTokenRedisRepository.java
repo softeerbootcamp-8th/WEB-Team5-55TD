@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
-public class RedisRefreshTokenRepository implements RefreshTokenRepository {
+public class RefreshTokenRedisRepository implements RefreshTokenRepository {
     private static final String KEY_PREFIX = "auth:refresh:";
 
     private final StringRedisTemplate redisTemplate;
