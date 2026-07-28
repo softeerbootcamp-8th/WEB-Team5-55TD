@@ -1,12 +1,12 @@
 package com.ootd.pickup.global.slack;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class SlackErrorMessageFactoryTest {
 
@@ -15,16 +15,16 @@ class SlackErrorMessageFactoryTest {
         // given
         RuntimeException exception = new IllegalStateException("테스트 예외");
         ErrorRequestContext context = new ErrorRequestContext(
-                "GET", "/api/test", "id=1", "127.0.0.1", LocalDateTime.of(2026, 7, 28, 12, 0));
+            "GET", "/api/test", "id=1", "127.0.0.1", LocalDateTime.of(2026, 7, 28, 12, 0));
 
         // when
         Map<String, Object> payload = SlackErrorMessageFactory.buildPayload(
-                exception, context, "dev", "pickup-error-dev");
+            exception, context, "dev", "pickup-error-dev");
 
         // then
         assertThat(payload.get("channel")).isEqualTo("pickup-error-dev");
         assertThat(payload.get("blocks")).isInstanceOf(List.class);
-        assertThat((List<?>) payload.get("blocks")).hasSize(5);
+        assertThat((List<?>)payload.get("blocks")).hasSize(5);
     }
 
     @Test
@@ -32,17 +32,17 @@ class SlackErrorMessageFactoryTest {
         // given
         RuntimeException exception = new IllegalStateException("테스트 예외");
         ErrorRequestContext context = new ErrorRequestContext(
-                "GET", "/api/test", null, "127.0.0.1", LocalDateTime.of(2026, 7, 28, 12, 0));
+            "GET", "/api/test", null, "127.0.0.1", LocalDateTime.of(2026, 7, 28, 12, 0));
 
         // when
         Map<String, Object> payload = SlackErrorMessageFactory.buildPayload(
-                exception, context, "dev", "pickup-error-dev");
+            exception, context, "dev", "pickup-error-dev");
 
         // then
-        List<?> blocks = (List<?>) payload.get("blocks");
-        Map<?, ?> headerBlock = (Map<?, ?>) blocks.get(0);
-        Map<?, ?> text = (Map<?, ?>) headerBlock.get("text");
-        assertThat((String) text.get("text")).startsWith("[DEV]");
+        List<?> blocks = (List<?>)payload.get("blocks");
+        Map<?, ?> headerBlock = (Map<?, ?>)blocks.get(0);
+        Map<?, ?> text = (Map<?, ?>)headerBlock.get("text");
+        assertThat((String)text.get("text")).startsWith("[DEV]");
     }
 
     @Test
@@ -50,16 +50,16 @@ class SlackErrorMessageFactoryTest {
         // given
         RuntimeException exception = new IllegalStateException();
         ErrorRequestContext context = new ErrorRequestContext(
-                "GET", "/api/test", null, "127.0.0.1", LocalDateTime.of(2026, 7, 28, 12, 0));
+            "GET", "/api/test", null, "127.0.0.1", LocalDateTime.of(2026, 7, 28, 12, 0));
 
         // when
         Map<String, Object> payload = SlackErrorMessageFactory.buildPayload(
-                exception, context, "dev", "pickup-error-dev");
+            exception, context, "dev", "pickup-error-dev");
 
         // then
-        List<?> blocks = (List<?>) payload.get("blocks");
-        Map<?, ?> messageBlock = (Map<?, ?>) blocks.get(3);
-        Map<?, ?> text = (Map<?, ?>) messageBlock.get("text");
-        assertThat((String) text.get("text")).contains("(메시지 없음)");
+        List<?> blocks = (List<?>)payload.get("blocks");
+        Map<?, ?> messageBlock = (Map<?, ?>)blocks.get(3);
+        Map<?, ?> text = (Map<?, ?>)messageBlock.get("text");
+        assertThat((String)text.get("text")).contains("(메시지 없음)");
     }
 }
