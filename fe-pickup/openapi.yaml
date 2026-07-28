@@ -64,6 +64,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExceptionResponse"
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refresh
+      summary: 토큰 갱신
+      description: refresh-token 쿠키를 검증하고 기존 토큰을 폐기한 뒤 새 Access Token과 Refresh Token을 발급합니다.
+      responses:
+        "200":
+          description: 토큰 갱신 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResponse"
+        "401":
+          description: Refresh Token이 없거나 유효하지 않음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
   /auth/logout:
     post:
       tags: [auth]
@@ -219,6 +238,12 @@ components:
           type: string
         profileImageUrl:
           type: string
+    RefreshResponse:
+      type: object
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
     MemberRequest:
       type: object
       required: [loginId, nickname, password]
