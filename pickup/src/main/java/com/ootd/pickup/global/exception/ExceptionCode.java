@@ -15,7 +15,10 @@ public enum ExceptionCode {
         "이미 사용 중인 아이디입니다."),
     MEMBER_NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, ClientExceptionCode.MEMBER_NICKNAME_ALREADY_EXISTS,
         "이미 사용 중인 닉네임입니다."),
-    INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_ACCESS_TOKEN, "유효하지 않은 액세스 토큰입니다.");
+    INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_ACCESS_TOKEN, "유효하지 않은 액세스 토큰입니다."),
+    AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, ClientExceptionCode.AUTHENTICATION_REQUIRED, "인증이 필요합니다."),
+    INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_PASSWORD, "비밀번호가 일치하지 않습니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_REFRESH_TOKEN, "유효하지 않은 리프레시 토큰입니다.");
 
     private final HttpStatus httpStatus;
     private final ClientExceptionCode clientExceptionCode;

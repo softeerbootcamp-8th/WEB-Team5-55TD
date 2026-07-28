@@ -1,4 +1,4 @@
-package com.ootd.pickup.auth.token;
+package com.ootd.pickup.auth.token.jwt;
 
 final class JwtTokenClaims {
 

@@ -1,5 +1,8 @@
-package com.ootd.pickup.auth.token;
+package com.ootd.pickup.auth.token.jwt;
 
+import com.ootd.pickup.auth.token.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import javax.crypto.SecretKey;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -31,6 +34,6 @@ public class JwtTokenConfig {
 
     @Bean
     RefreshTokenGenerator refreshTokenGenerator() {
-        return new SecureRefreshTokenGenerator();
+        return new RefreshTokenGenerator();
     }
 }

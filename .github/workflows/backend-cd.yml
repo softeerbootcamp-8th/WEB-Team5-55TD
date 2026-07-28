@@ -5,9 +5,9 @@ on:
     branches:
       - main
     paths:
-      - 'pickup/**'
-      - '.github/workflows/backend-cd.yml'
-      - '.github/workflows/backend-ci.yml'
+      - "pickup/**"
+      - ".github/workflows/backend-cd.yml"
+      - ".github/workflows/backend-ci.yml"
   workflow_dispatch:
 
 jobs:
@@ -16,6 +16,7 @@ jobs:
     uses: ./.github/workflows/backend-ci.yml
     with:
       upload-jar: true
+    secrets: inherit
 
   deploy:
     name: Deploy to EC2
@@ -24,27 +25,31 @@ jobs:
 
     steps:
       - name: Download application jar
+        id: download-jar
         uses: actions/download-artifact@v4
         with:
           name: app-jar
           path: artifact
 
       - name: Prepare jar
+        id: prepare-jar
         run: |
           mkdir -p upload
           cp artifact/pickup-*.jar upload/app.jar
 
       - name: Copy jar to EC2
+        id: copy-jar
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: 'upload/app.jar'
-          target: '/home/ubuntu/pickup'
+          source: "upload/app.jar"
+          target: "/home/ubuntu/pickup"
           strip_components: 1
 
-      - name: Restart service & health check
+      - name: Restart service
+        id: restart-service
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -53,6 +58,16 @@ jobs:
           script: |
             set -e
             sudo systemctl restart pickup
+
+      - name: Health check
+        id: health-check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
             for i in $(seq 1 20); do
               if curl -fsS http://localhost:8080/healthcheck | grep -q '"status":"OK"'; then
                 echo "healthy"
@@ -64,3 +79,98 @@ jobs:
             echo "health check failed"
             sudo journalctl -u pickup -n 50 --no-pager
             exit 1
+
+      - name: Determine failed step
+        id: failure-info
+        if: failure()
+        run: |
+          FAILED_STEP="알 수 없는 단계"
+          FAILED_REASON="원인 미상 — 아래 로그 링크에서 상세 내용을 확인하세요."
+
+          if [ "${{ steps.download-jar.outcome }}" = "failure" ]; then
+            FAILED_STEP="JAR 아티팩트 다운로드"
+            FAILED_REASON="CI 워크플로에서 빌드된 app-jar 아티팩트를 찾지 못했습니다."
+          elif [ "${{ steps.prepare-jar.outcome }}" = "failure" ]; then
+            FAILED_STEP="JAR 파일 준비"
+            FAILED_REASON="다운로드한 아티팩트에서 pickup-*.jar 파일을 찾지 못했습니다."
+          elif [ "${{ steps.copy-jar.outcome }}" = "failure" ]; then
+            FAILED_STEP="EC2로 JAR 복사"
+            FAILED_REASON="SCP 전송이 실패했습니다. EC2_HOST/EC2_SSH_KEY 등 접속 정보 또는 네트워크 상태를 확인하세요."
+          elif [ "${{ steps.restart-service.outcome }}" = "failure" ]; then
+            FAILED_STEP="서비스 재시작"
+            FAILED_REASON="EC2에서 systemctl restart pickup 명령이 실패했습니다."
+          elif [ "${{ steps.health-check.outcome }}" = "failure" ]; then
+            FAILED_STEP="헬스체크"
+            FAILED_REASON="서비스는 재시작됐지만 60초 내에 healthcheck가 OK 상태를 반환하지 않았습니다."
+          fi
+
+          {
+            echo "failed_step=$FAILED_STEP"
+            echo "failed_reason=$FAILED_REASON"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack on success
+        if: success()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Prod 환경 배포 성공: ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "✅ Prod 환경 배포 성공"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Prod 환경 배포 실패: ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "❌ Prod 환경 배포 실패"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*실패 단계*\n${{ steps.failure-info.outputs.failed_step }}"
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: "*실패 사유*\n${{ steps.failure-info.outputs.failed_reason }}"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그에서 자세히 보기>"

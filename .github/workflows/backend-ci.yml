@@ -41,6 +41,8 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build & Test
+        env:
+          JWT_TEST_SECRET: ${{ secrets.JWT_TEST_SECRET }}
         run: ./gradlew clean build --no-daemon
 
       - name: Upload test results

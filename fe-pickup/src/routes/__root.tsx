@@ -1,6 +1,7 @@
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
+import { Toaster } from "sonner";
 
 /** 라우트 컨텍스트 — main.tsx 에서 queryClient 주입 */
 export interface RouterContext {
@@ -24,6 +25,7 @@ function RootLayout() {
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <Outlet />
+      <Toaster position="top-center" richColors />
       <Suspense>
         <TanStackRouterDevtools position="bottom-right" />
       </Suspense>
