@@ -1,5 +1,6 @@
 package com.ootd.pickup.health.controller;
 
+import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import com.ootd.pickup.health.dto.response.HealthCheckResponse;
 import com.ootd.pickup.health.service.HealthCheckService;
 import org.junit.jupiter.api.Test;
@@ -22,13 +23,16 @@ class HealthCheckControllerTest {
     @MockitoBean
     private HealthCheckService healthCheckService;
 
+    @MockitoBean
+    private SlackErrorNotifier slackErrorNotifier;
+
     @Test
     void 헬스체크_API_호출_시_서버_상태를_반환한다() throws Exception {
         given(healthCheckService.getHealthCheckStatus())
-                .willReturn(new HealthCheckResponse("OK"));
+            .willReturn(new HealthCheckResponse("OK"));
 
         mockMvc.perform(get("/healthcheck"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("OK"));
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("OK"));
     }
 }

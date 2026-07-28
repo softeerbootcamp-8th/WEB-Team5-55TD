@@ -237,11 +237,13 @@
 [data-role="seller"] {
   --primary: var(--color-seller);
   --primary-foreground: #ffffff;
+  --primary-weak: var(--color-seller-weak);
   --ring: var(--color-seller);
 }
 
 [data-role="buyer"] {
   --primary: var(--color-buyer);
   --primary-foreground: #ffffff;
+  --primary-weak: var(--color-buyer-weak);
   --ring: var(--color-buyer);
 }

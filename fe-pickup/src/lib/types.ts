@@ -8,10 +8,27 @@ export type {
   AuctionSummary,
   AuctionDetail,
   Bid,
-  User,
   Grade,
 } from "@/api/generated/model";
-export { AuctionStatus, GradeAgency, UserRole } from "@/api/generated/model";
+export { AuctionStatus, GradeAgency } from "@/api/generated/model";
+
+/**
+ * 프론트 전용 세션/역할 개념 — 백엔드 회원 API 에는 아직 role · points 가 없어
+ * 목 데이터 및 구매자 ↔ 셀러 모드 전환 UI 를 위해 별도로 정의한다.
+ */
+export const UserRole = {
+  BUYER: "BUYER",
+  SELLER: "SELLER",
+} as const;
+export type UserRole = (typeof UserRole)[keyof typeof UserRole];
+
+export interface User {
+  id: string;
+  nickname: string;
+  role: UserRole;
+  points: number; // 보유 가상 포인트(P)
+  avatarUrl?: string; // 프로필 이미지 — 없으면 닉네임 이니셜 아바타로 대체
+}
 
 /** 셀러 상품 상태 (DESIGN.md §8 product list — 검수/반려 없음) */
 export const ProductStatus = {

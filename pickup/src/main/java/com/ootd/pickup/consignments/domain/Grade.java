@@ -30,7 +30,7 @@ public enum Grade {
 
     public static Grade from(String grade) {
         if (grade == null || grade.isBlank()) {
-            throw new PickUpException(INVALID_GRADE);
+            return null;
         }
 
         return Arrays.stream(values())

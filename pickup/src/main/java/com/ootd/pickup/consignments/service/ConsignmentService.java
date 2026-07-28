@@ -1,23 +1,23 @@
 package com.ootd.pickup.consignments.service;
 
-import static com.ootd.pickup.global.exception.ExceptionCode.CERTIFICATE_NOT_FOUND;
-import static com.ootd.pickup.global.exception.ExceptionCode.CONSIGNMENT_NOT_FOUND;
-
-import java.util.List;
-
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.service.CardManageService;
 import com.ootd.pickup.consignments.domain.*;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
-import com.ootd.pickup.consignments.repository.CertificateRepository;
-import com.ootd.pickup.consignments.repository.ConsignmentImageRepository;
-import com.ootd.pickup.consignments.repository.ConsignmentRepository;
+import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
+import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
+import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.exception.PickUpException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+import static com.ootd.pickup.global.exception.ExceptionCode.CERTIFICATE_NOT_FOUND;
+import static com.ootd.pickup.global.exception.ExceptionCode.CONSIGNMENT_NOT_FOUND;
 
 @Service
 @RequiredArgsConstructor

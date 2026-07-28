@@ -10,3 +10,13 @@ spring:
     hibernate:
       ddl-auto: create-drop
     open-in-view: false
+
+
+auth:
+  token:
+    issuer: pickup-test
+    secret: ${JWT_TEST_SECRET:zbXk82Pja7kPR3Pe684ZMsxM8LldVy8//HITTkv3XsE=}
+    access-token-ttl: 15m
+  cookie:
+    secure: true
+    same-site: None

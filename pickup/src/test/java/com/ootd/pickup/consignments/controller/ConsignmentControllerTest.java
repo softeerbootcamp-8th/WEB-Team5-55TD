@@ -13,6 +13,7 @@ import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -43,6 +44,9 @@ class ConsignmentControllerTest {
 
     @MockitoBean
     private ConsignmentService consignmentService;
+
+    @MockitoBean
+    private SlackErrorNotifier slackErrorNotifier;
 
     @Test
     void 유효한_요청으로_상품을_등록하면_201과_상품_상세정보를_반환한다() throws Exception {

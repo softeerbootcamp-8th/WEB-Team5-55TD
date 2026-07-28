@@ -1,10 +1,10 @@
 package com.ootd.pickup.consignments.domain;
 
-import static org.assertj.core.api.Assertions.*;
-
+import com.ootd.pickup.global.exception.PickUpException;
 import org.junit.jupiter.api.Test;
 
-import com.ootd.pickup.global.exception.PickUpException;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class GradeTest {
 
@@ -27,10 +27,12 @@ class GradeTest {
     }
 
     @Test
-    void 빈_문자열이면_예외가_발생한다() {
-        // when & then
-        assertThatThrownBy(() -> Grade.from("  "))
-                .isInstanceOf(PickUpException.class);
+    void 빈_문자열이면_null을_반환한다() {
+        // when
+        Grade grade = Grade.from("  ");
+
+        // then
+        assertThat(grade).isNull();
     }
 
     @Test
