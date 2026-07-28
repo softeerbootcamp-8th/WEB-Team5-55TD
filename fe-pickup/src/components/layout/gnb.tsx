@@ -36,7 +36,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: "홈", to: "/home" },
     { label: "경매", to: "/auctions" },
     { label: "관심", to: "/watchlist" },
-    { label: "마이페이지", to: "/mypage" },
+    { label: "입찰 / 낙찰 내역", to: "/bids" },
   ],
   seller: [
     { label: "PickUp 홈", to: "/seller" },
@@ -123,7 +123,7 @@ export function Gnb({ role }: { role: Role }) {
               {role === "buyer" ? (
                 <>
                   <DropdownMenuItem
-                    onSelect={() => navigate({ to: "/mypage" })}
+                    onSelect={() => navigate({ to: "/bids" })}
                   >
                     <Gavel /> 입찰 / 낙찰 내역
                   </DropdownMenuItem>

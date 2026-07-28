@@ -41,7 +41,7 @@ function AuctionEndPage() {
         </h1>
         <p className="text-sm text-[var(--color-text-sub)]">
           {iWon
-            ? "축하합니다. 마이페이지에서 낙찰 내역을 확인하세요."
+            ? "축하합니다. 입찰/낙찰 내역에서 확인하세요."
             : won
               ? "다른 사용자가 낙찰했습니다."
               : "낙찰 없이 종료되었습니다."}
@@ -91,7 +91,7 @@ function AuctionEndPage() {
           <Link to="/auctions">다른 경매</Link>
         </Button>
         <Button className="flex-1" asChild>
-          <Link to="/mypage">낙찰 내역</Link>
+          <Link to="/bids">낙찰 내역</Link>
         </Button>
       </div>
     </PageContainer>
