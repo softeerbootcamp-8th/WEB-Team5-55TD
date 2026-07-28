@@ -35,7 +35,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: "마이페이지", to: "/mypage" },
   ],
   seller: [
-    { label: "카디언 홈", to: "/seller" },
+    { label: "PickUp 홈", to: "/seller" },
     { label: "상품", to: "/seller/products" },
     { label: "판매 내역", to: "/seller/sales" },
   ],
@@ -70,7 +70,7 @@ export function Gnb({ role }: { role: Role }) {
               className="inline-block size-5 rounded-[6px] bg-primary"
               aria-hidden
             />
-            카디언
+            PickUp
             {role === "seller" && (
               <span className="rounded-[var(--radius-pill)] bg-[var(--color-seller-weak)] px-2 py-0.5 text-xs font-medium text-[var(--color-seller)]">
                 셀러

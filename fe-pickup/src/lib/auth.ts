@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
  * 실제 세션은 HttpOnly 쿠키(access-token/refresh-token)가 담당하므로
  * JS 에서는 값을 읽을 수 없다. 이 플래그는 GNB 등 UI 전환만을 위한 것이다.
  */
-const AUTH_KEY = "cardian:isAuthenticated";
+const AUTH_KEY = "pickup:isAuthenticated";
 
 const listeners = new Set<() => void>();
 
