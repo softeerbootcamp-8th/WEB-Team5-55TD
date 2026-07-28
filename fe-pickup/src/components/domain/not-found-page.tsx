@@ -1,10 +1,11 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** 404 — 존재하지 않는 경로 접근 시 표시. 감정 등급 카드 슬랩 모티프 + EmptyState와 동일한 중립 톤. */
 export function NotFoundPage() {
   const router = useRouter();
+  const canGoBack = useCanGoBack();
 
   return (
     <main
@@ -27,14 +28,16 @@ export function NotFoundPage() {
       </div>
 
       <div className="flex w-full gap-3">
-        <Button
-          type="button"
-          variant="secondary"
-          className="flex-1"
-          onClick={() => router.history.back()}
-        >
-          이전 페이지
-        </Button>
+        {canGoBack && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            onClick={() => router.history.back()}
+          >
+            이전 페이지
+          </Button>
+        )}
         <Button asChild className="flex-1">
           <Link to="/home">홈으로 가기</Link>
         </Button>
