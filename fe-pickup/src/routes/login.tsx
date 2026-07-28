@@ -1,30 +1,42 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
+import type { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { login } from "@/api/generated/auth/auth";
+import type { ExceptionResponse, LoginRequest } from "@/api/generated/model";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
+
+const DEFAULT_ERROR_MESSAGE = "아이디 또는 비밀번호를 확인해 주세요.";
 
 /** DESIGN.md · login.html — 아이디·비밀번호 각 4자 이상 시 활성 */
 function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const valid = username.length >= 4 && password.length >= 4;
 
+  const { mutate, isPending } = useMutation({
+    mutationFn: (loginRequest: LoginRequest) => login(loginRequest),
+    onSuccess: () => {
+      navigate({ to: "/home" });
+    },
+    onError: (error: AxiosError<ExceptionResponse>) => {
+      setErrorMessage(error.response?.data?.message ?? DEFAULT_ERROR_MESSAGE);
+    },
+  });
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    // 목: 데모용 실패 계정
-    if (username === "wrong") {
-      setError(true);
-      return;
-    }
-    navigate({ to: "/home" });
+    if (!valid || isPending) return;
+    mutate({ loginId: username, password });
   };
 
   return (
@@ -48,7 +60,7 @@ function LoginPage() {
             value={username}
             onChange={(e) => {
               setUsername(e.target.value);
-              setError(false);
+              setErrorMessage(null);
             }}
             placeholder="아이디 (4자 이상)"
             autoComplete="username"
@@ -62,15 +74,15 @@ function LoginPage() {
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
-              setError(false);
+              setErrorMessage(null);
             }}
             placeholder="비밀번호 (4자 이상)"
             autoComplete="current-password"
-            aria-invalid={error}
+            aria-invalid={errorMessage !== null}
           />
-          {error && (
+          {errorMessage && (
             <p className="text-xs text-[var(--color-danger)]">
-              아이디 또는 비밀번호를 확인해 주세요.
+              {errorMessage}
             </p>
           )}
         </div>
@@ -78,10 +90,10 @@ function LoginPage() {
         <Button
           type="submit"
           size="lg"
-          disabled={!valid}
+          disabled={!valid || isPending}
           className="mt-2 w-full"
         >
-          로그인
+          {isPending ? "로그인 중..." : "로그인"}
         </Button>
       </form>
 
