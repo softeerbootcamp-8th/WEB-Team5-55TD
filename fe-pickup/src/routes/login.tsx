@@ -48,9 +48,9 @@ function LoginPage() {
     >
       <div className="flex flex-col items-center gap-2 text-center">
         <span className="inline-block size-8 rounded-[8px] bg-primary" />
-        <h1 className="text-2xl font-bold">카디언</h1>
+        <h1 className="text-2xl font-bold">PickUp</h1>
         <p className="text-sm text-[var(--color-text-sub)]">
-          검증된 카드, 안심 경매
+          피카! 맘에 드는 포켓몬카드 픽업!
         </p>
       </div>
 
