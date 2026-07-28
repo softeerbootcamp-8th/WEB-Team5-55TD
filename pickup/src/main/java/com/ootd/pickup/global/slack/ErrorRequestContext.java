@@ -1,8 +1,8 @@
 package com.ootd.pickup.global.slack;
 
-import java.time.LocalDateTime;
-
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.time.LocalDateTime;
 
 public record ErrorRequestContext(
     String method,

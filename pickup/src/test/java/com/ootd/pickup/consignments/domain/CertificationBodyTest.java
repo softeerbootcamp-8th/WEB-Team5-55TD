@@ -1,10 +1,10 @@
 package com.ootd.pickup.consignments.domain;
 
-import static org.assertj.core.api.Assertions.*;
-
+import com.ootd.pickup.global.exception.PickUpException;
 import org.junit.jupiter.api.Test;
 
-import com.ootd.pickup.global.exception.PickUpException;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CertificationBodyTest {
 

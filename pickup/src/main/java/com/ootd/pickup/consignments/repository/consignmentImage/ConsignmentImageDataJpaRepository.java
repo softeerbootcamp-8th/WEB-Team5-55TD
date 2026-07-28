@@ -1,5 +1,6 @@
 package com.ootd.pickup.consignments.repository.consignmentImage;
 
+import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -15,5 +16,10 @@ public class ConsignmentImageDataJpaRepository implements ConsignmentImageReposi
     @Override
     public List<ConsignmentImage> saveAll(List<ConsignmentImage> consignmentImages) {
         return consignmentImageJpaRepository.saveAll(consignmentImages);
+    }
+
+    @Override
+    public List<ConsignmentImage> findAllByConsignmentOrderByImageOrderAsc(Consignment consignment) {
+        return consignmentImageJpaRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
     }
 }

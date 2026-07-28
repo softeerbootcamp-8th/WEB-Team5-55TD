@@ -3,8 +3,8 @@ package com.ootd.pickup.auth.controller;
 import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
-import com.ootd.pickup.global.auth.TokenCookieProperties;
 import com.ootd.pickup.global.auth.TokenCookieManager;
+import com.ootd.pickup.global.auth.TokenCookieProperties;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,15 +14,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.Duration;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class LogoutControllerTest {
     private AuthService authService;

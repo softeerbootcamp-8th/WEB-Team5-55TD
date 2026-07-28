@@ -1,14 +1,10 @@
 package com.ootd.pickup.cards.api;
 
-import org.springframework.http.ResponseEntity;
-import org.springdoc.core.annotations.ParameterObject;
-
 import com.ootd.pickup.cards.dto.request.SearchCardsRequest;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
 import com.ootd.pickup.cards.dto.response.SearchCardsResponse;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +12,8 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Card", description = "카드 API")
 public interface CardApi {

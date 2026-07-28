@@ -1,7 +1,7 @@
 package com.ootd.pickup.auth.token.jwt;
 
-import com.ootd.pickup.auth.token.AccessTokenGenerator;
 import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.auth.token.AccessTokenGenerator;
 import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 
