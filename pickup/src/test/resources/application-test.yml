@@ -10,3 +10,10 @@ spring:
     hibernate:
       ddl-auto: create-drop
     open-in-view: false
+
+auth:
+  token:
+    issuer: pickup-test
+#    테스트용 시크릿
+    secret: 3039ixRPJrt0B2LVLEkMAHQVtF4MwOr1HaqhAX92s5c=
+    access-token-ttl: 15m
