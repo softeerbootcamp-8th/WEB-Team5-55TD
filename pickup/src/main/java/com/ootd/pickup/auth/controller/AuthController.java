@@ -4,11 +4,9 @@ import com.ootd.pickup.auth.api.AuthApi;
 import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.dto.LoginResponse;
 import com.ootd.pickup.auth.dto.RefreshResponse;
+import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.auth.service.LoginResult;
-import com.ootd.pickup.auth.service.LoginService;
-import com.ootd.pickup.auth.service.LogoutService;
 import com.ootd.pickup.auth.service.RefreshResult;
-import com.ootd.pickup.auth.service.RefreshTokenService;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import jakarta.validation.Valid;
@@ -24,15 +22,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController implements AuthApi {
-    private final LoginService loginService;
-    private final RefreshTokenService refreshTokenService;
-    private final LogoutService logoutService;
+    private final AuthService authService;
     private final TokenCookieManager tokenCookieManager;
 
     @PostMapping
     @Override
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
-        LoginResult loginResult = loginService.login(loginRequest);
+        LoginResult loginResult = authService.login(loginRequest);
         return ResponseEntity.ok()
                 .headers(tokenCookieManager.createTokenCookieHeaders(
                         loginResult.accessToken(),
@@ -49,7 +45,7 @@ public class AuthController implements AuthApi {
                     required = false
             ) String refreshToken
     ) {
-        RefreshResult result = refreshTokenService.refresh(refreshToken);
+        RefreshResult result = authService.refresh(refreshToken);
 
         return ResponseEntity.ok()
                 .headers(tokenCookieManager.createTokenCookieHeaders(
@@ -67,7 +63,7 @@ public class AuthController implements AuthApi {
                     required = false
             ) String refreshToken
     ) {
-        logoutService.logout(refreshToken);
+        authService.logout(refreshToken);
 
         return ResponseEntity.noContent()
                 .headers(tokenCookieManager.createExpiredTokenCookieHeaders())

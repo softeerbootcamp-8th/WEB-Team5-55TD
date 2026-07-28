@@ -2,12 +2,10 @@ package com.ootd.pickup.auth.controller;
 
 import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.dto.LoginResponse;
+import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.auth.service.LoginResult;
-import com.ootd.pickup.auth.service.LoginService;
-import com.ootd.pickup.auth.service.LogoutService;
-import com.ootd.pickup.auth.service.RefreshTokenService;
-import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,12 +29,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class LoginControllerTest {
 
-    private LoginService loginService;
+    private AuthService authService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        loginService = mock(LoginService.class);
+        authService = mock(AuthService.class);
         JwtTokenProperties tokenProperties = new JwtTokenProperties(
                 "pickup-test",
                 "secret",
@@ -45,9 +43,7 @@ class LoginControllerTest {
         );
         mockMvc = MockMvcBuilders.standaloneSetup(
                 new AuthController(
-                        loginService,
-                        mock(RefreshTokenService.class),
-                        mock(LogoutService.class),
+                        authService,
                         new TokenCookieManager(tokenProperties)
                 )
         ).build();
@@ -62,7 +58,7 @@ class LoginControllerTest {
                 new AccessToken("access-token", Instant.now().plusSeconds(900)),
                 "refresh-token"
         );
-        given(loginService.login(request)).willReturn(result);
+        given(authService.login(request)).willReturn(result);
 
         mockMvc.perform(post("/auth")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -89,6 +85,6 @@ class LoginControllerTest {
                         .content("{\"loginId\":\"abc\",\"password\":\"123\"}"))
                 .andExpect(status().isBadRequest());
 
-        verifyNoInteractions(loginService);
+        verifyNoInteractions(authService);
     }
 }

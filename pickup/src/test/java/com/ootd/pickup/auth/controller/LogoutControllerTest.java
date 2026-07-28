@@ -1,8 +1,6 @@
 package com.ootd.pickup.auth.controller;
 
-import com.ootd.pickup.auth.service.LogoutService;
-import com.ootd.pickup.auth.service.LoginService;
-import com.ootd.pickup.auth.service.RefreshTokenService;
+import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
 import com.ootd.pickup.global.auth.TokenCookieManager;
@@ -26,12 +24,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class LogoutControllerTest {
-    private LogoutService logoutService;
+    private AuthService authService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        logoutService = mock(LogoutService.class);
+        authService = mock(AuthService.class);
         JwtTokenProperties tokenProperties = new JwtTokenProperties(
                 "pickup-test",
                 "secret",
@@ -40,9 +38,7 @@ class LogoutControllerTest {
         );
         mockMvc = MockMvcBuilders.standaloneSetup(
                 new AuthController(
-                        mock(LoginService.class),
-                        mock(RefreshTokenService.class),
-                        logoutService,
+                        authService,
                         new TokenCookieManager(tokenProperties)
                 )
         ).build();
@@ -79,7 +75,7 @@ class LogoutControllerTest {
                         )
                 ));
 
-        then(logoutService).should().logout("refresh-token");
+        then(authService).should().logout("refresh-token");
     }
 
     @Test
@@ -87,6 +83,6 @@ class LogoutControllerTest {
         mockMvc.perform(post("/auth/logout"))
                 .andExpect(status().isNoContent());
 
-        then(logoutService).should().logout(null);
+        then(authService).should().logout(null);
     }
 }

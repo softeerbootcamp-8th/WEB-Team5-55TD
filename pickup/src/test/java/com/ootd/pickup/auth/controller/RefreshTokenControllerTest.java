@@ -1,9 +1,7 @@
 package com.ootd.pickup.auth.controller;
 
+import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.auth.service.RefreshResult;
-import com.ootd.pickup.auth.service.RefreshTokenService;
-import com.ootd.pickup.auth.service.LoginService;
-import com.ootd.pickup.auth.service.LogoutService;
 import com.ootd.pickup.auth.token.AccessToken;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
@@ -28,12 +26,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class RefreshTokenControllerTest {
-    private RefreshTokenService refreshTokenService;
+    private AuthService authService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        refreshTokenService = mock(RefreshTokenService.class);
+        authService = mock(AuthService.class);
         JwtTokenProperties tokenProperties = new JwtTokenProperties(
                 "pickup-test",
                 "secret",
@@ -42,9 +40,7 @@ class RefreshTokenControllerTest {
         );
         mockMvc = MockMvcBuilders.standaloneSetup(
                 new AuthController(
-                        mock(LoginService.class),
-                        refreshTokenService,
-                        mock(LogoutService.class),
+                        authService,
                         new TokenCookieManager(tokenProperties)
                 )
         ).build();
@@ -53,7 +49,7 @@ class RefreshTokenControllerTest {
     @Test
     void 재발급에_성공하면_두_토큰을_쿠키로_전달한다() throws Exception {
         Instant expiresAt = Instant.parse("2026-07-26T05:00:00Z");
-        given(refreshTokenService.refresh("old-refresh-token"))
+        given(authService.refresh("old-refresh-token"))
                 .willReturn(new RefreshResult(
                         new AccessToken("new-access-token", expiresAt),
                         "new-refresh-token"

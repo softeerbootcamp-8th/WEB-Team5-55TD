@@ -3,8 +3,8 @@ package com.ootd.pickup.auth.service;
 import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.dto.LoginResponse;
 import com.ootd.pickup.auth.repository.RefreshTokenRepository;
-import com.ootd.pickup.auth.token.AccessTokenGenerator;
 import com.ootd.pickup.auth.token.AccessToken;
+import com.ootd.pickup.auth.token.AccessTokenGenerator;
 import com.ootd.pickup.auth.token.RefreshToken;
 import com.ootd.pickup.auth.token.RefreshTokenGenerator;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class LoginService {
+public class AuthService {
 
     private final MemberRepository memberRepository;
     private final AccessTokenGenerator accessTokenGenerator;
@@ -50,5 +50,34 @@ public class LoginService {
         );
 
         return new LoginResult(response, accessToken, refreshToken.value());
+    }
+
+    public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+
+        String tokenHash = refreshTokenGenerator.hash(refreshToken);
+        refreshTokenRepository.delete(tokenHash);
+    }
+
+    public RefreshResult refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new PickUpException(ExceptionCode.INVALID_REFRESH_TOKEN);
+        }
+
+        String oldTokenHash = refreshTokenGenerator.hash(refreshToken);
+        Long memberId = refreshTokenRepository.consume(oldTokenHash)
+                .orElseThrow(() -> new PickUpException(ExceptionCode.INVALID_REFRESH_TOKEN));
+
+        RefreshToken newRefreshToken = refreshTokenGenerator.generate();
+        refreshTokenRepository.save(
+                newRefreshToken.hash(),
+                memberId,
+                jwtTokenProperties.refreshTokenTtl()
+        );
+
+        AccessToken newAccessToken = accessTokenGenerator.generate(memberId);
+        return new RefreshResult(newAccessToken, newRefreshToken.value());
     }
 }
