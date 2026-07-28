@@ -1,10 +1,10 @@
 package com.ootd.pickup.consignments.domain;
 
-import com.ootd.pickup.global.exception.PickUpException;
+import static org.assertj.core.api.Assertions.*;
+
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.ootd.pickup.global.exception.PickUpException;
 
 class CertificationBodyTest {
 
@@ -30,6 +30,6 @@ class CertificationBodyTest {
     void 존재하지_않는_감정기관이면_예외가_발생한다() {
         // when & then
         assertThatThrownBy(() -> CertificationBody.from("XYZ"))
-                .isInstanceOf(PickUpException.class);
+            .isInstanceOf(PickUpException.class);
     }
 }

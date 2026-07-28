@@ -1,12 +1,16 @@
 package com.ootd.pickup.member.domain;
 
+import java.time.LocalDateTime;
+
 import at.favre.lib.crypto.bcrypt.BCrypt;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -51,7 +55,7 @@ public class Member {
         }
 
         return BCrypt.verifyer()
-                .verify(rawPassword.toCharArray(), password)
-                .verified;
+            .verify(rawPassword.toCharArray(), password)
+            .verified;
     }
 }

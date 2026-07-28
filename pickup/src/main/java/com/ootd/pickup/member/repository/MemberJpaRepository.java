@@ -1,9 +1,10 @@
 package com.ootd.pickup.member.repository;
 
-import com.ootd.pickup.member.domain.Member;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.Optional;
+import com.ootd.pickup.member.domain.Member;
 
 public interface MemberJpaRepository extends JpaRepository<Member, Long> {
 

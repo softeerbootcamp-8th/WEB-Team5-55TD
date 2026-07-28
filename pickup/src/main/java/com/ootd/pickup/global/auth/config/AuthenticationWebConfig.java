@@ -1,11 +1,7 @@
 package com.ootd.pickup.global.auth.config;
 
-import com.ootd.pickup.auth.token.AccessTokenVerifier;
-import com.ootd.pickup.global.auth.TokenCookieProperties;
-import com.ootd.pickup.global.auth.filter.AuthenticationFilter;
-import com.ootd.pickup.global.auth.interceptor.AuthenticationInterceptor;
-import com.ootd.pickup.global.auth.resolver.MemberIdArgumentResolver;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -15,7 +11,13 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.util.List;
+import com.ootd.pickup.auth.token.AccessTokenVerifier;
+import com.ootd.pickup.global.auth.TokenCookieProperties;
+import com.ootd.pickup.global.auth.filter.AuthenticationFilter;
+import com.ootd.pickup.global.auth.interceptor.AuthenticationInterceptor;
+import com.ootd.pickup.global.auth.resolver.MemberIdArgumentResolver;
+
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @RequiredArgsConstructor
@@ -28,12 +30,12 @@ public class AuthenticationWebConfig implements WebMvcConfigurer {
     @Bean
     @ConditionalOnBean(AccessTokenVerifier.class)
     public FilterRegistrationBean<AuthenticationFilter> authenticationFilterRegistration(
-            AccessTokenVerifier accessTokenVerifier
+        AccessTokenVerifier accessTokenVerifier
     ) {
         AuthenticationFilter authenticationFilter =
-                new AuthenticationFilter(accessTokenVerifier);
+            new AuthenticationFilter(accessTokenVerifier);
         FilterRegistrationBean<AuthenticationFilter> filterRegistrationBean =
-                new FilterRegistrationBean<>(authenticationFilter);
+            new FilterRegistrationBean<>(authenticationFilter);
         filterRegistrationBean.addUrlPatterns("/*");
         filterRegistrationBean.setOrder(1);
         return filterRegistrationBean;

@@ -20,13 +20,12 @@ public class RefreshTokenGenerator {
         this.secureRandom = secureRandom;
     }
 
-
     public RefreshToken generate() {
         byte[] tokenBytes = new byte[TOKEN_BYTE_LENGTH];
         secureRandom.nextBytes(tokenBytes);
         String token = Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(tokenBytes);
+            .withoutPadding()
+            .encodeToString(tokenBytes);
         return new RefreshToken(token, hash(token));
     }
 
@@ -34,7 +33,7 @@ public class RefreshTokenGenerator {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
             byte[] digest = messageDigest.digest(
-                    refreshToken.getBytes(StandardCharsets.UTF_8)
+                refreshToken.getBytes(StandardCharsets.UTF_8)
             );
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException exception) {

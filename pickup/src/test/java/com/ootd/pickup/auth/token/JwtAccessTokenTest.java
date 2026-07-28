@@ -1,21 +1,23 @@
 package com.ootd.pickup.auth.token;
 
-import com.ootd.pickup.auth.token.jwt.JwtAccessTokenGenerator;
-import com.ootd.pickup.auth.token.jwt.JwtAccessTokenVerifier;
-import com.ootd.pickup.global.auth.Authentication;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.*;
 
-import javax.crypto.SecretKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import javax.crypto.SecretKey;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import com.ootd.pickup.auth.token.jwt.JwtAccessTokenGenerator;
+import com.ootd.pickup.auth.token.jwt.JwtAccessTokenVerifier;
+import com.ootd.pickup.global.auth.Authentication;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 
 class JwtAccessTokenTest {
     private static final String ISSUER = "pickup-test";
@@ -45,13 +47,13 @@ class JwtAccessTokenTest {
         anotherKeyBytes[0] = 1;
         SecretKey anotherKey = Keys.hmacShaKeyFor(anotherKeyBytes);
         assertThatThrownBy(() -> new JwtAccessTokenVerifier(ISSUER, anotherKey).verify(generatedToken.value()))
-                .isInstanceOf(InvalidAccessTokenException.class);
+            .isInstanceOf(InvalidAccessTokenException.class);
     }
 
     @Test
     void 빈_액세스_토큰은_인증하지_않는다() {
         assertThatThrownBy(() -> verifier.verify(" "))
-                .isInstanceOf(InvalidAccessTokenException.class);
+            .isInstanceOf(InvalidAccessTokenException.class);
     }
 
     @Test
@@ -59,7 +61,7 @@ class JwtAccessTokenTest {
         String refreshToken = createToken("1", "refresh", Instant.now().plusSeconds(60));
 
         assertThatThrownBy(() -> verifier.verify(refreshToken))
-                .isInstanceOf(InvalidAccessTokenException.class);
+            .isInstanceOf(InvalidAccessTokenException.class);
     }
 
     @Test
@@ -67,7 +69,7 @@ class JwtAccessTokenTest {
         String accessToken = createToken("member", "access", Instant.now().plusSeconds(60));
 
         assertThatThrownBy(() -> verifier.verify(accessToken))
-                .isInstanceOf(InvalidAccessTokenException.class);
+            .isInstanceOf(InvalidAccessTokenException.class);
     }
 
     @Test
@@ -75,7 +77,7 @@ class JwtAccessTokenTest {
         String accessToken = createToken("1", "access", Instant.now().minusSeconds(1));
 
         assertThatThrownBy(() -> verifier.verify(accessToken))
-                .isInstanceOf(InvalidAccessTokenException.class);
+            .isInstanceOf(InvalidAccessTokenException.class);
     }
 
     @Test
@@ -88,16 +90,16 @@ class JwtAccessTokenTest {
         assertThat(firstToken.value()).isNotEqualTo(secondToken.value());
         assertThat(Base64.getUrlDecoder().decode(firstToken.value())).hasSize(32);
         assertThat(refreshTokenGenerator.hash(firstToken.value()))
-                .isEqualTo(firstToken.hash());
+            .isEqualTo(firstToken.hash());
     }
 
     private String createToken(String subject, String tokenType, Instant expiresAt) {
         return Jwts.builder()
-                .issuer(ISSUER)
-                .subject(subject)
-                .claim("token_type", tokenType)
-                .expiration(Date.from(expiresAt))
-                .signWith(signingKey)
-                .compact();
+            .issuer(ISSUER)
+            .subject(subject)
+            .claim("token_type", tokenType)
+            .expiration(Date.from(expiresAt))
+            .signWith(signingKey)
+            .compact();
     }
 }

@@ -10,10 +10,10 @@ public interface CardRepository {
     Optional<Card> findCardById(Long id);
 
     List<Card> searchCards(
-            String keyword,
-            String setName,
-            Language language,
-            Long cursor,
-            int size
+        String keyword,
+        String setName,
+        Language language,
+        Long cursor,
+        int size
     );
 }

@@ -1,27 +1,27 @@
 package com.ootd.pickup.global.filter;
 
-import com.ootd.pickup.auth.token.InvalidAccessTokenException;
-import jakarta.servlet.FilterChain;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+
+import com.ootd.pickup.auth.token.InvalidAccessTokenException;
+
+import jakarta.servlet.FilterChain;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-
 class ExceptionHandlingFilterTest {
 
     private final ObjectMapper objectMapper = JsonMapper.builder()
-            .findAndAddModules()
-            .build();
+        .findAndAddModules()
+        .build();
     private final ExceptionHandlingFilter exceptionHandlingFilter =
-            new ExceptionHandlingFilter(objectMapper);
+        new ExceptionHandlingFilter(objectMapper);
 
     @Test
     void 액세스_토큰이_유효하지_않으면_401_응답을_반환한다() throws Exception {
@@ -30,8 +30,8 @@ class ExceptionHandlingFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain filterChain = mock(FilterChain.class);
         doThrow(new InvalidAccessTokenException())
-                .when(filterChain)
-                .doFilter(request, response);
+            .when(filterChain)
+            .doFilter(request, response);
 
         // when
         exceptionHandlingFilter.doFilter(request, response, filterChain);
@@ -54,12 +54,12 @@ class ExceptionHandlingFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain filterChain = mock(FilterChain.class);
         doThrow(new IllegalStateException("unexpected"))
-                .when(filterChain)
-                .doFilter(request, response);
+            .when(filterChain)
+            .doFilter(request, response);
 
         // when & then
         assertThatThrownBy(() -> exceptionHandlingFilter.doFilter(request, response, filterChain))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("unexpected");
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("unexpected");
     }
 }

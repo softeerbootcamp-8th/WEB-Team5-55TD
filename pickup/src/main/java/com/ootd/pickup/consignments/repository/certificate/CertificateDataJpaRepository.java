@@ -1,11 +1,13 @@
 package com.ootd.pickup.consignments.repository.certificate;
 
-import com.ootd.pickup.consignments.domain.Certificate;
-import com.ootd.pickup.consignments.domain.Consignment;
-import lombok.RequiredArgsConstructor;
+import java.util.Optional;
+
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.ootd.pickup.consignments.domain.Certificate;
+import com.ootd.pickup.consignments.domain.Consignment;
+
+import lombok.RequiredArgsConstructor;
 
 @Repository
 @RequiredArgsConstructor

@@ -1,6 +1,6 @@
 package com.ootd.pickup.cards.service;
 
-import static com.ootd.pickup.global.exception.ExceptionCode.CARD_NOT_FOUND;
+import static com.ootd.pickup.global.exception.ExceptionCode.*;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +20,6 @@ public class CardManageService {
 
     public Card getCardByCardId(Long cardId) {
         return cardRepository.findCardById(cardId)
-                .orElseThrow(() -> new PickUpException(CARD_NOT_FOUND));
+            .orElseThrow(() -> new PickUpException(CARD_NOT_FOUND));
     }
 }

@@ -1,6 +1,7 @@
 package com.ootd.pickup.global.slack;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
+
 import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
@@ -8,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
-import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component

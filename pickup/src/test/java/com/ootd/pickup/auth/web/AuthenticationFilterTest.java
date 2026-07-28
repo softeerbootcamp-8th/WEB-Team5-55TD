@@ -1,21 +1,21 @@
 package com.ootd.pickup.auth.web;
 
-import com.ootd.pickup.auth.token.AccessTokenVerifier;
-import com.ootd.pickup.auth.token.InvalidAccessTokenException;
-import com.ootd.pickup.global.auth.Authentication;
-import com.ootd.pickup.global.auth.AuthenticationAttributes;
-import com.ootd.pickup.global.auth.filter.AuthenticationFilter;
-import jakarta.servlet.http.Cookie;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.*;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
+import com.ootd.pickup.auth.token.AccessTokenVerifier;
+import com.ootd.pickup.auth.token.InvalidAccessTokenException;
+import com.ootd.pickup.global.auth.Authentication;
+import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.auth.filter.AuthenticationFilter;
+
+import jakarta.servlet.http.Cookie;
 
 class AuthenticationFilterTest {
 
@@ -33,7 +33,7 @@ class AuthenticationFilterTest {
         authenticationFilter.doFilter(request, response, filterChain);
 
         assertThat(request.getAttribute(AuthenticationAttributes.ATTRIBUTE_NAME))
-                .isSameAs(authentication);
+            .isSameAs(authentication);
         assertThat(filterChain.getRequest()).isSameAs(request);
     }
 
@@ -78,10 +78,10 @@ class AuthenticationFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain filterChain = new MockFilterChain();
         given(accessTokenVerifier.verify("invalid-token"))
-                .willThrow(new InvalidAccessTokenException());
+            .willThrow(new InvalidAccessTokenException());
 
         assertThatThrownBy(() -> authenticationFilter.doFilter(request, response, filterChain))
-                .isInstanceOf(InvalidAccessTokenException.class);
+            .isInstanceOf(InvalidAccessTokenException.class);
 
         assertThat(request.getAttribute(AuthenticationAttributes.ATTRIBUTE_NAME)).isNull();
         assertThat(filterChain.getRequest()).isNull();
