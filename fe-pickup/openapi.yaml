@@ -64,6 +64,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExceptionResponse"
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: 로그아웃
+      description: refresh-token 쿠키를 폐기하고 Access Token과 Refresh Token 쿠키를 만료합니다.
+      responses:
+        "204":
+          description: 로그아웃 성공
   /members:
     post:
       tags: [member]
