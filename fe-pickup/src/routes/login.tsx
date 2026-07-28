@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login } from "@/api/generated/auth/auth";
 import type { ExceptionResponse, LoginRequest } from "@/api/generated/model";
+import { setAuthenticated } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -26,6 +27,7 @@ function LoginPage() {
   const { mutate, isPending } = useMutation({
     mutationFn: (loginRequest: LoginRequest) => login(loginRequest),
     onSuccess: () => {
+      setAuthenticated(true);
       navigate({ to: "/home" });
     },
     onError: (error: AxiosError<ExceptionResponse>) => {
