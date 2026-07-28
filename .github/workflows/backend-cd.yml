@@ -16,6 +16,7 @@ jobs:
     uses: ./.github/workflows/backend-ci.yml
     with:
       upload-jar: true
+    secrets: inherit
 
   deploy:
     name: Deploy to EC2

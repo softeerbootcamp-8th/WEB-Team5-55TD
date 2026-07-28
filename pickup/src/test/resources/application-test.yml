@@ -14,6 +14,5 @@ spring:
 auth:
   token:
     issuer: pickup-test
-#    테스트용 시크릿
-    secret: 3039ixRPJrt0B2LVLEkMAHQVtF4MwOr1HaqhAX92s5c=
+    secret: ${JWT_TEST_SECRET}
     access-token-ttl: 15m
