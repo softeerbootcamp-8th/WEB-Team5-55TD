@@ -21,5 +21,5 @@ spring:
 auth:
   token:
     issuer: ${JWT_ISSUER:pickup}
-    secret: ${JWT_SECRET:}
+    secret: ${JWT_SECRET:kiapickupmeplzqwerasdfkiapickupmeplzqwerasdfkiapickupmeplzqwerasdf}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
