@@ -70,30 +70,56 @@ jobs:
         id: coverage
         if: always()
         run: |
-          REPORT=build/reports/jacoco/test/jacocoTestReport.xml
-          if [ ! -f "$REPORT" ]; then
-            echo "coverage_available=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          python3 <<'PYEOF'
+          import os
+          import sys
+          import xml.etree.ElementTree as ET
 
-          LINE_COUNTER=$(grep -oE '<counter type="LINE" missed="[0-9]+" covered="[0-9]+"/>' "$REPORT" | tail -1)
-          MISSED=$(echo "$LINE_COUNTER" | grep -oE 'missed="[0-9]+"' | grep -oE '[0-9]+')
-          COVERED=$(echo "$LINE_COUNTER" | grep -oE 'covered="[0-9]+"' | grep -oE '[0-9]+')
-          TOTAL=$((MISSED + COVERED))
+          report_path = "build/reports/jacoco/test/jacocoTestReport.xml"
+          output_path = os.environ["GITHUB_OUTPUT"]
 
-          if [ "$TOTAL" -eq 0 ]; then
-            PERCENT="0.00"
-          else
-            PERCENT=$(awk "BEGIN { printf \"%.2f\", ($COVERED / $TOTAL) * 100 }")
-          fi
 
-          {
-            echo "coverage_available=true"
-            echo "line_covered=$COVERED"
-            echo "line_missed=$MISSED"
-            echo "line_total=$TOTAL"
-            echo "coverage_percent=$PERCENT"
-          } >> "$GITHUB_OUTPUT"
+          def unavailable():
+              with open(output_path, "a") as f:
+                  f.write("coverage_available=false\n")
+              sys.exit(0)
+
+
+          if not os.path.isfile(report_path):
+              unavailable()
+
+          try:
+              root = ET.parse(report_path).getroot()
+          except ET.ParseError:
+              unavailable()
+
+          line_counter = root.find("./counter[@type='LINE']")
+          branch_counter = root.find("./counter[@type='BRANCH']")
+          if line_counter is None or branch_counter is None:
+              unavailable()
+
+
+          def percent(covered, missed):
+              total = covered + missed
+              return f"{(covered / total * 100):.2f}" if total else "0.00"
+
+
+          line_covered = int(line_counter.get("covered"))
+          line_missed = int(line_counter.get("missed"))
+          branch_covered = int(branch_counter.get("covered"))
+          branch_missed = int(branch_counter.get("missed"))
+
+          with open(output_path, "a") as f:
+              f.write("coverage_available=true\n")
+              f.write(f"line_covered={line_covered}\n")
+              f.write(f"line_missed={line_missed}\n")
+              f.write(f"line_total={line_covered + line_missed}\n")
+              f.write(f"coverage_percent={percent(line_covered, line_missed)}\n")
+              f.write(f"branch_covered={branch_covered}\n")
+              f.write(f"branch_missed={branch_missed}\n")
+              f.write(f"branch_total={branch_covered + branch_missed}\n")
+              f.write(f"branch_percent={percent(branch_covered, branch_missed)}\n")
+          PYEOF
 
       - name: Notify Slack on success
         if: ${{ success() && steps.coverage.outputs.coverage_available == 'true' }}
@@ -103,7 +129,7 @@ jobs:
           token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
           payload: |
             channel: pickup-cicd
-            text: "Backend CI 성공 (라인 커버리지 ${{ steps.coverage.outputs.coverage_percent }}%): ${{ github.repository }}@${{ github.sha }}"
+            text: "Backend CI 성공 (라인 커버리지 ${{ steps.coverage.outputs.coverage_percent }}%, 브랜치 커버리지 ${{ steps.coverage.outputs.branch_percent }}%): ${{ github.repository }}@${{ github.sha }}"
             blocks:
               - type: header
                 text:
@@ -122,6 +148,8 @@ jobs:
                     text: "*실행자*\n${{ github.actor }}"
                   - type: mrkdwn
                     text: "*라인 커버리지*\n${{ steps.coverage.outputs.coverage_percent }}% (${{ steps.coverage.outputs.line_covered }}/${{ steps.coverage.outputs.line_total }})"
+                  - type: mrkdwn
+                    text: "*브랜치 커버리지*\n${{ steps.coverage.outputs.branch_percent }}% (${{ steps.coverage.outputs.branch_covered }}/${{ steps.coverage.outputs.branch_total }})"
               - type: context
                 elements:
                   - type: mrkdwn
@@ -153,7 +181,7 @@ jobs:
                   - type: mrkdwn
                     text: "*실행자*\n${{ github.actor }}"
                   - type: mrkdwn
-                    text: "*라인 커버리지*\n리포트를 찾을 수 없습니다."
+                    text: "*커버리지*\n리포트를 찾을 수 없습니다."
               - type: context
                 elements:
                   - type: mrkdwn
@@ -186,6 +214,8 @@ jobs:
                     text: "*실행자*\n${{ github.actor }}"
                   - type: mrkdwn
                     text: "*라인 커버리지*\n${{ steps.coverage.outputs.coverage_available == 'true' && format('{0}% ({1}/{2})', steps.coverage.outputs.coverage_percent, steps.coverage.outputs.line_covered, steps.coverage.outputs.line_total) || '측정 불가 (빌드 또는 테스트 단계에서 실패)' }}"
+                  - type: mrkdwn
+                    text: "*브랜치 커버리지*\n${{ steps.coverage.outputs.coverage_available == 'true' && format('{0}% ({1}/{2})', steps.coverage.outputs.branch_percent, steps.coverage.outputs.branch_covered, steps.coverage.outputs.branch_total) || '측정 불가 (빌드 또는 테스트 단계에서 실패)' }}"
               - type: context
                 elements:
                   - type: mrkdwn
