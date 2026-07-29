@@ -3,6 +3,7 @@ package com.ootd.pickup.consignments.api;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
+import com.ootd.pickup.global.config.SwaggerConfig;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 
@@ -25,6 +27,7 @@ public interface ConsignmentApi {
             상품을 등록합니다. 이미지 순서는 요청 배열에 담긴 순서를 그대로 사용합니다.
             등록 직후 상태는 REGISTERABLE(등록 가능)로 설정됩니다.
             """,
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       requestBody =
           @RequestBody(
               required = true,
@@ -93,11 +96,16 @@ public interface ConsignmentApi {
             description = "요청 값 검증 실패 (필수 값 누락, 이미지 2장 미만, 유효하지 않은 등급/감정기관 등)",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
+            responseCode = "401",
+            description = "인증이 필요함 (access-token 쿠키 없음/만료)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
             responseCode = "404",
             description = "카드를 찾을 수 없음",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<RegisterConsignmentResponse> registerConsignment(
+      @Parameter(hidden = true) Long sellerMemberId,
       RegisterConsignmentRequest registerConsignmentRequest);
 
   @Operation(
