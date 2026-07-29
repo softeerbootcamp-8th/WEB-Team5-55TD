@@ -188,6 +188,10 @@ jobs:
       - name: Wait for deploy to finish
         id: wait
         run: |
+          # GitHub 기본 셸은 bash -e 다. 이 스텝은 결과를 모아 마지막에 exit "${overall}" 로
+          # 직접 판정하므로, 중간의 grep 이 "일치 없음"(exit 1)을 반환해도 죽어서는 안 된다.
+          # 성공 배포에는 FAILED_APP_LOG 마커가 없어서 그 grep 이 정상적으로 1을 반환한다.
+          set +e
           set -uo pipefail
           cid="${{ steps.send-command.outputs.command_id }}"
           overall=0
@@ -229,7 +233,8 @@ jobs:
 
             # deploy.sh 가 실패한 버전의 로그에서 뽑아낸 근본 원인.
             # 이게 있으면 Slack 실패 사유로 이걸 쓴다 (앱이 왜 못 떴는지가 담긴다).
-            a=$(printf '%s\n' "${out}" | grep -o 'FAILED_APP_LOG=.*' | tail -1 | cut -d= -f2-)
+            # 성공 배포에는 이 마커가 없다. grep 이 1 을 반환해도 진행해야 한다.
+            a=$(printf '%s\n' "${out}" | grep -o 'FAILED_APP_LOG=.*' | tail -1 | cut -d= -f2- || true)
             if [ -n "${a}" ]; then
               app_reason="${a}"
             fi
