@@ -1,6 +1,10 @@
 package com.ootd.pickup.consignments.domain;
 
+import static com.ootd.pickup.consignments.domain.ConsignmentStatus.*;
+import static com.ootd.pickup.global.exception.ExceptionCode.*;
+
 import com.ootd.pickup.cards.domain.Card;
+import com.ootd.pickup.global.exception.PickUpException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,5 +51,12 @@ public class Consignment {
     this.sellerMemberId = sellerMemberId;
     this.majorDefect = majorDefect;
     this.status = status;
+  }
+
+  public void scheduleAuction() {
+    if (this.status != REGISTERABLE) {
+      throw new PickUpException(CONSIGNMENT_NOT_REGISTERABLE);
+    }
+    this.status = AUCTION_SCHEDULED;
   }
 }
