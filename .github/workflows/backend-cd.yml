@@ -77,54 +77,6 @@ jobs:
           name: app-jar
           path: artifact
 
-      # ------------------------------------------------------------------
-      # 임시 진단 스텝 (OOTD-197)
-      # configure-aws-credentials 는 실패 원인을 "Not authorized" 하나로 뭉개서
-      # 신뢰 정책 조건 불일치 / 공급자 대상 불일치 / SCP 차단을 구분할 수 없다.
-      # STS 원본 에러와 토큰 클레임을 확인해 원인을 확정한 뒤 이 스텝을 제거한다.
-      # AWS 자격증명이 필요 없는 호출들이라 권한 문제로 실패할 여지가 없다.
-      # ------------------------------------------------------------------
-      - name: Debug OIDC claims (임시)
-        id: debug-oidc
-        env:
-          ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-        run: |
-          set -uo pipefail
-
-          token=$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r .value)
-          if [ -z "${token}" ] || [ "${token}" = "null" ]; then
-            echo "::error::OIDC 토큰을 발급받지 못했습니다 (id-token 권한 확인)"
-            exit 1
-          fi
-
-          echo "===== 1) 토큰 클레임 ====="
-          # 토큰 자체는 절대 출력하지 않는다. 그 값으로 역할을 assume 할 수 있다.
-          printf '%s' "${token}" | cut -d. -f2 | python3 -c "import sys,base64,json;p=sys.stdin.read().strip();p+='='*(-len(p)%4);c=json.loads(base64.urlsafe_b64decode(p));print(json.dumps({k:c.get(k) for k in ('iss','aud','sub','ref','repository','workflow_ref')},indent=2))"
-
-          echo
-          echo "===== 2) Secret 이 가리키는 역할 ====="
-          # 계정 ID 를 치환하면 시크릿 원문과 달라져 마스킹이 풀리고 역할 이름이 보인다.
-          echo "${ROLE_ARN}" | sed -E 's/[0-9]{12}/<account-id>/'
-
-          echo
-          echo "===== 3) STS 원본 에러 ====="
-          # 성공하면 임시 자격증명이 출력에 담기므로 절대 찍지 않는다.
-          if out=$(aws sts assume-role-with-web-identity \
-                     --role-arn "${ROLE_ARN}" \
-                     --role-session-name debug-oidc \
-                     --web-identity-token "${token}" 2>&1); then
-            echo "assume 성공 — 신뢰 정책·공급자 모두 정상 (자격증명은 출력하지 않음)"
-          else
-            echo "assume 실패. 원본 에러:"
-            printf '%s\n' "${out}" | sed -E 's/[0-9]{12}/<account-id>/g'
-            echo
-            echo "판정 기준:"
-            echo "  AccessDenied ...................... 신뢰 정책 조건(sub/aud) 불일치 또는 SCP 차단"
-            echo "  InvalidIdentityToken: audience .... 공급자 대상 목록에 sts.amazonaws.com 없음"
-            echo "  No OpenIDConnect provider found ... Federated ARN 이 가리키는 공급자 없음"
-          fi
-
       - name: Configure AWS credentials (OIDC)
         id: aws-auth
         uses: aws-actions/configure-aws-credentials@v4
@@ -140,15 +92,29 @@ jobs:
         run: |
           set -euo pipefail
 
+          # describe-instance-information 은 태그 필터와 다른 필터를 함께 쓸 수 없다
+          # ("Cannot mix tag or inventory filter with any other filter").
+          # 응답에 태그가 포함되지 않아 태그를 클라이언트에서 거를 수도 없으므로,
+          # 태그는 API 필터로 넘기고 PingStatus 는 JMESPath 로 거른다.
           ids=$(aws ssm describe-instance-information \
             --filters "Key=tag:Service,Values=${TAG_SERVICE}" \
                       "Key=tag:Environment,Values=${TAG_ENVIRONMENT}" \
-                      "Key=PingStatus,Values=Online" \
-            --query 'InstanceInformationList[].InstanceId' --output text)
+            --query 'InstanceInformationList[?PingStatus==`Online`].InstanceId' \
+            --output text)
 
           if [ -z "${ids}" ]; then
             echo "::error::SSM 에 Online 으로 등록된 대상 인스턴스가 없습니다 (Service=${TAG_SERVICE}, Environment=${TAG_ENVIRONMENT})"
-            echo "현재 SSM 에 등록된 인스턴스 목록:"
+
+            # 두 원인을 구분하기 위해 둘 다 찍는다.
+            # 태그 목록이 비었으면 태그 불일치, 있는데 Online 이 아니면 Agent 문제다.
+            echo "── 태그가 일치하는 인스턴스 (상태 무관) ──"
+            aws ssm describe-instance-information \
+              --filters "Key=tag:Service,Values=${TAG_SERVICE}" \
+                        "Key=tag:Environment,Values=${TAG_ENVIRONMENT}" \
+              --query 'InstanceInformationList[].{Id:InstanceId,Ping:PingStatus}' \
+              --output table || true
+
+            echo "── SSM 에 등록된 전체 인스턴스 ──"
             aws ssm describe-instance-information \
               --query 'InstanceInformationList[].{Id:InstanceId,Ping:PingStatus,Platform:PlatformName}' \
               --output table || true
