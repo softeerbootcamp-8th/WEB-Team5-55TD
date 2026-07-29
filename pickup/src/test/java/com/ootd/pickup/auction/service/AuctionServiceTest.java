@@ -13,6 +13,7 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.member.domain.Member;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -137,8 +138,18 @@ class AuctionServiceTest {
   private Consignment createConsignment(
       Long consignmentId, Long sellerMemberId, ConsignmentStatus status) {
     Consignment consignment =
-        Consignment.builder().card(null).sellerMemberId(sellerMemberId).status(status).build();
+        Consignment.builder()
+            .card(null)
+            .sellerMember(createMember(sellerMemberId))
+            .status(status)
+            .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", consignmentId);
     return consignment;
+  }
+
+  private Member createMember(Long memberId) {
+    Member member = Member.create("loginId", "password", "닉네임");
+    ReflectionTestUtils.setField(member, "memberId", memberId);
+    return member;
   }
 }

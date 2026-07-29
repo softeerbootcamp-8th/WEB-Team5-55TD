@@ -27,7 +27,7 @@ public class AuctionService {
   public CreateAuctionResponse registerAuction(Long memberId, CreateAuctionRequest request) {
     Consignment consignment = getConsignment(request.consignmentId());
 
-    if (!consignment.getSellerMemberId().equals(memberId)) {
+    if (!consignment.getSellerMember().getMemberId().equals(memberId)) {
       throw new PickUpException(CONSIGNMENT_ACCESS_DENIED);
     }
 
