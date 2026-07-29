@@ -94,6 +94,45 @@ class SlackErrorNotifierTest {
     }
 
     @Test
+    void 채널이_없으면_요청을_보내지_않는다() {
+      // given
+      RestClient.Builder builder = RestClient.builder().baseUrl(SLACK_API_BASE_URL);
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      RestClient restClient = builder.build();
+
+      SlackProperties properties = new SlackProperties(true, "xoxb-test-token", "");
+      SlackErrorNotifier notifier = createNotifier(restClient, properties);
+
+      // when
+      notifier.notifyError(new RuntimeException("테스트 예외"), createContext());
+
+      // then
+      server.verify();
+    }
+
+    @Test
+    void 슬랙_응답_본문이_없으면_예외를_전파하지_않는다() {
+      // given
+      RestClient.Builder builder =
+          RestClient.builder()
+              .baseUrl(SLACK_API_BASE_URL)
+              .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer xoxb-test-token");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      RestClient restClient = builder.build();
+
+      SlackProperties properties = new SlackProperties(true, "xoxb-test-token", "pickup-error-dev");
+      SlackErrorNotifier notifier = createNotifier(restClient, properties);
+
+      server
+          .expect(requestTo(SLACK_API_BASE_URL + "/chat.postMessage"))
+          .andRespond(withSuccess("null", MediaType.APPLICATION_JSON));
+
+      // when & then
+      notifier.notifyError(new RuntimeException("테스트 예외"), createContext());
+      server.verify();
+    }
+
+    @Test
     void 슬랙_응답이_실패여도_예외를_전파하지_않는다() {
       // given
       RestClient.Builder builder =

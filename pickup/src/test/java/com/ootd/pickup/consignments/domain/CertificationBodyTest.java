@@ -26,6 +26,15 @@ class CertificationBodyTest {
   }
 
   @Test
+  void null이면_null을_반환한다() {
+    // when
+    CertificationBody certificationBody = CertificationBody.from(null);
+
+    // then
+    assertThat(certificationBody).isNull();
+  }
+
+  @Test
   void 존재하지_않는_감정기관이면_예외가_발생한다() {
     // when & then
     assertThatThrownBy(() -> CertificationBody.from("XYZ")).isInstanceOf(PickUpException.class);

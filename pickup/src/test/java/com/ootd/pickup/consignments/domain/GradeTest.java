@@ -35,6 +35,15 @@ class GradeTest {
   }
 
   @Test
+  void null이면_null을_반환한다() {
+    // when
+    Grade grade = Grade.from(null);
+
+    // then
+    assertThat(grade).isNull();
+  }
+
+  @Test
   void 존재하지_않는_등급이면_예외가_발생한다() {
     // when & then
     assertThatThrownBy(() -> Grade.from("S급")).isInstanceOf(PickUpException.class);
