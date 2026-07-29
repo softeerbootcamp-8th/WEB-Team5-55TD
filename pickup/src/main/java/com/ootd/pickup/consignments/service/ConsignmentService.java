@@ -98,14 +98,21 @@ public class ConsignmentService {
     }
 
     // Consignment를 수정하기 전에 인증서 값부터 검증해 불필요한 갱신을 막는다.
-    Grade.from(request.certificate().grade());
-    CertificationBody.from(request.certificate().certificationBody());
+    Grade grade = Grade.from(request.certificate().grade());
+    CertificationBody certificationBody =
+        CertificationBody.from(request.certificate().certificationBody());
+
+    Certificate certificate =
+        certificateRepository
+            .findCertificateByConsignment(consignment)
+            .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
 
     consignment.updateMajorDefect(request.majorDefect());
-
-    certificateRepository.deleteByConsignment(consignment);
-    Certificate certificate =
-        certificateRepository.save(request.certificate().toEntity(consignment));
+    certificate.update(
+        request.certificate().serialNumber(),
+        certificationBody,
+        grade,
+        request.certificate().inspectedAt());
 
     consignmentImageRepository.deleteAllByConsignment(consignment);
     List<ConsignmentImage> images =

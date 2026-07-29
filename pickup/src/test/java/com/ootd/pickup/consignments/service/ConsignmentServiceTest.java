@@ -289,15 +289,11 @@ class ConsignmentServiceTest {
     Long consignmentId = 100L;
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    Certificate certificate = createCertificate(200L, consignment);
     given(consignmentRepository.findConsignmentById(consignmentId))
         .willReturn(Optional.of(consignment));
-    given(certificateRepository.save(any(Certificate.class)))
-        .willAnswer(
-            invocation -> {
-              Certificate certificate = invocation.getArgument(0);
-              ReflectionTestUtils.setField(certificate, "certificateId", 201L);
-              return certificate;
-            });
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
     given(consignmentImageRepository.saveAll(anyList()))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -316,9 +312,10 @@ class ConsignmentServiceTest {
     // then
     assertThat(response.consignmentId()).isEqualTo(consignmentId);
     assertThat(response.majorDefect()).isEqualTo("새로운 흠집 설명");
+    assertThat(response.certificate().certificateId()).isEqualTo(200L);
     assertThat(response.certificate().serialNumber()).isEqualTo("PSA-99999999");
     assertThat(response.certificate().grade()).isEqualTo("9");
-    then(certificateRepository).should().deleteByConsignment(consignment);
+    then(certificateRepository).should(never()).save(any());
     then(consignmentImageRepository).should().deleteAllByConsignment(consignment);
 
     ArgumentCaptor<List<ConsignmentImage>> imagesCaptor = ArgumentCaptor.forClass(List.class);
@@ -337,15 +334,11 @@ class ConsignmentServiceTest {
     Long consignmentId = 100L;
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.PASSED);
+    Certificate certificate = createCertificate(200L, consignment);
     given(consignmentRepository.findConsignmentById(consignmentId))
         .willReturn(Optional.of(consignment));
-    given(certificateRepository.save(any(Certificate.class)))
-        .willAnswer(
-            invocation -> {
-              Certificate certificate = invocation.getArgument(0);
-              ReflectionTestUtils.setField(certificate, "certificateId", 201L);
-              return certificate;
-            });
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
     given(consignmentImageRepository.saveAll(anyList()))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -460,7 +453,59 @@ class ConsignmentServiceTest {
     assertThatThrownBy(
             () -> consignmentService.modifyConsignment(consignmentId, sellerMemberId, request))
         .isInstanceOf(PickUpException.class);
-    then(certificateRepository).should(never()).deleteByConsignment(any());
+    then(certificateRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 유효하지_않은_감정기관으로_수정하면_예외가_발생한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-84213907", "GIA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    assertThatThrownBy(
+            () -> consignmentService.modifyConsignment(consignmentId, sellerMemberId, request))
+        .isInstanceOf(PickUpException.class);
+    then(certificateRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 상품에_연결된_인증서를_찾을_수_없으면_수정시_예외가_발생한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.empty());
+
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    assertThatThrownBy(
+            () -> consignmentService.modifyConsignment(consignmentId, sellerMemberId, request))
+        .isInstanceOf(PickUpException.class);
+    then(consignmentImageRepository).shouldHaveNoInteractions();
   }
 
   private Card createCard(Long cardId) {

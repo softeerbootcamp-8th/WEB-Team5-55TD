@@ -21,9 +21,4 @@ public class CertificateDataJpaRepository implements CertificateRepository {
   public Optional<Certificate> findCertificateByConsignment(Consignment consignment) {
     return certificateJpaRepository.findByConsignment(consignment);
   }
-
-  @Override
-  public void deleteByConsignment(Consignment consignment) {
-    certificateJpaRepository.deleteByConsignment(consignment);
-  }
 }

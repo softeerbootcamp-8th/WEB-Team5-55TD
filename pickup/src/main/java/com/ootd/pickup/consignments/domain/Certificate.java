@@ -57,4 +57,15 @@ public class Certificate {
     this.certificationBody = certificationBody;
     this.inspectedAt = inspectedAt;
   }
+
+  public void update(
+      String serialNumber,
+      CertificationBody certificationBody,
+      Grade grade,
+      LocalDate inspectedAt) {
+    this.serialNumber = serialNumber;
+    this.certificationBody = certificationBody;
+    this.grade = grade;
+    this.inspectedAt = inspectedAt;
+  }
 }
