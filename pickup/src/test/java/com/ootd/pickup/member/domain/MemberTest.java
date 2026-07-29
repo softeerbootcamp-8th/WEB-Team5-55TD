@@ -38,8 +38,7 @@ class MemberTest {
   @Test
   void 올바른_비밀번호면_일치한다() {
     // given
-    String passwordHash =
-        BCrypt.withDefaults().hashToString(12, "rawPassword".toCharArray());
+    String passwordHash = BCrypt.withDefaults().hashToString(12, "rawPassword".toCharArray());
     Member member = Member.create("loginId", passwordHash, "nickname");
 
     // when
@@ -52,8 +51,7 @@ class MemberTest {
   @Test
   void 잘못된_비밀번호면_일치하지_않는다() {
     // given
-    String passwordHash =
-        BCrypt.withDefaults().hashToString(12, "rawPassword".toCharArray());
+    String passwordHash = BCrypt.withDefaults().hashToString(12, "rawPassword".toCharArray());
     Member member = Member.create("loginId", passwordHash, "nickname");
 
     // when
