@@ -2,6 +2,7 @@ package com.ootd.pickup.member.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import at.favre.lib.crypto.bcrypt.BCrypt;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
@@ -32,5 +33,33 @@ class MemberTest {
     assertThat(member.getNickname()).isEqualTo("라이츄회원");
     assertThat(member.getProfileImageUrl()).isNull();
     assertThat(member.getUpdatedAt()).isAfterOrEqualTo(previousUpdatedAt);
+  }
+
+  @Test
+  void 올바른_비밀번호면_일치한다() {
+    // given
+    String passwordHash =
+        BCrypt.withDefaults().hashToString(12, "rawPassword".toCharArray());
+    Member member = Member.create("loginId", passwordHash, "nickname");
+
+    // when
+    boolean matched = member.isPasswordMatched("rawPassword");
+
+    // then
+    assertThat(matched).isTrue();
+  }
+
+  @Test
+  void 잘못된_비밀번호면_일치하지_않는다() {
+    // given
+    String passwordHash =
+        BCrypt.withDefaults().hashToString(12, "rawPassword".toCharArray());
+    Member member = Member.create("loginId", passwordHash, "nickname");
+
+    // when
+    boolean matched = member.isPasswordMatched("wrongPassword");
+
+    // then
+    assertThat(matched).isFalse();
   }
 }

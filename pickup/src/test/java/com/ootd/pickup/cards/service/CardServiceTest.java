@@ -122,6 +122,16 @@ class CardServiceTest {
   }
 
   @Test
+  void 크기가_없으면_예외가_발생한다() {
+    // given
+    SearchCardsRequest request = new SearchCardsRequest(null, null, null, null, null);
+
+    // when & then
+    assertThatThrownBy(() -> cardService.searchCards(request)).isInstanceOf(PickUpException.class);
+    then(cardRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 지원하지_않는_언어면_예외가_발생한다() {
     // given
     SearchCardsRequest request = new SearchCardsRequest(null, null, "중국어", null, 20);
