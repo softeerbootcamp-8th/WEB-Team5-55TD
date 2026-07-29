@@ -1,7 +1,6 @@
 package com.ootd.pickup.consignments.domain;
 
 import com.ootd.pickup.cards.domain.Card;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -22,36 +21,31 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Consignment {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "consignment_id", nullable = false)
-    private Long consignmentId;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Column(name = "consignment_id", nullable = false)
+  private Long consignmentId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "card_id", nullable = false)
-    private Card card;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "card_id", nullable = false)
+  private Card card;
 
-    // 유저 구현 후 Join 필요
-    @Column(name = "seller_member_id", nullable = false)
-    private Long sellerMemberId;
+  // 유저 구현 후 Join 필요
+  @Column(name = "seller_member_id", nullable = false)
+  private Long sellerMemberId;
 
-    @Column(name = "major_defect")
-    private String majorDefect;
+  @Column(name = "major_defect")
+  private String majorDefect;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
-    private ConsignmentStatus status;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "status", nullable = false)
+  private ConsignmentStatus status;
 
-    @Builder
-    public Consignment(
-        Card card,
-        Long sellerMemberId,
-        String majorDefect,
-        ConsignmentStatus status
-    ) {
-        this.card = card;
-        this.sellerMemberId = sellerMemberId;
-        this.majorDefect = majorDefect;
-        this.status = status;
-    }
+  @Builder
+  public Consignment(Card card, Long sellerMemberId, String majorDefect, ConsignmentStatus status) {
+    this.card = card;
+    this.sellerMemberId = sellerMemberId;
+    this.majorDefect = majorDefect;
+    this.status = status;
+  }
 }

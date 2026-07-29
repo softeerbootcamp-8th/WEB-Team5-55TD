@@ -4,9 +4,9 @@ import java.time.Duration;
 import java.util.Optional;
 
 public interface RefreshTokenRepository {
-    void save(String tokenHash, Long memberId, Duration ttl);
+  void save(String tokenHash, Long memberId, Duration ttl);
 
-    Optional<Long> consume(String tokenHash);
+  Optional<Long> consume(String tokenHash);
 
-    void delete(String tokenHash);
+  void delete(String tokenHash);
 }

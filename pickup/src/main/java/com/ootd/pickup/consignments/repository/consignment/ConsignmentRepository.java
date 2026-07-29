@@ -1,11 +1,10 @@
 package com.ootd.pickup.consignments.repository.consignment;
 
+import com.ootd.pickup.consignments.domain.Consignment;
 import java.util.Optional;
 
-import com.ootd.pickup.consignments.domain.Consignment;
-
 public interface ConsignmentRepository {
-    Consignment save(Consignment consignment);
+  Consignment save(Consignment consignment);
 
-    Optional<Consignment> findConsignmentById(Long consignmentId);
+  Optional<Consignment> findConsignmentById(Long consignmentId);
 }

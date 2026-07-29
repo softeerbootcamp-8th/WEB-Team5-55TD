@@ -9,17 +9,15 @@ public record GetCardDetailResponse(
     String cardNumber,
     String language,
     String rarity,
-    String imageUrl
-) {
-    public static GetCardDetailResponse from(Card card) {
-        return new GetCardDetailResponse(
-            card.getCardId(),
-            card.getCardName(),
-            card.getSetName(),
-            card.getCardNumber(),
-            card.getLanguage().getDisplayName(),
-            card.getRarity().name(),
-            card.getImageUrl()
-        );
-    }
+    String imageUrl) {
+  public static GetCardDetailResponse from(Card card) {
+    return new GetCardDetailResponse(
+        card.getCardId(),
+        card.getCardName(),
+        card.getSetName(),
+        card.getCardNumber(),
+        card.getLanguage().getDisplayName(),
+        card.getRarity().name(),
+        card.getImageUrl());
+  }
 }

@@ -1,15 +1,14 @@
 package com.ootd.pickup.member.repository;
 
+import com.ootd.pickup.member.domain.Member;
 import java.util.Optional;
 
-import com.ootd.pickup.member.domain.Member;
-
 public interface MemberRepository {
-    Optional<Member> findByLoginId(String loginId);
+  Optional<Member> findByLoginId(String loginId);
 
-    boolean existsByLoginId(String loginId);
+  boolean existsByLoginId(String loginId);
 
-    boolean existsByNickname(String nickname);
+  boolean existsByNickname(String nickname);
 
-    Member save(Member member);
+  Member save(Member member);
 }

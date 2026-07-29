@@ -11,14 +11,14 @@ import org.springframework.web.client.RestClient;
 @EnableConfigurationProperties(SlackProperties.class)
 public class SlackConfig {
 
-    private static final String SLACK_API_BASE_URL = "https://slack.com/api";
+  private static final String SLACK_API_BASE_URL = "https://slack.com/api";
 
-    @Bean
-    RestClient slackRestClient(RestClient.Builder builder, SlackProperties slackProperties) {
-        builder.baseUrl(SLACK_API_BASE_URL);
-        if (StringUtils.hasText(slackProperties.botToken())) {
-            builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + slackProperties.botToken());
-        }
-        return builder.build();
+  @Bean
+  RestClient slackRestClient(RestClient.Builder builder, SlackProperties slackProperties) {
+    builder.baseUrl(SLACK_API_BASE_URL);
+    if (StringUtils.hasText(slackProperties.botToken())) {
+      builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + slackProperties.botToken());
     }
+    return builder.build();
+  }
 }

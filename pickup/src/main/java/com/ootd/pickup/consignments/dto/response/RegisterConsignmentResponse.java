@@ -11,16 +11,14 @@ public record RegisterConsignmentResponse(
     Long sellerMemberId,
     String majorDefect,
     ConsignmentStatus status,
-    CertificateResponse certificate
-) {
-    public static RegisterConsignmentResponse of(Consignment consignment, Certificate certificate) {
-        return new RegisterConsignmentResponse(
-            consignment.getConsignmentId(),
-            SearchCardsResponse.from(consignment.getCard()),
-            consignment.getSellerMemberId(),
-            consignment.getMajorDefect(),
-            consignment.getStatus(),
-            CertificateResponse.from(certificate)
-        );
-    }
+    CertificateResponse certificate) {
+  public static RegisterConsignmentResponse of(Consignment consignment, Certificate certificate) {
+    return new RegisterConsignmentResponse(
+        consignment.getConsignmentId(),
+        SearchCardsResponse.from(consignment.getCard()),
+        consignment.getSellerMemberId(),
+        consignment.getMajorDefect(),
+        consignment.getStatus(),
+        CertificateResponse.from(certificate));
+  }
 }
