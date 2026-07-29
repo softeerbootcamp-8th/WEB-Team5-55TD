@@ -17,7 +17,7 @@ import com.ootd.pickup.consignments.repository.certificate.CertificateRepository
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.exception.PickUpException;
-import com.ootd.pickup.member.repository.MemberRepository;
+import com.ootd.pickup.member.service.MemberManageService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,14 +32,12 @@ public class ConsignmentService {
   private final ConsignmentRepository consignmentRepository;
   private final CertificateRepository certificateRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
-  private final MemberRepository memberRepository;
+  private final MemberManageService memberManageService;
 
   @Transactional
   public RegisterConsignmentResponse registerConsignment(
       Long sellerMemberId, RegisterConsignmentRequest request) {
-    if (!memberRepository.existsById(sellerMemberId)) {
-      throw new PickUpException(MEMBER_NOT_FOUND);
-    }
+    memberManageService.validateMemberExists(sellerMemberId);
 
     Card card = cardManageService.getCardByCardId(request.cardId());
     // Consignment를 저장하기 전에 인증서 값부터 검증해 불필요한 INSERT를 막는다.
