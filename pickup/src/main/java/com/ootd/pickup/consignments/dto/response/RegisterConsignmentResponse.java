@@ -16,7 +16,7 @@ public record RegisterConsignmentResponse(
     return new RegisterConsignmentResponse(
         consignment.getConsignmentId(),
         SearchCardsResponse.from(consignment.getCard()),
-        consignment.getSellerMemberId(),
+        consignment.getSellerMember().getMemberId(),
         consignment.getMajorDefect(),
         consignment.getStatus(),
         CertificateResponse.from(certificate));

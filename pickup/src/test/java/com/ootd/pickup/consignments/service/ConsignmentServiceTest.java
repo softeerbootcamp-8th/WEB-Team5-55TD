@@ -23,6 +23,8 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.member.domain.Member;
+import com.ootd.pickup.member.service.MemberManageService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +47,8 @@ class ConsignmentServiceTest {
 
   @Mock private ConsignmentImageRepository consignmentImageRepository;
 
+  @Mock private MemberManageService memberManageService;
+
   private ConsignmentService consignmentService;
 
   @BeforeEach
@@ -54,7 +58,8 @@ class ConsignmentServiceTest {
             cardManageService,
             consignmentRepository,
             certificateRepository,
-            consignmentImageRepository);
+            consignmentImageRepository,
+            memberManageService);
   }
 
   @Test
@@ -63,6 +68,8 @@ class ConsignmentServiceTest {
     Long sellerMemberId = 1L;
     Long cardId = 10L;
     Card card = createCard(cardId);
+    given(memberManageService.getMemberById(sellerMemberId))
+        .willReturn(createMember(sellerMemberId, "피카츄"));
     given(cardManageService.getCardByCardId(cardId)).willReturn(card);
     given(consignmentRepository.save(any(Consignment.class)))
         .willAnswer(
@@ -82,7 +89,6 @@ class ConsignmentServiceTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             cardId,
-            sellerMemberId,
             "모서리에 약간의 마모",
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -126,7 +132,6 @@ class ConsignmentServiceTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             notExistCardId,
-            sellerMemberId,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -150,7 +155,6 @@ class ConsignmentServiceTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             cardId,
-            sellerMemberId,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "S급", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -162,6 +166,29 @@ class ConsignmentServiceTest {
         .isInstanceOf(PickUpException.class);
     then(consignmentRepository).shouldHaveNoInteractions();
     then(certificateRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 존재하지_않는_회원이_상품을_등록하면_예외가_발생한다() {
+    // given
+    Long notExistMemberId = 999L;
+    given(memberManageService.getMemberById(notExistMemberId))
+        .willThrow(new PickUpException(ExceptionCode.MEMBER_NOT_FOUND));
+
+    RegisterConsignmentRequest request =
+        new RegisterConsignmentRequest(
+            10L,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    assertThatThrownBy(() -> consignmentService.registerConsignment(notExistMemberId, request))
+        .isInstanceOf(PickUpException.class);
+    then(cardManageService).shouldHaveNoInteractions();
+    then(consignmentRepository).shouldHaveNoInteractions();
   }
 
   @Test
@@ -272,12 +299,18 @@ class ConsignmentServiceTest {
     Consignment consignment =
         Consignment.builder()
             .card(card)
-            .sellerMemberId(1L)
+            .sellerMember(createMember(1L, "피카츄"))
             .majorDefect(null)
             .status(status)
             .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", consignmentId);
     return consignment;
+  }
+
+  private Member createMember(Long memberId, String nickname) {
+    Member member = Member.create("loginId", "password", nickname);
+    ReflectionTestUtils.setField(member, "memberId", memberId);
+    return member;
   }
 
   private Certificate createCertificate(Long certificateId, Consignment consignment) {
