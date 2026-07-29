@@ -5,6 +5,8 @@ import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.service.ConsignmentService;
+import com.ootd.pickup.global.auth.annotation.MemberId;
+import com.ootd.pickup.global.auth.annotation.RequireAuthentication;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,15 +25,14 @@ public class ConsignmentController implements ConsignmentApi {
 
   private final ConsignmentService consignmentService;
 
-  // TODO: 인증 구현 이후 sellerMemberId를 요청 바디가 아니라 인증 컨텍스트에서 추출하도록 변경
   @PostMapping
   @Override
+  @RequireAuthentication
   public ResponseEntity<RegisterConsignmentResponse> registerConsignment(
+      @MemberId Long sellerMemberId,
       @Valid @RequestBody RegisterConsignmentRequest registerConsignmentRequest) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(
-            consignmentService.registerConsignment(
-                registerConsignmentRequest.sellerMemberId(), registerConsignmentRequest));
+        .body(consignmentService.registerConsignment(sellerMemberId, registerConsignmentRequest));
   }
 
   @GetMapping("/{consignmentId}")

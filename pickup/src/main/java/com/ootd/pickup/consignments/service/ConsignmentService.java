@@ -17,6 +17,8 @@ import com.ootd.pickup.consignments.repository.certificate.CertificateRepository
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.member.domain.Member;
+import com.ootd.pickup.member.service.MemberManageService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,11 +33,13 @@ public class ConsignmentService {
   private final ConsignmentRepository consignmentRepository;
   private final CertificateRepository certificateRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
+  private final MemberManageService memberManageService;
 
-  // TODO: 인증 구현 이후 memberId 제외시키기
   @Transactional
   public RegisterConsignmentResponse registerConsignment(
       Long sellerMemberId, RegisterConsignmentRequest request) {
+    Member sellerMember = memberManageService.getMemberById(sellerMemberId);
+
     Card card = cardManageService.getCardByCardId(request.cardId());
     // Consignment를 저장하기 전에 인증서 값부터 검증해 불필요한 INSERT를 막는다.
     Grade.from(request.certificate().grade());
@@ -45,7 +49,7 @@ public class ConsignmentService {
         consignmentRepository.save(
             Consignment.builder()
                 .card(card)
-                .sellerMemberId(sellerMemberId)
+                .sellerMember(sellerMember)
                 .majorDefect(request.majorDefect())
                 .status(ConsignmentStatus.REGISTERABLE)
                 .build());
@@ -72,9 +76,7 @@ public class ConsignmentService {
     List<ConsignmentImage> images =
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
 
-    // TODO: 회원 도메인 구현 후 실제 판매자 닉네임으로 교체
-    String sellerMemberNickname = "피카츄";
-
-    return GetConsignmentDetailResponse.of(consignment, certificate, images, sellerMemberNickname);
+    return GetConsignmentDetailResponse.of(
+        consignment, certificate, images, consignment.getSellerMember().getNickname());
   }
 }
