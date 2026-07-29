@@ -260,9 +260,64 @@ void 존재하지_않는_회원을_조회하면_예외가_발생한다() {
 ## 9. 기타 규칙
 
 - **환경 변수**: `application.yml`(공통) / `application-dev.yml` / `application-prod.yml`로 분리.
-- **DB 형상 관리**: Flyway. DDL은 멱등하게 작성 (`IF EXISTS`, `IF NOT EXISTS`).
+- **DB 형상 관리**: Flyway. DDL은 멱등하게 작성 (`IF EXISTS`, `IF NOT EXISTS`). 상세 규칙은 아래.
 - **Swagger**: 설정을 별도 클래스로 분리해 다른 로직과 구분.
 - **식별자(ID) 타입**: `bigint` (`Long`).
+
+### Flyway 마이그레이션 규칙
+
+#### 파일명은 타임스탬프로 짓는다
+
+```
+V<yyyyMMddHHmmss>__<설명>.sql
+
+예: V20260729103000__create_auction_table.sql
+```
+
+`V2.6`, `V3.3` 같은 수동 번호를 쓰지 않는다. **브랜치가 갈리면 서로의 번호를 모르기 때문에** 충돌한다. 타임스탬프는 구조적으로 겹치지 않는다.
+
+기존 `V1`~`V3.2`는 그대로 둔다. Flyway는 버전을 점 단위로 나눠 숫자 비교하므로 `3.2 < 20260729103000`이 되어 타임스탬프 마이그레이션이 항상 뒤에 온다.
+
+#### 이미 적용된 마이그레이션은 절대 수정하지 않는다
+
+| 금지 | 결과 |
+|---|---|
+| 적용된 파일의 내용 수정 | 체크섬 불일치 → `Validate failed` → **애플리케이션 기동 실패** |
+| 적용된 파일의 번호 변경 | 같은 마이그레이션이 두 번 적용되거나 누락 |
+| 적용된 파일 삭제 | `Detected applied migration not resolved locally` |
+
+스키마를 바꿔야 하면 **새 파일을 추가**한다. 오타 수정이라도 예외 없다.
+
+#### 왜 이 규칙이 있는가 (2026-07-29 사건)
+
+card/consignment 작업은 `2.x`, member 작업은 `3.x`로 각자 번호를 매겼다.
+
+| 순서 | 마이그레이션 | 프로덕션 DB |
+|---|---|---|
+| 1 | `V1`, `V2.1`, `V2.2` (card) | 적용됨 |
+| 2 | **`V3.1`** (member) | 적용됨 → 스키마 버전 **3.1** |
+| 3 | `V2.3`~`V2.5` (consignment) — 나중에 머지 | **미적용** (번호가 3.1보다 낮음) |
+
+Flyway의 `out-of-order` 기본값은 `false`라서, 현재 버전보다 낮은 미적용 마이그레이션을 발견하면 **기동을 거부한다.**
+
+```
+Validate failed: Migrations have failed validation
+Detected resolved migration not applied to database: 2.3.
+```
+
+프로덕션 배포가 실패했고 CD 파이프라인이 자동 롤백해 서비스는 유지됐지만, DB를 재생성해야 복구됐다. **프로덕션에 데이터가 쌓인 뒤에는 이 방법을 쓸 수 없다.**
+
+#### 문제가 생겼을 때
+
+| 증상 | 조치 |
+|---|---|
+| `Detected resolved migration not applied` | 데이터가 없으면 스키마 재생성이 가장 깨끗하다. 데이터가 있으면 `spring.flyway.out-of-order: true`로 미적용분을 적용한다 |
+| 체크섬 불일치 (`Migration checksum mismatch`) | 파일을 원래대로 되돌린다. 되돌릴 수 없으면 `flyway repair`로 이력의 체크섬을 갱신한다 |
+| 마이그레이션 SQL 자체가 실패 | 기동이 실패하고 CD가 자동 롤백한다. Slack 실패 사유에 `Caused by` 원인이 표시된다 |
+
+#### 배포 전 확인
+
+마이그레이션을 추가한 PR은 **빈 DB에서 전체 적용이 통과하는지** 확인한다. 로컬에서 스키마를 지우고 애플리케이션을 띄우면 Flyway가 처음부터 전부 적용한다. 프로덕션 DB의 현재 버전과 다른 경로를 타므로, 둘 다 확인해야 안전하다.
 
 ---
 
@@ -302,3 +357,5 @@ dev  : 개발 통합
 - [ ] 로그가 `{}` 바인딩 + `key=value` 형식이고 throwable을 마지막 인자로 넘겼는가
 - [ ] 테스트 메서드명이 한글 `~다`이고 given/when/then 구조인가
 - [ ] 식별자 타입이 `Long`(bigint)인가
+- [ ] 새 Flyway 마이그레이션 파일명이 타임스탬프(`V20260729103000__`) 형식인가
+- [ ] 이미 적용된 마이그레이션 파일을 수정·개번·삭제하지 않았는가
