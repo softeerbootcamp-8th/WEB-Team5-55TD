@@ -1,5 +1,6 @@
 package com.ootd.pickup.member.service;
 
+import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_PASSWORD;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_LOGIN_ID_ALREADY_EXISTS;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NICKNAME_ALREADY_EXISTS;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
@@ -11,6 +12,7 @@ import com.ootd.pickup.member.dto.MemberRequest;
 import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
+import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
@@ -59,6 +61,30 @@ public class MemberService {
   @Transactional(readOnly = true)
   public MyProfileResponse getMyProfile(Long memberId) {
     return MyProfileResponse.from(memberManageService.getMemberById(memberId));
+  }
+
+  public MyProfileResponse updateMyProfile(
+      Long memberId, UpdateMyProfileRequest updateMyProfileRequest) {
+    Member member = memberManageService.getMemberById(memberId);
+    String nickname = updateMyProfileRequest.nickname();
+
+    if (updateMyProfileRequest.password() != null
+        && !member.isPasswordMatched(updateMyProfileRequest.currentPassword())) {
+      throw new PickUpException(INVALID_PASSWORD);
+    }
+
+    if (nickname != null
+        && !nickname.equals(member.getNickname())
+        && memberRepository.existsByNickname(nickname)) {
+      throw new PickUpException(MEMBER_NICKNAME_ALREADY_EXISTS);
+    }
+
+    String passwordHash =
+        updateMyProfileRequest.password() == null
+            ? null
+            : hashPassword(updateMyProfileRequest.password());
+    member.updateProfile(nickname, passwordHash, updateMyProfileRequest.profileImageUrl());
+    return MyProfileResponse.from(member);
   }
 
   @Transactional(readOnly = true)

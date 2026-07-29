@@ -13,6 +13,7 @@ import com.ootd.pickup.member.dto.MemberRequest;
 import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
+import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
@@ -119,6 +120,107 @@ class MemberServiceTest {
   }
 
   @Test
+  void 닉네임만_수정하면_다른_회원정보는_유지된다() {
+    // given
+    Member member = Member.create("pickup-user", "password-hash", "픽업회원");
+    UpdateMyProfileRequest request = new UpdateMyProfileRequest("라이츄회원", null, null, null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(memberRepository.existsByNickname("라이츄회원")).willReturn(false);
+
+    // when
+    MyProfileResponse response = memberService.updateMyProfile(1L, request);
+
+    // then
+    assertThat(response.nickname()).isEqualTo("라이츄회원");
+    assertThat(response.loginId()).isEqualTo("pickup-user");
+    assertThat(readPasswordHash(member)).isEqualTo("password-hash");
+  }
+
+  @Test
+  void 비밀번호를_수정하면_BCrypt_해시로_저장된다() {
+    // given
+    String currentPassword = "old-password";
+    Member member = Member.create("pickup-user", hashPassword(currentPassword), "픽업회원");
+    UpdateMyProfileRequest request =
+        new UpdateMyProfileRequest(null, currentPassword, "new-password", null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when
+    memberService.updateMyProfile(1L, request);
+
+    // then
+    assertThat(readPasswordHash(member)).isNotEqualTo(request.password());
+    assertThat(
+            BCrypt.verifyer()
+                .verify(request.password().toCharArray(), readPasswordHash(member))
+                .verified)
+        .isTrue();
+  }
+
+  @Test
+  void 현재비밀번호가_일치하지_않으면_비밀번호를_변경하지_않는다() {
+    // given
+    String passwordHash = hashPassword("old-password");
+    Member member = Member.create("pickup-user", passwordHash, "픽업회원");
+    UpdateMyProfileRequest request =
+        new UpdateMyProfileRequest(null, "wrong-password", "new-password", null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when & then
+    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("비밀번호가 일치하지 않습니다.");
+    assertThat(readPasswordHash(member)).isEqualTo(passwordHash);
+  }
+
+  @Test
+  void 현재비밀번호가_일치하지_않으면_닉네임과_비밀번호를_모두_변경하지_않는다() {
+    // given
+    String passwordHash = hashPassword("old-password");
+    Member member = Member.create("pickup-user", passwordHash, "픽업회원");
+    UpdateMyProfileRequest request =
+        new UpdateMyProfileRequest("라이츄회원", "wrong-password", "new-password", null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when & then
+    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("비밀번호가 일치하지 않습니다.");
+    assertThat(member.getNickname()).isEqualTo("픽업회원");
+    assertThat(readPasswordHash(member)).isEqualTo(passwordHash);
+    then(memberRepository).should(never()).existsByNickname(anyString());
+  }
+
+  @Test
+  void 프로필이미지URL만_수정하면_새_URL을_반환한다() {
+    // given
+    Member member = Member.create("pickup-user", "password-hash", "픽업회원");
+    UpdateMyProfileRequest request =
+        new UpdateMyProfileRequest(null, null, null, "https://example.com/profile.png");
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when
+    MyProfileResponse response = memberService.updateMyProfile(1L, request);
+
+    // then
+    assertThat(response.profileImageUrl()).isEqualTo("https://example.com/profile.png");
+  }
+
+  @Test
+  void 이미_사용중인_닉네임으로_수정하면_409_예외를_던진다() {
+    // given
+    Member member = Member.create("pickup-user", "password-hash", "픽업회원");
+    UpdateMyProfileRequest request = new UpdateMyProfileRequest("라이츄회원", null, null, null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(memberRepository.existsByNickname("라이츄회원")).willReturn(true);
+
+    // when & then
+    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("이미 사용 중인 닉네임입니다.");
+  }
+
+  @Test
   void 존재하는_회원의_포인트를_조회하면_잔액을_반환한다() {
     // given
     Point point = Point.create(1L);
@@ -161,6 +263,10 @@ class MemberServiceTest {
     } catch (ReflectiveOperationException exception) {
       throw new AssertionError(exception);
     }
+  }
+
+  private String hashPassword(String rawPassword) {
+    return BCrypt.withDefaults().hashToString(4, rawPassword.toCharArray());
   }
 
   private void writeMemberId(Member member, Long memberId) {
