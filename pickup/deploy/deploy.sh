@@ -77,8 +77,36 @@ wait_healthy() {
   return 1
 }
 
+# 실패한 버전의 로그에서 근본 원인 한 줄을 뽑는다.
+# 스택트레이스의 마지막 "Caused by" 가 보통 진짜 원인이다.
+extract_failure_reason() {
+  local r=""
+  r=$(printf '%s\n' "${FAILED_LOG}" | grep 'Caused by:' | tail -1)
+  [ -z "${r}" ] && r=$(printf '%s\n' "${FAILED_LOG}" \
+    | grep -m1 -E 'APPLICATION FAILED TO START|Application run failed|Validate failed')
+  [ -z "${r}" ] && r=$(printf '%s\n' "${FAILED_LOG}" | grep -m1 -E 'ERROR|Exception')
+  [ -z "${r}" ] && r="원인 로그를 찾지 못했습니다 (EC2 에서 journalctl 확인 필요)"
+  # 워크플로·Slack 을 거치므로 개행과 인용부호를 제거하고 길이를 제한한다.
+  printf '%s' "${r}" | tr '\n\r\t' '   ' | tr -d '"'"'"'`$\\' | cut -c1-300
+}
+
 # 실패 시 직전 버전으로 되돌린다. 항상 exit 1 로 끝난다.
 rollback() {
+  # 롤백 재시작을 먼저 하면 실패한 버전의 로그가 새 로그에 밀려나 원인을 알 수 없게 된다.
+  # 그래서 무엇보다 먼저 캡처한다.
+  FAILED_LOG=$(journalctl -u "${SERVICE}" -n 300 --no-pager 2>/dev/null || echo "")
+
+  # 워크플로가 파싱해 Slack 실패 사유로 쓴다.
+  log "FAILED_APP_LOG=$(extract_failure_reason)"
+
+  echo "───── 실패한 버전의 로그 (에러 관련) ─────"
+  printf '%s\n' "${FAILED_LOG}" \
+    | grep -iE 'error|exception|caused by|failed|flyway|migrat' | tail -25 || true
+  # SSM 이 수집하는 출력은 24,000자에서 잘리므로 맥락용으로만 짧게 남긴다.
+  echo "───── 실패한 버전의 로그 (마지막 12줄) ─────"
+  printf '%s\n' "${FAILED_LOG}" | tail -12 || true
+  echo "──────────────────────────────────────────"
+
   if [ "${HAVE_PREV}" -eq 1 ] && [ -f "${PREV}" ]; then
     log "롤백: 직전 버전으로 복구"
     cp -p "${PREV}" "${JAR}"
@@ -106,8 +134,10 @@ rollback() {
     result no_rollback_target
   fi
 
-  log "최근 서비스 로그:"
-  journalctl -u "${SERVICE}" -n 50 --no-pager || true
+  # 실패한 버전의 로그는 이미 위에서 찍었다. 여기서는 롤백 후 상태만 짧게 남긴다.
+  echo "───── 롤백 후 서비스 상태 ─────"
+  systemctl is-active "${SERVICE}" || true
+  journalctl -u "${SERVICE}" -n 10 --no-pager || true
   exit 1
 }
 
