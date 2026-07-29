@@ -74,10 +74,7 @@ public class ConsignmentService {
             .findConsignmentById(consignmentId)
             .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
 
-    Certificate certificate =
-        certificateRepository
-            .findCertificateByConsignment(consignment)
-            .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
+    Certificate certificate = getCertificate(consignment);
 
     List<ConsignmentImage> images =
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
@@ -108,10 +105,7 @@ public class ConsignmentService {
     CertificationBody certificationBody =
         CertificationBody.from(request.certificate().certificationBody());
 
-    Certificate certificate =
-        certificateRepository
-            .findCertificateByConsignment(consignment)
-            .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
+    Certificate certificate = getCertificate(consignment);
 
     consignment.updateMajorDefect(request.majorDefect());
     certificate.update(
@@ -131,5 +125,11 @@ public class ConsignmentService {
 
     return GetConsignmentDetailResponse.of(
         consignment, certificate, images, consignment.getSellerMember().getNickname());
+  }
+
+  private Certificate getCertificate(Consignment consignment) {
+    return certificateRepository
+        .findCertificateByConsignment(consignment)
+        .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
   }
 }
