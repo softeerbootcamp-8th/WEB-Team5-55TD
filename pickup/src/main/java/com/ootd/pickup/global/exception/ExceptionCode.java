@@ -20,6 +20,14 @@ public enum ExceptionCode {
   CERTIFICATE_NOT_FOUND(
       HttpStatus.NOT_FOUND, ClientExceptionCode.CERTIFICATE_NOT_FOUND, "인증서를 찾을 수 없습니다."),
   MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.MEMBER_NOT_FOUND, "회원을 찾을 수 없습니다."),
+  CONSIGNMENT_ACCESS_DENIED(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.CONSIGNMENT_ACCESS_DENIED,
+      "본인이 등록한 상품만 수정할 수 있습니다."),
+  CONSIGNMENT_NOT_MODIFIABLE(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CONSIGNMENT_NOT_MODIFIABLE,
+      "경매 신청 이후에는 상품 정보를 수정할 수 없습니다."),
   MEMBER_LOGIN_ID_ALREADY_EXISTS(
       HttpStatus.CONFLICT, ClientExceptionCode.MEMBER_LOGIN_ID_ALREADY_EXISTS, "이미 사용 중인 아이디입니다."),
   MEMBER_NICKNAME_ALREADY_EXISTS(

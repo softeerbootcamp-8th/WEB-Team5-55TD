@@ -10,6 +10,7 @@ import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.domain.Grade;
+import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
@@ -75,6 +76,40 @@ public class ConsignmentService {
 
     List<ConsignmentImage> images =
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
+
+    return GetConsignmentDetailResponse.of(
+        consignment, certificate, images, consignment.getSellerMember().getNickname());
+  }
+
+  @Transactional
+  public GetConsignmentDetailResponse modifyConsignment(
+      Long consignmentId, Long sellerMemberId, ModifyConsignmentRequest request) {
+    Consignment consignment =
+        consignmentRepository
+            .findConsignmentById(consignmentId)
+            .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+    if (!consignment.getSellerMember().getMemberId().equals(sellerMemberId)) {
+      throw new PickUpException(CONSIGNMENT_ACCESS_DENIED);
+    }
+
+    if (!consignment.isModifiable()) {
+      throw new PickUpException(CONSIGNMENT_NOT_MODIFIABLE);
+    }
+
+    // Consignment를 수정하기 전에 인증서 값부터 검증해 불필요한 갱신을 막는다.
+    Grade.from(request.certificate().grade());
+    CertificationBody.from(request.certificate().certificationBody());
+
+    consignment.updateMajorDefect(request.majorDefect());
+
+    certificateRepository.deleteByConsignment(consignment);
+    Certificate certificate =
+        certificateRepository.save(request.certificate().toEntity(consignment));
+
+    consignmentImageRepository.deleteAllByConsignment(consignment);
+    List<ConsignmentImage> images =
+        consignmentImageRepository.saveAll(request.toConsignmentImages(consignment));
 
     return GetConsignmentDetailResponse.of(
         consignment, certificate, images, consignment.getSellerMember().getNickname());

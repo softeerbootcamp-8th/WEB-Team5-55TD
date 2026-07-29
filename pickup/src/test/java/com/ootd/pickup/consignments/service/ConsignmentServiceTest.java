@@ -15,6 +15,7 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.dto.request.CertificateRequest;
 import com.ootd.pickup.consignments.dto.request.ConsignmentImageRequest;
+import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
@@ -279,6 +280,187 @@ class ConsignmentServiceTest {
     assertThatThrownBy(() -> consignmentService.getConsignment(consignmentId))
         .isInstanceOf(PickUpException.class);
     then(consignmentImageRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 소유자가_REGISTERABLE_상태의_상품을_수정하면_수정된_상세정보를_반환한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+    given(certificateRepository.save(any(Certificate.class)))
+        .willAnswer(
+            invocation -> {
+              Certificate certificate = invocation.getArgument(0);
+              ReflectionTestUtils.setField(certificate, "certificateId", 201L);
+              return certificate;
+            });
+    given(consignmentImageRepository.saveAll(anyList()))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            "새로운 흠집 설명",
+            new CertificateRequest("PSA-99999999", "PSA", "9", LocalDate.of(2026, 7, 1)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/new-front.png"),
+                new ConsignmentImageRequest("https://image.example.com/new-back.png")));
+
+    // when
+    GetConsignmentDetailResponse response =
+        consignmentService.modifyConsignment(consignmentId, sellerMemberId, request);
+
+    // then
+    assertThat(response.consignmentId()).isEqualTo(consignmentId);
+    assertThat(response.majorDefect()).isEqualTo("새로운 흠집 설명");
+    assertThat(response.certificate().serialNumber()).isEqualTo("PSA-99999999");
+    assertThat(response.certificate().grade()).isEqualTo("9");
+    then(certificateRepository).should().deleteByConsignment(consignment);
+    then(consignmentImageRepository).should().deleteAllByConsignment(consignment);
+
+    ArgumentCaptor<List<ConsignmentImage>> imagesCaptor = ArgumentCaptor.forClass(List.class);
+    then(consignmentImageRepository).should().saveAll(imagesCaptor.capture());
+    assertThat(imagesCaptor.getValue())
+        .extracting(ConsignmentImage::getImageOrder, ConsignmentImage::getImageUrl)
+        .containsExactly(
+            tuple(1, "https://image.example.com/new-front.png"),
+            tuple(2, "https://image.example.com/new-back.png"));
+  }
+
+  @Test
+  void PASSED_상태의_상품도_수정할_수_있다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.PASSED);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+    given(certificateRepository.save(any(Certificate.class)))
+        .willAnswer(
+            invocation -> {
+              Certificate certificate = invocation.getArgument(0);
+              ReflectionTestUtils.setField(certificate, "certificateId", 201L);
+              return certificate;
+            });
+    given(consignmentImageRepository.saveAll(anyList()))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when
+    GetConsignmentDetailResponse response =
+        consignmentService.modifyConsignment(consignmentId, sellerMemberId, request);
+
+    // then
+    assertThat(response.status()).isEqualTo(ConsignmentStatus.PASSED);
+  }
+
+  @Test
+  void 존재하지_않는_상품을_수정하면_예외가_발생한다() {
+    // given
+    Long notExistConsignmentId = 999L;
+    given(consignmentRepository.findConsignmentById(notExistConsignmentId))
+        .willReturn(Optional.empty());
+
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    assertThatThrownBy(
+            () -> consignmentService.modifyConsignment(notExistConsignmentId, 1L, request))
+        .isInstanceOf(PickUpException.class);
+    then(certificateRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 본인이_등록한_상품이_아니면_예외가_발생한다() {
+    // given
+    Long consignmentId = 100L;
+    Long otherMemberId = 999L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    assertThatThrownBy(
+            () -> consignmentService.modifyConsignment(consignmentId, otherMemberId, request))
+        .isInstanceOf(PickUpException.class);
+    then(certificateRepository).shouldHaveNoInteractions();
+    then(consignmentImageRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 경매_진행중인_상품을_수정하면_예외가_발생한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.AUCTION_ONGOING);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    assertThatThrownBy(
+            () -> consignmentService.modifyConsignment(consignmentId, sellerMemberId, request))
+        .isInstanceOf(PickUpException.class);
+    then(certificateRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 유효하지_않은_등급으로_수정하면_예외가_발생한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "S급", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    assertThatThrownBy(
+            () -> consignmentService.modifyConsignment(consignmentId, sellerMemberId, request))
+        .isInstanceOf(PickUpException.class);
+    then(certificateRepository).should(never()).deleteByConsignment(any());
   }
 
   private Card createCard(Long cardId) {

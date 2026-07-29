@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CertificateJpaRepository extends JpaRepository<Certificate, Long> {
   Optional<Certificate> findByConsignment(Consignment consignment);
+
+  void deleteByConsignment(Consignment consignment);
 }

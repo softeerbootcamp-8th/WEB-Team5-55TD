@@ -1,6 +1,7 @@
 package com.ootd.pickup.consignments.controller;
 
 import com.ootd.pickup.consignments.api.ConsignmentApi;
+import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -40,5 +42,17 @@ public class ConsignmentController implements ConsignmentApi {
   public ResponseEntity<GetConsignmentDetailResponse> getConsignment(
       @PathVariable Long consignmentId) {
     return ResponseEntity.ok(consignmentService.getConsignment(consignmentId));
+  }
+
+  @PatchMapping("/{consignmentId}")
+  @Override
+  @RequireAuthentication
+  public ResponseEntity<GetConsignmentDetailResponse> modifyConsignment(
+      @PathVariable Long consignmentId,
+      @MemberId Long sellerMemberId,
+      @Valid @RequestBody ModifyConsignmentRequest modifyConsignmentRequest) {
+    return ResponseEntity.ok(
+        consignmentService.modifyConsignment(
+            consignmentId, sellerMemberId, modifyConsignmentRequest));
   }
 }

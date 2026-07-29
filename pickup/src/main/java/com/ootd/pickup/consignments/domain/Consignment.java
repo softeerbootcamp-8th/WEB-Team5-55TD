@@ -49,4 +49,12 @@ public class Consignment {
     this.majorDefect = majorDefect;
     this.status = status;
   }
+
+  public boolean isModifiable() {
+    return status == ConsignmentStatus.REGISTERABLE || status == ConsignmentStatus.PASSED;
+  }
+
+  public void updateMajorDefect(String majorDefect) {
+    this.majorDefect = majorDefect;
+  }
 }
