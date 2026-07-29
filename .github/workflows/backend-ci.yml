@@ -41,6 +41,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build & Test
+        id: build-and-test
         env:
           JWT_TEST_SECRET: ${{ secrets.JWT_TEST_SECRET }}
         run: ./gradlew clean build --no-daemon
@@ -55,6 +56,140 @@ jobs:
             pickup/build/test-results/test
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: pickup/build/reports/jacoco/test
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Compute test coverage
+        id: coverage
+        if: always()
+        run: |
+          REPORT=build/reports/jacoco/test/jacocoTestReport.xml
+          if [ ! -f "$REPORT" ]; then
+            echo "coverage_available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LINE_COUNTER=$(grep -oE '<counter type="LINE" missed="[0-9]+" covered="[0-9]+"/>' "$REPORT" | tail -1)
+          MISSED=$(echo "$LINE_COUNTER" | grep -oE 'missed="[0-9]+"' | grep -oE '[0-9]+')
+          COVERED=$(echo "$LINE_COUNTER" | grep -oE 'covered="[0-9]+"' | grep -oE '[0-9]+')
+          TOTAL=$((MISSED + COVERED))
+
+          if [ "$TOTAL" -eq 0 ]; then
+            PERCENT="0.00"
+          else
+            PERCENT=$(awk "BEGIN { printf \"%.2f\", ($COVERED / $TOTAL) * 100 }")
+          fi
+
+          {
+            echo "coverage_available=true"
+            echo "line_covered=$COVERED"
+            echo "line_missed=$MISSED"
+            echo "line_total=$TOTAL"
+            echo "coverage_percent=$PERCENT"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack on success
+        if: ${{ success() && steps.coverage.outputs.coverage_available == 'true' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Backend CI 성공 (라인 커버리지 ${{ steps.coverage.outputs.coverage_percent }}%): ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "✅ Backend CI 테스트 통과"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*라인 커버리지*\n${{ steps.coverage.outputs.coverage_percent }}% (${{ steps.coverage.outputs.line_covered }}/${{ steps.coverage.outputs.line_total }})"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+
+      - name: Notify Slack on success (coverage unavailable)
+        if: ${{ success() && steps.coverage.outputs.coverage_available != 'true' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Backend CI 성공 (커버리지 리포트 없음): ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "✅ Backend CI 테스트 통과"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*라인 커버리지*\n리포트를 찾을 수 없습니다."
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Backend CI 실패: ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "❌ Backend CI 테스트 실패"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*라인 커버리지*\n${{ steps.coverage.outputs.coverage_available == 'true' && format('{0}% ({1}/{2})', steps.coverage.outputs.coverage_percent, steps.coverage.outputs.line_covered, steps.coverage.outputs.line_total) || '측정 불가 (빌드 또는 테스트 단계에서 실패)' }}"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그에서 자세히 보기>"
 
       - name: Upload application jar
         if: ${{ inputs.upload-jar }}
