@@ -86,10 +86,10 @@ public class ConsignmentService {
   @Transactional
   public GetConsignmentDetailResponse modifyConsignment(
       Long consignmentId, Long sellerMemberId, ModifyConsignmentRequest request) {
-    // TODO: consignmentService.getConsignmentById로 바꾸기
+    // 수정 가능 여부 확인과 갱신 사이에 상태가 바뀌지 않도록 같은 락 안에서 조회한다.
     Consignment consignment =
         consignmentRepository
-            .findConsignmentById(consignmentId)
+            .findByIdForUpdate(consignmentId)
             .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
 
     if (!consignment.getSellerMember().getMemberId().equals(sellerMemberId)) {

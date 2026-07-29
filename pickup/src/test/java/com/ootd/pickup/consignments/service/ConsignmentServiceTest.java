@@ -326,7 +326,7 @@ class ConsignmentServiceTest {
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
     Certificate certificate = createCertificate(200L, consignment);
-    given(consignmentRepository.findConsignmentById(consignmentId))
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
     given(certificateRepository.findCertificateByConsignment(consignment))
         .willReturn(Optional.of(certificate));
@@ -371,7 +371,7 @@ class ConsignmentServiceTest {
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.PASSED);
     Certificate certificate = createCertificate(200L, consignment);
-    given(consignmentRepository.findConsignmentById(consignmentId))
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
     given(certificateRepository.findCertificateByConsignment(consignment))
         .willReturn(Optional.of(certificate));
@@ -398,7 +398,7 @@ class ConsignmentServiceTest {
   void 존재하지_않는_상품을_수정하면_예외가_발생한다() {
     // given
     Long notExistConsignmentId = 999L;
-    given(consignmentRepository.findConsignmentById(notExistConsignmentId))
+    given(consignmentRepository.findByIdForUpdate(notExistConsignmentId))
         .willReturn(Optional.empty());
 
     ModifyConsignmentRequest request =
@@ -423,7 +423,7 @@ class ConsignmentServiceTest {
     Long otherMemberId = 999L;
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
-    given(consignmentRepository.findConsignmentById(consignmentId))
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
 
     ModifyConsignmentRequest request =
@@ -449,7 +449,7 @@ class ConsignmentServiceTest {
     Long consignmentId = 100L;
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.AUCTION_ONGOING);
-    given(consignmentRepository.findConsignmentById(consignmentId))
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
 
     ModifyConsignmentRequest request =
@@ -474,7 +474,7 @@ class ConsignmentServiceTest {
     Long consignmentId = 100L;
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
-    given(consignmentRepository.findConsignmentById(consignmentId))
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
 
     ModifyConsignmentRequest request =
@@ -499,7 +499,7 @@ class ConsignmentServiceTest {
     Long consignmentId = 100L;
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
-    given(consignmentRepository.findConsignmentById(consignmentId))
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
 
     ModifyConsignmentRequest request =
@@ -524,7 +524,7 @@ class ConsignmentServiceTest {
     Long consignmentId = 100L;
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
-    given(consignmentRepository.findConsignmentById(consignmentId))
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
     given(certificateRepository.findCertificateByConsignment(consignment))
         .willReturn(Optional.empty());
@@ -552,7 +552,7 @@ class ConsignmentServiceTest {
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
     Certificate certificate = createCertificate(200L, consignment);
-    given(consignmentRepository.findConsignmentById(consignmentId))
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
     given(certificateRepository.findCertificateByConsignment(consignment))
         .willReturn(Optional.of(certificate));
