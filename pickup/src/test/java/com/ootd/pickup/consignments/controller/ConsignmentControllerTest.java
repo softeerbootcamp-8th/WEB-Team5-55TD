@@ -17,6 +17,8 @@ import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.service.ConsignmentService;
+import com.ootd.pickup.global.auth.Authentication;
+import com.ootd.pickup.global.auth.AuthenticationAttributes;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import java.time.LocalDate;
@@ -72,6 +74,7 @@ class ConsignmentControllerTest {
     mockMvc
         .perform(
             post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
@@ -92,7 +95,6 @@ class ConsignmentControllerTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             null,
-            1L,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -103,6 +105,7 @@ class ConsignmentControllerTest {
     mockMvc
         .perform(
             post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
@@ -116,7 +119,6 @@ class ConsignmentControllerTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             10L,
-            1L,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(new ConsignmentImageRequest("https://image.example.com/front.png")));
@@ -125,6 +127,7 @@ class ConsignmentControllerTest {
     mockMvc
         .perform(
             post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
@@ -143,6 +146,7 @@ class ConsignmentControllerTest {
     mockMvc
         .perform(
             post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isNotFound())
@@ -212,7 +216,6 @@ class ConsignmentControllerTest {
   private RegisterConsignmentRequest createRequest() {
     return new RegisterConsignmentRequest(
         10L,
-        1L,
         "모서리에 약간의 마모",
         new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
         List.of(

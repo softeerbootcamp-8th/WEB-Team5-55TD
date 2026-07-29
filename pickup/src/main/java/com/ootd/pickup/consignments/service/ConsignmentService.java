@@ -32,7 +32,6 @@ public class ConsignmentService {
   private final CertificateRepository certificateRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
 
-  // TODO: 인증 구현 이후 memberId 제외시키기
   @Transactional
   public RegisterConsignmentResponse registerConsignment(
       Long sellerMemberId, RegisterConsignmentRequest request) {

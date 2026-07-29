@@ -41,7 +41,6 @@ public interface ConsignmentApi {
                                   """
                         {
                           "cardId": 10,
-                          "sellerMemberId": 1,
                           "majorDefect": "모서리에 약간의 마모",
                           "certificate": {
                             "serialNumber": "PSA-84213907",
