@@ -19,7 +19,7 @@ public record CreateAuctionResponse(
   public static CreateAuctionResponse from(Auction auction) {
     return new CreateAuctionResponse(
         auction.getAuctionId(),
-        auction.getProduct().getConsignmentId(),
+        auction.getConsignment().getConsignmentId(),
         auction.getAuctionStatus(),
         auction.getStartingPrice(),
         auction.getMinimumBidIncrement(),

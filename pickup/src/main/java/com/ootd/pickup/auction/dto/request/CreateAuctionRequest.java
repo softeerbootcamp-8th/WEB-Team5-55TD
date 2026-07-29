@@ -16,7 +16,7 @@ public record CreateAuctionRequest(
 
   public Auction toEntity(Consignment consignment, Long bidIncrement) {
     return Auction.builder()
-        .product(consignment)
+        .consignment(consignment)
         .startedAt(scheduledStartAt)
         .auctionStatus(AuctionStatus.SCHEDULED)
         .startingPrice(startingPrice)

@@ -28,8 +28,8 @@ public class Auction {
   private Long auctionId;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "product_id", nullable = false)
-  private Consignment product;
+  @JoinColumn(name = "consignment_id", nullable = false)
+  private Consignment consignment;
 
   // Bid 구현 후 FK/Join 필요
   @Column(name = "winning_bid_id")
@@ -62,14 +62,14 @@ public class Auction {
 
   @Builder
   public Auction(
-      Consignment product,
+      Consignment consignment,
       LocalDateTime startedAt,
       LocalDateTime endedAt,
       AuctionStatus auctionStatus,
       Long startingPrice,
       Long reservePrice,
       Long minimumBidIncrement) {
-    this.product = product;
+    this.consignment = consignment;
     this.startedAt = startedAt;
     this.endedAt = endedAt;
     this.auctionStatus = auctionStatus;
