@@ -23,6 +23,7 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.member.repository.MemberRepository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +46,8 @@ class ConsignmentServiceTest {
 
   @Mock private ConsignmentImageRepository consignmentImageRepository;
 
+  @Mock private MemberRepository memberRepository;
+
   private ConsignmentService consignmentService;
 
   @BeforeEach
@@ -54,7 +57,8 @@ class ConsignmentServiceTest {
             cardManageService,
             consignmentRepository,
             certificateRepository,
-            consignmentImageRepository);
+            consignmentImageRepository,
+            memberRepository);
   }
 
   @Test
@@ -63,6 +67,7 @@ class ConsignmentServiceTest {
     Long sellerMemberId = 1L;
     Long cardId = 10L;
     Card card = createCard(cardId);
+    given(memberRepository.existsById(sellerMemberId)).willReturn(true);
     given(cardManageService.getCardByCardId(cardId)).willReturn(card);
     given(consignmentRepository.save(any(Consignment.class)))
         .willAnswer(
@@ -119,6 +124,7 @@ class ConsignmentServiceTest {
     // given
     Long sellerMemberId = 1L;
     Long notExistCardId = 999L;
+    given(memberRepository.existsById(sellerMemberId)).willReturn(true);
     given(cardManageService.getCardByCardId(notExistCardId))
         .willThrow(new PickUpException(ExceptionCode.CARD_NOT_FOUND));
 
@@ -143,6 +149,7 @@ class ConsignmentServiceTest {
     Long sellerMemberId = 1L;
     Long cardId = 10L;
     Card card = createCard(cardId);
+    given(memberRepository.existsById(sellerMemberId)).willReturn(true);
     given(cardManageService.getCardByCardId(cardId)).willReturn(card);
 
     RegisterConsignmentRequest request =
@@ -159,6 +166,28 @@ class ConsignmentServiceTest {
         .isInstanceOf(PickUpException.class);
     then(consignmentRepository).shouldHaveNoInteractions();
     then(certificateRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 존재하지_않는_회원이_상품을_등록하면_예외가_발생한다() {
+    // given
+    Long notExistMemberId = 999L;
+    given(memberRepository.existsById(notExistMemberId)).willReturn(false);
+
+    RegisterConsignmentRequest request =
+        new RegisterConsignmentRequest(
+            10L,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    assertThatThrownBy(() -> consignmentService.registerConsignment(notExistMemberId, request))
+        .isInstanceOf(PickUpException.class);
+    then(cardManageService).shouldHaveNoInteractions();
+    then(consignmentRepository).shouldHaveNoInteractions();
   }
 
   @Test

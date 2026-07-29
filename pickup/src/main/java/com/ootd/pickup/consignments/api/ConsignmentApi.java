@@ -100,7 +100,7 @@ public interface ConsignmentApi {
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "404",
-            description = "카드를 찾을 수 없음",
+            description = "카드 또는 회원을 찾을 수 없음",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<RegisterConsignmentResponse> registerConsignment(
