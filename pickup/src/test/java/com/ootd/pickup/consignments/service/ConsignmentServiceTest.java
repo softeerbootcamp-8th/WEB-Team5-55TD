@@ -23,6 +23,7 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import java.time.LocalDate;
 import java.util.List;
@@ -67,6 +68,8 @@ class ConsignmentServiceTest {
     Long sellerMemberId = 1L;
     Long cardId = 10L;
     Card card = createCard(cardId);
+    given(memberManageService.getMemberById(sellerMemberId))
+        .willReturn(createMember(sellerMemberId, "피카츄"));
     given(cardManageService.getCardByCardId(cardId)).willReturn(card);
     given(consignmentRepository.save(any(Consignment.class)))
         .willAnswer(
@@ -169,9 +172,8 @@ class ConsignmentServiceTest {
   void 존재하지_않는_회원이_상품을_등록하면_예외가_발생한다() {
     // given
     Long notExistMemberId = 999L;
-    willThrow(new PickUpException(ExceptionCode.MEMBER_NOT_FOUND))
-        .given(memberManageService)
-        .validateMemberExists(notExistMemberId);
+    given(memberManageService.getMemberById(notExistMemberId))
+        .willThrow(new PickUpException(ExceptionCode.MEMBER_NOT_FOUND));
 
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
@@ -297,12 +299,18 @@ class ConsignmentServiceTest {
     Consignment consignment =
         Consignment.builder()
             .card(card)
-            .sellerMemberId(1L)
+            .sellerMember(createMember(1L, "피카츄"))
             .majorDefect(null)
             .status(status)
             .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", consignmentId);
     return consignment;
+  }
+
+  private Member createMember(Long memberId, String nickname) {
+    Member member = Member.create("loginId", "password", nickname);
+    ReflectionTestUtils.setField(member, "memberId", memberId);
+    return member;
   }
 
   private Certificate createCertificate(Long certificateId, Consignment consignment) {

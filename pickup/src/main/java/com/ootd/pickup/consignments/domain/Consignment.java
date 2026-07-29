@@ -1,6 +1,7 @@
 package com.ootd.pickup.consignments.domain;
 
 import com.ootd.pickup.cards.domain.Card;
+import com.ootd.pickup.member.domain.Member;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -30,9 +31,9 @@ public class Consignment {
   @JoinColumn(name = "card_id", nullable = false)
   private Card card;
 
-  // 유저 구현 후 Join 필요
-  @Column(name = "seller_member_id", nullable = false)
-  private Long sellerMemberId;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "seller_member_id", nullable = false)
+  private Member sellerMember;
 
   @Column(name = "major_defect")
   private String majorDefect;
@@ -42,9 +43,9 @@ public class Consignment {
   private ConsignmentStatus status;
 
   @Builder
-  public Consignment(Card card, Long sellerMemberId, String majorDefect, ConsignmentStatus status) {
+  public Consignment(Card card, Member sellerMember, String majorDefect, ConsignmentStatus status) {
     this.card = card;
-    this.sellerMemberId = sellerMemberId;
+    this.sellerMember = sellerMember;
     this.majorDefect = majorDefect;
     this.status = status;
   }
