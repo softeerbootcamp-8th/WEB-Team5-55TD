@@ -25,10 +25,7 @@ public class AuctionService {
 
   @Transactional
   public CreateAuctionResponse registerAuction(Long memberId, CreateAuctionRequest request) {
-    Consignment consignment =
-        consignmentRepository
-            .findConsignmentById(request.consignmentId())
-            .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+    Consignment consignment = getConsignment(request.consignmentId());
 
     if (!consignment.getSellerMemberId().equals(memberId)) {
       throw new PickUpException(CONSIGNMENT_ACCESS_DENIED);
@@ -40,5 +37,11 @@ public class AuctionService {
     Auction auction = auctionRepository.save(request.toEntity(consignment, bidIncrement));
 
     return CreateAuctionResponse.from(auction);
+  }
+
+  private Consignment getConsignment(Long consignmentId) {
+    return consignmentRepository
+        .findConsignmentById(consignmentId)
+        .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
   }
 }
