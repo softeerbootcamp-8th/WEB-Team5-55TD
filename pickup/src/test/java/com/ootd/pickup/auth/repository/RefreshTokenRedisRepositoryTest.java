@@ -42,6 +42,13 @@ class RefreshTokenRedisRepositoryTest {
   }
 
   @Test
+  void 존재하지_않는_리프레시_토큰을_조회하면_빈_값을_반환한다() {
+    when(valueOperations.getAndDelete("auth:refresh:token-hash")).thenReturn(null);
+
+    assertThat(refreshTokenRepository.consume("token-hash")).isEmpty();
+  }
+
+  @Test
   void 리프레시_토큰을_삭제한다() {
     refreshTokenRepository.delete("token-hash");
 

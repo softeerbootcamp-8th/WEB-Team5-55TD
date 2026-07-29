@@ -53,6 +53,11 @@ class JwtAccessTokenTest {
   }
 
   @Test
+  void null_액세스_토큰은_인증하지_않는다() {
+    assertThatThrownBy(() -> verifier.verify(null)).isInstanceOf(InvalidAccessTokenException.class);
+  }
+
+  @Test
   void 액세스_토큰이_아닌_JWT는_인증하지_않는다() {
     String refreshToken = createToken("1", "refresh", Instant.now().plusSeconds(60));
 
