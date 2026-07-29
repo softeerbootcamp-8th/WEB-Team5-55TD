@@ -1,8 +1,6 @@
 package com.ootd.pickup.cards.repository;
 
+import com.ootd.pickup.cards.domain.Card;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.ootd.pickup.cards.domain.Card;
-
-public interface CardJpaRepository extends JpaRepository<Card, Long> {
-}
+public interface CardJpaRepository extends JpaRepository<Card, Long> {}

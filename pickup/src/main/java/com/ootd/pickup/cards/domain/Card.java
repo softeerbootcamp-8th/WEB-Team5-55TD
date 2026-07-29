@@ -1,8 +1,5 @@
 package com.ootd.pickup.cards.domain;
 
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,6 +11,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Getter
@@ -22,48 +21,47 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Card {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "card_id", nullable = false)
-    private Long cardId;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Column(name = "card_id", nullable = false)
+  private Long cardId;
 
-    @Column(name = "is_deleted", nullable = false)
-    private boolean deleted;
+  @Column(name = "is_deleted", nullable = false)
+  private boolean deleted;
 
-    @Column(name = "card_name", nullable = false)
-    private String cardName;
+  @Column(name = "card_name", nullable = false)
+  private String cardName;
 
-    @Column(name = "card_number", nullable = false)
-    private String cardNumber;
+  @Column(name = "card_number", nullable = false)
+  private String cardNumber;
 
-    @Column(name = "set_name", nullable = false)
-    private String setName;
+  @Column(name = "set_name", nullable = false)
+  private String setName;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "language", nullable = false)
-    private Language language;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "language", nullable = false)
+  private Language language;
 
-    @Column(name = "rarity", nullable = false)
-    @Enumerated(EnumType.STRING)
-    private Rarity rarity;
+  @Column(name = "rarity", nullable = false)
+  @Enumerated(EnumType.STRING)
+  private Rarity rarity;
 
-    @Column(name = "image_url", nullable = false)
-    private String imageUrl;
+  @Column(name = "image_url", nullable = false)
+  private String imageUrl;
 
-    @Builder
-    public Card(
-        String cardName,
-        String cardNumber,
-        String setName,
-        Language language,
-        Rarity rarity,
-        String imageUrl
-    ) {
-        this.cardName = cardName;
-        this.cardNumber = cardNumber;
-        this.setName = setName;
-        this.language = language;
-        this.rarity = rarity;
-        this.imageUrl = imageUrl;
-    }
+  @Builder
+  public Card(
+      String cardName,
+      String cardNumber,
+      String setName,
+      Language language,
+      Rarity rarity,
+      String imageUrl) {
+    this.cardName = cardName;
+    this.cardNumber = cardNumber;
+    this.setName = setName;
+    this.language = language;
+    this.rarity = rarity;
+    this.imageUrl = imageUrl;
+  }
 }
