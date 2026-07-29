@@ -102,6 +102,10 @@ public interface ConsignmentApi {
         @ApiResponse(
             responseCode = "404",
             description = "카드 또는 회원을 찾을 수 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "409",
+            description = "이미 등록된 인증서 일련번호",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<RegisterConsignmentResponse> registerConsignment(
@@ -252,7 +256,7 @@ public interface ConsignmentApi {
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "409",
-            description = "경매 신청 이후/진행 중인 상품이라 수정할 수 없음",
+            description = "경매 신청 이후/진행 중인 상품이라 수정할 수 없거나, 다른 상품이 이미 사용 중인 인증서 일련번호",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<GetConsignmentDetailResponse> modifyConsignment(

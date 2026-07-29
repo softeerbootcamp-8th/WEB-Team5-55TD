@@ -22,6 +22,7 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,8 +56,12 @@ public class ConsignmentService {
                 .status(ConsignmentStatus.REGISTERABLE)
                 .build());
 
-    Certificate certificate =
-        certificateRepository.save(request.certificate().toEntity(consignment));
+    Certificate certificate;
+    try {
+      certificate = certificateRepository.save(request.certificate().toEntity(consignment));
+    } catch (DataIntegrityViolationException exception) {
+      throw new PickUpException(CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS);
+    }
 
     consignmentImageRepository.saveAll(request.toConsignmentImages(consignment));
 
@@ -84,6 +89,7 @@ public class ConsignmentService {
   @Transactional
   public GetConsignmentDetailResponse modifyConsignment(
       Long consignmentId, Long sellerMemberId, ModifyConsignmentRequest request) {
+    // TODO: consignmentService.getConsignmentById로 바꾸기
     Consignment consignment =
         consignmentRepository
             .findConsignmentById(consignmentId)
@@ -113,6 +119,11 @@ public class ConsignmentService {
         certificationBody,
         grade,
         request.certificate().inspectedAt());
+    try {
+      certificateRepository.flush();
+    } catch (DataIntegrityViolationException exception) {
+      throw new PickUpException(CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS);
+    }
 
     consignmentImageRepository.deleteAllByConsignment(consignment);
     List<ConsignmentImage> images =

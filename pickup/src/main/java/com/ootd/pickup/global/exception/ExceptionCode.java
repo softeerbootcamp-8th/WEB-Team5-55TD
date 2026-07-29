@@ -19,6 +19,10 @@ public enum ExceptionCode {
       HttpStatus.NOT_FOUND, ClientExceptionCode.CONSIGNMENT_NOT_FOUND, "상품을 찾을 수 없습니다."),
   CERTIFICATE_NOT_FOUND(
       HttpStatus.NOT_FOUND, ClientExceptionCode.CERTIFICATE_NOT_FOUND, "인증서를 찾을 수 없습니다."),
+  CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS,
+      "이미 등록된 인증서 일련번호입니다."),
   MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.MEMBER_NOT_FOUND, "회원을 찾을 수 없습니다."),
   CONSIGNMENT_ACCESS_DENIED(
       HttpStatus.FORBIDDEN,

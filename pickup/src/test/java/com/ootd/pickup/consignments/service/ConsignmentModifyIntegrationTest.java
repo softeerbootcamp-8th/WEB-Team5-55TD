@@ -17,6 +17,8 @@ import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.repository.certificate.CertificateJpaRepository;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaRepository;
+import com.ootd.pickup.global.exception.ExceptionCode;
+import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
 import jakarta.persistence.EntityManager;
@@ -88,6 +90,66 @@ class ConsignmentModifyIntegrationTest {
               assertThat(response.certificate().grade()).isEqualTo("10");
             })
         .doesNotThrowAnyException();
+  }
+
+  @Test
+  void 다른_상품이_사용중인_일련번호로_수정하면_409로_변환된다() {
+    // given
+    Member seller = memberJpaRepository.save(Member.create("loginId", "password", "피카츄"));
+    Card card = cardJpaRepository.save(createCard());
+
+    Consignment otherConsignment =
+        consignmentJpaRepository.save(
+            Consignment.builder()
+                .card(card)
+                .sellerMember(seller)
+                .majorDefect(null)
+                .status(ConsignmentStatus.REGISTERABLE)
+                .build());
+    certificateJpaRepository.save(
+        Certificate.builder()
+            .consignment(otherConsignment)
+            .serialNumber("PSA-OTHER-11111111")
+            .certificationBody(CertificationBody.PSA)
+            .grade(Grade.GEM_MINT)
+            .inspectedAt(LocalDate.of(2026, 6, 30))
+            .build());
+
+    Consignment consignment =
+        consignmentJpaRepository.save(
+            Consignment.builder()
+                .card(card)
+                .sellerMember(seller)
+                .majorDefect(null)
+                .status(ConsignmentStatus.REGISTERABLE)
+                .build());
+    certificateJpaRepository.save(
+        Certificate.builder()
+            .consignment(consignment)
+            .serialNumber("PSA-84213907")
+            .certificationBody(CertificationBody.PSA)
+            .grade(Grade.GEM_MINT)
+            .inspectedAt(LocalDate.of(2026, 6, 30))
+            .build());
+    entityManager.flush();
+
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-OTHER-11111111", "PSA", "10", LocalDate.of(2026, 7, 1)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    assertThatThrownBy(
+            () -> {
+              consignmentService.modifyConsignment(
+                  consignment.getConsignmentId(), seller.getMemberId(), request);
+              entityManager.flush();
+            })
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS.getMessage());
   }
 
   private Card createCard() {
