@@ -51,7 +51,7 @@ public class Auction {
   @Column(name = "reserve_price", nullable = false)
   private Long reservePrice;
 
-  @Column(name = "minimum_bid_increment", nullable = false)
+  @Column(name = "bid_increment", nullable = false)
   private Long minimumBidIncrement;
 
   @Column(name = "winning_price")

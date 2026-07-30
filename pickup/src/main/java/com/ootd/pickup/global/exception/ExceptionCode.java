@@ -39,7 +39,20 @@ public enum ExceptionCode {
   CONSIGNMENT_ACCESS_DENIED(
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.CONSIGNMENT_ACCESS_DENIED,
-      "본인 소유의 위탁상품만 경매를 신청할 수 있습니다.");
+      "본인 소유의 위탁상품만 경매를 신청할 수 있습니다."),
+  AUCTION_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.AUCTION_NOT_FOUND, "경매를 찾을 수 없습니다."),
+  AUCTION_NOT_STARTED(
+      HttpStatus.CONFLICT, ClientExceptionCode.AUCTION_NOT_STARTED, "아직 시작되지 않은 경매입니다."),
+  AUCTION_ENDED(HttpStatus.CONFLICT, ClientExceptionCode.AUCTION_ENDED, "이미 종료된 경매입니다."),
+  AUCTION_SELLER_BID_FORBIDDEN(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.AUCTION_SELLER_BID_FORBIDDEN,
+      "판매자는 본인의 경매에 입찰할 수 없습니다."),
+  OUTBID_EXISTS(HttpStatus.CONFLICT, ClientExceptionCode.OUTBID_EXISTS, "이미 더 높은 입찰이 존재합니다."),
+  BELOW_MIN_INCREMENT(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.BELOW_MIN_INCREMENT,
+      "현재가에서 최소 입찰 단위 이상 높게 입찰해야 합니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

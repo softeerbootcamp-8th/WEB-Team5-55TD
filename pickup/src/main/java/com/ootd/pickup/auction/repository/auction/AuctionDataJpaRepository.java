@@ -1,6 +1,7 @@
 package com.ootd.pickup.auction.repository.auction;
 
 import com.ootd.pickup.auction.domain.Auction;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -13,5 +14,10 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   @Override
   public Auction save(Auction auction) {
     return auctionJpaRepository.save(auction);
+  }
+
+  @Override
+  public Optional<Auction> findByIdForUpdate(Long auctionId) {
+    return auctionJpaRepository.findByIdForUpdate(auctionId);
   }
 }
