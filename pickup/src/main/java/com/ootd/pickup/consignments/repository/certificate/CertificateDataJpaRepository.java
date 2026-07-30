@@ -23,6 +23,11 @@ public class CertificateDataJpaRepository implements CertificateRepository {
   }
 
   @Override
+  public void deleteByConsignment(Consignment consignment) {
+    certificateJpaRepository.deleteByConsignment(consignment);
+  }
+
+  @Override
   public void flush() {
     certificateJpaRepository.flush();
   }

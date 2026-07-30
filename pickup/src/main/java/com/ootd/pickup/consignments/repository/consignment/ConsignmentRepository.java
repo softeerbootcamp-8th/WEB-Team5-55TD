@@ -9,4 +9,6 @@ public interface ConsignmentRepository {
   Optional<Consignment> findConsignmentById(Long consignmentId);
 
   Optional<Consignment> findByIdForUpdate(Long consignmentId);
+
+  void deleteById(Long consignmentId);
 }

@@ -9,5 +9,7 @@ public interface CertificateRepository {
 
   Optional<Certificate> findCertificateByConsignment(Consignment consignment);
 
+  void deleteByConsignment(Consignment consignment);
+
   void flush();
 }
