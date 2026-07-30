@@ -10,10 +10,13 @@ import {
   Settings,
   User as UserIcon,
 } from "lucide-react";
+import {
+  useGetMyPointBalance,
+  useGetMyProfile,
+} from "@/api/generated/member/member";
 import { formatPoint } from "@/lib/format";
-import { currentUser } from "@/lib/mock/data";
 import { setAuthenticated, useIsAuthenticated, useNickname } from "@/lib/auth";
-import { logout } from "@/api/generated/auth/auth";
+import { logout } from "@/api/generated/authentication/authentication";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -49,8 +52,24 @@ const NAV: Record<Role, NavItem[]> = {
 export function Gnb({ role }: { role: Role }) {
   const navigate = useNavigate();
   const isAuthenticated = useIsAuthenticated();
-  const nickname = useNickname() ?? currentUser.nickname;
+  const storedNickname = useNickname();
+  const profileQuery = useGetMyProfile({
+    query: { enabled: isAuthenticated },
+  });
+  const pointBalanceQuery = useGetMyPointBalance({
+    query: { enabled: isAuthenticated },
+  });
+  const nickname = profileQuery.data?.nickname ?? storedNickname ?? "회원";
   const items = NAV[role];
+
+  const pointBalance = pointBalanceQuery.data?.pointBalance;
+  const pointBalanceLabel = pointBalanceQuery.isLoading
+    ? "조회 중"
+    : pointBalanceQuery.isError
+      ? "조회 실패"
+      : pointBalance === undefined
+        ? "정보 없음"
+        : formatPoint(pointBalance);
 
   const handleLogout = () => {
     logout().catch(() => {
@@ -117,7 +136,7 @@ export function Gnb({ role }: { role: Role }) {
                   보유 포인트
                 </span>
                 <span className="tabular text-sm font-semibold text-primary">
-                  {formatPoint(currentUser.points)}
+                  {pointBalanceLabel}
                 </span>
               </div>
               <DropdownMenuSeparator />
