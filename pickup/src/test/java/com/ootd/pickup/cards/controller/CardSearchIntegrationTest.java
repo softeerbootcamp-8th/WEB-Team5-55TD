@@ -99,6 +99,25 @@ class CardSearchIntegrationTest {
   }
 
   @Test
+  void 검색어와_세트명은_대소문자를_구분하지_않는다() throws Exception {
+    // given
+    Card card = createCard("Charizard 1st Edition", "4/102", "Base Set", Language.ENGLISH);
+    cardJpaRepository.save(card);
+    cardJpaRepository.flush();
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/cards")
+                .param("keyword", "charizard")
+                .param("setName", "base set")
+                .param("size", "20"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].cardId").value(card.getCardId()));
+  }
+
+  @Test
   void 지원하지_않는_언어로_검색하면_400을_반환한다() throws Exception {
     // when & then
     mockMvc
