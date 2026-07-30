@@ -11,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -77,5 +78,12 @@ public class Auction {
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
     this.createdAt = LocalDateTime.now();
+  }
+
+  public Long getRemainingSeconds() {
+    if (auctionStatus != AuctionStatus.ONGOING || endedAt == null) {
+      return null;
+    }
+    return Math.max(Duration.between(LocalDateTime.now(), endedAt).getSeconds(), 0);
   }
 }

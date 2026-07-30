@@ -4,6 +4,7 @@ import static com.ootd.pickup.auction.domain.QAuction.auction;
 import static com.ootd.pickup.auction.domain.QWatch.watch;
 import static com.ootd.pickup.cards.domain.QCard.card;
 import static com.ootd.pickup.consignments.domain.QConsignment.consignment;
+import static com.ootd.pickup.member.domain.QMember.member;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
@@ -34,6 +35,21 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   @Override
   public Auction save(Auction newAuction) {
     return auctionJpaRepository.save(newAuction);
+  }
+
+  @Override
+  public Optional<Auction> findByIdWithConsignmentAndCard(Long auctionId) {
+    return Optional.ofNullable(
+        queryFactory
+            .selectFrom(auction)
+            .join(auction.consignment, consignment)
+            .fetchJoin()
+            .join(consignment.card, card)
+            .fetchJoin()
+            .join(consignment.sellerMember, member)
+            .fetchJoin()
+            .where(auction.auctionId.eq(auctionId))
+            .fetchOne());
   }
 
   @Override

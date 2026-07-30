@@ -3,6 +3,7 @@ package com.ootd.pickup.auction.controller;
 import com.ootd.pickup.auction.api.AuctionApi;
 import com.ootd.pickup.auction.dto.request.CreateAuctionRequest;
 import com.ootd.pickup.auction.dto.request.SearchAuctionsRequest;
+import com.ootd.pickup.auction.dto.response.AuctionDetailResponse;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.service.AuctionService;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,5 +45,12 @@ public class AuctionController implements AuctionApi {
       @OptionalMemberId Long memberId,
       @Valid @ModelAttribute SearchAuctionsRequest searchAuctionsRequest) {
     return ResponseEntity.ok(auctionService.searchAuctions(memberId, searchAuctionsRequest));
+  }
+
+  @GetMapping("/{auctionId}")
+  @Override
+  public ResponseEntity<AuctionDetailResponse> getAuctionDetail(
+      @OptionalMemberId Long memberId, @PathVariable Long auctionId) {
+    return ResponseEntity.ok(auctionService.getAuctionDetail(memberId, auctionId));
   }
 }

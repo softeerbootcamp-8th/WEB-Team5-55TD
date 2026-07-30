@@ -6,6 +6,7 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.dto.request.CreateAuctionRequest;
 import com.ootd.pickup.auction.dto.request.SearchAuctionsRequest;
+import com.ootd.pickup.auction.dto.response.AuctionDetailResponse;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionCursor;
@@ -97,10 +98,38 @@ public class AuctionService {
     return CursorPageResponse.from(assembled.items(), hasNext, nextCursor);
   }
 
+  public AuctionDetailResponse getAuctionDetail(Long viewerMemberId, Long auctionId) {
+    Auction auction = getAuction(auctionId);
+    Consignment consignment = auction.getConsignment();
+
+    Certificate certificate = getCertificate(consignment);
+    List<ConsignmentImage> images =
+        consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
+
+    long watchCount =
+        watchRepository.countByAuctionIds(List.of(auctionId)).getOrDefault(auctionId, 0L);
+    boolean watched =
+        !watchRepository.findWatchedAuctionIds(viewerMemberId, List.of(auctionId)).isEmpty();
+
+    return AuctionDetailResponse.of(auction, certificate, images, watchCount, watched);
+  }
+
   private Consignment getConsignment(Long consignmentId) {
     return consignmentRepository
         .findConsignmentById(consignmentId)
         .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+  }
+
+  private Auction getAuction(Long auctionId) {
+    return auctionRepository
+        .findByIdWithConsignmentAndCard(auctionId)
+        .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+  }
+
+  private Certificate getCertificate(Consignment consignment) {
+    return certificateRepository
+        .findCertificateByConsignment(consignment)
+        .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
   }
 
   private record Assembled(List<AuctionListItemResponse> items, Map<Long, Long> watchCounts) {}

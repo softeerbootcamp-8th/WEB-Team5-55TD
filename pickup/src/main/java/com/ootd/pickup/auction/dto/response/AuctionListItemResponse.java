@@ -4,7 +4,6 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
 import com.ootd.pickup.consignments.domain.Certificate;
-import java.time.Duration;
 import java.time.LocalDateTime;
 
 public record AuctionListItemResponse(
@@ -39,7 +38,7 @@ public record AuctionListItemResponse(
         null,
         auction.getStartedAt(),
         auction.getEndedAt(),
-        remainingSeconds(auction),
+        auction.getRemainingSeconds(),
         watchCount,
         watched,
         thumbnailUrl);
@@ -50,12 +49,5 @@ public record AuctionListItemResponse(
       return null;
     }
     return certificate.getCertificationBody().name() + " " + certificate.getGrade().getScore();
-  }
-
-  private static Long remainingSeconds(Auction auction) {
-    if (auction.getAuctionStatus() != AuctionStatus.ONGOING || auction.getEndedAt() == null) {
-      return null;
-    }
-    return Math.max(Duration.between(LocalDateTime.now(), auction.getEndedAt()).getSeconds(), 0);
   }
 }

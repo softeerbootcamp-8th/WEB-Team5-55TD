@@ -7,6 +7,7 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.dto.request.CreateAuctionRequest;
 import com.ootd.pickup.auction.dto.request.SearchAuctionsRequest;
+import com.ootd.pickup.auction.dto.response.AuctionDetailResponse;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
@@ -466,6 +467,105 @@ class AuctionServiceTest {
 
     // then
     assertThat(response.items().get(0).grade()).isEqualTo("PSA 10");
+  }
+
+  @Test
+  void 존재하는_경매를_조회하면_상세정보를_반환한다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.ONGOING,
+            LocalDateTime.now().minusHours(1),
+            LocalDateTime.now().plusHours(1));
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    ConsignmentImage front =
+        createConsignmentImage(consignment, 1, "https://image.example.com/front.png");
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of(front));
+    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 4L));
+    given(watchRepository.findWatchedAuctionIds(9L, List.of(1L))).willReturn(Set.of(1L));
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(9L, 1L);
+
+    // then
+    assertThat(response.auctionId()).isEqualTo(1L);
+    assertThat(response.consignmentId()).isEqualTo(100L);
+    assertThat(response.grade()).isEqualTo("PSA 10");
+    assertThat(response.cardState()).isEqualTo("Gem Mint");
+    assertThat(response.sellerNickname()).isEqualTo("닉네임");
+    assertThat(response.thumbnailUrl()).isEqualTo("https://image.example.com/front.png");
+    assertThat(response.watchCount()).isEqualTo(4L);
+    assertThat(response.watched()).isTrue();
+    assertThat(response.currentPrice()).isNull();
+    assertThat(response.nextMinBid()).isEqualTo(10000L);
+    assertThat(response.recommendedBid()).isNull();
+    assertThat(response.remainingSeconds()).isCloseTo(60 * 60L, Offset.offset(5L));
+  }
+
+  @Test
+  void 비로그인_사용자가_상세를_조회하면_watched가_false다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction auction =
+        createAuction(
+            1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.MINT);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
+    given(watchRepository.findWatchedAuctionIds(isNull(), eq(List.of(1L)))).willReturn(Set.of());
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
+
+    // then
+    assertThat(response.watched()).isFalse();
+    assertThat(response.watchCount()).isEqualTo(0L);
+    assertThat(response.thumbnailUrl()).isNull();
+  }
+
+  @Test
+  void 존재하지_않는_경매를_조회하면_예외가_발생한다() {
+    // given
+    given(auctionRepository.findByIdWithConsignmentAndCard(999L)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.getAuctionDetail(null, 999L))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            e ->
+                assertThat(((PickUpException) e).getMessage())
+                    .isEqualTo(ExceptionCode.AUCTION_NOT_FOUND.getMessage()));
+  }
+
+  @Test
+  void 인증서가_없는_경매를_조회하면_예외가_발생한다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction auction =
+        createAuction(
+            1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.getAuctionDetail(null, 1L))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            e ->
+                assertThat(((PickUpException) e).getMessage())
+                    .isEqualTo(ExceptionCode.CERTIFICATE_NOT_FOUND.getMessage()));
   }
 
   private void stubEmptyAssemblyDependencies() {
