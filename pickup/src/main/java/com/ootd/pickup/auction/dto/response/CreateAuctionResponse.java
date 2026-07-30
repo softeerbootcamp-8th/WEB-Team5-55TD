@@ -22,7 +22,7 @@ public record CreateAuctionResponse(
         auction.getConsignment().getConsignmentId(),
         auction.getAuctionStatus(),
         auction.getStartingPrice(),
-        auction.getMinimumBidIncrement(),
+        auction.getBidIncrement(),
         auction.getStartedAt(),
         auction.getEndedAt(),
         auction.getWinningBidId(),
