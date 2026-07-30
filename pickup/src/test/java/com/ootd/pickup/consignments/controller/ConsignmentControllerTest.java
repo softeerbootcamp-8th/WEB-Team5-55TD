@@ -364,6 +364,85 @@ class ConsignmentControllerTest {
         .andExpect(jsonPath("$.message").value(CONSIGNMENT_NOT_MODIFIABLE.getMessage()));
   }
 
+  @Test
+  void 유효한_요청으로_상품을_삭제하면_204를_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+
+    // when & then
+    mockMvc
+        .perform(
+            delete("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isNoContent());
+
+    then(consignmentService).should().deleteConsignment(consignmentId, 1L);
+  }
+
+  @Test
+  void 인증_없이_삭제를_요청하면_401을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+
+    // when & then
+    mockMvc
+        .perform(delete("/consignments/{consignmentId}", consignmentId))
+        .andExpect(status().isUnauthorized());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 본인이_등록한_상품이_아니면_삭제_요청은_403을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    willThrow(new PickUpException(CONSIGNMENT_DELETE_OWNER_MISMATCH))
+        .given(consignmentService)
+        .deleteConsignment(consignmentId, 1L);
+
+    // when & then
+    mockMvc
+        .perform(
+            delete("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value(CONSIGNMENT_DELETE_OWNER_MISMATCH.getMessage()));
+  }
+
+  @Test
+  void 존재하지_않는_상품을_삭제하면_404를_반환한다() throws Exception {
+    // given
+    Long notExistConsignmentId = 999L;
+    willThrow(new PickUpException(CONSIGNMENT_NOT_FOUND))
+        .given(consignmentService)
+        .deleteConsignment(notExistConsignmentId, 1L);
+
+    // when & then
+    mockMvc
+        .perform(
+            delete("/consignments/{consignmentId}", notExistConsignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value(CONSIGNMENT_NOT_FOUND.getMessage()));
+  }
+
+  @Test
+  void 경매가_시작된_이후인_상품을_삭제하면_409를_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    willThrow(new PickUpException(CONSIGNMENT_NOT_DELETABLE))
+        .given(consignmentService)
+        .deleteConsignment(consignmentId, 1L);
+
+    // when & then
+    mockMvc
+        .perform(
+            delete("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.message").value(CONSIGNMENT_NOT_DELETABLE.getMessage()));
+  }
+
   private ModifyConsignmentRequest createModifyRequest() {
     return new ModifyConsignmentRequest(
         "새로운 흠집 설명",

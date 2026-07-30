@@ -12,13 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/consignments")
@@ -54,5 +48,14 @@ public class ConsignmentController implements ConsignmentApi {
     return ResponseEntity.ok(
         consignmentService.modifyConsignment(
             consignmentId, sellerMemberId, modifyConsignmentRequest));
+  }
+
+  @DeleteMapping("/{consignmentId}")
+  @Override
+  @RequireAuthentication
+  public ResponseEntity<Void> deleteConsignment(
+      @PathVariable Long consignmentId, @MemberId Long sellerMemberId) {
+    consignmentService.deleteConsignment(consignmentId, sellerMemberId);
+    return ResponseEntity.noContent().build();
   }
 }
