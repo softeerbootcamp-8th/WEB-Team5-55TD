@@ -55,7 +55,7 @@ public class Consignment {
   }
 
   public boolean isModifiable() {
-    return status == ConsignmentStatus.REGISTERABLE || status == ConsignmentStatus.PASSED;
+    return status.isModifiable();
   }
 
   public void updateMajorDefect(String majorDefect) {
