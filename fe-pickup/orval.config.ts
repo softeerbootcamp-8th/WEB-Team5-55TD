@@ -11,7 +11,7 @@ import { defineConfig } from "orval";
 export default defineConfig({
   pickup: {
     input: {
-      target: "./openapi.yaml",
+      target: "http://localhost:8080/v3/api-docs",
     },
     output: {
       mode: "tags-split", // 태그별 파일 분리
@@ -26,7 +26,6 @@ export default defineConfig({
           name: "customInstance",
         },
         query: {
-          useQuery: true,
           useInfinite: true,
           useInfiniteQueryParam: "page",
         },

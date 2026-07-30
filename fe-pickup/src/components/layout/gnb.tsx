@@ -13,7 +13,7 @@ import {
 import { formatPoint } from "@/lib/format";
 import { currentUser } from "@/lib/mock/data";
 import { setAuthenticated, useIsAuthenticated, useNickname } from "@/lib/auth";
-import { logout } from "@/api/generated/auth/auth";
+import { logout } from "@/api/generated/authentication/authentication";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

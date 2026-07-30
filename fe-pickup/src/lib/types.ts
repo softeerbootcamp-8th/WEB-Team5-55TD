@@ -1,16 +1,51 @@
-/**
- * 앱 도메인 타입.
- * Orval 생성 모델(src/api/generated/model)을 단일 출처로 재노출하고,
- * 화면에 필요한 UI 전용 타입을 확장한다. 실제 API 연동 시 mock 을 제거하고
- * 생성 훅을 사용하면 된다.
- */
-export type {
-  AuctionSummary,
-  AuctionDetail,
-  Bid,
-  Grade,
-} from "@/api/generated/model";
-export { AuctionStatus, GradeAgency } from "@/api/generated/model";
+/** 백엔드 경매 API 구현 전까지 화면과 목 데이터에서 사용하는 타입. */
+export const AuctionStatus = {
+  LIVE: "LIVE",
+  UPCOMING: "UPCOMING",
+  ENDED: "ENDED",
+} as const;
+export type AuctionStatus = (typeof AuctionStatus)[keyof typeof AuctionStatus];
+
+export const GradeAgency = {
+  PSA: "PSA",
+  BGS: "BGS",
+  CGC: "CGC",
+} as const;
+export type GradeAgency = (typeof GradeAgency)[keyof typeof GradeAgency];
+
+export interface Grade {
+  agency?: GradeAgency;
+  score?: string;
+  serial?: string;
+}
+
+export interface AuctionSummary {
+  id: string;
+  cardName: string;
+  thumbnailUrl?: string;
+  status: AuctionStatus;
+  grade?: Grade;
+  currentPrice?: number;
+  startPrice?: number;
+  endsAt?: string;
+  startsAt?: string;
+  watchCount?: number;
+}
+
+export type AuctionDetail = AuctionSummary & {
+  sellerNickname?: string;
+  minBidUnit?: number;
+  images?: string[];
+  bidCount?: number;
+};
+
+export interface Bid {
+  id: string;
+  maskedNickname: string;
+  amount: number;
+  createdAt: string;
+  isMine?: boolean;
+}
 
 /**
  * 프론트 전용 세션/역할 개념 — 백엔드 회원 API 에는 아직 role · points 가 없어
@@ -57,8 +92,6 @@ export const MyBidStatus = {
   LOST: "LOST", // 미낙찰
 } as const;
 export type MyBidStatus = (typeof MyBidStatus)[keyof typeof MyBidStatus];
-
-import type { Grade } from "@/api/generated/model";
 
 /** 카드 실물/메타 상세 (등록 · 상세 화면) */
 export interface CardInfo {
