@@ -1,6 +1,7 @@
 name: Backend CD
 
 on:
+  # 자동 배포는 main 만. develop 은 아래 workflow_dispatch 로 수동 실행한다.
   push:
     branches:
       - main
@@ -8,7 +9,16 @@ on:
       - "pickup/**"
       - ".github/workflows/backend-cd.yml"
       - ".github/workflows/backend-ci.yml"
+  # IAM 역할 신뢰 정책이 main·develop 만 허용하므로, 그 외 브랜치에서 실행하면
+  # OIDC 인증 단계에서 거부된다.
   workflow_dispatch:
+
+# 배포가 겹치면 jar 교체 중에 또 교체된다. deploy.sh 도 flock 으로 막지만,
+# 워크플로 단계에서 직렬화해 두는 편이 로그를 읽기 쉽다.
+# 진행 중인 배포를 끊으면 서버가 어중간한 상태로 남으므로 취소하지 않는다.
+concurrency:
+  group: backend-cd
+  cancel-in-progress: false
 
 jobs:
   ci:
@@ -19,11 +29,47 @@ jobs:
     secrets: inherit
 
   deploy:
-    name: Deploy to EC2
+    name: Deploy via SSM
     needs: ci
     runs-on: ubuntu-latest
 
+    # job 레벨에 둔다. top-level 에 두면 재사용 워크플로인 ci 잡에도 상속된다.
+    permissions:
+      id-token: write # OIDC 토큰 발급 (AssumeRoleWithWebIdentity) 에 필수
+      contents: read
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      DEPLOY_S3_BUCKET: ${{ vars.DEPLOY_S3_BUCKET }}
+      # 커밋별 디렉터리에 jar 과 deploy.sh 를 짝으로 올린다.
+      # deploy.sh 를 고정 경로에 두면 옛 jar 을 최신 배포 로직으로 배포하게 된다.
+      S3_PREFIX: pickup/${{ github.sha }}
+      # 배포 역할 IAM 정책의 ssm:resourceTag 조건과 반드시 같아야 한다.
+      # 변수로 빼면 한쪽만 바뀌었을 때 조용히 권한 거부가 나므로 여기 함께 둔다.
+      TAG_SERVICE: pickup
+      TAG_ENVIRONMENT: production
+
     steps:
+      - name: Validate required configuration
+        id: validate-config
+        env:
+          ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          missing=()
+          [ -n "${AWS_REGION}" ]       || missing+=("vars.AWS_REGION")
+          [ -n "${DEPLOY_S3_BUCKET}" ] || missing+=("vars.DEPLOY_S3_BUCKET")
+          [ -n "${ROLE_ARN}" ]         || missing+=("secrets.AWS_DEPLOY_ROLE_ARN")
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::다음 설정이 비어 있습니다: ${missing[*]}"
+            exit 1
+          fi
+          echo "configuration OK"
+
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
       - name: Download application jar
         id: download-jar
         uses: actions/download-artifact@v4
@@ -31,77 +77,250 @@ jobs:
           name: app-jar
           path: artifact
 
-      - name: Prepare jar
-        id: prepare-jar
+      - name: Configure AWS credentials (OIDC)
+        id: aws-auth
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: gha-backend-cd-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 태그로 SSM 명령을 보내면 매칭 인스턴스가 0대여도 에러가 아니라 성공한다.
+      # 그러면 배포가 안 됐는데 워크플로는 초록불이 된다. 여기서 미리 막는다.
+      - name: Resolve target instances
+        id: resolve-targets
         run: |
-          mkdir -p upload
-          cp artifact/pickup-*.jar upload/app.jar
+          set -euo pipefail
 
-      - name: Copy jar to EC2
-        id: copy-jar
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "upload/app.jar"
-          target: "/home/ubuntu/pickup"
-          strip_components: 1
+          # describe-instance-information 은 태그 필터와 다른 필터를 함께 쓸 수 없다
+          # ("Cannot mix tag or inventory filter with any other filter").
+          # 응답에 태그가 포함되지 않아 태그를 클라이언트에서 거를 수도 없으므로,
+          # 태그는 API 필터로 넘기고 PingStatus 는 JMESPath 로 거른다.
+          ids=$(aws ssm describe-instance-information \
+            --filters "Key=tag:Service,Values=${TAG_SERVICE}" \
+                      "Key=tag:Environment,Values=${TAG_ENVIRONMENT}" \
+            --query 'InstanceInformationList[?PingStatus==`Online`].InstanceId' \
+            --output text)
 
-      - name: Restart service
-        id: restart-service
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            set -e
-            sudo systemctl restart pickup
+          if [ -z "${ids}" ]; then
+            echo "::error::SSM 에 Online 으로 등록된 대상 인스턴스가 없습니다 (Service=${TAG_SERVICE}, Environment=${TAG_ENVIRONMENT})"
 
-      - name: Health check
-        id: health-check
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            set -e
-            for i in $(seq 1 20); do
-              if curl -fsS http://localhost:8080/healthcheck | grep -q '"status":"OK"'; then
-                echo "healthy"
-                exit 0
-              fi
-              echo "waiting for healthy... ($i)"
-              sleep 3
-            done
-            echo "health check failed"
-            sudo journalctl -u pickup -n 50 --no-pager
+            # 두 원인을 구분하기 위해 둘 다 찍는다.
+            # 태그 목록이 비었으면 태그 불일치, 있는데 Online 이 아니면 Agent 문제다.
+            echo "── 태그가 일치하는 인스턴스 (상태 무관) ──"
+            aws ssm describe-instance-information \
+              --filters "Key=tag:Service,Values=${TAG_SERVICE}" \
+                        "Key=tag:Environment,Values=${TAG_ENVIRONMENT}" \
+              --query 'InstanceInformationList[].{Id:InstanceId,Ping:PingStatus}' \
+              --output table || true
+
+            echo "── SSM 에 등록된 전체 인스턴스 ──"
+            aws ssm describe-instance-information \
+              --query 'InstanceInformationList[].{Id:InstanceId,Ping:PingStatus,Platform:PlatformName}' \
+              --output table || true
             exit 1
+          fi
+
+          count=$(echo "${ids}" | wc -w | tr -d ' ')
+          echo "instance_ids=${ids}" >> "$GITHUB_OUTPUT"
+          echo "instance_count=${count}" >> "$GITHUB_OUTPUT"
+          echo "대상 인스턴스 ${count}대: ${ids}"
+
+      - name: Upload jar and deploy script to S3
+        id: upload
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          jars=(artifact/pickup-*.jar)
+          if [ ${#jars[@]} -ne 1 ]; then
+            echo "::error::업로드할 jar 이 정확히 1개가 아닙니다: ${jars[*]:-(없음)}"
+            exit 1
+          fi
+
+          aws s3 cp "${jars[0]}"            "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/app.jar"
+          aws s3 cp pickup/deploy/deploy.sh "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/deploy.sh"
+          echo "업로드 완료: s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/"
+
+      - name: Send deploy command via SSM
+        id: send-command
+        run: |
+          set -euo pipefail
+
+          # 파라미터를 JSON 파일로 넘긴다. --parameters 를 인라인으로 쓰면
+          # 중첩 인용부호 때문에 깨지기 쉽다.
+          # \$PATH 는 러너가 아니라 EC2 에서 전개되어야 하므로 이스케이프한다.
+          # SSM Run Command 는 최소 환경으로 실행되어 /snap/bin 이 PATH 에 없다.
+          cat > /tmp/ssm-params.json <<JSON
+          {
+            "commands": [
+              "export PATH=\$PATH:/snap/bin:/usr/local/bin",
+              "set -e",
+              "aws s3 cp s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/deploy.sh /tmp/pickup-deploy.sh --quiet",
+              "chmod +x /tmp/pickup-deploy.sh",
+              "/tmp/pickup-deploy.sh s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/app.jar"
+            ],
+            "executionTimeout": ["600"]
+          }
+          JSON
+
+          python3 -c "import json; json.load(open('/tmp/ssm-params.json'))" \
+            || { echo "::error::SSM 파라미터 JSON 생성 실패"; cat /tmp/ssm-params.json; exit 1; }
+
+          # instance_ids 는 공백 구분 문자열이라 의도적으로 인용하지 않는다.
+          command_id=$(aws ssm send-command \
+            --document-name AWS-RunShellScript \
+            --instance-ids ${{ steps.resolve-targets.outputs.instance_ids }} \
+            --comment "pickup deploy ${GITHUB_SHA:0:7}" \
+            --parameters file:///tmp/ssm-params.json \
+            --query Command.CommandId --output text)
+
+          console_url="https://${AWS_REGION}.console.aws.amazon.com/systems-manager/run-command/${command_id}?region=${AWS_REGION}"
+          {
+            echo "command_id=${command_id}"
+            echo "console_url=${console_url}"
+          } >> "$GITHUB_OUTPUT"
+          echo "SSM 명령 전송: ${command_id}"
+          echo "${console_url}"
+
+      # aws ssm wait command-executed 는 5초 × 20회 = 100초에서 포기한다.
+      # deploy.sh 는 헬스체크 90초 + 롤백까지 180초를 넘길 수 있어 직접 폴링한다.
+      - name: Wait for deploy to finish
+        id: wait
+        run: |
+          # GitHub 기본 셸은 bash -e 다. 이 스텝은 결과를 모아 마지막에 exit "${overall}" 로
+          # 직접 판정하므로, 중간의 grep 이 "일치 없음"(exit 1)을 반환해도 죽어서는 안 된다.
+          # 성공 배포에는 FAILED_APP_LOG 마커가 없어서 그 grep 이 정상적으로 1을 반환한다.
+          set +e
+          set -uo pipefail
+          cid="${{ steps.send-command.outputs.command_id }}"
+          overall=0
+          failed_instances=""
+          last_line=""
+          app_reason=""
+          results=""
+
+          for id in ${{ steps.resolve-targets.outputs.instance_ids }}; do
+            status="Pending"
+            for _ in $(seq 1 120); do
+              status=$(aws ssm get-command-invocation \
+                --command-id "${cid}" --instance-id "${id}" \
+                --query Status --output text 2>/dev/null || echo "Pending")
+              case "${status}" in
+                Success) break ;;
+                Failed|Cancelled|TimedOut|Undeliverable|Terminated) break ;;
+                *) sleep 5 ;;
+              esac
+            done
+
+            out=$(aws ssm get-command-invocation --command-id "${cid}" --instance-id "${id}" \
+                    --query StandardOutputContent --output text 2>/dev/null || echo "")
+            err=$(aws ssm get-command-invocation --command-id "${cid}" --instance-id "${id}" \
+                    --query StandardErrorContent --output text 2>/dev/null || echo "")
+
+            echo "::group::${id} — ${status}"
+            printf '%s\n' "${out}"
+            if [ -n "${err}" ]; then
+              echo "--- stderr ---"
+              printf '%s\n' "${err}"
+            fi
+            echo "::endgroup::"
+
+            # deploy.sh 가 찍는 RESULT= 마커로만 판정한다.
+            # 한국어 로그를 grep 하면 "롤백 대상 없음"까지 "롤백됨"으로 잡힌다.
+            r=$(printf '%s' "${out}" | grep -o 'RESULT=[a-z_]*' | tail -1 | cut -d= -f2 || true)
+            results="${results} ${r:-unknown}"
+
+            # deploy.sh 가 실패한 버전의 로그에서 뽑아낸 근본 원인.
+            # 이게 있으면 Slack 실패 사유로 이걸 쓴다 (앱이 왜 못 떴는지가 담긴다).
+            # 성공 배포에는 이 마커가 없다. grep 이 1 을 반환해도 진행해야 한다.
+            a=$(printf '%s\n' "${out}" | grep -o 'FAILED_APP_LOG=.*' | tail -1 | cut -d= -f2- || true)
+            if [ -n "${a}" ]; then
+              app_reason="${a}"
+            fi
+
+            # 없으면 스크립트의 마지막 [deploy] 줄이 결과 요약에 가장 가깝다.
+            l=$(printf '%s\n' "${out}" "${err}" | grep '\[deploy\]' | tail -1 || true)
+            if [ -n "${l}" ]; then
+              last_line="${l}"
+            fi
+
+            if [ "${status}" != "Success" ]; then
+              overall=1
+              failed_instances="${failed_instances} ${id}(${status})"
+            fi
+          done
+
+          # Slack 페이로드는 YAML 이므로 개행·인용부호를 제거하고 길이를 제한한다.
+          # 백틱·$·백슬래시도 지워 두면 이후 단계에서 셸에 노출돼도 안전하다.
+          sanitize() {
+            printf '%s' "$1" | tr '\n\r\t' '   ' | tr -d '"'"'"'`$\\' | cut -c1-400
+          }
+
+          # 인스턴스가 여러 대면 가장 심각한 상태를 대표값으로 쓴다.
+          # 한 대가 정상이어도 다른 한 대가 죽어 있으면 그 사실이 알림에 떠야 한다.
+          pick() { printf '%s' "${results}" | grep -qw "$1"; }
+          if   pick no_rollback_target;  then rollback_text="롤백 불가 (직전 버전 없음) — 서비스 중단 가능"
+          elif pick rollback_failed;     then rollback_text="롤백했으나 헬스체크 실패 — 서비스 중단 가능"
+          elif pick rollback_unverified; then rollback_text="롤백했으나 실행 버전 확인 불가 — 수동 확인 필요"
+          elif pick rolled_back;         then rollback_text="롤백 완료 — 직전 버전으로 정상 동작 중"
+          elif pick precondition_failed; then rollback_text="배포 시작 전 중단 — jar 교체되지 않음"
+          elif pick success;             then rollback_text="롤백 없음"
+          else                                rollback_text="상태 불명 (RESULT 마커 없음) — 로그 확인 필요"
+          fi
+
+          {
+            echo "failed_instances=$(sanitize "${failed_instances}")"
+            echo "last_log=$(sanitize "${last_line}")"
+            echo "app_reason=$(sanitize "${app_reason}")"
+            echo "rollback_text=$(sanitize "${rollback_text}")"
+            echo "results=$(sanitize "${results}")"
+          } >> "$GITHUB_OUTPUT"
+
+          exit "${overall}"
 
       - name: Determine failed step
         id: failure-info
         if: failure()
+        # deploy.sh 출력에서 온 문자열은 ${{ }} 로 스크립트에 직접 붙이지 않고 env 로 넘긴다.
+        env:
+          FAILED_INSTANCES: ${{ steps.wait.outputs.failed_instances }}
+          LAST_LOG: ${{ steps.wait.outputs.last_log }}
+          APP_REASON: ${{ steps.wait.outputs.app_reason }}
         run: |
           FAILED_STEP="알 수 없는 단계"
           FAILED_REASON="원인 미상 — 아래 로그 링크에서 상세 내용을 확인하세요."
 
-          if [ "${{ steps.download-jar.outcome }}" = "failure" ]; then
+          if [ "${{ steps.validate-config.outcome }}" = "failure" ]; then
+            FAILED_STEP="배포 설정 검증"
+            FAILED_REASON="필수 Variables/Secrets 가 비어 있습니다. AWS_REGION, DEPLOY_S3_BUCKET, AWS_DEPLOY_ROLE_ARN 을 확인하세요."
+          elif [ "${{ steps.download-jar.outcome }}" = "failure" ]; then
             FAILED_STEP="JAR 아티팩트 다운로드"
             FAILED_REASON="CI 워크플로에서 빌드된 app-jar 아티팩트를 찾지 못했습니다."
-          elif [ "${{ steps.prepare-jar.outcome }}" = "failure" ]; then
-            FAILED_STEP="JAR 파일 준비"
-            FAILED_REASON="다운로드한 아티팩트에서 pickup-*.jar 파일을 찾지 못했습니다."
-          elif [ "${{ steps.copy-jar.outcome }}" = "failure" ]; then
-            FAILED_STEP="EC2로 JAR 복사"
-            FAILED_REASON="SCP 전송이 실패했습니다. EC2_HOST/EC2_SSH_KEY 등 접속 정보 또는 네트워크 상태를 확인하세요."
-          elif [ "${{ steps.restart-service.outcome }}" = "failure" ]; then
-            FAILED_STEP="서비스 재시작"
-            FAILED_REASON="EC2에서 systemctl restart pickup 명령이 실패했습니다."
-          elif [ "${{ steps.health-check.outcome }}" = "failure" ]; then
-            FAILED_STEP="헬스체크"
-            FAILED_REASON="서비스는 재시작됐지만 60초 내에 healthcheck가 OK 상태를 반환하지 않았습니다."
+          elif [ "${{ steps.aws-auth.outcome }}" = "failure" ]; then
+            FAILED_STEP="AWS OIDC 인증"
+            FAILED_REASON="AssumeRoleWithWebIdentity 가 거부됐습니다. IAM 역할 신뢰 정책의 sub 조건(repo/브랜치)과 AWS_DEPLOY_ROLE_ARN 을 확인하세요."
+          elif [ "${{ steps.resolve-targets.outcome }}" = "failure" ]; then
+            FAILED_STEP="대상 인스턴스 조회"
+            FAILED_REASON="태그 Service=${TAG_SERVICE}, Environment=${TAG_ENVIRONMENT} 로 SSM 에 Online 인 인스턴스를 찾지 못했습니다. 태그 값과 SSM Agent 상태를 확인하세요."
+          elif [ "${{ steps.upload.outcome }}" = "failure" ]; then
+            FAILED_STEP="S3 업로드"
+            FAILED_REASON="s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/ 업로드가 실패했습니다. 버킷 이름과 배포 역할의 s3:PutObject 권한을 확인하세요."
+          elif [ "${{ steps.send-command.outcome }}" = "failure" ]; then
+            FAILED_STEP="SSM 명령 전송"
+            FAILED_REASON="send-command 가 실패했습니다. 배포 역할의 ssm:SendCommand 권한과 인스턴스 태그 조건을 확인하세요."
+          elif [ "${{ steps.wait.outcome }}" = "failure" ]; then
+            FAILED_STEP="EC2 배포 실행"
+            # 앱이 왜 못 떴는지가 담긴 APP_REASON 을 우선한다.
+            # deploy.sh 의 마지막 줄은 "롤백 완료" 같은 결과 요약이라 원인이 아니다.
+            if [ -n "${APP_REASON:-}" ]; then
+              FAILED_REASON="${APP_REASON}"
+            else
+              FAILED_REASON="${LAST_LOG:-deploy.sh 가 실패했습니다.}"
+            fi
+            if [ -n "${FAILED_INSTANCES:-}" ]; then
+              FAILED_REASON="${FAILED_REASON} / 실패한 인스턴스:${FAILED_INSTANCES}"
+            fi
           fi
 
           {
@@ -134,10 +353,12 @@ jobs:
                     text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
                   - type: mrkdwn
                     text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*대상 인스턴스*\n${{ steps.resolve-targets.outputs.instance_count }}대"
               - type: context
                 elements:
                   - type: mrkdwn
-                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그> · <${{ steps.send-command.outputs.console_url }}|SSM 실행 기록>"
 
       - name: Notify Slack on failure
         if: failure()
@@ -166,6 +387,8 @@ jobs:
                     text: "*실행자*\n${{ github.actor }}"
                   - type: mrkdwn
                     text: "*실패 단계*\n${{ steps.failure-info.outputs.failed_step }}"
+                  - type: mrkdwn
+                    text: "*롤백*\n${{ steps.wait.outputs.rollback_text }}"
               - type: section
                 text:
                   type: mrkdwn
@@ -173,4 +396,4 @@ jobs:
               - type: context
                 elements:
                   - type: mrkdwn
-                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그에서 자세히 보기>"
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그>"

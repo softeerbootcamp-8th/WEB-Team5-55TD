@@ -1,0 +1,7 @@
+# 빌드 산출물
+dist
+
+# 생성 파일 — 생성기가 포맷을 책임진다.
+# eslint.config.js 의 ignores 와 동일하게 유지할 것.
+src/api/generated
+src/routeTree.gen.ts

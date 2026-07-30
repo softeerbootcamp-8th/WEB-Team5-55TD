@@ -93,7 +93,7 @@ public class ConsignmentService {
             .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
 
     if (!consignment.getSellerMember().getMemberId().equals(sellerMemberId)) {
-      throw new PickUpException(CONSIGNMENT_ACCESS_DENIED);
+      throw new PickUpException(CONSIGNMENT_MODIFY_OWNER_MISMATCH);
     }
 
     if (!consignment.isModifiable()) {

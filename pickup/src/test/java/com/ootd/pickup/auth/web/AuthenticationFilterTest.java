@@ -68,6 +68,22 @@ class AuthenticationFilterTest {
   }
 
   @Test
+  void 일치하는_이름의_쿠키가_없으면_인증_없이_통과한다() throws Exception {
+    AccessTokenVerifier accessTokenVerifier = mock(AccessTokenVerifier.class);
+    AuthenticationFilter authenticationFilter = new AuthenticationFilter(accessTokenVerifier);
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/members/me");
+    request.setCookies(new Cookie("other-cookie", "value"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain filterChain = new MockFilterChain();
+
+    authenticationFilter.doFilter(request, response, filterChain);
+
+    verifyNoInteractions(accessTokenVerifier);
+    assertThat(request.getAttribute(AuthenticationAttributes.ATTRIBUTE_NAME)).isNull();
+    assertThat(filterChain.getRequest()).isSameAs(request);
+  }
+
+  @Test
   void 유효하지_않은_토큰의_예외를_전파한다() {
     AccessTokenVerifier accessTokenVerifier = mock(AccessTokenVerifier.class);
     AuthenticationFilter authenticationFilter = new AuthenticationFilter(accessTokenVerifier);

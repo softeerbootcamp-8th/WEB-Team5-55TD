@@ -24,9 +24,9 @@ public enum ExceptionCode {
       ClientExceptionCode.CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS,
       "이미 등록된 인증서 일련번호입니다."),
   MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.MEMBER_NOT_FOUND, "회원을 찾을 수 없습니다."),
-  CONSIGNMENT_ACCESS_DENIED(
+  CONSIGNMENT_MODIFY_OWNER_MISMATCH(
       HttpStatus.FORBIDDEN,
-      ClientExceptionCode.CONSIGNMENT_ACCESS_DENIED,
+      ClientExceptionCode.CONSIGNMENT_MODIFY_OWNER_MISMATCH,
       "본인이 등록한 상품만 수정할 수 있습니다."),
   CONSIGNMENT_NOT_MODIFIABLE(
       HttpStatus.CONFLICT,
@@ -43,7 +43,15 @@ public enum ExceptionCode {
   INVALID_PASSWORD(
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_PASSWORD, "비밀번호가 일치하지 않습니다."),
   INVALID_REFRESH_TOKEN(
-      HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_REFRESH_TOKEN, "유효하지 않은 리프레시 토큰입니다.");
+      HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_REFRESH_TOKEN, "유효하지 않은 리프레시 토큰입니다."),
+  CONSIGNMENT_NOT_REGISTERABLE(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CONSIGNMENT_NOT_REGISTERABLE,
+      "이미 경매 진행/예정 중이거나 신청할 수 없는 상태입니다."),
+  CONSIGNMENT_AUCTION_OWNER_MISMATCH(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.CONSIGNMENT_AUCTION_OWNER_MISMATCH,
+      "본인이 소유한 상품만 경매 신청할 수 있습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

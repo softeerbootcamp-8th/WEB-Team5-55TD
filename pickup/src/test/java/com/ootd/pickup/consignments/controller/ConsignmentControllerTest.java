@@ -309,7 +309,7 @@ class ConsignmentControllerTest {
     given(
             consignmentService.modifyConsignment(
                 eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
-        .willThrow(new PickUpException(CONSIGNMENT_ACCESS_DENIED));
+        .willThrow(new PickUpException(CONSIGNMENT_MODIFY_OWNER_MISMATCH));
 
     // when & then
     mockMvc
@@ -319,7 +319,7 @@ class ConsignmentControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.message").value(CONSIGNMENT_ACCESS_DENIED.getMessage()));
+        .andExpect(jsonPath("$.message").value(CONSIGNMENT_MODIFY_OWNER_MISMATCH.getMessage()));
   }
 
   @Test
