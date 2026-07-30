@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Search } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
 import { AuctionCard } from "@/components/domain/auction-card";
@@ -12,9 +13,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { auctionSummaries } from "@/lib/mock/data";
+import {
+  searchAuctions,
+  type AuctionSort,
+} from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
-import type { AuctionSummary } from "@/lib/types";
 
 export const Route = createFileRoute("/_buyer/auctions/")({
   component: AuctionListPage,
@@ -30,42 +33,37 @@ const SORT_LABEL: Record<Sort, string> = {
   endingSoon: "종료 임박순",
 };
 
-function priceOf(a: AuctionSummary) {
-  return a.currentPrice ?? a.startPrice ?? 0;
-}
+const API_STATUS: Record<Filter, ("SCHEDULED" | "ONGOING" | "WON" | "PASSED")[]> = {
+  LIVE: ["ONGOING"],
+  UPCOMING: ["SCHEDULED"],
+  ENDED: ["WON", "PASSED"],
+};
+
+const API_SORT: Record<Sort, AuctionSort> = {
+  popular: "POPULAR",
+  priceAsc: "PRICE_ASC",
+  priceDesc: "PRICE_DESC",
+  endingSoon: "ENDING_SOON",
+};
 
 /** DESIGN.md · auction list.html — 검색 · 정렬 · 진행/예정/종료 필터 */
 function AuctionListPage() {
   const [filter, setFilter] = useState<Filter>("LIVE");
   const [sort, setSort] = useState<Sort>("popular");
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query.trim());
 
-  const list = useMemo(() => {
-    let items = auctionSummaries.filter((a) => a.status === filter);
-    if (query.trim()) {
-      const q = query.trim().toLowerCase();
-      items = items.filter((a) => a.cardName.toLowerCase().includes(q));
-    }
-    const sorted = [...items];
-    switch (sort) {
-      case "priceAsc":
-        sorted.sort((a, b) => priceOf(a) - priceOf(b));
-        break;
-      case "priceDesc":
-        sorted.sort((a, b) => priceOf(b) - priceOf(a));
-        break;
-      case "endingSoon":
-        sorted.sort(
-          (a, b) =>
-            new Date(a.endsAt ?? a.startsAt ?? 0).getTime() -
-            new Date(b.endsAt ?? b.startsAt ?? 0).getTime(),
-        );
-        break;
-      default:
-        sorted.sort((a, b) => (b.watchCount ?? 0) - (a.watchCount ?? 0));
-    }
-    return sorted;
-  }, [filter, sort, query]);
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: ["auctions", filter, sort, deferredQuery],
+    queryFn: () =>
+      searchAuctions({
+        q: deferredQuery || undefined,
+        status: API_STATUS[filter],
+        sort: API_SORT[sort],
+        size: 100,
+      }),
+  });
+  const list = data?.items ?? [];
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -113,7 +111,25 @@ function AuctionListPage() {
       </div>
 
       {/* 결과 */}
-      {list.length === 0 ? (
+      {isPending ? (
+        <p className="py-12 text-center text-sm text-[var(--color-text-sub)]">
+          경매를 불러오는 중입니다.
+        </p>
+      ) : isError ? (
+        <EmptyState
+          title="경매를 불러오지 못했습니다."
+          description="잠시 후 다시 시도해 주세요."
+          action={
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="text-sm font-semibold text-primary hover:underline"
+            >
+              다시 시도
+            </button>
+          }
+        />
+      ) : list.length === 0 ? (
         <EmptyState
           title="조건에 맞는 경매가 없습니다."
           description="검색어나 필터를 바꿔보세요."
