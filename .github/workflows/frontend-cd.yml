@@ -1,0 +1,242 @@
+name: Frontend CD
+
+on:
+  # 자동 배포는 main 만. develop 은 아래 workflow_dispatch 로 수동 실행한다.
+  push:
+    branches:
+      - main
+    paths:
+      - 'fe-pickup/**'
+      - '.github/workflows/frontend-cd.yml'
+      - '.github/workflows/frontend-ci.yml'
+  # IAM 역할 신뢰 정책이 main·develop 만 허용하므로, 그 외 브랜치에서 실행하면
+  # OIDC 인증 단계에서 거부된다.
+  workflow_dispatch:
+
+# 배포가 겹치면 S3 파일 교체 중에 또 교체된다.
+# 진행 중인 배포를 끊으면 index.html 과 자산이 어긋난 상태로 남으므로 취소하지 않는다.
+concurrency:
+  group: frontend-cd
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI (lint & build)
+    uses: ./.github/workflows/frontend-ci.yml
+    with:
+      upload-dist: true
+    secrets: inherit
+
+  deploy:
+    name: Deploy to S3 + CloudFront
+    needs: ci
+    runs-on: ubuntu-latest
+
+    # job 레벨에 둔다. top-level 에 두면 재사용 워크플로인 ci 잡에도 상속된다.
+    permissions:
+      id-token: write # OIDC 토큰 발급 (AssumeRoleWithWebIdentity) 에 필수
+      contents: read
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      FE_S3_BUCKET: ${{ vars.DEPLOY_S3_BUCKET }}
+      FE_S3_PREFIX: ${{ vars.FE_S3_PREFIX }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+      CLOUDFRONT_FUNCTION_API_NAME: ${{ vars.CLOUDFRONT_FUNCTION_API_NAME }}
+      CLOUDFRONT_FUNCTION_SPA_NAME: ${{ vars.CLOUDFRONT_FUNCTION_SPA_NAME }}
+      CLOUDFRONT_DOMAIN: ${{ vars.CLOUDFRONT_DOMAIN }}
+
+    steps:
+      # 설정이 비어 있으면 배포 중간에 엉뚱한 위치로 올라간다.
+      # 특히 FE_S3_PREFIX 가 비면 버킷 루트에 쏟아지고 --delete 가 백엔드
+      # 아티팩트를 지울 수 있다. AWS 를 건드리기 전에 막는다.
+      - name: Validate required configuration
+        id: validate-config
+        env:
+          ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          missing=()
+          [ -n "${AWS_REGION}" ]                   || missing+=("vars.AWS_REGION")
+          [ -n "${FE_S3_BUCKET}" ]                 || missing+=("vars.DEPLOY_S3_BUCKET")
+          [ -n "${FE_S3_PREFIX}" ]                 || missing+=("vars.FE_S3_PREFIX")
+          [ -n "${CLOUDFRONT_DISTRIBUTION_ID}" ]   || missing+=("vars.CLOUDFRONT_DISTRIBUTION_ID")
+          [ -n "${CLOUDFRONT_FUNCTION_API_NAME}" ] || missing+=("vars.CLOUDFRONT_FUNCTION_API_NAME")
+          [ -n "${CLOUDFRONT_FUNCTION_SPA_NAME}" ] || missing+=("vars.CLOUDFRONT_FUNCTION_SPA_NAME")
+          [ -n "${CLOUDFRONT_DOMAIN}" ]            || missing+=("vars.CLOUDFRONT_DOMAIN")
+          [ -n "${ROLE_ARN}" ]                     || missing+=("secrets.AWS_DEPLOY_ROLE_ARN")
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::다음 설정이 비어 있습니다: ${missing[*]}"
+            exit 1
+          fi
+          echo "configuration OK"
+
+      # deploy.sh 와 CloudFront Function 소스를 가져온다.
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      # CI 잡이 올린 빌드 산출물. 여기서 다시 빌드하지 않는다 —
+      # 검사를 통과한 그 산출물을 그대로 배포해야 한다.
+      - name: Download dist
+        id: download-dist
+        uses: actions/download-artifact@v4
+        with:
+          name: fe-dist
+          path: dist
+
+      - name: Configure AWS credentials (OIDC)
+        id: aws-auth
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: gha-frontend-cd-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # deploy.sh 가 S3 업로드 · CloudFront Function 동기화 · 무효화 · 스모크
+      # 테스트를 순서대로 수행하고 마지막에 RESULT= 마커를 찍는다.
+      - name: Deploy
+        id: deploy
+        run: |
+          # GitHub 기본 셸은 bash -e 다. deploy.sh 가 실패하면 그 자리에서 중단되어
+          # 아래 RESULT 파싱에 도달하지 못하고, Slack 실패 사유가 항상 "알 수 없음"이 된다.
+          # 마지막에 exit "${status}" 로 직접 판정하므로 -e 를 끈다.
+          set +e
+          set -uo pipefail
+
+          # tee 로 로그를 실시간 노출하면서 파일로도 남긴다.
+          # 종료 코드는 파이프 앞단(deploy.sh)의 것을 써야 한다.
+          fe-pickup/deploy/deploy.sh dist 2>&1 | tee /tmp/fe-deploy.log
+          status=${PIPESTATUS[0]}
+
+          # deploy.sh 가 찍는 RESULT= 마커로 실패 원인을 구분한다.
+          # 한국어 로그를 grep 하면 문구가 바뀔 때마다 깨진다.
+          # 문자 클래스에 숫자를 포함해야 한다 — 빠뜨리면 s3_failed 가 "s" 로 잘린다.
+          result=$(grep -o 'RESULT=[a-z0-9_]*' /tmp/fe-deploy.log | tail -1 | cut -d= -f2)
+          echo "result=${result:-unknown}" >> "$GITHUB_OUTPUT"
+
+          exit "${status}"
+
+      - name: Determine failed step
+        id: failure-info
+        if: failure()
+        env:
+          DEPLOY_RESULT: ${{ steps.deploy.outputs.result }}
+        run: |
+          FAILED_STEP="알 수 없는 단계"
+          FAILED_REASON="원인 미상 — 아래 로그 링크에서 상세 내용을 확인하세요."
+
+          if [ "${{ steps.validate-config.outcome }}" = "failure" ]; then
+            FAILED_STEP="배포 설정 검증"
+            FAILED_REASON="필수 Variables/Secrets 가 비어 있습니다. 로그의 목록을 확인하세요."
+          elif [ "${{ steps.download-dist.outcome }}" = "failure" ]; then
+            FAILED_STEP="빌드 산출물 다운로드"
+            FAILED_REASON="CI 워크플로에서 업로드한 fe-dist 아티팩트를 찾지 못했습니다."
+          elif [ "${{ steps.aws-auth.outcome }}" = "failure" ]; then
+            FAILED_STEP="AWS OIDC 인증"
+            FAILED_REASON="AssumeRoleWithWebIdentity 가 거부됐습니다. IAM 역할 신뢰 정책의 sub 조건(repo/브랜치)을 확인하세요. main·develop 외 브랜치에서는 거부됩니다."
+          elif [ "${{ steps.deploy.outcome }}" = "failure" ]; then
+            case "${DEPLOY_RESULT}" in
+              precondition_failed)
+                FAILED_STEP="배포 전 검증"
+                FAILED_REASON="환경변수 또는 dist 산출물에 문제가 있습니다. 빈 dist 를 올려 서비스를 지우는 것을 막기 위해 중단했습니다."
+                ;;
+              function_failed)
+                FAILED_STEP="CloudFront Function 동기화"
+                FAILED_REASON="함수를 찾지 못했거나 갱신에 실패했습니다. 콘솔에 ${CLOUDFRONT_FUNCTION_API_NAME}, ${CLOUDFRONT_FUNCTION_SPA_NAME} 이 생성·게시되어 있는지, IAM 에 cloudfront:UpdateFunction 권한이 있는지 확인하세요."
+                ;;
+              s3_failed)
+                FAILED_STEP="S3 업로드"
+                FAILED_REASON="s3://${FE_S3_BUCKET}/${FE_S3_PREFIX}/ 업로드가 실패했습니다. 버킷 이름과 IAM 의 s3:PutObject/DeleteObject 권한(리소스가 ${FE_S3_PREFIX}/* 로 한정되어 있는지)을 확인하세요."
+                ;;
+              invalidation_failed)
+                FAILED_STEP="CloudFront 캐시 무효화"
+                FAILED_REASON="무효화 요청 또는 완료 대기가 실패했습니다. 파일은 이미 S3 에 올라갔으므로, 무효화만 콘솔에서 수동 실행하면 반영됩니다."
+                ;;
+              smoke_failed)
+                FAILED_STEP="배포 후 스모크 테스트"
+                FAILED_REASON="배포는 끝났지만 사이트가 정상 동작하지 않습니다. 로그에서 어느 검사가 실패했는지 확인하세요 (정적 서빙 / /api 백엔드 연결 / SPA fallback)."
+                ;;
+              *)
+                FAILED_STEP="배포 실행"
+                FAILED_REASON="deploy.sh 가 RESULT 마커 없이 실패했습니다. 로그를 확인하세요."
+                ;;
+            esac
+          fi
+
+          {
+            echo "failed_step=$FAILED_STEP"
+            echo "failed_reason=$FAILED_REASON"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack on success
+        if: success()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Frontend 배포 성공: ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "✅ Frontend 배포 성공"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*사이트*\n<https://${{ vars.CLOUDFRONT_DOMAIN }}|${{ vars.CLOUDFRONT_DOMAIN }}>"
+                  - type: mrkdwn
+                    text: "*스모크 테스트*\n정적 서빙 · /api 연결 · SPA fallback 통과"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Frontend 배포 실패: ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "❌ Frontend 배포 실패"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*실패 단계*\n${{ steps.failure-info.outputs.failed_step }}"
+                  - type: mrkdwn
+                    text: "*사이트*\n<https://${{ vars.CLOUDFRONT_DOMAIN }}|${{ vars.CLOUDFRONT_DOMAIN }}>"
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: "*실패 사유*\n${{ steps.failure-info.outputs.failed_reason }}"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
