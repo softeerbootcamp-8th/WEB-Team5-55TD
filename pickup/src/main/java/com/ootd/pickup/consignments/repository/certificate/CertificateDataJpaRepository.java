@@ -30,6 +30,7 @@ public class CertificateDataJpaRepository implements CertificateRepository {
     }
     return certificateJpaRepository.findAllByConsignment_ConsignmentIdIn(consignmentIds);
   }
+
   public void flush() {
     certificateJpaRepository.flush();
   }
