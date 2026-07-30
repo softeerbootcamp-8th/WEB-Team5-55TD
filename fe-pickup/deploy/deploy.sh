@@ -12,11 +12,12 @@
 #   deploy/deploy.sh <dist 디렉터리>
 #
 # 필수 환경변수
-#   FE_S3_BUCKET                 정적 파일을 올릴 버킷 (백엔드 아티팩트와 공용)
-#   FE_S3_PREFIX                 버킷 내 프리픽스 (예: fe). CloudFront Origin Path 와 같아야 한다
-#   CLOUDFRONT_DISTRIBUTION_ID   무효화 대상 배포 ID
-#   CLOUDFRONT_FUNCTION_NAME     /api 접두사를 제거하는 함수 이름
-#   CLOUDFRONT_DOMAIN            스모크 테스트 대상 (예: d111111abcdef8.cloudfront.net)
+#   FE_S3_BUCKET                   정적 파일을 올릴 버킷 (백엔드 아티팩트와 공용)
+#   FE_S3_PREFIX                   버킷 내 프리픽스 (예: fe). CloudFront Origin Path 와 같아야 한다
+#   CLOUDFRONT_DISTRIBUTION_ID     무효화 대상 배포 ID
+#   CLOUDFRONT_FUNCTION_API_NAME   /api 접두사를 제거하는 함수 이름 (/api/* 동작)
+#   CLOUDFRONT_FUNCTION_SPA_NAME   SPA fallback 함수 이름 (Default 동작)
+#   CLOUDFRONT_DOMAIN              스모크 테스트 대상 (예: d111111abcdef8.cloudfront.net)
 #
 set -uo pipefail
 
@@ -27,15 +28,16 @@ log() { echo "[fe-deploy] $*"; }
 die() { local marker="$1"; shift; echo "[fe-deploy] ERROR: $*" >&2; echo "RESULT=${marker}"; exit 1; }
 
 DIST_DIR="${1:-}"
-FUNCTION_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/cloudfront-function.js"
+DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── 1. 입력 검증 ──────────────────────────────────────────────────────
 missing=()
-[ -n "${FE_S3_BUCKET:-}" ]               || missing+=("FE_S3_BUCKET")
-[ -n "${FE_S3_PREFIX:-}" ]               || missing+=("FE_S3_PREFIX")
-[ -n "${CLOUDFRONT_DISTRIBUTION_ID:-}" ] || missing+=("CLOUDFRONT_DISTRIBUTION_ID")
-[ -n "${CLOUDFRONT_FUNCTION_NAME:-}" ]   || missing+=("CLOUDFRONT_FUNCTION_NAME")
-[ -n "${CLOUDFRONT_DOMAIN:-}" ]          || missing+=("CLOUDFRONT_DOMAIN")
+[ -n "${FE_S3_BUCKET:-}" ]                 || missing+=("FE_S3_BUCKET")
+[ -n "${FE_S3_PREFIX:-}" ]                 || missing+=("FE_S3_PREFIX")
+[ -n "${CLOUDFRONT_DISTRIBUTION_ID:-}" ]   || missing+=("CLOUDFRONT_DISTRIBUTION_ID")
+[ -n "${CLOUDFRONT_FUNCTION_API_NAME:-}" ] || missing+=("CLOUDFRONT_FUNCTION_API_NAME")
+[ -n "${CLOUDFRONT_FUNCTION_SPA_NAME:-}" ] || missing+=("CLOUDFRONT_FUNCTION_SPA_NAME")
+[ -n "${CLOUDFRONT_DOMAIN:-}" ]            || missing+=("CLOUDFRONT_DOMAIN")
 
 if [ ${#missing[@]} -gt 0 ]; then
   die precondition_failed "환경변수가 비어 있습니다: ${missing[*]}"
@@ -47,7 +49,16 @@ command -v aws >/dev/null 2>&1 \
 [ -n "${DIST_DIR}" ] || die precondition_failed "사용법: deploy/deploy.sh <dist 디렉터리>"
 [ -d "${DIST_DIR}" ] || die precondition_failed "dist 디렉터리가 없습니다: ${DIST_DIR}"
 [ -f "${DIST_DIR}/index.html" ] || die precondition_failed "index.html 이 없습니다: ${DIST_DIR}/index.html"
-[ -f "${FUNCTION_SRC}" ] || die precondition_failed "CloudFront Function 소스가 없습니다: ${FUNCTION_SRC}"
+
+# 함수 이름 ↔ 소스 파일 ↔ CloudFront Comment
+FUNCTIONS=(
+  "${CLOUDFRONT_FUNCTION_API_NAME}|${DEPLOY_DIR}/cloudfront-strip-api-prefix.js|strip /api prefix for backend origin"
+  "${CLOUDFRONT_FUNCTION_SPA_NAME}|${DEPLOY_DIR}/cloudfront-spa-fallback.js|rewrite SPA routes to /index.html"
+)
+for entry in "${FUNCTIONS[@]}"; do
+  src="${entry#*|}"; src="${src%|*}"
+  [ -f "${src}" ] || die precondition_failed "CloudFront Function 소스가 없습니다: ${src}"
+done
 
 # 해시 자산이 하나도 없으면 빌드가 잘못된 것이다. 빈 dist 를 올려 서비스를 지우는 사고를 막는다.
 asset_count=$(find "${DIST_DIR}/assets" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -59,37 +70,50 @@ log "배포        : ${CLOUDFRONT_DISTRIBUTION_ID} (${CLOUDFRONT_DOMAIN})"
 log "자산 파일 수 : ${asset_count}"
 
 # ── 2. CloudFront Function 동기화 ─────────────────────────────────────
+# 저장소 파일을 단일 출처로 삼는다. 콘솔에서 고치면 다음 배포 때 덮어써진다.
 # 코드가 바뀐 경우에만 갱신한다. 매번 publish 하면 불필요한 전파 대기가 생긴다.
-log "CloudFront Function 확인: ${CLOUDFRONT_FUNCTION_NAME}"
 live_fn="$(mktemp)"
 trap 'rm -f "${live_fn}"' EXIT
 
-if ! aws cloudfront get-function \
-      --name "${CLOUDFRONT_FUNCTION_NAME}" --stage LIVE "${live_fn}" >/dev/null 2>&1; then
-  die function_failed "CloudFront 함수를 찾을 수 없습니다: ${CLOUDFRONT_FUNCTION_NAME} — 콘솔에서 먼저 생성하고 게시해야 합니다 (코드는 deploy/cloudfront-function.js)"
-fi
+sync_function() {
+  local name="$1" src="$2" comment="$3"
 
-if diff -q "${live_fn}" "${FUNCTION_SRC}" >/dev/null 2>&1; then
-  log "  변경 없음 — 건너뜀"
-else
+  log "CloudFront Function 확인: ${name}"
+
+  if ! aws cloudfront get-function --name "${name}" --stage LIVE "${live_fn}" >/dev/null 2>&1; then
+    die function_failed "CloudFront 함수를 찾을 수 없습니다: ${name} — 콘솔에서 먼저 생성하고 게시해야 합니다 (코드는 ${src##*/})"
+  fi
+
+  if diff -q "${live_fn}" "${src}" >/dev/null 2>&1; then
+    log "  변경 없음 — 건너뜀"
+    return 0
+  fi
+
   log "  코드가 다릅니다. 갱신합니다."
-  etag=$(aws cloudfront describe-function \
-          --name "${CLOUDFRONT_FUNCTION_NAME}" --query ETag --output text) \
-    || die function_failed "describe-function 실패"
+  local etag new_etag
+  etag=$(aws cloudfront describe-function --name "${name}" --query ETag --output text) \
+    || die function_failed "describe-function 실패: ${name}"
 
   new_etag=$(aws cloudfront update-function \
-              --name "${CLOUDFRONT_FUNCTION_NAME}" \
+              --name "${name}" \
               --if-match "${etag}" \
-              --function-code "fileb://${FUNCTION_SRC}" \
-              --function-config '{"Comment":"strip /api prefix for backend origin","Runtime":"cloudfront-js-2.0"}' \
+              --function-code "fileb://${src}" \
+              --function-config "{\"Comment\":\"${comment}\",\"Runtime\":\"cloudfront-js-2.0\"}" \
               --query ETag --output text) \
-    || die function_failed "update-function 실패"
+    || die function_failed "update-function 실패: ${name}"
 
-  aws cloudfront publish-function \
-      --name "${CLOUDFRONT_FUNCTION_NAME}" --if-match "${new_etag}" >/dev/null \
-    || die function_failed "publish-function 실패"
+  aws cloudfront publish-function --name "${name}" --if-match "${new_etag}" >/dev/null \
+    || die function_failed "publish-function 실패: ${name}"
   log "  갱신 완료"
-fi
+}
+
+for entry in "${FUNCTIONS[@]}"; do
+  fn_name="${entry%%|*}"
+  fn_rest="${entry#*|}"
+  fn_src="${fn_rest%%|*}"
+  fn_comment="${fn_rest#*|}"
+  sync_function "${fn_name}" "${fn_src}" "${fn_comment}"
+done
 
 # ── 3. S3 업로드 ──────────────────────────────────────────────────────
 # 순서가 중요하다.

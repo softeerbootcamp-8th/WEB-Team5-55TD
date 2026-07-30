@@ -9,7 +9,7 @@
 //
 // ⚠️ 이 파일은 deploy/strip-api-prefix.ts 와 동작이 같아야 한다.
 //    CloudFront Functions 런타임(cloudfront-js-2.0)에는 import/export 가 없어
-//    공유 모듈을 쓸 수 없다. 대신 deploy/verify-rewrite-parity.mjs 가 CI 에서
+//    공유 모듈을 쓸 수 없다. 대신 deploy/verify-edge-functions.mjs 가 CI 에서
 //    두 구현을 같은 입력으로 돌려 결과가 일치하는지 검증한다.
 //
 // 배포: deploy/deploy.sh 가 코드가 바뀐 경우에만 update-function + publish-function 한다.

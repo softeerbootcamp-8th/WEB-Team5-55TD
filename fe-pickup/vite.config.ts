@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // 백엔드 API 프록시 — 백엔드는 "/api" 접두사 없이 라우팅하므로(예: GET /healthcheck) 제거한다.
         // 운영에서는 CloudFront Function 이 같은 일을 한다. 규칙은 deploy/strip-api-prefix.ts
-        // 한 곳에 두고, 두 구현의 동작 일치는 deploy/verify-rewrite-parity.mjs 가 CI 에서 검증한다.
+        // 한 곳에 두고, 두 구현의 동작 일치는 deploy/verify-edge-functions.mjs 가 CI 에서 검증한다.
         "/api": {
           target: env.VITE_PROXY_TARGET ?? "http://localhost:8080",
           changeOrigin: true,
