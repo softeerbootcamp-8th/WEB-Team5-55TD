@@ -609,6 +609,8 @@ class ConsignmentServiceTest {
     consignmentService.deleteConsignment(consignmentId, sellerMemberId);
 
     // then
+    then(certificateRepository).should().deleteByConsignment(consignment);
+    then(consignmentImageRepository).should().deleteAllByConsignment(consignment);
     then(consignmentRepository).should().deleteById(consignmentId);
   }
 
@@ -625,6 +627,7 @@ class ConsignmentServiceTest {
         .hasMessage(ExceptionCode.CONSIGNMENT_NOT_FOUND.getMessage());
     then(certificateRepository).shouldHaveNoInteractions();
     then(consignmentImageRepository).shouldHaveNoInteractions();
+    then(consignmentRepository).should(never()).deleteById(any());
   }
 
   @Test
@@ -643,6 +646,7 @@ class ConsignmentServiceTest {
         .hasMessage(ExceptionCode.CONSIGNMENT_DELETE_OWNER_MISMATCH.getMessage());
     then(certificateRepository).shouldHaveNoInteractions();
     then(consignmentImageRepository).shouldHaveNoInteractions();
+    then(consignmentRepository).should(never()).deleteById(any());
   }
 
   @Test
@@ -661,6 +665,7 @@ class ConsignmentServiceTest {
         .hasMessage(ExceptionCode.CONSIGNMENT_NOT_DELETABLE.getMessage());
     then(certificateRepository).shouldHaveNoInteractions();
     then(consignmentImageRepository).shouldHaveNoInteractions();
+    then(consignmentRepository).should(never()).deleteById(any());
   }
 
   private Card createCard(Long cardId) {
