@@ -107,7 +107,7 @@ class AuctionControllerTest {
     // given
     CreateAuctionRequest request = createRequest(LocalDateTime.now().plusDays(1));
     given(auctionService.registerAuction(eq(1L), any(CreateAuctionRequest.class)))
-        .willThrow(new PickUpException(CONSIGNMENT_ACCESS_DENIED));
+        .willThrow(new PickUpException(CONSIGNMENT_AUCTION_OWNER_MISMATCH));
 
     // when & then
     mockMvc
@@ -117,7 +117,7 @@ class AuctionControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.message").value(CONSIGNMENT_ACCESS_DENIED.getMessage()));
+        .andExpect(jsonPath("$.message").value(CONSIGNMENT_AUCTION_OWNER_MISMATCH.getMessage()));
   }
 
   @Test

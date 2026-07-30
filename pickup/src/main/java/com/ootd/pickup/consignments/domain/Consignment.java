@@ -54,6 +54,14 @@ public class Consignment {
     this.status = status;
   }
 
+  public boolean isModifiable() {
+    return status.isModifiable();
+  }
+
+  public void updateMajorDefect(String majorDefect) {
+    this.majorDefect = majorDefect;
+  }
+
   public void scheduleAuction() {
     if (this.status != REGISTERABLE) {
       throw new PickUpException(CONSIGNMENT_NOT_REGISTERABLE);

@@ -28,7 +28,7 @@ public class AuctionService {
     Consignment consignment = getConsignment(request.consignmentId());
 
     if (!consignment.getSellerMember().getMemberId().equals(memberId)) {
-      throw new PickUpException(CONSIGNMENT_ACCESS_DENIED);
+      throw new PickUpException(CONSIGNMENT_AUCTION_OWNER_MISMATCH);
     }
 
     consignment.scheduleAuction();

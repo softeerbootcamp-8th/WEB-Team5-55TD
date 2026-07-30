@@ -8,4 +8,6 @@ public interface ConsignmentImageRepository {
   List<ConsignmentImage> saveAll(List<ConsignmentImage> consignmentImages);
 
   List<ConsignmentImage> findAllByConsignmentOrderByImageOrderAsc(Consignment consignment);
+
+  void deleteAllByConsignment(Consignment consignment);
 }

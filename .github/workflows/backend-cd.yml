@@ -228,7 +228,9 @@ jobs:
 
             # deploy.sh 가 찍는 RESULT= 마커로만 판정한다.
             # 한국어 로그를 grep 하면 "롤백 대상 없음"까지 "롤백됨"으로 잡힌다.
-            r=$(printf '%s' "${out}" | grep -o 'RESULT=[a-z_]*' | tail -1 | cut -d= -f2 || true)
+            # 문자 클래스에 숫자를 포함한다. 빠뜨리면 숫자가 든 마커가 잘려
+            # (예: s3_failed -> "s") case 문에서 "상태 불명"으로 오분류된다.
+            r=$(printf '%s' "${out}" | grep -o 'RESULT=[a-z0-9_]*' | tail -1 | cut -d= -f2 || true)
             results="${results} ${r:-unknown}"
 
             # deploy.sh 가 실패한 버전의 로그에서 뽑아낸 근본 원인.

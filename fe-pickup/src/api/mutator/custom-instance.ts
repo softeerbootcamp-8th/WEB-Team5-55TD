@@ -21,6 +21,14 @@ export const axiosInstance = axios.create({
 
 // 로그인/토큰 갱신 자체에서 발생한 401 은 갱신 대상이 아니다 (자격 증명 불일치 · refresh-token 만료).
 const SKIP_REFRESH_PATHS = new Set(["/auth", "/auth/refresh"]);
+const REFRESHABLE_AUTH_ERRORS = new Set([
+  "INVALID_ACCESS_TOKEN",
+  "AUTHENTICATION_REQUIRED",
+]);
+
+interface ApiErrorResponse {
+  error?: string;
+}
 
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retriedAfterRefresh?: boolean;
@@ -29,11 +37,9 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 let refreshPromise: Promise<unknown> | null = null;
 
 function refreshAccessToken() {
-  refreshPromise ??= axiosInstance
-    .post("/auth/refresh")
-    .finally(() => {
-      refreshPromise = null;
-    });
+  refreshPromise ??= axiosInstance.post("/auth/refresh").finally(() => {
+    refreshPromise = null;
+  });
   return refreshPromise;
 }
 
@@ -42,9 +48,13 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const config = error.config as RetryableRequestConfig | undefined;
+    const errorCode = (error.response?.data as ApiErrorResponse | undefined)
+      ?.error;
 
     if (
       error.response?.status !== 401 ||
+      !errorCode ||
+      !REFRESHABLE_AUTH_ERRORS.has(errorCode) ||
       !config ||
       config._retriedAfterRefresh ||
       SKIP_REFRESH_PATHS.has(config.url ?? "")

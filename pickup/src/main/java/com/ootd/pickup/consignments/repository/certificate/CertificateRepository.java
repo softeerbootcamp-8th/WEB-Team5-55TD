@@ -8,4 +8,6 @@ public interface CertificateRepository {
   Certificate save(Certificate certificate);
 
   Optional<Certificate> findCertificateByConsignment(Consignment consignment);
+
+  void flush();
 }
