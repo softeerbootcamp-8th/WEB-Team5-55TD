@@ -31,7 +31,15 @@ public enum ExceptionCode {
   INVALID_PASSWORD(
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_PASSWORD, "비밀번호가 일치하지 않습니다."),
   INVALID_REFRESH_TOKEN(
-      HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_REFRESH_TOKEN, "유효하지 않은 리프레시 토큰입니다.");
+      HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_REFRESH_TOKEN, "유효하지 않은 리프레시 토큰입니다."),
+  CONSIGNMENT_NOT_REGISTERABLE(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CONSIGNMENT_NOT_REGISTERABLE,
+      "이미 경매 진행/예정 중이거나 신청할 수 없는 상태입니다."),
+  CONSIGNMENT_ACCESS_DENIED(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.CONSIGNMENT_ACCESS_DENIED,
+      "본인 소유의 위탁상품만 경매를 신청할 수 있습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;
