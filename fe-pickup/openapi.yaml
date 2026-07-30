@@ -3,26 +3,40 @@ info:
   title: PickUp API
   version: 0.1.0
   description: >
-    TCG 실물 카드 경매 플랫폼 API. 백엔드 스펙 확정 전까지 사용하는 스타터
-    스펙입니다. 실제 스펙이 준비되면 이 파일을 교체하거나 orval.config.ts 의
-    input.target 을 스펙 URL 로 변경하세요.
+    TCG 실물 카드 경매 플랫폼 API.
+
+
+    이 파일은 orval 의 입력이자 프론트·백엔드 간 API 계약서입니다.
+    백엔드를 변경했다면 실행 중인 서버의 /v3/api-docs.yaml 출력을 보고
+    이 파일을 함께 갱신해 주세요.
+
+
+    orval.config.ts 의 input.target 을 서버 URL 로 바꾸지 마세요.
+    프론트엔드 CI/CD 가 백엔드 기동 상태에 의존하게 되고, 사람마다
+    다른 API 클라이언트가 생성되어 빌드를 재현할 수 없게 됩니다.
+
+
+    태그 이름은 백엔드의 @Tag(name = ...) 와 일치시킵니다.
+    orval 이 태그로 디렉터리를 나누므로, 어긋나면 import 경로가 깨집니다.
 servers:
   - url: /api
 tags:
-  - name: health
+  - name: Health Check
     description: 서버 상태 확인
-  - name: auth
-    description: 인증 (로그인 · 회원가입)
-  - name: member
-    description: 회원 (실제 백엔드 스펙 — POST /members)
+  - name: Authentication
+    description: 인증 (로그인 · 토큰 갱신 · 로그아웃)
+  - name: Member
+    description: 회원 (회원가입 · 마이페이지)
+  # 아래 두 태그는 아직 백엔드에 구현되지 않았습니다.
+  # 화면 개발용 목 데이터의 타입 출처로만 쓰이며, 실제 호출하면 404 입니다.
   - name: auctions
-    description: 경매
+    description: 경매 (백엔드 미구현)
   - name: bids
-    description: 입찰
+    description: 입찰 (백엔드 미구현)
 paths:
   /healthcheck:
     get:
-      tags: [health]
+      tags: [Health Check]
       operationId: healthCheck
       summary: 헬스체크
       description: 서버가 정상적으로 동작 중인지 확인합니다.
@@ -35,7 +49,7 @@ paths:
                 $ref: "#/components/schemas/HealthCheckResponse"
   /auth:
     post:
-      tags: [auth]
+      tags: [Authentication]
       operationId: login
       summary: 로그인
       description: 아이디와 비밀번호를 검증하고 Access Token과 Refresh Token을 HttpOnly 쿠키로 발급합니다.
@@ -66,7 +80,7 @@ paths:
                 $ref: "#/components/schemas/ExceptionResponse"
   /auth/refresh:
     post:
-      tags: [auth]
+      tags: [Authentication]
       operationId: refresh
       summary: 토큰 갱신
       description: refresh-token 쿠키를 검증하고 기존 토큰을 폐기한 뒤 새 Access Token과 Refresh Token을 발급합니다.
@@ -85,7 +99,7 @@ paths:
                 $ref: "#/components/schemas/ExceptionResponse"
   /auth/logout:
     post:
-      tags: [auth]
+      tags: [Authentication]
       operationId: logout
       summary: 로그아웃
       description: refresh-token 쿠키를 폐기하고 Access Token과 Refresh Token 쿠키를 만료합니다.
@@ -94,7 +108,7 @@ paths:
           description: 로그아웃 성공
   /members:
     post:
-      tags: [member]
+      tags: [Member]
       operationId: createMember
       summary: 회원가입
       description: 로그인 ID, 닉네임, 비밀번호로 회원을 생성합니다.
@@ -113,6 +127,97 @@ paths:
                 $ref: "#/components/schemas/MemberResponse"
         "409":
           description: 로그인 ID 또는 닉네임 중복
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /members/me:
+    get:
+      tags: [Member]
+      operationId: getMyProfile
+      summary: 내 정보 조회
+      description: access-token 쿠키로 인증된 회원의 정보를 조회합니다.
+      responses:
+        "200":
+          description: 내 정보 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyProfileResponse"
+        "401":
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 회원 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+    patch:
+      tags: [Member]
+      operationId: updateMyProfile
+      summary: 내 정보 수정
+      description: 전달된 닉네임, 비밀번호, 프로필 이미지 URL만 수정합니다. 비밀번호 변경 시 현재 비밀번호가 필요합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMyProfileRequest"
+      responses:
+        "200":
+          description: 내 정보 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyProfileResponse"
+        "400":
+          description: 요청 값 검증 실패
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 회원 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "409":
+          description: 닉네임 중복
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /members/me/points:
+    get:
+      tags: [Member]
+      operationId: getMyPointBalance
+      summary: 내 포인트 잔액 조회
+      responses:
+        "200":
+          description: 포인트 잔액 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PointBalanceResponse"
+        "401":
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 회원 없음
           content:
             application/json:
               schema:
@@ -269,6 +374,43 @@ components:
           type: string
         profileImageUrl:
           type: string
+    MyProfileResponse:
+      type: object
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        loginId:
+          type: string
+        nickname:
+          type: string
+        profileImageUrl:
+          type: string
+    UpdateMyProfileRequest:
+      type: object
+      description: >
+        전달된 필드만 수정합니다. 셋 중 최소 하나는 있어야 하며,
+        password 를 보낼 때는 currentPassword 도 함께 보내야 합니다.
+      properties:
+        nickname:
+          type: string
+          minLength: 4
+        currentPassword:
+          type: string
+          minLength: 4
+        password:
+          type: string
+          minLength: 4
+        profileImageUrl:
+          type: string
+          maxLength: 255
+    PointBalanceResponse:
+      type: object
+      required: [pointBalance]
+      properties:
+        pointBalance:
+          type: integer
+          format: int64
     ExceptionResponse:
       type: object
       properties:
