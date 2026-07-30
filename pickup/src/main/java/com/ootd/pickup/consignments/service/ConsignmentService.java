@@ -10,6 +10,7 @@ import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.domain.Grade;
+import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
@@ -21,6 +22,7 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,8 +56,12 @@ public class ConsignmentService {
                 .status(ConsignmentStatus.REGISTERABLE)
                 .build());
 
-    Certificate certificate =
-        certificateRepository.save(request.certificate().toEntity(consignment));
+    Certificate certificate;
+    try {
+      certificate = certificateRepository.save(request.certificate().toEntity(consignment));
+    } catch (DataIntegrityViolationException exception) {
+      throw new PickUpException(CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS);
+    }
 
     consignmentImageRepository.saveAll(request.toConsignmentImages(consignment));
 
@@ -68,15 +74,62 @@ public class ConsignmentService {
             .findConsignmentById(consignmentId)
             .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
 
-    Certificate certificate =
-        certificateRepository
-            .findCertificateByConsignment(consignment)
-            .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
+    Certificate certificate = getCertificate(consignment);
 
     List<ConsignmentImage> images =
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
 
     return GetConsignmentDetailResponse.of(
         consignment, certificate, images, consignment.getSellerMember().getNickname());
+  }
+
+  @Transactional
+  public GetConsignmentDetailResponse modifyConsignment(
+      Long consignmentId, Long sellerMemberId, ModifyConsignmentRequest request) {
+    // 수정 가능 여부 확인과 갱신 사이에 상태가 바뀌지 않도록 같은 락 안에서 조회한다.
+    Consignment consignment =
+        consignmentRepository
+            .findByIdForUpdate(consignmentId)
+            .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+    if (!consignment.getSellerMember().getMemberId().equals(sellerMemberId)) {
+      throw new PickUpException(CONSIGNMENT_MODIFY_OWNER_MISMATCH);
+    }
+
+    if (!consignment.isModifiable()) {
+      throw new PickUpException(CONSIGNMENT_NOT_MODIFIABLE);
+    }
+
+    // Consignment를 수정하기 전에 인증서 값부터 검증해 불필요한 갱신을 막는다.
+    Grade grade = Grade.from(request.certificate().grade());
+    CertificationBody certificationBody =
+        CertificationBody.from(request.certificate().certificationBody());
+
+    Certificate certificate = getCertificate(consignment);
+
+    consignment.updateMajorDefect(request.majorDefect());
+    certificate.update(
+        request.certificate().serialNumber(),
+        certificationBody,
+        grade,
+        request.certificate().inspectedAt());
+    try {
+      certificateRepository.flush();
+    } catch (DataIntegrityViolationException exception) {
+      throw new PickUpException(CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS);
+    }
+
+    consignmentImageRepository.deleteAllByConsignment(consignment);
+    List<ConsignmentImage> images =
+        consignmentImageRepository.saveAll(request.toConsignmentImages(consignment));
+
+    return GetConsignmentDetailResponse.of(
+        consignment, certificate, images, consignment.getSellerMember().getNickname());
+  }
+
+  private Certificate getCertificate(Consignment consignment) {
+    return certificateRepository
+        .findCertificateByConsignment(consignment)
+        .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
   }
 }

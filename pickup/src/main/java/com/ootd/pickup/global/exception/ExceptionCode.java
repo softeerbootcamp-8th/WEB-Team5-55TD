@@ -19,7 +19,19 @@ public enum ExceptionCode {
       HttpStatus.NOT_FOUND, ClientExceptionCode.CONSIGNMENT_NOT_FOUND, "상품을 찾을 수 없습니다."),
   CERTIFICATE_NOT_FOUND(
       HttpStatus.NOT_FOUND, ClientExceptionCode.CERTIFICATE_NOT_FOUND, "인증서를 찾을 수 없습니다."),
+  CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS,
+      "이미 등록된 인증서 일련번호입니다."),
   MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.MEMBER_NOT_FOUND, "회원을 찾을 수 없습니다."),
+  CONSIGNMENT_MODIFY_OWNER_MISMATCH(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.CONSIGNMENT_MODIFY_OWNER_MISMATCH,
+      "본인이 등록한 상품만 수정할 수 있습니다."),
+  CONSIGNMENT_NOT_MODIFIABLE(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CONSIGNMENT_NOT_MODIFIABLE,
+      "경매 신청 이후에는 상품 정보를 수정할 수 없습니다."),
   MEMBER_LOGIN_ID_ALREADY_EXISTS(
       HttpStatus.CONFLICT, ClientExceptionCode.MEMBER_LOGIN_ID_ALREADY_EXISTS, "이미 사용 중인 아이디입니다."),
   MEMBER_NICKNAME_ALREADY_EXISTS(
@@ -36,10 +48,10 @@ public enum ExceptionCode {
       HttpStatus.CONFLICT,
       ClientExceptionCode.CONSIGNMENT_NOT_REGISTERABLE,
       "이미 경매 진행/예정 중이거나 신청할 수 없는 상태입니다."),
-  CONSIGNMENT_ACCESS_DENIED(
+  CONSIGNMENT_AUCTION_OWNER_MISMATCH(
       HttpStatus.FORBIDDEN,
-      ClientExceptionCode.CONSIGNMENT_ACCESS_DENIED,
-      "본인 소유의 위탁상품만 경매를 신청할 수 있습니다.");
+      ClientExceptionCode.CONSIGNMENT_AUCTION_OWNER_MISMATCH,
+      "본인이 소유한 상품만 경매 신청할 수 있습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

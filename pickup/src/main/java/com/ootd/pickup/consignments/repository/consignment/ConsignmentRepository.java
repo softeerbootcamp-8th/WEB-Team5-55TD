@@ -7,4 +7,6 @@ public interface ConsignmentRepository {
   Consignment save(Consignment consignment);
 
   Optional<Consignment> findConsignmentById(Long consignmentId);
+
+  Optional<Consignment> findByIdForUpdate(Long consignmentId);
 }

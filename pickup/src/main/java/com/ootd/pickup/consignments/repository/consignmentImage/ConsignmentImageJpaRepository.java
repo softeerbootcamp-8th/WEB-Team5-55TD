@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ConsignmentImageJpaRepository extends JpaRepository<ConsignmentImage, Long> {
   List<ConsignmentImage> findAllByConsignmentOrderByImageOrderAsc(Consignment consignment);
+
+  void deleteAllByConsignment(Consignment consignment);
 }

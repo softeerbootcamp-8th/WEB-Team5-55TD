@@ -11,6 +11,7 @@ import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.dto.request.CertificateRequest;
 import com.ootd.pickup.consignments.dto.request.ConsignmentImageRequest;
+import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.CertificateResponse;
 import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
@@ -211,6 +212,165 @@ class ConsignmentControllerTest {
         .perform(get("/consignments/{consignmentId}", notExistConsignmentId))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value(CONSIGNMENT_NOT_FOUND.getMessage()));
+  }
+
+  @Test
+  void 유효한_요청으로_상품을_수정하면_200과_수정된_상세정보를_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    ModifyConsignmentRequest request = createModifyRequest();
+    GetConsignmentDetailResponse response =
+        new GetConsignmentDetailResponse(
+            consignmentId,
+            new GetCardDetailResponse(
+                10L,
+                "리자몽 1st Edition Holo",
+                "Base Set",
+                "4/102",
+                "일본어",
+                "MINT",
+                "https://image.example.com/card.png"),
+            "피카츄",
+            "새로운 흠집 설명",
+            ConsignmentStatus.REGISTERABLE,
+            new CertificateResponse(
+                201L,
+                "PSA-84213907",
+                CertificationBody.PSA,
+                "10",
+                "GEM_MINT",
+                LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageResponse(3L, 1, "https://image.example.com/front.png"),
+                new ConsignmentImageResponse(4L, 2, "https://image.example.com/back.png")),
+            false);
+    given(
+            consignmentService.modifyConsignment(
+                eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
+        .willReturn(response);
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.consignmentId").value(100L))
+        .andExpect(jsonPath("$.majorDefect").value("새로운 흠집 설명"))
+        .andExpect(jsonPath("$.certificate.certificateId").value(201L));
+  }
+
+  @Test
+  void 이미지가_2장_미만이면_수정_요청은_400을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(new ConsignmentImageRequest("https://image.example.com/front.png")));
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 인증_없이_수정을_요청하면_401을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    ModifyConsignmentRequest request = createModifyRequest();
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", consignmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isUnauthorized());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 본인이_등록한_상품이_아니면_403을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    ModifyConsignmentRequest request = createModifyRequest();
+    given(
+            consignmentService.modifyConsignment(
+                eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
+        .willThrow(new PickUpException(CONSIGNMENT_MODIFY_OWNER_MISMATCH));
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value(CONSIGNMENT_MODIFY_OWNER_MISMATCH.getMessage()));
+  }
+
+  @Test
+  void 존재하지_않는_상품을_수정하면_404를_반환한다() throws Exception {
+    // given
+    Long notExistConsignmentId = 999L;
+    ModifyConsignmentRequest request = createModifyRequest();
+    given(
+            consignmentService.modifyConsignment(
+                eq(notExistConsignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
+        .willThrow(new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", notExistConsignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value(CONSIGNMENT_NOT_FOUND.getMessage()));
+  }
+
+  @Test
+  void 경매_진행중인_상품을_수정하면_409를_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    ModifyConsignmentRequest request = createModifyRequest();
+    given(
+            consignmentService.modifyConsignment(
+                eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
+        .willThrow(new PickUpException(CONSIGNMENT_NOT_MODIFIABLE));
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.message").value(CONSIGNMENT_NOT_MODIFIABLE.getMessage()));
+  }
+
+  private ModifyConsignmentRequest createModifyRequest() {
+    return new ModifyConsignmentRequest(
+        "새로운 흠집 설명",
+        new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+        List.of(
+            new ConsignmentImageRequest("https://image.example.com/front.png"),
+            new ConsignmentImageRequest("https://image.example.com/back.png")));
   }
 
   private RegisterConsignmentRequest createRequest() {
