@@ -29,11 +29,9 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 let refreshPromise: Promise<unknown> | null = null;
 
 function refreshAccessToken() {
-  refreshPromise ??= axiosInstance
-    .post("/auth/refresh")
-    .finally(() => {
-      refreshPromise = null;
-    });
+  refreshPromise ??= axiosInstance.post("/auth/refresh").finally(() => {
+    refreshPromise = null;
+  });
   return refreshPromise;
 }
 

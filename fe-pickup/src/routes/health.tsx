@@ -29,9 +29,7 @@ function HealthPage() {
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-8">
       <div className="flex flex-col gap-1 text-center">
         <h1 className="text-2xl font-bold">백엔드 연동 시험</h1>
-        <p className="text-sm text-[var(--color-text-sub)]">
-          GET /healthcheck
-        </p>
+        <p className="text-sm text-[var(--color-text-sub)]">GET /healthcheck</p>
       </div>
 
       <Card>

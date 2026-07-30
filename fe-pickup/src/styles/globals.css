@@ -49,7 +49,8 @@
     "Airbnb Cereal VF", "Circular", "Inter", "Pretendard", system-ui,
     -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Helvetica Neue",
     sans-serif;
-  --font-num: "Airbnb Cereal VF", "Inter", "Pretendard", ui-monospace, sans-serif;
+  --font-num:
+    "Airbnb Cereal VF", "Inter", "Pretendard", ui-monospace, sans-serif;
 
   /* ---- 간격 · 반경 (DESIGN-airbnb.md · Layout / rounded) ------------- */
   --space-1: 4px;

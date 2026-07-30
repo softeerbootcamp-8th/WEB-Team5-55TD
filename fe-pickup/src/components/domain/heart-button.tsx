@@ -30,9 +30,7 @@ export function HeartButton({
       }}
       className={cn(
         "inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-black/40 px-2 py-1 text-xs backdrop-blur-sm transition-colors",
-        active
-          ? "text-primary"
-          : "text-white/80 hover:text-white",
+        active ? "text-primary" : "text-white/80 hover:text-white",
         className,
       )}
     >
