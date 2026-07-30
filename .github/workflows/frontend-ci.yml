@@ -8,6 +8,12 @@ on:
     paths:
       - 'fe-pickup/**'
       - '.github/workflows/frontend-ci.yml'
+  # 임의 브랜치에서 수동 실행. 다른 PR 의 브랜치를 골라 CI 통과 여부를
+  # 미리 확인할 때 쓴다.
+  # 주의: 이 워크플로 파일이 기본 브랜치(develop)에 올라간 뒤에야
+  # Actions 탭의 "Run workflow" 버튼이 나타난다.
+  workflow_dispatch:
+
   workflow_call:
     inputs:
       upload-dist:
