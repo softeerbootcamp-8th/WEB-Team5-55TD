@@ -50,8 +50,8 @@ public enum ExceptionCode {
       "이미 경매 진행/예정 중이거나 신청할 수 없는 상태입니다."),
   CONSIGNMENT_AUCTION_OWNER_MISMATCH(
       HttpStatus.FORBIDDEN,
-      ClientExceptionCode.CONSIGNMENT_ACCESS_DENIED,
-      "본인 소유의 위탁상품만 경매를 신청할 수 있습니다."),
+      ClientExceptionCode.CONSIGNMENT_AUCTION_OWNER_MISMATCH,
+      "본인이 소유한 상품만 경매 신청할 수 있습니다."),
   AUCTION_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.AUCTION_NOT_FOUND, "경매를 찾을 수 없습니다."),
   AUCTION_NOT_STARTED(
       HttpStatus.CONFLICT, ClientExceptionCode.AUCTION_NOT_STARTED, "아직 시작되지 않은 경매입니다."),
@@ -64,9 +64,7 @@ public enum ExceptionCode {
   BELOW_MIN_INCREMENT(
       HttpStatus.CONFLICT,
       ClientExceptionCode.BELOW_MIN_INCREMENT,
-      "현재가에서 최소 입찰 단위 이상 높게 입찰해야 합니다."),
-      ClientExceptionCode.CONSIGNMENT_AUCTION_OWNER_MISMATCH,
-      "본인이 소유한 상품만 경매 신청할 수 있습니다.");
+      "현재가에서 최소 입찰 단위 이상 높게 입찰해야 합니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;
