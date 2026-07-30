@@ -51,7 +51,15 @@ public enum ExceptionCode {
   CONSIGNMENT_AUCTION_OWNER_MISMATCH(
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.CONSIGNMENT_AUCTION_OWNER_MISMATCH,
-      "본인이 소유한 상품만 경매 신청할 수 있습니다.");
+      "본인이 소유한 상품만 경매 신청할 수 있습니다."),
+  CONSIGNMENT_DELETE_OWNER_MISMATCH(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.CONSIGNMENT_DELETE_OWNER_MISMATCH,
+      "본인이 등록한 상품만 삭제할 수 있습니다."),
+  CONSIGNMENT_NOT_DELETABLE(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CONSIGNMENT_NOT_DELETABLE,
+      "경매가 시작된 이후에는 상품을 삭제할 수 없습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;
