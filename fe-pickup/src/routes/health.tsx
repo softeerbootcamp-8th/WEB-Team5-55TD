@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useHealthCheck } from "@/api/generated/health/health";
+import { useHealthCheck } from "@/api/generated/health-check/health-check";
 import {
   Card,
   CardHeader,

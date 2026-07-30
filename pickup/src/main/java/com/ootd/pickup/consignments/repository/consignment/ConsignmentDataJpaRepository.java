@@ -20,4 +20,9 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
   public Optional<Consignment> findConsignmentById(Long consignmentId) {
     return consignmentJpaRepository.findById(consignmentId);
   }
+
+  @Override
+  public Optional<Consignment> findByIdForUpdate(Long consignmentId) {
+    return consignmentJpaRepository.findByIdForUpdate(consignmentId);
+  }
 }

@@ -11,4 +11,6 @@ public interface ConsignmentImageJpaRepository extends JpaRepository<Consignment
   List<ConsignmentImage>
       findAllByConsignment_ConsignmentIdInOrderByConsignment_ConsignmentIdAscImageOrderAsc(
           List<Long> consignmentIds);
+
+  void deleteAllByConsignment(Consignment consignment);
 }

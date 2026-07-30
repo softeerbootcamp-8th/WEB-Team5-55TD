@@ -5,7 +5,7 @@ import type { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { login } from "@/api/generated/auth/auth";
+import { login } from "@/api/generated/authentication/authentication";
 import type { ExceptionResponse, LoginRequest } from "@/api/generated/model";
 import { setAuthenticated, setNickname } from "@/lib/auth";
 

@@ -32,4 +32,8 @@ public class ConsignmentImageDataJpaRepository implements ConsignmentImageReposi
         .findAllByConsignment_ConsignmentIdInOrderByConsignment_ConsignmentIdAscImageOrderAsc(
             consignmentIds);
   }
+
+  public void deleteAllByConsignment(Consignment consignment) {
+    consignmentImageJpaRepository.deleteAllByConsignment(consignment);
+  }
 }

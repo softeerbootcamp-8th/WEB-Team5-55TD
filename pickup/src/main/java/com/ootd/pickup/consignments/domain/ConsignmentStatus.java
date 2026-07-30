@@ -10,5 +10,9 @@ public enum ConsignmentStatus {
   // 낙찰되어 판매 완료
   WON,
   // 유찰되어 재등록 가능
-  PASSED
+  PASSED;
+
+  public boolean isModifiable() {
+    return this == REGISTERABLE || this == PASSED;
+  }
 }

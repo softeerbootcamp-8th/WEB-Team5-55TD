@@ -48,6 +48,19 @@ public class Member {
     return member;
   }
 
+  public void updateProfile(String nickname, String passwordHash, String profileImageUrl) {
+    if (nickname != null) {
+      this.nickname = nickname;
+    }
+    if (passwordHash != null) {
+      this.password = passwordHash;
+    }
+    if (profileImageUrl != null) {
+      this.profileImageUrl = profileImageUrl;
+    }
+    updatedAt = LocalDateTime.now();
+  }
+
   public boolean isPasswordMatched(String rawPassword) {
     if (password == null) {
       return false;

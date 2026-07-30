@@ -11,4 +11,6 @@ public interface CertificateRepository {
   Optional<Certificate> findCertificateByConsignment(Consignment consignment);
 
   List<Certificate> findAllByConsignmentIds(List<Long> consignmentIds);
+
+  void flush();
 }
