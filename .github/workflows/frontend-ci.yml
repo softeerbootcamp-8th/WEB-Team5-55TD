@@ -75,6 +75,14 @@ jobs:
         id: lint
         run: pnpm lint
 
+      # `/api` 접두사 제거 규칙은 Vite 프록시(로컬)와 CloudFront Function(운영)에
+      # 따로 구현되어 있다. CloudFront Functions 런타임에 모듈 시스템이 없어
+      # 공유가 불가능하기 때문이다. 한쪽만 고치면 "로컬은 되는데 배포하면 404" 가
+      # 되고, CloudFront Function 은 로컬에서 실행할 수 없어 배포 전에는 드러나지 않는다.
+      - name: Verify /api rewrite parity
+        id: parity
+        run: node deploy/verify-rewrite-parity.mjs
+
       # build = `vite build && tsc -b`.
       # vite 가 routeTree.gen.ts 를 생성한 뒤 tsc 가 타입을 검사하므로,
       # 타입 검사를 위한 별도 스텝을 두지 않는다 (tsc 를 두 번 돌릴 이유가 없다).
@@ -102,6 +110,9 @@ jobs:
           elif [ "${{ steps.lint.outcome }}" = "failure" ]; then
             FAILED_STEP="ESLint"
             FAILED_REASON="lint 규칙 위반이 있습니다. 로컬에서 pnpm lint:fix 로 자동 수정할 수 있습니다."
+          elif [ "${{ steps.parity.outcome }}" = "failure" ]; then
+            FAILED_STEP="/api rewrite 규칙 불일치"
+            FAILED_REASON="Vite 프록시와 CloudFront Function 의 동작이 다릅니다. fe-pickup/deploy/strip-api-prefix.ts 와 fe-pickup/deploy/cloudfront-function.js 를 함께 고치세요."
           elif [ "${{ steps.build.outcome }}" = "failure" ]; then
             FAILED_STEP="빌드 · 타입 검사"
             FAILED_REASON="vite build 또는 tsc 타입 검사가 실패했습니다. 로그의 TS 에러 코드를 확인하세요."
@@ -138,7 +149,7 @@ jobs:
                   - type: mrkdwn
                     text: "*실행자*\n${{ github.actor }}"
                   - type: mrkdwn
-                    text: "*검사 항목*\nESLint · 타입 검사 · 빌드"
+                    text: "*검사 항목*\nESLint · rewrite 규칙 · 타입 검사 · 빌드"
               - type: context
                 elements:
                   - type: mrkdwn
