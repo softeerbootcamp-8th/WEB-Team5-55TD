@@ -123,7 +123,9 @@ export function Gnb({ role }: { role: Role }) {
               <DropdownMenuSeparator />
               {role === "buyer" ? (
                 <>
-                  <DropdownMenuItem onSelect={() => navigate({ to: "/bids" })}>
+                  <DropdownMenuItem
+                    onSelect={() => navigate({ to: "/bids" })}
+                  >
                     <Gavel /> 입찰 / 낙찰 내역
                   </DropdownMenuItem>
                   <DropdownMenuItem

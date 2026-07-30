@@ -23,8 +23,7 @@ export function NotFoundPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">페이지를 찾을 수 없습니다</h1>
         <p className="text-sm text-[var(--color-text-sub)]">
-          요청하신 페이지가 삭제되었거나
-          <br /> 주소가 변경되었을 수 있습니다.
+          요청하신 페이지가 삭제되었거나<br/> 주소가 변경되었을 수 있습니다.
         </p>
       </div>
 

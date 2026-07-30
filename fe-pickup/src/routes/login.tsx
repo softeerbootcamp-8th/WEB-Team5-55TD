@@ -86,7 +86,9 @@ function LoginPage() {
             aria-invalid={errorMessage !== null}
           />
           {errorMessage && (
-            <p className="text-xs text-[var(--color-danger)]">{errorMessage}</p>
+            <p className="text-xs text-[var(--color-danger)]">
+              {errorMessage}
+            </p>
           )}
         </div>
 

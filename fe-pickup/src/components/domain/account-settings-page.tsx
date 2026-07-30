@@ -134,12 +134,7 @@ export function AccountSettingsPage() {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              size="lg"
-              disabled={!valid}
-              className="w-full"
-            >
+            <Button type="submit" size="lg" disabled={!valid} className="w-full">
               저장하기
             </Button>
           </form>
