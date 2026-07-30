@@ -39,7 +39,12 @@ public enum ExceptionCode {
   CONSIGNMENT_ACCESS_DENIED(
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.CONSIGNMENT_ACCESS_DENIED,
-      "본인 소유의 위탁상품만 경매를 신청할 수 있습니다.");
+      "본인 소유의 위탁상품만 경매를 신청할 수 있습니다."),
+  INVALID_AUCTION_STATUS(
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_AUCTION_STATUS, "유효하지 않은 경매 상태입니다."),
+  INVALID_AUCTION_SORT(
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_AUCTION_SORT, "유효하지 않은 정렬 기준입니다."),
+  INVALID_CURSOR(HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CURSOR, "유효하지 않은 커서 값입니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

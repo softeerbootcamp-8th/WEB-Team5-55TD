@@ -21,4 +21,15 @@ public class ConsignmentImageDataJpaRepository implements ConsignmentImageReposi
   public List<ConsignmentImage> findAllByConsignmentOrderByImageOrderAsc(Consignment consignment) {
     return consignmentImageJpaRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
   }
+
+  @Override
+  public List<ConsignmentImage> findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+      List<Long> consignmentIds) {
+    if (consignmentIds.isEmpty()) {
+      return List.of();
+    }
+    return consignmentImageJpaRepository
+        .findAllByConsignment_ConsignmentIdInOrderByConsignment_ConsignmentIdAscImageOrderAsc(
+            consignmentIds);
+  }
 }
