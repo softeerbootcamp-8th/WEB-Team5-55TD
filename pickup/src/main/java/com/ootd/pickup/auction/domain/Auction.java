@@ -51,8 +51,8 @@ public class Auction {
   @Column(name = "reserve_price", nullable = false)
   private Long reservePrice;
 
-  @Column(name = "minimum_bid_increment", nullable = false)
-  private Long minimumBidIncrement;
+  @Column(name = "bid_increment", nullable = false)
+  private Long bidIncrement;
 
   @Column(name = "winning_price")
   private Long winningPrice;
@@ -68,14 +68,14 @@ public class Auction {
       AuctionStatus auctionStatus,
       Long startingPrice,
       Long reservePrice,
-      Long minimumBidIncrement) {
+      Long bidIncrement) {
     this.consignment = consignment;
     this.startedAt = startedAt;
     this.endedAt = endedAt;
     this.auctionStatus = auctionStatus;
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
-    this.minimumBidIncrement = minimumBidIncrement;
+    this.bidIncrement = bidIncrement;
     this.createdAt = LocalDateTime.now();
   }
 }
