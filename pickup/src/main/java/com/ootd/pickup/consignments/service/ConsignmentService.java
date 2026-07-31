@@ -139,7 +139,7 @@ public class ConsignmentService {
     ConsignmentStatus status = ConsignmentStatus.from(request.status());
 
     List<Consignment> searchedConsignments =
-        consignmentRepository.searchMyConsignments(
+        consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
             sellerMemberId, status, request.cursor(), request.size() + 1);
 
     boolean hasNext = searchedConsignments.size() > request.size();

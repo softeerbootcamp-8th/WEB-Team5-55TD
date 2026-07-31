@@ -588,7 +588,7 @@ class ConsignmentServiceTest {
     Certificate certificate = createCertificate(200L, consignment);
     GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("REGISTERABLE", null, 20);
     given(
-            consignmentRepository.searchMyConsignments(
+            consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
                 sellerMemberId, ConsignmentStatus.REGISTERABLE, null, 21))
         .willReturn(List.of(consignment));
     given(certificateRepository.findAllByConsignmentIn(List.of(consignment)))
@@ -619,7 +619,7 @@ class ConsignmentServiceTest {
     Consignment extra = createConsignment(100L, createCard(12L), ConsignmentStatus.REGISTERABLE);
     GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("REGISTERABLE", null, 2);
     given(
-            consignmentRepository.searchMyConsignments(
+            consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
                 sellerMemberId, ConsignmentStatus.REGISTERABLE, null, 3))
         .willReturn(List.of(first, second, extra));
     given(certificateRepository.findAllByConsignmentIn(List.of(first, second)))
@@ -635,6 +635,28 @@ class ConsignmentServiceTest {
     assertThat(response.items())
         .extracting(GetMyConsignmentsResponse::consignmentId)
         .containsExactly(102L, 101L);
+  }
+
+  @Test
+  void 조회_결과가_없으면_빈_목록을_반환한다() {
+    // given
+    Long sellerMemberId = 1L;
+    GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("REGISTERABLE", null, 20);
+    given(
+            consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
+                sellerMemberId, ConsignmentStatus.REGISTERABLE, null, 21))
+        .willReturn(List.of());
+    given(certificateRepository.findAllByConsignmentIn(List.of())).willReturn(List.of());
+
+    // when
+    CursorPageResponse<GetMyConsignmentsResponse, Long> response =
+        consignmentService.getMyConsignments(sellerMemberId, request);
+
+    // then
+    assertThat(response.items()).isEmpty();
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.cursor()).isNull();
+    then(certificateRepository).should().findAllByConsignmentIn(List.of());
   }
 
   @Test

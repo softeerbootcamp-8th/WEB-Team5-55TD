@@ -14,6 +14,6 @@ public interface ConsignmentRepository {
 
   void deleteById(Long consignmentId);
 
-  List<Consignment> searchMyConsignments(
+  List<Consignment> findAllBySellerMemberIdAndStatusAndCursor(
       Long sellerMemberId, ConsignmentStatus status, Long cursor, int size);
 }

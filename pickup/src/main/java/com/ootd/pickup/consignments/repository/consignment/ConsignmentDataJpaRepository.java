@@ -40,7 +40,7 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
   }
 
   @Override
-  public List<Consignment> searchMyConsignments(
+  public List<Consignment> findAllBySellerMemberIdAndStatusAndCursor(
       Long sellerMemberId, ConsignmentStatus status, Long cursor, int size) {
     return queryFactory
         .selectFrom(consignment)
