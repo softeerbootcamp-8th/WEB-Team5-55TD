@@ -31,7 +31,7 @@ public record AuctionListItemResponse(
         auction.getAuctionId(),
         auction.getConsignment().getConsignmentId(),
         GetCardDetailResponse.from(auction.getConsignment().getCard()),
-        certificate.getGradeDisplay(),
+        certificate != null ? certificate.getGradeDisplay() : null,
         auction.getAuctionStatus(),
         auction.getStartingPrice(),
         // TODO: Bid 도메인 도입 후 현재 최고 입찰가로 교체
