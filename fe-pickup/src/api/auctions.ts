@@ -81,6 +81,7 @@ function toSummary(item: AuctionListItemResponse): AuctionSummary {
     endsAt: item.endedAt ?? undefined,
     startsAt: item.startedAt ?? undefined,
     watchCount: item.watchCount,
+    watched: item.watched,
   };
 }
 

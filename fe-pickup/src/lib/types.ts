@@ -30,6 +30,7 @@ export interface AuctionSummary {
   endsAt?: string;
   startsAt?: string;
   watchCount?: number;
+  watched?: boolean;
 }
 
 export type AuctionDetail = AuctionSummary & {

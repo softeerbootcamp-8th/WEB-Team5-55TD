@@ -31,10 +31,10 @@ tags:
     description: 카드 검색
   - name: Consignment
     description: 상품(위탁) 등록
-  # 아래 두 태그는 아직 백엔드에 구현되지 않았습니다.
-  # 화면 개발용 목 데이터의 타입 출처로만 쓰이며, 실제 호출하면 404 입니다.
+  - name: Watch
+    description: 관심 API
   - name: auctions
-    description: 경매 (백엔드 미구현)
+    description: 경매
   - name: bids
     description: 입찰 (백엔드 미구현)
 paths:
@@ -392,6 +392,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuctionDetail"
+  /auctions/{auctionId}/watch:
+    post:
+      tags: [Watch]
+      operationId: registerWatch
+      summary: 관심 등록
+      security:
+        - access-token-cookie: []
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          description: 경매 ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "201":
+          description: 관심 등록 완료
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchResponse"
+        "401":
+          description: 인증이 필요함
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 회원 또는 경매를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "409":
+          description: 이미 관심 등록한 경매
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+    delete:
+      tags: [Watch]
+      operationId: deleteWatch
+      summary: 관심 해제
+      security:
+        - access-token-cookie: []
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          description: 경매 ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: 관심 해제 완료
+        "401":
+          description: 인증이 필요함
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
   /auctions/{auctionId}/bids:
     get:
       tags: [bids]
@@ -436,6 +499,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Bid"
 components:
+  securitySchemes:
+    access-token-cookie:
+      type: apiKey
+      in: cookie
+      name: access-token
+      description: 로그인 시 발급되는 access-token 쿠키
   schemas:
     HealthCheckResponse:
       type: object
@@ -708,6 +777,24 @@ components:
           format: date-time
         watchCount:
           type: integer
+        watched:
+          type: boolean
+    WatchResponse:
+      type: object
+      required: [watchId, memberId, auctionId, createdAt]
+      properties:
+        watchId:
+          type: integer
+          format: int64
+        memberId:
+          type: integer
+          format: int64
+        auctionId:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
     AuctionDetail:
       allOf:
         - $ref: "#/components/schemas/AuctionSummary"
