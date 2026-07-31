@@ -26,6 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -46,6 +47,15 @@ class BidConcurrencyTest {
   @Autowired private MemberJpaRepository memberJpaRepository;
 
   @Autowired private CardJpaRepository cardJpaRepository;
+
+  @AfterEach
+  void tearDown() {
+    bidJpaRepository.deleteAll();
+    auctionJpaRepository.deleteAll();
+    consignmentJpaRepository.deleteAll();
+    cardJpaRepository.deleteAll();
+    memberJpaRepository.deleteAll();
+  }
 
   @Test
   void 동시에_입찰해도_가장_높은_입찰만_최고상태로_남는다() throws Exception {
