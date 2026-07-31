@@ -1,10 +1,13 @@
 package com.ootd.pickup.consignments.api;
 
+import com.ootd.pickup.consignments.dto.request.GetMyConsignmentsRequest;
 import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
+import com.ootd.pickup.consignments.dto.response.GetMyConsignmentsResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.global.config.SwaggerConfig;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,6 +18,7 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Consignment", description = "상품 등록 API")
@@ -111,6 +115,71 @@ public interface ConsignmentApi {
   ResponseEntity<RegisterConsignmentResponse> registerConsignment(
       @Parameter(hidden = true) Long sellerMemberId,
       RegisterConsignmentRequest registerConsignmentRequest);
+
+  @Operation(
+      summary = "내 상품 목록 조회",
+      description =
+          """
+            내가 등록한 상품 목록을 판매 상태(status)로 필터링하여 조회합니다.
+            상품 ID 내림차순으로 조회하며, 다음 페이지 조회 시 이전 응답의 cursor를 전달합니다.
+            """,
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "내 상품 목록 조회 성공",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = CursorPageResponse.class),
+                    examples =
+                        @ExampleObject(
+                            name = "내 상품 목록 조회 결과",
+                            value =
+                                """
+                            {
+                              "hasNext": true,
+                              "cursor": 99,
+                              "size": 1,
+                              "items": [
+                                {
+                                  "consignmentId": 100,
+                                  "card": {
+                                    "cardId": 10,
+                                    "cardName": "리자몽 1st Edition Holo",
+                                    "setName": "Base Set",
+                                    "cardNumber": "4/102",
+                                    "language": "일본어",
+                                    "rarity": "MINT",
+                                    "imageUrl": "https://example.com/cards/10.png"
+                                  },
+                                  "sellerMemberId": 1,
+                                  "majorDefect": "모서리에 약간의 마모",
+                                  "status": "REGISTERABLE",
+                                  "certificate": {
+                                    "certificateId": 200,
+                                    "serialNumber": "PSA-84213907",
+                                    "certificationBody": "PSA",
+                                    "grade": "10",
+                                    "gradeCode": "GEM_MINT",
+                                    "inspectedAt": "2026-06-30"
+                                  }
+                                }
+                              ]
+                            }
+                            """))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "잘못된 조회 조건 (필수 파라미터 누락, 유효하지 않은 상태 값 등)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증이 필요함 (access-token 쿠키 없음/만료)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<CursorPageResponse<GetMyConsignmentsResponse, Long>> getMyConsignments(
+      @Parameter(hidden = true) Long sellerMemberId,
+      @ParameterObject GetMyConsignmentsRequest getMyConsignmentsRequest);
 
   @Operation(
       summary = "상품 상세 조회",

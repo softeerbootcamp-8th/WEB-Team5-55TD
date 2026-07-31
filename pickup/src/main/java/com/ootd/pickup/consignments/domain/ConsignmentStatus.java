@@ -1,5 +1,10 @@
 package com.ootd.pickup.consignments.domain;
 
+import static com.ootd.pickup.global.exception.ExceptionCode.*;
+
+import com.ootd.pickup.global.exception.PickUpException;
+import java.util.Arrays;
+
 public enum ConsignmentStatus {
   // 위탁 등록 완료, 경매 등록 가능
   REGISTERABLE,
@@ -18,5 +23,16 @@ public enum ConsignmentStatus {
 
   public boolean isDeletable() {
     return isModifiable();
+  }
+
+  public static ConsignmentStatus from(String status) {
+    if (status == null || status.isBlank()) {
+      return null;
+    }
+
+    return Arrays.stream(values())
+        .filter(value -> value.name().equalsIgnoreCase(status))
+        .findFirst()
+        .orElseThrow(() -> new PickUpException(INVALID_CONSIGNMENT_STATUS));
   }
 }
