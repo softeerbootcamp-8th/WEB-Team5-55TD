@@ -70,6 +70,6 @@ public class Certificate {
   }
 
   public String getGradeDisplay() {
-      return this.certificationBody.name() + " " + this.grade.getScore();
+    return this.certificationBody.name() + " " + this.grade.getScore();
   }
 }
