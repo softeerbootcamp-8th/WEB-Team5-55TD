@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SourceType;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -30,9 +33,11 @@ public class Member {
   private String nickname;
 
   @Column(nullable = true)
+  @CreationTimestamp(source = SourceType.DB)
   private LocalDateTime joinedAt;
 
   @Column(nullable = true)
+  @UpdateTimestamp(source = SourceType.DB)
   private LocalDateTime updatedAt;
 
   @Column(nullable = true)
@@ -43,8 +48,6 @@ public class Member {
     member.loginId = loginId;
     member.password = password;
     member.nickname = nickname;
-    member.joinedAt = LocalDateTime.now();
-    member.updatedAt = member.joinedAt;
     return member;
   }
 
@@ -58,7 +61,6 @@ public class Member {
     if (profileImageUrl != null) {
       this.profileImageUrl = profileImageUrl;
     }
-    updatedAt = LocalDateTime.now();
   }
 
   public boolean isPasswordMatched(String rawPassword) {

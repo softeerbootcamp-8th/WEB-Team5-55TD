@@ -16,6 +16,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SourceType;
 
 @Entity
 @Getter
@@ -58,6 +60,7 @@ public class Auction {
   private Long winningPrice;
 
   @Column(name = "created_at", nullable = false)
+  @CreationTimestamp(source = SourceType.DB)
   private LocalDateTime createdAt;
 
   @Builder
@@ -76,6 +79,5 @@ public class Auction {
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.minimumBidIncrement = minimumBidIncrement;
-    this.createdAt = LocalDateTime.now();
   }
 }

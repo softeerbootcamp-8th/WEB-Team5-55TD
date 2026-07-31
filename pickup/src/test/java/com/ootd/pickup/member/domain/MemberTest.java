@@ -3,7 +3,6 @@ package com.ootd.pickup.member.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
-import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
 class MemberTest {
@@ -24,7 +23,6 @@ class MemberTest {
   void 닉네임만_전달하면_나머지_프로필정보는_유지된다() {
     // given
     Member member = Member.create("pickup-user", "old-password-hash", "픽업회원");
-    LocalDateTime previousUpdatedAt = member.getUpdatedAt();
 
     // when
     member.updateProfile("라이츄회원", null, null);
@@ -32,7 +30,6 @@ class MemberTest {
     // then
     assertThat(member.getNickname()).isEqualTo("라이츄회원");
     assertThat(member.getProfileImageUrl()).isNull();
-    assertThat(member.getUpdatedAt()).isAfterOrEqualTo(previousUpdatedAt);
   }
 
   @Test
