@@ -31,7 +31,7 @@ public record AuctionListItemResponse(
         auction.getAuctionId(),
         auction.getConsignment().getConsignmentId(),
         GetCardDetailResponse.from(auction.getConsignment().getCard()),
-        gradeDisplay(certificate),
+        certificate.getGradeDisplay(),
         auction.getAuctionStatus(),
         auction.getStartingPrice(),
         // TODO: Bid 도메인 도입 후 현재 최고 입찰가로 교체
@@ -42,12 +42,5 @@ public record AuctionListItemResponse(
         watchCount,
         watched,
         thumbnailUrl);
-  }
-
-  private static String gradeDisplay(Certificate certificate) {
-    if (certificate == null) {
-      return null;
-    }
-    return certificate.getCertificationBody().name() + " " + certificate.getGrade().getScore();
   }
 }

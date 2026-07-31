@@ -47,7 +47,7 @@ public record AuctionDetailResponse(
         auction.getAuctionId(),
         consignment.getConsignmentId(),
         GetCardDetailResponse.from(consignment.getCard()),
-        certificate.getCertificationBody().name() + " " + certificate.getGrade().getScore(),
+        certificate.getGradeDisplay(),
         auction.getAuctionStatus(),
         auction.getStartingPrice(),
         currentPrice,
