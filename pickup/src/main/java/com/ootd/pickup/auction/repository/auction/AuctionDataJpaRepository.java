@@ -38,6 +38,11 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   }
 
   @Override
+  public Optional<Auction> findById(Long auctionId) {
+    return auctionJpaRepository.findById(auctionId);
+  }
+
+  @Override
   public Optional<Auction> findByIdWithConsignmentAndCard(Long auctionId) {
     return Optional.ofNullable(
         queryFactory

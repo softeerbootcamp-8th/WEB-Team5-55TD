@@ -8,6 +8,8 @@ import java.util.Optional;
 public interface AuctionRepository {
   Auction save(Auction auction);
 
+  Optional<Auction> findById(Long auctionId);
+
   Optional<Auction> findByIdForUpdate(Long auctionId);
 
   List<Auction> searchAuctions(

@@ -58,6 +58,8 @@ public enum ExceptionCode {
       HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_AUCTION_SORT, "유효하지 않은 정렬 기준입니다."),
   INVALID_CURSOR(HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CURSOR, "유효하지 않은 커서 값입니다."),
   AUCTION_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.AUCTION_NOT_FOUND, "경매를 찾을 수 없습니다."),
+  WATCH_ALREADY_EXISTS(
+      HttpStatus.CONFLICT, ClientExceptionCode.WATCH_ALREADY_EXISTS, "이미 관심 등록한 경매입니다."),
   AUCTION_NOT_STARTED(
       HttpStatus.CONFLICT, ClientExceptionCode.AUCTION_NOT_STARTED, "아직 시작되지 않은 경매입니다."),
   AUCTION_ENDED(HttpStatus.CONFLICT, ClientExceptionCode.AUCTION_ENDED, "이미 종료된 경매입니다."),
