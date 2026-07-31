@@ -39,6 +39,8 @@ interface AuctionPageResponse {
 
 export interface AuctionDetailView extends AuctionDetail {
   card?: CardResponse;
+  cardState?: string;
+  majorDefect?: string;
 }
 
 export type AuctionSort =
@@ -46,6 +48,7 @@ export type AuctionSort =
   | "PRICE_ASC"
   | "PRICE_DESC"
   | "ENDING_SOON"
+  | "STARTING_SOON"
   | "RECENT";
 
 export interface AuctionSearchParams {
@@ -111,6 +114,29 @@ export async function searchAuctions(
   };
 }
 
+interface CertificateResponse {
+  certificateId: number;
+  serialNumber: string;
+  certificationBody: string;
+  grade: string;
+  inspectedAt?: string | null;
+}
+
+interface ConsignmentImageResponse {
+  productImageId: number;
+  imageOrder: number;
+  imageUrl: string;
+}
+
+interface AuctionDetailResponse extends AuctionListItemResponse {
+  sellerNickname?: string | null;
+  certificate?: CertificateResponse | null;
+  images?: ConsignmentImageResponse[] | null;
+  cardState?: string | null;
+  majorDefect?: string | null;
+  bidIncrement?: number | null;
+}
+
 function isListItem(value: unknown): value is AuctionListItemResponse {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<AuctionListItemResponse>;
@@ -120,6 +146,34 @@ function isListItem(value: unknown): value is AuctionListItemResponse {
     typeof item.auctionStatus === "string" &&
     !!item.card
   );
+}
+
+/** 상세 응답에만 있는 images 배열 유무로 목록 항목과 구분한다. */
+function isDetailResponse(value: unknown): value is AuctionDetailResponse {
+  return isListItem(value) && Array.isArray((value as { images?: unknown }).images);
+}
+
+function toDetail(item: AuctionDetailResponse): AuctionDetailView {
+  const summary = toSummary(item);
+  const grade = item.certificate
+    ? {
+        agency: item.certificate.certificationBody as Grade["agency"],
+        score: item.certificate.grade,
+        serial: item.certificate.serialNumber,
+      }
+    : summary.grade;
+
+  return {
+    ...summary,
+    grade,
+    sellerNickname: item.sellerNickname ?? undefined,
+    minBidUnit: item.bidIncrement ?? Math.round(item.startingPrice * 0.05),
+    images: (item.images ?? []).map((image) => image.imageUrl),
+    bidCount: 0,
+    card: item.card,
+    cardState: item.cardState ?? undefined,
+    majorDefect: item.majorDefect ?? undefined,
+  };
 }
 
 function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
@@ -137,9 +191,9 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
 }
 
 /**
- * 상세 API가 목록과 같은 중첩 응답을 반환하는 경우와 기존 프런트 스펙 응답을
- * 모두 지원한다. 현재 서버 브랜치에 상세 엔드포인트가 없는 동안에는 목록에서
- * 같은 경매를 찾아 상세 화면을 구성한다.
+ * 상세 API가 풍부한 상세 응답(certificate·images·cardState 등)을 반환하는 경우와
+ * 목록과 같은 중첩 응답을 반환하는 경우를 모두 지원한다. 상세 엔드포인트가 없는
+ * 서버(구 브랜치)에서는 목록에서 같은 경매를 찾아 상세 화면을 구성한다.
  */
 export async function getAuctionDetail(
   auctionId: string,
@@ -148,6 +202,7 @@ export async function getAuctionDetail(
     const { data } = await axiosInstance.get<unknown>(
       `/auctions/${auctionId}`,
     );
+    if (isDetailResponse(data)) return toDetail(data);
     if (isListItem(data)) return detailFromListItem(data);
     return data as AuctionDetailView;
   } catch (error) {
