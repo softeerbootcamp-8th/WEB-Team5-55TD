@@ -8,6 +8,7 @@ on:
     paths:
       - 'pickup/**'
       - '.github/workflows/backend-ci.yml'
+      - '.github/scripts/validate_migrations.py'
   workflow_call:
     inputs:
       upload-jar:
@@ -20,6 +21,67 @@ defaults:
     working-directory: pickup
 
 jobs:
+  migration-lint:
+    name: Flyway Migration Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # merge-base 계산에 전체 이력이 필요하다 (기존 마이그레이션 수정 감지).
+          fetch-depth: 0
+
+      - name: Validate Flyway migrations
+        id: validate
+        env:
+          MIGRATION_DIR: pickup/src/main/resources/db/migration
+          BASE_REF: ${{ github.base_ref }}
+        run: python3 .github/scripts/validate_migrations.py
+
+      # 성공 알림은 보내지 않는다. build 잡이 이미 CI 성공 알림을 보내므로
+      # PR 마다 두 번 울리게 된다. 조치가 필요한 실패만 알린다.
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Flyway 마이그레이션 검증 실패: ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "❌ Flyway 마이그레이션 검증 실패"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.head_ref || github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*오류*\n${{ steps.validate.outputs.error_count || '측정 불가' }}건"
+                  - type: mrkdwn
+                    text: "*경고*\n${{ steps.validate.outputs.warning_count || '측정 불가' }}건"
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: "*실패 사유*\n${{ steps.validate.outputs.error_summary || '검증 스크립트가 실행되지 못했습니다. 워크플로 로그를 확인하세요.' }}"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+
   build:
     name: Build & Test
     runs-on: ubuntu-latest
