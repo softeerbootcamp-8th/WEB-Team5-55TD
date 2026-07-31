@@ -234,7 +234,7 @@ class BidServiceTest {
             .auctionStatus(status)
             .startingPrice(10_000L)
             .reservePrice(15_000L)
-            .minimumBidIncrement(500L)
+            .bidIncrement(500L)
             .build();
     ReflectionTestUtils.setField(auction, "auctionId", auctionId);
     return auction;

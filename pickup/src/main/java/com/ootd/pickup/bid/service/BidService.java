@@ -53,7 +53,7 @@ public class BidService {
     Long currentPrice =
         currentHighestBid.map(Bid::getBidPrice).orElseGet(auction::getStartingPrice);
 
-    validateBidPrice(request.bidPrice(), currentPrice, auction.getMinimumBidIncrement());
+    validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
 
     currentHighestBid.ifPresent(
         bid -> {
@@ -78,11 +78,11 @@ public class BidService {
     }
   }
 
-  private void validateBidPrice(Long bidPrice, Long currentPrice, Long minimumBidIncrement) {
+  private void validateBidPrice(Long bidPrice, Long currentPrice, Long bidIncrement) {
     if (bidPrice <= currentPrice) {
       throw new PickUpException(OUTBID_EXISTS);
     }
-    if (bidPrice - currentPrice < minimumBidIncrement) {
+    if (bidPrice - currentPrice < bidIncrement) {
       throw new PickUpException(BELOW_MIN_INCREMENT);
     }
   }

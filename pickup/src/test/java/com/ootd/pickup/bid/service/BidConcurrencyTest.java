@@ -79,7 +79,7 @@ class BidConcurrencyTest {
                 .auctionStatus(AuctionStatus.ONGOING)
                 .startingPrice(10_000L)
                 .reservePrice(15_000L)
-                .minimumBidIncrement(500L)
+                .bidIncrement(500L)
                 .build());
     CountDownLatch ready = new CountDownLatch(2);
     CountDownLatch start = new CountDownLatch(1);
