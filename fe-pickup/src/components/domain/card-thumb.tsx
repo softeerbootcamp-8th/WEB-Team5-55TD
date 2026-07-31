@@ -15,12 +15,14 @@ function hashHue(text: string): number {
 export function CardThumb({
   cardName,
   grade,
+  imageUrl,
   label,
   className,
   aspect = "aspect-[3/4]",
 }: {
   cardName: string;
   grade?: Grade;
+  imageUrl?: string;
   label?: string;
   className?: string;
   aspect?: string;
@@ -37,8 +39,20 @@ export function CardThumb({
         background: `linear-gradient(150deg, hsl(${hue} 45% 22%), hsl(${(hue + 40) % 360} 50% 12%))`,
       }}
     >
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt={cardName}
+          className="absolute inset-0 size-full object-cover"
+        />
+      )}
       <div className="flex flex-col items-center gap-1 px-3 text-center">
-        <span className="text-sm font-semibold text-white/90 [text-wrap:balance]">
+        <span
+          className={cn(
+            "text-sm font-semibold text-white/90 [text-wrap:balance]",
+            imageUrl && "sr-only",
+          )}
+        >
           {cardName}
         </span>
         {grade?.agency && (
