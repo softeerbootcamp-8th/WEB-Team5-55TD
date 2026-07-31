@@ -34,6 +34,13 @@ public class CertificateDataJpaRepository implements CertificateRepository {
   }
 
   @Override
+  public List<Certificate> findAllByConsignmentIds(List<Long> consignmentIds) {
+    if (consignmentIds.isEmpty()) {
+      return List.of();
+    }
+    return certificateJpaRepository.findAllByConsignment_ConsignmentIdIn(consignmentIds);
+  }
+
   public void flush() {
     certificateJpaRepository.flush();
   }

@@ -12,4 +12,6 @@ public interface CertificateJpaRepository extends JpaRepository<Certificate, Lon
   List<Certificate> findAllByConsignmentIn(List<Consignment> consignments);
 
   void deleteByConsignment(Consignment consignment);
+
+  List<Certificate> findAllByConsignment_ConsignmentIdIn(List<Long> consignmentIds);
 }

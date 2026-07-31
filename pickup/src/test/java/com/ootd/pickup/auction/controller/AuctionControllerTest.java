@@ -1,20 +1,32 @@
 package com.ootd.pickup.auction.controller;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.dto.request.CreateAuctionRequest;
+import com.ootd.pickup.auction.dto.request.SearchAuctionsRequest;
+import com.ootd.pickup.auction.dto.response.AuctionDetailResponse;
+import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
+import com.ootd.pickup.auction.dto.response.CertificateResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.service.AuctionService;
+import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
+import com.ootd.pickup.consignments.domain.CertificationBody;
+import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
 import com.ootd.pickup.global.auth.Authentication;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.slack.SlackErrorNotifier;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -136,6 +148,169 @@ class AuctionControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.message").value(CONSIGNMENT_NOT_REGISTERABLE.getMessage()));
+  }
+
+  @Test
+  void 인증된_사용자가_목록을_조회하면_200과_회원ID가_서비스에_전달된다() throws Exception {
+    // given
+    given(auctionService.searchAuctions(eq(1L), any(SearchAuctionsRequest.class)))
+        .willReturn(CursorPageResponse.from(List.of(createListItem()), false, null));
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.items[0].auctionId").value(1L));
+
+    then(auctionService).should().searchAuctions(eq(1L), any(SearchAuctionsRequest.class));
+  }
+
+  @Test
+  void 비로그인_사용자가_목록을_조회해도_200을_반환하고_회원ID는_null이다() throws Exception {
+    // given
+    given(auctionService.searchAuctions(isNull(), any(SearchAuctionsRequest.class)))
+        .willReturn(CursorPageResponse.from(List.of(), false, null));
+
+    // when & then
+    mockMvc.perform(get("/auctions")).andExpect(status().isOk());
+
+    then(auctionService).should().searchAuctions(isNull(), any(SearchAuctionsRequest.class));
+  }
+
+  @Test
+  void status가_여러개면_리스트로_바인딩된다() throws Exception {
+    // given
+    given(auctionService.searchAuctions(isNull(), any(SearchAuctionsRequest.class)))
+        .willReturn(CursorPageResponse.from(List.of(), false, null));
+
+    // when
+    mockMvc
+        .perform(get("/auctions").param("status", "ONGOING", "SCHEDULED"))
+        .andExpect(status().isOk());
+
+    // then
+    ArgumentCaptor<SearchAuctionsRequest> captor =
+        ArgumentCaptor.forClass(SearchAuctionsRequest.class);
+    then(auctionService).should().searchAuctions(isNull(), captor.capture());
+    assertThat(captor.getValue().status()).containsExactly("ONGOING", "SCHEDULED");
+  }
+
+  @Test
+  void limit이_있으면_hasNext가_false로_반환된다() throws Exception {
+    // given
+    given(auctionService.searchAuctions(isNull(), any(SearchAuctionsRequest.class)))
+        .willReturn(CursorPageResponse.from(List.of(createListItem()), false, null));
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("limit", "3"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.cursor").doesNotExist());
+  }
+
+  @Test
+  void 잘못된_정렬값이면_400을_반환한다() throws Exception {
+    // given
+    given(auctionService.searchAuctions(isNull(), any(SearchAuctionsRequest.class)))
+        .willThrow(new PickUpException(INVALID_AUCTION_SORT));
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("sort", "INVALID"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(INVALID_AUCTION_SORT.getMessage()));
+  }
+
+  @Test
+  void 잘못된_상태값이면_400을_반환한다() throws Exception {
+    // given
+    given(auctionService.searchAuctions(isNull(), any(SearchAuctionsRequest.class)))
+        .willThrow(new PickUpException(INVALID_AUCTION_STATUS));
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("status", "INVALID"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(INVALID_AUCTION_STATUS.getMessage()));
+  }
+
+  @Test
+  void 경매_상세를_조회하면_200과_상세정보를_반환한다() throws Exception {
+    // given
+    given(auctionService.getAuctionDetail(isNull(), eq(1L))).willReturn(createDetailResponse());
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions/1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.auctionId").value(1L))
+        .andExpect(jsonPath("$.consignmentId").value(100L))
+        .andExpect(jsonPath("$.grade").value("PSA 10"))
+        .andExpect(jsonPath("$.cardState").value("Gem Mint"))
+        .andExpect(jsonPath("$.sellerNickname").value("카드마스터샵"))
+        .andExpect(jsonPath("$.certificate.serialNumber").value("PSA-84213907"))
+        .andExpect(jsonPath("$.images[0].imageUrl").value("https://img-front"))
+        .andExpect(jsonPath("$.nextMinBid").value(10000L));
+  }
+
+  @Test
+  void 존재하지_않는_경매를_조회하면_404를_반환한다() throws Exception {
+    // given
+    given(auctionService.getAuctionDetail(isNull(), eq(999L)))
+        .willThrow(new PickUpException(AUCTION_NOT_FOUND));
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions/999"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value(AUCTION_NOT_FOUND.getMessage()));
+  }
+
+  private AuctionDetailResponse createDetailResponse() {
+    return new AuctionDetailResponse(
+        1L,
+        100L,
+        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "MINT", "https://img"),
+        "PSA 10",
+        AuctionStatus.SCHEDULED,
+        10000L,
+        null,
+        LocalDateTime.now().plusDays(1),
+        null,
+        null,
+        0L,
+        false,
+        "https://img-front",
+        "카드마스터샵",
+        new CertificateResponse(
+            1L, "PSA-84213907", CertificationBody.PSA, "10", LocalDate.of(2026, 6, 30)),
+        List.of(new ConsignmentImageResponse(1L, 0, "https://img-front")),
+        "Gem Mint",
+        null,
+        500L,
+        10000L,
+        null);
+  }
+
+  private AuctionListItemResponse createListItem() {
+    return new AuctionListItemResponse(
+        1L,
+        100L,
+        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "MINT", "https://img"),
+        "PSA 10",
+        AuctionStatus.SCHEDULED,
+        10000L,
+        null,
+        LocalDateTime.now().plusDays(1),
+        null,
+        null,
+        0L,
+        false,
+        "https://thumb");
   }
 
   private CreateAuctionRequest createRequest(LocalDateTime scheduledStartAt) {

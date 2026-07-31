@@ -32,6 +32,7 @@ dependencies {
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
     implementation 'at.favre.lib:bcrypt:0.10.2'
     implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
     runtimeOnly 'com.mysql:mysql-connector-j'

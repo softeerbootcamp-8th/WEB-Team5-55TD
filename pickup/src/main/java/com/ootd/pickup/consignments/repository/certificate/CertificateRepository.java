@@ -14,5 +14,7 @@ public interface CertificateRepository {
 
   void deleteByConsignment(Consignment consignment);
 
+  List<Certificate> findAllByConsignmentIds(List<Long> consignmentIds);
+
   void flush();
 }
