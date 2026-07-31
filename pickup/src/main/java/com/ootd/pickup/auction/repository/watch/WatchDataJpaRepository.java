@@ -2,6 +2,7 @@ package com.ootd.pickup.auction.repository.watch;
 
 import static com.ootd.pickup.auction.domain.QWatch.*;
 
+import com.ootd.pickup.auction.domain.Watch;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.HashSet;
@@ -16,7 +17,23 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class WatchDataJpaRepository implements WatchRepository {
 
+  private final WatchJpaRepository watchJpaRepository;
   private final JPAQueryFactory queryFactory;
+
+  @Override
+  public Watch save(Watch watch) {
+    return watchJpaRepository.save(watch);
+  }
+
+  @Override
+  public void flush() {
+    watchJpaRepository.flush();
+  }
+
+  @Override
+  public int deleteByMemberIdAndAuctionId(Long memberId, Long auctionId) {
+    return watchJpaRepository.deleteByMemberIdAndAuctionId(memberId, auctionId);
+  }
 
   @Override
   public Map<Long, Long> countByAuctionIds(List<Long> auctionIds) {
