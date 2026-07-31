@@ -58,6 +58,10 @@ public class Consignment {
     return status.isModifiable();
   }
 
+  public boolean isDeletable() {
+    return status.isDeletable();
+  }
+
   public void updateMajorDefect(String majorDefect) {
     this.majorDefect = majorDefect;
   }

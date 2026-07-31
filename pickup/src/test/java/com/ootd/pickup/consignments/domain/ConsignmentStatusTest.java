@@ -35,4 +35,34 @@ class ConsignmentStatusTest {
     // when & then
     assertThat(ConsignmentStatus.WON.isModifiable()).isFalse();
   }
+
+  @Test
+  void 등록가능_상태면_삭제_가능하다() {
+    // when & then
+    assertThat(ConsignmentStatus.REGISTERABLE.isDeletable()).isTrue();
+  }
+
+  @Test
+  void 유찰_상태면_삭제_가능하다() {
+    // when & then
+    assertThat(ConsignmentStatus.PASSED.isDeletable()).isTrue();
+  }
+
+  @Test
+  void 경매등록_상태면_삭제_불가능하다() {
+    // when & then
+    assertThat(ConsignmentStatus.AUCTION_SCHEDULED.isDeletable()).isFalse();
+  }
+
+  @Test
+  void 경매진행_상태면_삭제_불가능하다() {
+    // when & then
+    assertThat(ConsignmentStatus.AUCTION_ONGOING.isDeletable()).isFalse();
+  }
+
+  @Test
+  void 낙찰_상태면_삭제_불가능하다() {
+    // when & then
+    assertThat(ConsignmentStatus.WON.isDeletable()).isFalse();
+  }
 }

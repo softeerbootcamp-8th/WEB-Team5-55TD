@@ -23,6 +23,16 @@ public class ConsignmentImageDataJpaRepository implements ConsignmentImageReposi
   }
 
   @Override
+  public List<ConsignmentImage> findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+      List<Long> consignmentIds) {
+    if (consignmentIds.isEmpty()) {
+      return List.of();
+    }
+    return consignmentImageJpaRepository
+        .findAllByConsignment_ConsignmentIdInOrderByConsignment_ConsignmentIdAscImageOrderAsc(
+            consignmentIds);
+  }
+
   public void deleteAllByConsignment(Consignment consignment) {
     consignmentImageJpaRepository.deleteAllByConsignment(consignment);
   }
