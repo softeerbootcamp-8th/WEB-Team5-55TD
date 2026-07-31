@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 3000
+
+slack:
+  enabled: ${SLACK_ENABLED:true}
+  channel: ${SLACK_CHANNEL:}
+
+auth:
+  cookie:
+    secure: true
+    same-site: None

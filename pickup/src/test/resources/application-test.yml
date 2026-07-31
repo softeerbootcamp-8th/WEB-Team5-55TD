@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:pickup;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+
+auth:
+  token:
+    issuer: pickup-test
+    secret: ${JWT_TEST_SECRET:zbXk82Pja7kPR3Pe684ZMsxM8LldVy8//HITTkv3XsE=}
+    access-token-ttl: 15m
+  cookie:
+    secure: true
+    same-site: None

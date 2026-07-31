@@ -1,0 +1,169 @@
+import { useState } from "react";
+import {
+  createFileRoute,
+  Link,
+  notFound,
+  useNavigate,
+} from "@tanstack/react-router";
+import { ChevronLeft } from "lucide-react";
+import { PageContainer } from "@/components/layout/page";
+import { CardThumb } from "@/components/domain/card-thumb";
+import { GradeBadge } from "@/components/domain/grade-badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { products } from "@/lib/mock/data";
+import { formatWon, minBidUnit } from "@/lib/format";
+
+export const Route = createFileRoute("/seller/apply/$productId")({
+  loader: ({ params }) => {
+    const product = products.find((p) => p.id === params.productId);
+    if (!product) throw notFound();
+    return { product };
+  },
+  component: AuctionApplyPage,
+});
+
+/** DESIGN.md · auction-apply.html — 희망 시작가/낙찰가/일정, 신청 후 수정·삭제 불가 */
+function AuctionApplyPage() {
+  const { product } = Route.useLoaderData();
+  const navigate = useNavigate();
+  const [startPrice, setStartPrice] = useState("");
+  const [reserve, setReserve] = useState("");
+  const [schedule, setSchedule] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const startValue = Number(startPrice.replace(/[^0-9]/g, ""));
+  const unit = startValue ? minBidUnit(startValue) : 0;
+  const valid = startValue > 0 && schedule.length > 0;
+
+  return (
+    <PageContainer className="flex max-w-2xl flex-col gap-6">
+      <Link
+        to="/seller/products/$productId"
+        params={{ productId: product.id }}
+        className="inline-flex items-center gap-1 text-sm text-[var(--color-text-sub)] hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" /> 상품 상세
+      </Link>
+
+      <h1 className="text-2xl font-bold">경매 신청</h1>
+
+      {/* 대상 상품 */}
+      <div className="flex items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4">
+        <CardThumb
+          cardName={product.cardName}
+          aspect="aspect-square"
+          className="w-16"
+        />
+        <div className="flex flex-col gap-1">
+          <GradeBadge grade={product.grade} />
+          <span className="text-sm font-semibold">{product.cardName}</span>
+          <span className="tabular text-xs text-[var(--color-text-muted)]">
+            인증서 {product.grade.serial}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-6">
+        <div className="flex flex-col gap-1.5">
+          <Label>
+            희망 시작가 <span className="text-[var(--color-danger)]">*</span>
+          </Label>
+          <Input
+            inputMode="numeric"
+            value={startPrice}
+            onChange={(e) => setStartPrice(e.target.value)}
+            placeholder="1,000,000"
+            className="tabular"
+          />
+          <p className="text-xs text-[var(--color-text-muted)]">
+            최소 입찰 단위는 시작가의 5%로 시스템이 결정합니다 —{" "}
+            <span className="tabular font-semibold text-foreground">
+              {formatWon(unit)}
+            </span>
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>최소 희망 낙찰가 (비공개)</Label>
+          <Input
+            inputMode="numeric"
+            value={reserve}
+            onChange={(e) => setReserve(e.target.value)}
+            placeholder="구매자에게 공개되지 않습니다"
+            className="tabular"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>
+            희망 일정 <span className="text-[var(--color-danger)]">*</span>
+          </Label>
+          <Input
+            type="datetime-local"
+            value={schedule}
+            onChange={(e) => setSchedule(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <p className="rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-4 py-3 text-xs text-[var(--color-warning)]">
+        신청 후에는 수정·삭제할 수 없습니다. 유찰 시 재신청이 가능합니다.
+      </p>
+
+      <Button
+        size="lg"
+        disabled={!valid}
+        onClick={() => setConfirmOpen(true)}
+        className="w-full"
+      >
+        경매 신청
+      </Button>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>경매를 신청할까요?</DialogTitle>
+            <DialogDescription>
+              신청 후에는 수정·삭제할 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <dl className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-2)] p-4 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-[var(--color-text-sub)]">희망 시작가</dt>
+              <dd className="tabular font-semibold">{formatWon(startValue)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-[var(--color-text-sub)]">최소 입찰 단위</dt>
+              <dd className="tabular">{formatWon(unit)}</dd>
+            </div>
+          </dl>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setConfirmOpen(false)}
+            >
+              취소
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => navigate({ to: "/seller/products" })}
+            >
+              신청 확정
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </PageContainer>
+  );
+}

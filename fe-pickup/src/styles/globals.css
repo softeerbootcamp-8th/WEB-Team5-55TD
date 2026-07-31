@@ -1,0 +1,249 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* =========================================================================
+   카디언(Cardian) 디자인 토큰 — Airbnb 리스킨
+   DESIGN-airbnb.md 기준. 순백 캔버스 + 잉크(#222) 텍스트 + 단일 Rausch(#ff385c)
+   액센트의 라이트 전용 시스템. 역할 구분은 유지하되 Airbnb 팔레트 안에서
+   구매자=Rausch, 셀러=Luxe 퍼플로 매핑한다.
+   shadcn/ui 시맨틱 토큰은 아래 팔레트를 참조하도록 매핑한다.
+   ========================================================================= */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ---- Raw palette (DESIGN-airbnb.md · Colors) ---------------------- */
+  /* 배경 · 표면 — Airbnb 는 공개 웹에 다크 모드가 없다. 순백 캔버스. */
+  --color-bg: #ffffff; /* canvas — 앱 최하단 배경 */
+  --color-surface: #ffffff; /* surface-card — 카드 · 패널 (헤어라인으로 구분) */
+  --color-surface-2: #f7f7f7; /* surface-soft — 입력 필드 · 리스트 셀 */
+  --color-surface-elev: #ffffff; /* 모달 · 드롭다운 (그림자로 부양) */
+  --color-border: #dddddd; /* hairline */
+  --color-border-strong: #c1c1c1; /* border-strong */
+
+  /* 텍스트 */
+  --color-text: #222222; /* ink — 기본 (순수 검정 아님) */
+  --color-text-sub: #6a6a6a; /* muted — 보조 · 라벨 */
+  --color-text-muted: #929292; /* muted-soft — 캡션 · 비활성 */
+
+  /* 역할 액센트 — Airbnb 팔레트 매핑 (구매자=Rausch, 셀러=Luxe) */
+  --color-buyer: #ff385c; /* Rausch — 구매자 주요 CTA */
+  --color-buyer-hover: #e00b41; /* Rausch active */
+  --color-buyer-weak: rgba(255, 56, 92, 0.1);
+  --color-seller: #460479; /* Luxe purple — 셀러 주요 CTA */
+  --color-seller-hover: #38035f;
+  --color-seller-weak: rgba(70, 4, 121, 0.1);
+
+  /* 시맨틱 — 라이트 배경에서 가독성 확보한 값 */
+  --color-success: #008a05; /* 낙찰 · 정산 완료 */
+  --color-warning: #b35c00; /* 예정 · 대기 */
+  --color-danger: #c13515; /* 입찰 실패 · 삭제 · 추월 (Airbnb error) */
+  --color-live: #e00b41; /* 진행 중(LIVE) 인디케이터 도트 */
+
+  /* 금액 강조 — Airbnb 는 가격/평점을 잉크로 렌더한다 */
+  --color-price: #222222; /* 현재가 등 최우선 수치 */
+
+  /* ---- 타이포그래피 (DESIGN-airbnb.md · Typography) ------------------ */
+  /* Airbnb Cereal VF → (없을 시) Inter/Pretendard 로 폴백. 한글은 Pretendard. */
+  --font-sans:
+    "Airbnb Cereal VF", "Circular", "Inter", "Pretendard", system-ui,
+    -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Helvetica Neue",
+    sans-serif;
+  --font-num: "Airbnb Cereal VF", "Inter", "Pretendard", ui-monospace, sans-serif;
+
+  /* ---- 간격 · 반경 (DESIGN-airbnb.md · Layout / rounded) ------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Airbnb 는 부드러운 형태 언어: 버튼/입력 8px, 카드 14px, 패널 20px, pill */
+  --radius-sm: 8px; /* 배지 · 입력 필드 · 버튼 (rounded.sm) */
+  --radius-md: 8px; /* 버튼 (rounded.sm) */
+  --radius-lg: 14px; /* 카드 · 패널 (rounded.md) */
+  --radius-pill: 9999px; /* 상태 배지 · 탭 pill · 검색 orb */
+
+  /* Airbnb 는 단일 그림자 계층 + 플랫 베이스라인. 라이트 톤. */
+  --shadow-dropdown:
+    rgba(0, 0, 0, 0.02) 0 0 0 1px, rgba(0, 0, 0, 0.04) 0 2px 6px 0,
+    rgba(0, 0, 0, 0.1) 0 4px 8px 0;
+  --shadow-modal:
+    rgba(0, 0, 0, 0.08) 0 0 0 1px, rgba(0, 0, 0, 0.12) 0 6px 16px 0,
+    rgba(0, 0, 0, 0.12) 0 3px 6px 0;
+
+  --container-max: 1200px;
+  --gnb-height: 80px; /* Airbnb top-nav 80px */
+
+  /* ---- shadcn/ui 시맨틱 토큰 (팔레트에 매핑) ------------------------ */
+  --radius: var(--radius-lg);
+
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+
+  --popover: var(--color-surface-elev);
+  --popover-foreground: var(--color-text);
+
+  /* 기본 primary = 구매자 Rausch (역할별 화면에서 buyer/seller 유틸로 오버라이드) */
+  --primary: var(--color-buyer);
+  --primary-foreground: #ffffff;
+
+  --secondary: var(--color-surface-2);
+  --secondary-foreground: var(--color-text);
+
+  --muted: var(--color-surface-2);
+  --muted-foreground: var(--color-text-muted);
+
+  --accent: var(--color-surface-2);
+  --accent-foreground: var(--color-text);
+
+  --destructive: var(--color-danger);
+  --destructive-foreground: #ffffff;
+
+  --border: var(--color-border);
+  --input: var(--color-surface-2);
+  --ring: var(--color-buyer);
+}
+
+/* =========================================================================
+   Tailwind v4 테마 매핑
+   위 CSS 변수를 Tailwind 유틸리티(bg-*, text-*, border-* 등)로 노출한다.
+   ========================================================================= */
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-num: var(--font-num);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* 표면 계층 */
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-surface-elev: var(--color-surface-elev);
+  --color-border-strong: var(--color-border-strong);
+
+  /* 텍스트 계층 */
+  --color-text: var(--color-text);
+  --color-text-sub: var(--color-text-sub);
+  --color-text-muted: var(--color-text-muted);
+
+  /* 역할 액센트 */
+  --color-buyer: var(--color-buyer);
+  --color-buyer-hover: var(--color-buyer-hover);
+  --color-seller: var(--color-seller);
+  --color-seller-hover: var(--color-seller-hover);
+
+  /* 상태 */
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+  --color-live: var(--color-live);
+  --color-price: var(--color-price);
+
+  /* 반경 — Airbnb 소프트 스케일 (고정값) */
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* 애니메이션 (accordion · live pulse) */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-live-pulse: live-pulse 1.4s ease-in-out infinite;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes live-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+}
+
+/* =========================================================================
+   Base
+   ========================================================================= */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 금액 · 타이머는 자릿수 정렬(tabular-nums) — DESIGN-airbnb.md */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* =========================================================================
+   Utilities — 역할 컨텍스트 스코프
+   화면 루트에 data-role="buyer" | "seller" 를 지정하면 primary/ring 액센트가
+   해당 역할 색으로 전환된다. 구매자=Rausch, 셀러=Luxe 퍼플.
+   ========================================================================= */
+[data-role="seller"] {
+  --primary: var(--color-seller);
+  --primary-foreground: #ffffff;
+  --primary-weak: var(--color-seller-weak);
+  --ring: var(--color-seller);
+}
+
+[data-role="buyer"] {
+  --primary: var(--color-buyer);
+  --primary-foreground: #ffffff;
+  --primary-weak: var(--color-buyer-weak);
+  --ring: var(--color-buyer);
+}

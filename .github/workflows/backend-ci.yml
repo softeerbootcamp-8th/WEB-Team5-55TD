@@ -1,0 +1,294 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'pickup/**'
+      - '.github/workflows/backend-ci.yml'
+      - '.github/scripts/validate_migrations.py'
+  workflow_call:
+    inputs:
+      upload-jar:
+        description: '빌드된 실행형 jar를 아티팩트로 업로드할지 여부 (CD에서 사용)'
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    working-directory: pickup
+
+jobs:
+  migration-lint:
+    name: Flyway Migration Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # merge-base 계산에 전체 이력이 필요하다 (기존 마이그레이션 수정 감지).
+          fetch-depth: 0
+
+      - name: Validate Flyway migrations
+        id: validate
+        env:
+          MIGRATION_DIR: pickup/src/main/resources/db/migration
+          BASE_REF: ${{ github.base_ref }}
+        run: python3 .github/scripts/validate_migrations.py
+
+      # 성공 알림은 보내지 않는다. build 잡이 이미 CI 성공 알림을 보내므로
+      # PR 마다 두 번 울리게 된다. 조치가 필요한 실패만 알린다.
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Flyway 마이그레이션 검증 실패: ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "❌ Flyway 마이그레이션 검증 실패"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.head_ref || github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*오류*\n${{ steps.validate.outputs.error_count || '측정 불가' }}건"
+                  - type: mrkdwn
+                    text: "*경고*\n${{ steps.validate.outputs.warning_count || '측정 불가' }}건"
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: "*실패 사유*\n${{ steps.validate.outputs.error_summary || '검증 스크립트가 실행되지 못했습니다. 워크플로 로그를 확인하세요.' }}"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build & Test
+        id: build-and-test
+        env:
+          JWT_TEST_SECRET: ${{ secrets.JWT_TEST_SECRET }}
+        run: ./gradlew clean build --no-daemon
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            pickup/build/reports/tests/test
+            pickup/build/test-results/test
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: pickup/build/reports/jacoco/test
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Compute test coverage
+        id: coverage
+        if: always()
+        run: |
+          python3 <<'PYEOF'
+          import os
+          import sys
+          import xml.etree.ElementTree as ET
+
+          report_path = "build/reports/jacoco/test/jacocoTestReport.xml"
+          output_path = os.environ["GITHUB_OUTPUT"]
+
+
+          def unavailable():
+              with open(output_path, "a") as f:
+                  f.write("coverage_available=false\n")
+              sys.exit(0)
+
+
+          if not os.path.isfile(report_path):
+              unavailable()
+
+          try:
+              root = ET.parse(report_path).getroot()
+          except ET.ParseError:
+              unavailable()
+
+          line_counter = root.find("./counter[@type='LINE']")
+          branch_counter = root.find("./counter[@type='BRANCH']")
+          if line_counter is None or branch_counter is None:
+              unavailable()
+
+
+          def percent(covered, missed):
+              total = covered + missed
+              return f"{(covered / total * 100):.2f}" if total else "0.00"
+
+
+          line_covered = int(line_counter.get("covered"))
+          line_missed = int(line_counter.get("missed"))
+          branch_covered = int(branch_counter.get("covered"))
+          branch_missed = int(branch_counter.get("missed"))
+
+          with open(output_path, "a") as f:
+              f.write("coverage_available=true\n")
+              f.write(f"line_covered={line_covered}\n")
+              f.write(f"line_missed={line_missed}\n")
+              f.write(f"line_total={line_covered + line_missed}\n")
+              f.write(f"coverage_percent={percent(line_covered, line_missed)}\n")
+              f.write(f"branch_covered={branch_covered}\n")
+              f.write(f"branch_missed={branch_missed}\n")
+              f.write(f"branch_total={branch_covered + branch_missed}\n")
+              f.write(f"branch_percent={percent(branch_covered, branch_missed)}\n")
+          PYEOF
+
+      - name: Notify Slack on success
+        if: ${{ success() && steps.coverage.outputs.coverage_available == 'true' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Backend CI 성공 (라인 커버리지 ${{ steps.coverage.outputs.coverage_percent }}%, 브랜치 커버리지 ${{ steps.coverage.outputs.branch_percent }}%): ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "✅ Backend CI 테스트 통과"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*라인 커버리지*\n${{ steps.coverage.outputs.coverage_percent }}% (${{ steps.coverage.outputs.line_covered }}/${{ steps.coverage.outputs.line_total }})"
+                  - type: mrkdwn
+                    text: "*브랜치 커버리지*\n${{ steps.coverage.outputs.branch_percent }}% (${{ steps.coverage.outputs.branch_covered }}/${{ steps.coverage.outputs.branch_total }})"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+
+      - name: Notify Slack on success (coverage unavailable)
+        if: ${{ success() && steps.coverage.outputs.coverage_available != 'true' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Backend CI 성공 (커버리지 리포트 없음): ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "✅ Backend CI 테스트 통과"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*커버리지*\n리포트를 찾을 수 없습니다."
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Backend CI 실패: ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "❌ Backend CI 테스트 실패"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  - type: mrkdwn
+                    text: "*실행자*\n${{ github.actor }}"
+                  - type: mrkdwn
+                    text: "*라인 커버리지*\n${{ steps.coverage.outputs.coverage_available == 'true' && format('{0}% ({1}/{2})', steps.coverage.outputs.coverage_percent, steps.coverage.outputs.line_covered, steps.coverage.outputs.line_total) || '측정 불가 (빌드 또는 테스트 단계에서 실패)' }}"
+                  - type: mrkdwn
+                    text: "*브랜치 커버리지*\n${{ steps.coverage.outputs.coverage_available == 'true' && format('{0}% ({1}/{2})', steps.coverage.outputs.branch_percent, steps.coverage.outputs.branch_covered, steps.coverage.outputs.branch_total) || '측정 불가 (빌드 또는 테스트 단계에서 실패)' }}"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그에서 자세히 보기>"
+
+      - name: Upload application jar
+        if: ${{ inputs.upload-jar }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: |
+            pickup/build/libs/pickup-*.jar
+            !pickup/build/libs/*-plain.jar
+          if-no-files-found: error

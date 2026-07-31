@@ -1,0 +1,749 @@
+openapi: 3.0.3
+info:
+  title: PickUp API
+  version: 0.1.0
+  description: >
+    TCG 실물 카드 경매 플랫폼 API.
+
+
+    이 파일은 orval 의 입력이자 프론트·백엔드 간 API 계약서입니다.
+    백엔드를 변경했다면 실행 중인 서버의 /v3/api-docs.yaml 출력을 보고
+    이 파일을 함께 갱신해 주세요.
+
+
+    orval.config.ts 의 input.target 을 서버 URL 로 바꾸지 마세요.
+    프론트엔드 CI/CD 가 백엔드 기동 상태에 의존하게 되고, 사람마다
+    다른 API 클라이언트가 생성되어 빌드를 재현할 수 없게 됩니다.
+
+
+    태그 이름은 백엔드의 @Tag(name = ...) 와 일치시킵니다.
+    orval 이 태그로 디렉터리를 나누므로, 어긋나면 import 경로가 깨집니다.
+servers:
+  - url: /api
+tags:
+  - name: Health Check
+    description: 서버 상태 확인
+  - name: Authentication
+    description: 인증 (로그인 · 토큰 갱신 · 로그아웃)
+  - name: Member
+    description: 회원 (회원가입 · 마이페이지)
+  - name: Card
+    description: 카드 검색
+  - name: Consignment
+    description: 상품(위탁) 등록
+  # 아래 두 태그는 아직 백엔드에 구현되지 않았습니다.
+  # 화면 개발용 목 데이터의 타입 출처로만 쓰이며, 실제 호출하면 404 입니다.
+  - name: auctions
+    description: 경매 (백엔드 미구현)
+  - name: bids
+    description: 입찰 (백엔드 미구현)
+paths:
+  /healthcheck:
+    get:
+      tags: [Health Check]
+      operationId: healthCheck
+      summary: 헬스체크
+      description: 서버가 정상적으로 동작 중인지 확인합니다.
+      responses:
+        "200":
+          description: 서버 정상 동작
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResponse"
+  /auth:
+    post:
+      tags: [Authentication]
+      operationId: login
+      summary: 로그인
+      description: 아이디와 비밀번호를 검증하고 Access Token과 Refresh Token을 HttpOnly 쿠키로 발급합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: 로그인 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: 아이디 또는 비밀번호 형식 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 아이디 또는 비밀번호 불일치
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      operationId: refresh
+      summary: 토큰 갱신
+      description: refresh-token 쿠키를 검증하고 기존 토큰을 폐기한 뒤 새 Access Token과 Refresh Token을 발급합니다.
+      responses:
+        "200":
+          description: 토큰 갱신 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResponse"
+        "401":
+          description: Refresh Token이 없거나 유효하지 않음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: logout
+      summary: 로그아웃
+      description: refresh-token 쿠키를 폐기하고 Access Token과 Refresh Token 쿠키를 만료합니다.
+      responses:
+        "204":
+          description: 로그아웃 성공
+  /members:
+    post:
+      tags: [Member]
+      operationId: createMember
+      summary: 회원가입
+      description: 로그인 ID, 닉네임, 비밀번호로 회원을 생성합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberRequest"
+      responses:
+        "201":
+          description: 회원가입 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
+        "409":
+          description: 로그인 ID 또는 닉네임 중복
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /members/me:
+    get:
+      tags: [Member]
+      operationId: getMyProfile
+      summary: 내 정보 조회
+      description: access-token 쿠키로 인증된 회원의 정보를 조회합니다.
+      responses:
+        "200":
+          description: 내 정보 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyProfileResponse"
+        "401":
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 회원 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+    patch:
+      tags: [Member]
+      operationId: updateMyProfile
+      summary: 내 정보 수정
+      description: 전달된 닉네임, 비밀번호, 프로필 이미지 URL만 수정합니다. 비밀번호 변경 시 현재 비밀번호가 필요합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMyProfileRequest"
+      responses:
+        "200":
+          description: 내 정보 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyProfileResponse"
+        "400":
+          description: 요청 값 검증 실패
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 회원 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "409":
+          description: 닉네임 중복
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /members/me/points:
+    get:
+      tags: [Member]
+      operationId: getMyPointBalance
+      summary: 내 포인트 잔액 조회
+      responses:
+        "200":
+          description: 포인트 잔액 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PointBalanceResponse"
+        "401":
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 회원 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /cards:
+    get:
+      tags: [Card]
+      operationId: searchCards
+      summary: 카드 검색
+      description: >
+        카드명, 세트명, 언어 조건으로 카드를 검색합니다. 검색 조건은 모두
+        선택 사항이며, 카드 ID 내림차순으로 조회합니다. 다음 페이지 조회 시
+        이전 응답의 cursor 를 전달합니다.
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: setName
+          in: query
+          schema:
+            type: string
+        - name: language
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: size
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: 카드 검색 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchCardsPageResponse"
+        "400":
+          description: 잘못된 검색 조건
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /cards/{cardId}:
+    get:
+      tags: [Card]
+      operationId: getCardDetail
+      summary: 카드 상세 조회
+      description: 카드 ID로 카드 상세 정보를 조회합니다.
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: 카드 상세 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchCardsResponse"
+        "404":
+          description: 카드를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /consignments:
+    post:
+      tags: [Consignment]
+      operationId: registerConsignment
+      summary: 상품 등록
+      description: >
+        카드 검색으로 선택한 카드와 감정서, 이미지(앞/뒤 최소 2장) 정보를
+        받아 상품을 등록합니다. 이미지 순서는 요청 배열에 담긴 순서를 그대로
+        사용합니다. 등록 직후 상태는 REGISTERABLE(등록 가능)로 설정됩니다.
+        access-token 쿠키로 인증된 회원이 판매자가 됩니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterConsignmentRequest"
+      responses:
+        "201":
+          description: 상품 등록 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterConsignmentResponse"
+        "400":
+          description: 요청 값 검증 실패 (필수 값 누락, 이미지 2장 미만, 유효하지 않은 등급/감정기관 등)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 인증 필요 (access-token 쿠키 없음/만료)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 카드 또는 회원을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "409":
+          description: 이미 등록된 인증서 일련번호
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /auctions:
+    get:
+      tags: [auctions]
+      operationId: listAuctions
+      summary: 경매 목록
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/AuctionStatus"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 경매 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuctionSummary"
+  /auctions/{auctionId}:
+    get:
+      tags: [auctions]
+      operationId: getAuction
+      summary: 경매 상세
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 경매 상세
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuctionDetail"
+  /auctions/{auctionId}/bids:
+    get:
+      tags: [bids]
+      operationId: listBids
+      summary: 입찰 내역
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 입찰 내역
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bid"
+    post:
+      tags: [bids]
+      operationId: placeBid
+      summary: 입찰하기
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaceBidRequest"
+      responses:
+        "201":
+          description: 입찰 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bid"
+components:
+  schemas:
+    HealthCheckResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: OK
+    LoginRequest:
+      type: object
+      required: [loginId, password]
+      properties:
+        loginId:
+          type: string
+          minLength: 4
+        password:
+          type: string
+          minLength: 4
+    LoginResponse:
+      type: object
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        loginId:
+          type: string
+        nickname:
+          type: string
+        profileImageUrl:
+          type: string
+    RefreshResponse:
+      type: object
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
+    MemberRequest:
+      type: object
+      required: [loginId, nickname, password]
+      properties:
+        loginId:
+          type: string
+          minLength: 4
+        nickname:
+          type: string
+          minLength: 4
+        password:
+          type: string
+          minLength: 4
+    MemberResponse:
+      type: object
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        loginId:
+          type: string
+        nickname:
+          type: string
+        profileImageUrl:
+          type: string
+    MyProfileResponse:
+      type: object
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        loginId:
+          type: string
+        nickname:
+          type: string
+        profileImageUrl:
+          type: string
+    UpdateMyProfileRequest:
+      type: object
+      description: >
+        전달된 필드만 수정합니다. 셋 중 최소 하나는 있어야 하며,
+        password 를 보낼 때는 currentPassword 도 함께 보내야 합니다.
+      properties:
+        nickname:
+          type: string
+          minLength: 4
+        currentPassword:
+          type: string
+          minLength: 4
+        password:
+          type: string
+          minLength: 4
+        profileImageUrl:
+          type: string
+          maxLength: 255
+    PointBalanceResponse:
+      type: object
+      required: [pointBalance]
+      properties:
+        pointBalance:
+          type: integer
+          format: int64
+    SearchCardsResponse:
+      type: object
+      properties:
+        cardId:
+          type: integer
+          format: int64
+        cardName:
+          type: string
+        setName:
+          type: string
+        cardNumber:
+          type: string
+        language:
+          type: string
+        rarity:
+          type: string
+        imageUrl:
+          type: string
+    SearchCardsPageResponse:
+      type: object
+      properties:
+        hasNext:
+          type: boolean
+        cursor:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchCardsResponse"
+    CertificateRequest:
+      type: object
+      required: [serialNumber, certificationBody, grade, inspectedAt]
+      properties:
+        serialNumber:
+          type: string
+          minLength: 1
+        certificationBody:
+          type: string
+          minLength: 1
+          description: PSA, BGS, CGC, SGC, ACE 중 하나 (대소문자 무관)
+        grade:
+          type: string
+          minLength: 1
+          description: >
+            등급 코드(GEM_MINT, MINT, NM_MT, NM, EX_MT, EX, VG_EX, VG, GOOD,
+            POOR) 또는 그에 대응하는 숫자 점수(예: "10")
+        inspectedAt:
+          type: string
+          format: date
+    ConsignmentImageRequest:
+      type: object
+      required: [imageUrl]
+      properties:
+        imageUrl:
+          type: string
+          minLength: 1
+    RegisterConsignmentRequest:
+      type: object
+      required: [cardId, certificate, images]
+      properties:
+        cardId:
+          type: integer
+          format: int64
+        majorDefect:
+          type: string
+        certificate:
+          $ref: "#/components/schemas/CertificateRequest"
+        images:
+          type: array
+          minItems: 2
+          items:
+            $ref: "#/components/schemas/ConsignmentImageRequest"
+    CertificateResponse:
+      type: object
+      properties:
+        certificateId:
+          type: integer
+          format: int64
+        serialNumber:
+          type: string
+        certificationBody:
+          type: string
+          enum: [PSA, BGS, CGC, SGC, ACE]
+        grade:
+          type: string
+          description: '숫자 점수 문자열 (예: "10")'
+        gradeCode:
+          type: string
+          description: "등급 코드 (예: GEM_MINT)"
+        inspectedAt:
+          type: string
+          format: date
+    RegisterConsignmentResponse:
+      type: object
+      properties:
+        consignmentId:
+          type: integer
+          format: int64
+        card:
+          $ref: "#/components/schemas/SearchCardsResponse"
+        sellerMemberId:
+          type: integer
+          format: int64
+        majorDefect:
+          type: string
+        status:
+          type: string
+          enum:
+            [REGISTERABLE, AUCTION_SCHEDULED, AUCTION_ONGOING, WON, PASSED]
+        certificate:
+          $ref: "#/components/schemas/CertificateResponse"
+    ExceptionResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          format: int32
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    AuctionStatus:
+      type: string
+      enum: [LIVE, UPCOMING, ENDED]
+      description: 진행 중 · 예정 · 종료
+    Grade:
+      type: object
+      properties:
+        agency:
+          type: string
+          enum: [PSA, BGS, CGC]
+          description: 인증기관
+        score:
+          type: string
+          example: "10"
+        serial:
+          type: string
+          description: 인증서 일련번호
+          example: PSA-84213907
+    AuctionSummary:
+      type: object
+      required: [id, cardName, status]
+      properties:
+        id:
+          type: string
+        cardName:
+          type: string
+        thumbnailUrl:
+          type: string
+        status:
+          $ref: "#/components/schemas/AuctionStatus"
+        grade:
+          $ref: "#/components/schemas/Grade"
+        currentPrice:
+          type: integer
+        startPrice:
+          type: integer
+        endsAt:
+          type: string
+          format: date-time
+        startsAt:
+          type: string
+          format: date-time
+        watchCount:
+          type: integer
+    AuctionDetail:
+      allOf:
+        - $ref: "#/components/schemas/AuctionSummary"
+        - type: object
+          properties:
+            sellerNickname:
+              type: string
+            minBidUnit:
+              type: integer
+              description: 최소 입찰 단위 (시작가의 5%)
+            images:
+              type: array
+              items:
+                type: string
+            bidCount:
+              type: integer
+    Bid:
+      type: object
+      required: [id, maskedNickname, amount, createdAt]
+      properties:
+        id:
+          type: string
+        maskedNickname:
+          type: string
+          example: bid***23
+        amount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        isMine:
+          type: boolean
+    PlaceBidRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: integer
+          description: 현재가 + 최소 입찰 단위 이상
