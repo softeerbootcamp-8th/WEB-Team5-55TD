@@ -21,7 +21,7 @@ public record CreateAuctionRequest(
         .auctionStatus(AuctionStatus.SCHEDULED)
         .startingPrice(startingPrice)
         .reservePrice(reserve)
-        .minimumBidIncrement(bidIncrement)
+        .bidIncrement(bidIncrement)
         .build();
   }
 }

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { AxiosError } from "axios";
 import { ChevronLeft } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
@@ -14,25 +15,30 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { auctionDetails, getAuctionCardInfo } from "@/lib/mock/data";
+import { getAuctionDetail } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
 import { formatDateTime, formatWon } from "@/lib/format";
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/")({
-  loader: ({ params }) => {
-    const auction = auctionDetails[params.auctionId];
-    if (!auction) throw notFound();
-    return { auction, card: getAuctionCardInfo(params.auctionId) };
+  loader: async ({ params }) => {
+    try {
+      return { auction: await getAuctionDetail(params.auctionId) };
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        throw notFound();
+      }
+      throw error;
+    }
   },
   component: AuctionDetailPage,
 });
 
 /** DESIGN.md · auction detail.html */
 function AuctionDetailPage() {
-  const { auction, card } = Route.useLoaderData();
+  const { auction } = Route.useLoaderData();
   const isLive = auction.status === AuctionStatus.LIVE;
   const isUpcoming = auction.status === AuctionStatus.UPCOMING;
-  const images = auction.images ?? ["front", "back"];
+  const images = auction.images ?? [];
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -49,19 +55,23 @@ function AuctionDetailPage() {
           <CardThumb
             cardName={auction.cardName}
             grade={auction.grade}
-            label={images[0] === "front" ? "앞면" : undefined}
+            imageUrl={images[0] ?? auction.thumbnailUrl}
+            label={!images[0] && !auction.thumbnailUrl ? "앞면" : undefined}
             className="w-full"
           />
-          <div className="grid grid-cols-4 gap-2">
-            {images.map((img, i) => (
-              <CardThumb
-                key={img}
-                cardName={auction.cardName}
-                aspect="aspect-square"
-                label={i === 0 ? "앞" : i === 1 ? "뒤" : `${i + 1}`}
-              />
-            ))}
-          </div>
+          {images.length > 1 && (
+            <div className="grid grid-cols-4 gap-2">
+              {images.map((img, i) => (
+                <CardThumb
+                  key={img}
+                  cardName={auction.cardName}
+                  imageUrl={img}
+                  aspect="aspect-square"
+                  label={i === 0 ? "앞" : i === 1 ? "뒤" : `${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 정보 */}
@@ -80,7 +90,9 @@ function AuctionDetailPage() {
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold">{auction.cardName}</h1>
             <p className="text-sm text-[var(--color-text-sub)]">
-              판매자 · {auction.sellerNickname}
+              {auction.sellerNickname
+                ? `판매자 · ${auction.sellerNickname}`
+                : "검증된 위탁 상품"}
             </p>
           </div>
 
@@ -128,19 +140,19 @@ function AuctionDetailPage() {
               <AccordionTrigger>카드 상세 정보</AccordionTrigger>
               <AccordionContent>
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
-                  <Row label="TCG" value={card.tcg} />
-                  <Row label="세트" value={card.set} />
-                  <Row label="카드 번호" value={card.number} />
-                  <Row label="언어" value={card.language} />
-                  <Row label="희귀도" value={card.rarity} />
+                  <Row label="세트" value={auction.card?.setName ?? "-"} />
+                  <Row
+                    label="카드 번호"
+                    value={auction.card?.cardNumber ?? "-"}
+                  />
+                  <Row label="언어" value={auction.card?.language ?? "-"} />
+                  <Row label="희귀도" value={auction.card?.rarity ?? "-"} />
                   <Row label="인증기관" value={auction.grade?.agency ?? "-"} />
                   <Row label="감정 등급" value={auction.grade?.score ?? "-"} />
                   <Row
                     label="인증서 일련번호"
                     value={auction.grade?.serial ?? "-"}
                   />
-                  <Row label="카드 상태" value={card.condition} full />
-                  <Row label="주요 결함" value={card.defects ?? "-"} full />
                 </dl>
               </AccordionContent>
             </AccordionItem>
