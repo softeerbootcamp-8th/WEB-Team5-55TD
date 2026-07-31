@@ -41,6 +41,8 @@ export interface AuctionDetailView extends AuctionDetail {
   card?: CardResponse;
   cardState?: string;
   majorDefect?: string;
+  /** 경매 전체의 낙찰 여부 (WON). 낙찰자가 조회자 본인인지는 백엔드가 아직 알려주지 않는다. */
+  won: boolean;
 }
 
 export type AuctionSort =
@@ -173,6 +175,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     card: item.card,
     cardState: item.cardState ?? undefined,
     majorDefect: item.majorDefect ?? undefined,
+    won: item.auctionStatus === "WON",
   };
 }
 
@@ -187,6 +190,7 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
     ),
     bidCount: 0,
     card: item.card,
+    won: item.auctionStatus === "WON",
   };
 }
 
@@ -231,6 +235,7 @@ export async function getAuctionDetail(
       minBidUnit: Math.round((summary.startPrice ?? 0) * 0.05),
       images: summary.thumbnailUrl ? [summary.thumbnailUrl] : [],
       bidCount: 0,
+      won: false,
     };
   }
 }

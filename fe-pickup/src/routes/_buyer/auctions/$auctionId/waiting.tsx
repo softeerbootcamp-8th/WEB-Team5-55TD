@@ -1,19 +1,27 @@
 import { useCallback } from "react";
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
+import { AxiosError } from "axios";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Countdown } from "@/components/domain/countdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { auctionDetails, currentUser } from "@/lib/mock/data";
+import { getAuctionDetail } from "@/api/auctions";
+import { useGetMyPointBalance } from "@/api/generated/member/member";
+import { useIsAuthenticated } from "@/lib/auth";
 import { formatDateTime, formatPoint, formatWon } from "@/lib/format";
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/waiting")({
-  loader: ({ params }) => {
-    const auction = auctionDetails[params.auctionId];
-    if (!auction) throw notFound();
-    return { auction };
+  loader: async ({ params }) => {
+    try {
+      return { auction: await getAuctionDetail(params.auctionId) };
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        throw notFound();
+      }
+      throw error;
+    }
   },
   component: WaitingPage,
 });
@@ -22,6 +30,10 @@ export const Route = createFileRoute("/_buyer/auctions/$auctionId/waiting")({
 function WaitingPage() {
   const { auction } = Route.useLoaderData();
   const navigate = useNavigate();
+  const isAuthenticated = useIsAuthenticated();
+  const pointBalanceQuery = useGetMyPointBalance({
+    query: { enabled: isAuthenticated },
+  });
 
   const goLive = useCallback(() => {
     navigate({
@@ -30,6 +42,12 @@ function WaitingPage() {
     });
   }, [auction.id, navigate]);
 
+  const pointLabel = !isAuthenticated
+    ? "로그인 후 확인 가능"
+    : pointBalanceQuery.isLoading
+      ? "조회 중"
+      : formatPoint(pointBalanceQuery.data?.pointBalance);
+
   return (
     <PageContainer className="flex flex-col items-center gap-8 py-16">
       <Badge variant="warning">경매 대기</Badge>
@@ -37,6 +55,7 @@ function WaitingPage() {
       <CardThumb
         cardName={auction.cardName}
         grade={auction.grade}
+        imageUrl={auction.thumbnailUrl}
         className="w-56"
       />
 
@@ -61,11 +80,7 @@ function WaitingPage() {
       <dl className="grid w-full max-w-md grid-cols-3 gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5 text-center">
         <Stat label="시작가" value={formatWon(auction.startPrice)} />
         <Stat label="최소 입찰 단위" value={formatWon(auction.minBidUnit)} />
-        <Stat
-          label="보유 포인트"
-          value={formatPoint(currentUser.points)}
-          accent
-        />
+        <Stat label="보유 포인트" value={pointLabel} accent />
       </dl>
 
       <Button size="lg" disabled className="w-full max-w-md">
