@@ -33,7 +33,11 @@ export function AuctionCard({
       )}
     >
       <div className="relative">
-        <CardThumb cardName={auction.cardName} grade={auction.grade} />
+        <CardThumb
+          cardName={auction.cardName}
+          grade={auction.grade}
+          imageUrl={auction.thumbnailUrl}
+        />
         <StatusBadge status={status} className="absolute top-2 left-2" />
         <HeartButton
           count={auction.watchCount}

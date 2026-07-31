@@ -1,9 +1,14 @@
 package com.ootd.pickup.auction.api;
 
 import com.ootd.pickup.auction.dto.request.CreateAuctionRequest;
+import com.ootd.pickup.auction.dto.request.SearchAuctionsRequest;
+import com.ootd.pickup.auction.dto.response.AuctionDetailResponse;
+import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -85,4 +90,129 @@ public interface AuctionApi {
       })
   ResponseEntity<CreateAuctionResponse> registerAuction(
       Long memberId, CreateAuctionRequest createAuctionRequest);
+
+  @Operation(
+      summary = "경매 목록 조회",
+      description =
+          """
+            검색어(q), 경매 상태(status), 정렬(sort) 조건으로 경매 목록을 커서 기반으로 조회합니다.
+            limit이 있으면 커서/hasNext 없이 상위 N개만 반환하는 홈 노출 전용 모드로 동작합니다.
+            """,
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "경매 목록 조회 성공",
+            content =
+                @Content(
+                    schema = @Schema(implementation = CursorPageResponse.class),
+                    examples =
+                        @ExampleObject(
+                            name = "경매 목록 조회 결과",
+                            value =
+                                """
+                            {
+                              "hasNext": true,
+                              "cursor": "string",
+                              "size": 20,
+                              "items": [
+                                {
+                                  "auctionId": 1,
+                                  "consignmentId": 100,
+                                  "card": {
+                                    "cardId": 10,
+                                    "cardName": "리자몽 1st Edition Holo",
+                                    "setName": "Base Set",
+                                    "cardNumber": "4/102",
+                                    "language": "일본어",
+                                    "rarity": "MINT",
+                                    "imageUrl": "https://example.com/cards/10.png"
+                                  },
+                                  "grade": "PSA 10",
+                                  "auctionStatus": "SCHEDULED",
+                                  "startingPrice": 10000,
+                                  "currentPrice": null,
+                                  "startedAt": "2026-08-01T10:00:00",
+                                  "endedAt": null,
+                                  "remainingSeconds": null,
+                                  "watchCount": 0,
+                                  "watched": false,
+                                  "thumbnailUrl": "https://example.com/consignments/100-front.png"
+                                }
+                              ]
+                            }
+                            """))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "요청 값 검증 실패 (잘못된 sort/status/cursor, size/limit 오류 등)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<CursorPageResponse<AuctionListItemResponse, String>> searchAuctions(
+      Long memberId, SearchAuctionsRequest searchAuctionsRequest);
+
+  @Operation(
+      summary = "경매 상세 조회",
+      description = "경매 ID로 경매 상세 정보(카드, 인증서, 이미지, 판매자, 입찰 관련 정보 등)를 조회합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "경매 상세 조회 성공",
+            content =
+                @Content(
+                    schema = @Schema(implementation = AuctionDetailResponse.class),
+                    examples =
+                        @ExampleObject(
+                            name = "경매 상세 조회 결과",
+                            value =
+                                """
+                            {
+                              "auctionId": 1,
+                              "consignmentId": 100,
+                              "card": {
+                                "cardId": 10,
+                                "cardName": "리자몽 1st Edition Holo",
+                                "setName": "Base Set",
+                                "cardNumber": "4/102",
+                                "language": "일본어",
+                                "rarity": "MINT",
+                                "imageUrl": "https://example.com/cards/10.png"
+                              },
+                              "grade": "PSA 10",
+                              "auctionStatus": "SCHEDULED",
+                              "startingPrice": 10000,
+                              "currentPrice": null,
+                              "startedAt": "2026-08-01T10:00:00",
+                              "endedAt": null,
+                              "remainingSeconds": null,
+                              "watchCount": 0,
+                              "watched": false,
+                              "thumbnailUrl": "https://example.com/consignments/100-front.png",
+                              "sellerNickname": "카드마스터샵",
+                              "certificate": {
+                                "certificateId": 1,
+                                "serialNumber": "PSA-84213907",
+                                "certificationBody": "PSA",
+                                "grade": "10",
+                                "inspectedAt": "2026-06-30"
+                              },
+                              "images": [
+                                {
+                                  "productImageId": 1,
+                                  "imageOrder": 0,
+                                  "imageUrl": "https://example.com/consignments/100-front.png"
+                                }
+                              ],
+                              "cardState": "Gem Mint",
+                              "majorDefect": null,
+                              "bidIncrement": 500,
+                              "nextMinBid": 10000,
+                              "recommendedBid": null
+                            }
+                            """))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "경매를 찾을 수 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<AuctionDetailResponse> getAuctionDetail(
+      Long memberId, @Parameter(description = "경매 ID", required = true) Long auctionId);
 }

@@ -11,6 +11,44 @@
 
 ---
 
+## 0. 도메인 용어 (Ubiquitous Language)
+
+코드에서 도메인을 가리킬 때는 아래 용어를 **그대로** 클래스명/필드명/메서드명에 반영한다. 새 용어가 필요하면 이 표에 먼저 추가하고 코드에 반영한다. 한글 용어는 커밋 메시지·문서·로그 메시지에, 괄호 안 영문 용어는 코드 식별자에 사용한다.
+
+| 용어 | 정의 |
+| --- | --- |
+| 회원(Member) | 서비스에 가입한 사용자. 구매자 역할과 셀러 역할을 가질 수 있다. |
+| 셀러(Seller) | 카드를 출품·등록하는 회원 역할. |
+| 구매자(Bidder) | 경매에 참여하는 일반 구매자 역할. |
+| 카드(Card) | 거래 대상이 되는 단일 TCG 카드. |
+| 검수(Inspection) | 전문가가 카드의 진위·상태를 확인하고 감정 등급을 인증하는 절차. |
+| 감정 등급(Grade) | 검수 결과로 부여되는 카드 상태 등급(예: PSA 10). |
+| 상품(Consignment) | 셀러가 등록하고 검수를 거치는 카드 매물. 검수 상태를 가진다. |
+| 경매(Auction) | 하나의 카드에 대해 정해진 시간 동안 진행되는 실시간 입찰 거래. |
+| 경매 상태(Auction Status) | 예정 · 진행 중 · 종료 · 낙찰 · 유찰 · 취소와 같이 경매의 상태를 표현하는 속성. |
+| 입찰(Bid) | 회원이 특정 금액으로 구매 의사를 제시하는 행위. |
+| 현재가(Current Price) | 현재까지 수락된 최고 입찰 금액. |
+| 최소 입찰 단위(Bid Increment) | 한 번에 올릴 수 있는 최소 금액 단위. |
+| 최소 다음 입찰가(Next Min Bid) | 현재가 + 최소 입찰 단위. |
+| 추월(Outbid) | 직전 최고 입찰자가 다른 입찰로 최고 지위를 잃는 사건. |
+| 리저브(Reserve) | 셀러가 정한 최소 희망 낙찰가. 미달 시 유찰된다(비공개). |
+| 마감 연장(Soft Close) | 마감 직전 입찰 발생 시 종료 시각을 연장하는 규칙. |
+| 낙찰(Winning) | 종료 시 최고 입찰자가 카드를 확보하는 결과. |
+| 유찰(Passed) | 입찰이 없거나 리저브 미달로 낙찰되지 않은 결과. |
+| 관심(Watch) | 회원이 예정 경매를 저장해두는 행위. |
+| 입찰 한도(Bid Limit) | 회원이 보유한 가상 포인트 기준의 입찰 가능 한도. |
+
+### 코드 반영 예시
+
+- `Auction.bidIncrement` (❌ `minimumBidIncrement`처럼 용어에 없는 수식어를 붙이지 않는다)
+- `Auction.reservePrice`, `AuctionListItemResponse.currentPrice` — "Price" 접미사는 금액 필드 공통 컨벤션으로 유지 (`startingPrice`/`currentPrice`/`reservePrice`/`winningPrice`)
+- `Consignment.sellerMember` (셀러 역할을 가진 Member 참조)
+- `Watch`, `watchCount`, `watched` — 관심(Watch) 용어 그대로 사용 (❌ `AuctionWatch`처럼 용어에 없는 접두어를 붙이지 않는다)
+- `Certificate`/`Grade`/`inspectedAt` — 검수(Inspection) 절차의 결과물을 표현 (검수 자체를 별도 엔티티로 만들지는 않음)
+- 아직 미구현 개념(Bidder, Bid, Current Price 실값, Next Min Bid, Outbid, Soft Close, Bid Limit)을 구현할 때는 이 표의 영문 용어를 그대로 클래스/필드명으로 사용한다.
+
+---
+
 ## 1. 패키지 구조
 
 도메인 단위로 패키지를 구성하고, 공통 관심사는 `global`에 둔다.
@@ -294,6 +332,7 @@ dev  : 개발 통합
 
 ## 요약 체크리스트 (코드 생성 전 확인)
 
+- [ ] 클래스/필드/메서드명이 도메인 용어(Ubiquitous Language) 표와 일치하는가
 - [ ] Repository 메서드는 영속성 네이밍, Service는 행위 네이밍인가
 - [ ] `find`(Optional) / `get`(예외) 구분이 정확한가
 - [ ] 금지 네이밍(select, load, remove, process...)을 쓰지 않았는가
