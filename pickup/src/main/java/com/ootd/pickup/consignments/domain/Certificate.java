@@ -68,4 +68,8 @@ public class Certificate {
     this.grade = grade;
     this.inspectedAt = inspectedAt;
   }
+
+  public String getGradeDisplay() {
+    return this.certificationBody.name() + " " + this.grade.getScore();
+  }
 }

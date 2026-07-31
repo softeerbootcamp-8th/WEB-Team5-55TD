@@ -5,6 +5,7 @@ import com.ootd.pickup.global.auth.TokenCookieProperties;
 import com.ootd.pickup.global.auth.filter.AuthenticationFilter;
 import com.ootd.pickup.global.auth.interceptor.AuthenticationInterceptor;
 import com.ootd.pickup.global.auth.resolver.MemberIdArgumentResolver;
+import com.ootd.pickup.global.auth.resolver.OptionalMemberIdArgumentResolver;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -23,6 +24,7 @@ public class AuthenticationWebConfig implements WebMvcConfigurer {
 
   private final AuthenticationInterceptor authenticationInterceptor;
   private final MemberIdArgumentResolver memberIdArgumentResolver;
+  private final OptionalMemberIdArgumentResolver optionalMemberIdArgumentResolver;
 
   @Bean
   @ConditionalOnBean(AccessTokenVerifier.class)
@@ -44,5 +46,6 @@ public class AuthenticationWebConfig implements WebMvcConfigurer {
   @Override
   public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
     resolvers.add(memberIdArgumentResolver);
+    resolvers.add(optionalMemberIdArgumentResolver);
   }
 }

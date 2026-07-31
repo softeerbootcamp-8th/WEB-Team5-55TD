@@ -40,7 +40,7 @@ public class CardDataJpaRepository implements CardRepository {
       return null;
     }
 
-    return card.cardName.contains(keyword);
+    return card.cardName.containsIgnoreCase(keyword);
   }
 
   private BooleanExpression setNameEq(String setName) {
@@ -48,7 +48,7 @@ public class CardDataJpaRepository implements CardRepository {
       return null;
     }
 
-    return card.setName.eq(setName);
+    return card.setName.equalsIgnoreCase(setName);
   }
 
   private BooleanExpression languageEq(Language language) {
