@@ -40,7 +40,7 @@
 
 ### 코드 반영 예시
 
-- `Auction.bidIncrement` (❌ `minimumBidIncrement`처럼 용어에 없는 수식어를 붙이지 않는다)
+- `Auction.bidIncrement` (❌ `bidIncrement`처럼 용어에 없는 수식어를 붙이지 않는다)
 - `Auction.reservePrice`, `AuctionListItemResponse.currentPrice` — "Price" 접미사는 금액 필드 공통 컨벤션으로 유지 (`startingPrice`/`currentPrice`/`reservePrice`/`winningPrice`)
 - `Consignment.sellerMember` (셀러 역할을 가진 Member 참조)
 - `Watch`, `watchCount`, `watched` — 관심(Watch) 용어 그대로 사용 (❌ `AuctionWatch`처럼 용어에 없는 접두어를 붙이지 않는다)
