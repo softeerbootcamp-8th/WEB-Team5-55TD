@@ -576,6 +576,98 @@ class ConsignmentServiceTest {
     then(consignmentImageRepository).shouldHaveNoInteractions();
   }
 
+  @Test
+  void 소유자가_REGISTERABLE_상태의_상품을_삭제하면_정상적으로_삭제된다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    // when
+    consignmentService.deleteConsignment(consignmentId, sellerMemberId);
+
+    // then
+    then(certificateRepository).should().deleteByConsignment(consignment);
+    then(consignmentImageRepository).should().deleteAllByConsignment(consignment);
+    then(consignmentRepository).should().deleteById(consignmentId);
+  }
+
+  @Test
+  void PASSED_상태의_상품도_삭제할_수_있다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.PASSED);
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    // when
+    consignmentService.deleteConsignment(consignmentId, sellerMemberId);
+
+    // then
+    then(certificateRepository).should().deleteByConsignment(consignment);
+    then(consignmentImageRepository).should().deleteAllByConsignment(consignment);
+    then(consignmentRepository).should().deleteById(consignmentId);
+  }
+
+  @Test
+  void 존재하지_않는_상품을_삭제하면_예외가_발생한다() {
+    // given
+    Long notExistConsignmentId = 999L;
+    given(consignmentRepository.findByIdForUpdate(notExistConsignmentId))
+        .willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> consignmentService.deleteConsignment(notExistConsignmentId, 1L))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.CONSIGNMENT_NOT_FOUND.getMessage());
+    then(certificateRepository).shouldHaveNoInteractions();
+    then(consignmentImageRepository).shouldHaveNoInteractions();
+    then(consignmentRepository).should(never()).deleteById(any());
+  }
+
+  @Test
+  void 본인이_등록한_상품이_아니면_삭제시_예외가_발생한다() {
+    // given
+    Long consignmentId = 100L;
+    Long otherMemberId = 999L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    // when & then
+    assertThatThrownBy(() -> consignmentService.deleteConsignment(consignmentId, otherMemberId))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.CONSIGNMENT_DELETE_OWNER_MISMATCH.getMessage());
+    then(certificateRepository).shouldHaveNoInteractions();
+    then(consignmentImageRepository).shouldHaveNoInteractions();
+    then(consignmentRepository).should(never()).deleteById(any());
+  }
+
+  @Test
+  void 경매_진행중인_상품을_삭제하면_예외가_발생한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.AUCTION_ONGOING);
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    // when & then
+    assertThatThrownBy(() -> consignmentService.deleteConsignment(consignmentId, sellerMemberId))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.CONSIGNMENT_NOT_DELETABLE.getMessage());
+    then(certificateRepository).shouldHaveNoInteractions();
+    then(consignmentImageRepository).shouldHaveNoInteractions();
+    then(consignmentRepository).should(never()).deleteById(any());
+  }
+
   private Card createCard(Long cardId) {
     Card card =
         Card.builder()

@@ -69,7 +69,15 @@ public enum ExceptionCode {
   BELOW_MIN_INCREMENT(
       HttpStatus.CONFLICT,
       ClientExceptionCode.BELOW_MIN_INCREMENT,
-      "현재가에서 최소 입찰 단위 이상 높게 입찰해야 합니다.");
+      "현재가에서 최소 입찰 단위 이상 높게 입찰해야 합니다."),
+  CONSIGNMENT_DELETE_OWNER_MISMATCH(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.CONSIGNMENT_DELETE_OWNER_MISMATCH,
+      "본인이 등록한 상품만 삭제할 수 있습니다."),
+  CONSIGNMENT_NOT_DELETABLE(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CONSIGNMENT_NOT_DELETABLE,
+      "경매가 시작된 이후에는 상품을 삭제할 수 없습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

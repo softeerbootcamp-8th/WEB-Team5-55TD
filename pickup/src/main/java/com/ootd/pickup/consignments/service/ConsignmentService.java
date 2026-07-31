@@ -127,6 +127,27 @@ public class ConsignmentService {
         consignment, certificate, images, consignment.getSellerMember().getNickname());
   }
 
+  @Transactional
+  public void deleteConsignment(Long consignmentId, Long sellerMemberId) {
+    // 삭제 가능 여부 확인과 삭제 사이에 상태가 바뀌지 않도록 같은 락 안에서 조회한다.
+    Consignment consignment =
+        consignmentRepository
+            .findByIdForUpdate(consignmentId)
+            .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+    if (!consignment.getSellerMember().getMemberId().equals(sellerMemberId)) {
+      throw new PickUpException(CONSIGNMENT_DELETE_OWNER_MISMATCH);
+    }
+
+    if (!consignment.isDeletable()) {
+      throw new PickUpException(CONSIGNMENT_NOT_DELETABLE);
+    }
+
+    certificateRepository.deleteByConsignment(consignment);
+    consignmentImageRepository.deleteAllByConsignment(consignment);
+    consignmentRepository.deleteById(consignmentId);
+  }
+
   private Certificate getCertificate(Consignment consignment) {
     return certificateRepository
         .findCertificateByConsignment(consignment)

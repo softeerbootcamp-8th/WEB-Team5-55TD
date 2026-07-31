@@ -15,4 +15,8 @@ public enum ConsignmentStatus {
   public boolean isModifiable() {
     return this == REGISTERABLE || this == PASSED;
   }
+
+  public boolean isDeletable() {
+    return isModifiable();
+  }
 }

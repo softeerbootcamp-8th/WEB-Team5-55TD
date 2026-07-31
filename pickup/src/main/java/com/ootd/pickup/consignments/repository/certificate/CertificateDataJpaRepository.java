@@ -24,6 +24,11 @@ public class CertificateDataJpaRepository implements CertificateRepository {
   }
 
   @Override
+  public void deleteByConsignment(Consignment consignment) {
+    certificateJpaRepository.deleteByConsignment(consignment);
+  }
+
+  @Override
   public List<Certificate> findAllByConsignmentIds(List<Long> consignmentIds) {
     if (consignmentIds.isEmpty()) {
       return List.of();

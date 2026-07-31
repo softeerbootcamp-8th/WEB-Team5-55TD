@@ -263,4 +263,32 @@ public interface ConsignmentApi {
       @Parameter(description = "상품 ID", required = true) Long consignmentId,
       @Parameter(hidden = true) Long sellerMemberId,
       ModifyConsignmentRequest modifyConsignmentRequest);
+
+  @Operation(
+      summary = "상품 삭제",
+      description =
+          "상품을 삭제합니다. 경매가 시작된 이후(AUCTION_SCHEDULED/AUCTION_ONGOING/WON) 상태의 상품은 삭제할 수 없습니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(responseCode = "204", description = "상품 삭제 성공"),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증이 필요함 (access-token 쿠키 없음/만료)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "403",
+            description = "본인이 등록한 상품이 아님",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "상품을 찾을 수 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "409",
+            description = "경매가 시작된 이후 상태라 삭제할 수 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<Void> deleteConsignment(
+      @Parameter(description = "상품 ID", required = true) Long consignmentId,
+      @Parameter(hidden = true) Long sellerMemberId);
 }
