@@ -14,5 +14,7 @@ public interface BidRepository {
 
   List<Bid> findLastBidsByMemberId(Long memberId, Long cursorBidId, int limit);
 
+  List<Bid> findWonBidsByMemberId(Long memberId, Long cursorBidId, int limit);
+
   Map<Long, Long> findCurrentPricesByAuctionIds(List<Long> auctionIds);
 }

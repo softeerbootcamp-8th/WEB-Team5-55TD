@@ -38,6 +38,16 @@ public class BidDataJpaRepository implements BidRepository {
 
   @Override
   public List<Bid> findLastBidsByMemberId(Long memberId, Long cursorBidId, int limit) {
+    return queryLastBidsByMemberId(memberId, cursorBidId, limit, null);
+  }
+
+  @Override
+  public List<Bid> findWonBidsByMemberId(Long memberId, Long cursorBidId, int limit) {
+    return queryLastBidsByMemberId(memberId, cursorBidId, limit, bid.bidStatus.eq(BidStatus.WON));
+  }
+
+  private List<Bid> queryLastBidsByMemberId(
+      Long memberId, Long cursorBidId, int limit, BooleanExpression additionalPredicate) {
     QBid subBid = new QBid("subBid");
     BooleanExpression isLastBidForAuction =
         bid.bidId.eq(
@@ -55,7 +65,11 @@ public class BidDataJpaRepository implements BidRepository {
         .fetchJoin()
         .join(consignment.card, card)
         .fetchJoin()
-        .where(bid.member.memberId.eq(memberId), isLastBidForAuction, cursorPredicate(cursorBidId))
+        .where(
+            bid.member.memberId.eq(memberId),
+            isLastBidForAuction,
+            additionalPredicate,
+            cursorPredicate(cursorBidId))
         .orderBy(bid.bidId.desc())
         .limit(limit)
         .fetch();
