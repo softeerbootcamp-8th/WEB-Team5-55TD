@@ -27,7 +27,11 @@ function SellerHome() {
     { label: "판매 완료", value: count(ProductStatus.SOLD) },
   ];
 
-  const { data: liveProducts, isPending: isLiveLoading } = useQuery({
+  const {
+    data: liveProducts,
+    isPending: isLiveLoading,
+    isError: isLiveError,
+  } = useQuery({
     queryKey: ["consignments", "my", "AUCTION_ONGOING"],
     queryFn: () =>
       getMyConsignments({ status: "AUCTION_ONGOING" }).then((r) => r.items),
@@ -80,7 +84,11 @@ function SellerHome() {
             </Link>
           }
         />
-        {isLiveLoading ? null : liveProducts && liveProducts.length > 0 ? (
+        {isLiveLoading ? null : isLiveError ? (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            진행 중인 경매를 불러오지 못했습니다.
+          </p>
+        ) : liveProducts && liveProducts.length > 0 ? (
           <ul className="flex flex-col gap-3">
             {liveProducts.slice(0, 3).map((p) => (
               <li
