@@ -1,0 +1,301 @@
+import { useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { ChevronLeft } from "lucide-react";
+import { toast } from "sonner";
+import type { AxiosError } from "axios";
+import { PageContainer } from "@/components/layout/page";
+import { EmptyState } from "@/components/domain/section-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import {
+  getMyConsignmentDetail,
+  modifyMyConsignment,
+} from "@/api/consignments";
+import type { ConsignmentDetail } from "@/api/consignments";
+import type { ExceptionResponse } from "@/api/generated/model";
+import { ProductStatus } from "@/lib/types";
+
+export const Route = createFileRoute("/seller/products/$productId_/edit")({
+  component: ProductEditPage,
+});
+
+const CERTIFICATION_BODIES = ["PSA", "BGS", "CGC", "SGC", "ACE"] as const;
+
+const GRADES = [
+  { code: "GEM_MINT", label: "GEM MINT (10)" },
+  { code: "MINT", label: "MINT (9)" },
+  { code: "NM_MT", label: "NM-MT (8)" },
+  { code: "NM", label: "NM (7)" },
+  { code: "EX_MT", label: "EX-MT (6)" },
+  { code: "EX", label: "EX (5)" },
+  { code: "VG_EX", label: "VG-EX (4)" },
+  { code: "VG", label: "VG (3)" },
+  { code: "GOOD", label: "GOOD (2)" },
+  { code: "POOR", label: "POOR (1)" },
+] as const;
+
+const DEFAULT_ERROR_MESSAGE =
+  "상품 정보 수정에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+
+/** 상품 정보 수정 — 카드 자체는 불변이며 감정서·이미지·주요 결함만 수정 가능 (ConsignmentStatus.isModifiable) */
+function ProductEditPage() {
+  const { productId } = Route.useParams();
+
+  const { data: product, isPending } = useQuery({
+    queryKey: ["consignments", "detail", productId],
+    queryFn: () => getMyConsignmentDetail(productId),
+  });
+
+  if (isPending) return null;
+
+  if (!product) {
+    return (
+      <PageContainer className="flex flex-col gap-6">
+        <EmptyState
+          title="상품을 찾을 수 없습니다."
+          action={
+            <Button variant="secondary" asChild>
+              <Link to="/seller/products">상품 목록으로</Link>
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
+
+  const canModify =
+    product.status === ProductStatus.REGISTERABLE ||
+    product.status === ProductStatus.REAPPLICABLE;
+
+  if (!canModify) {
+    return (
+      <PageContainer className="flex flex-col gap-6">
+        <EmptyState
+          title="지금은 정보를 수정할 수 없는 상품이에요."
+          description="경매 시작 이후 상태의 상품은 정보를 수정할 수 없습니다."
+          action={
+            <Button variant="secondary" asChild>
+              <Link to="/seller/products/$productId" params={{ productId }}>
+                상품 상세로
+              </Link>
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
+
+  return <EditForm productId={productId} product={product} />;
+}
+
+/** product가 로드된 뒤에만 마운트되므로 useState 초기값으로 안전하게 prefill 한다. */
+function EditForm({
+  productId,
+  product,
+}: {
+  productId: string;
+  product: ConsignmentDetail;
+}) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const [certificationBody, setCertificationBody] = useState<
+    (typeof CERTIFICATION_BODIES)[number]
+  >((product.grade?.agency as (typeof CERTIFICATION_BODIES)[number]) ?? "PSA");
+  const [grade, setGrade] = useState(product.gradeCode);
+  const [serialNumber, setSerialNumber] = useState(product.grade?.serial ?? "");
+  const [inspectedAt, setInspectedAt] = useState(product.inspectedAt);
+  const [majorDefect, setMajorDefect] = useState(product.majorDefect ?? "");
+  const [frontImageUrl, setFrontImageUrl] = useState(product.images[0] ?? "");
+  const [backImageUrl, setBackImageUrl] = useState(product.images[1] ?? "");
+  const [extraImageUrl, setExtraImageUrl] = useState(product.images[2] ?? "");
+
+  const { mutate: submitModify, isPending: isSubmitting } = useMutation({
+    mutationFn: () =>
+      modifyMyConsignment(productId, {
+        majorDefect: majorDefect.trim() || undefined,
+        certificate: {
+          serialNumber: serialNumber.trim(),
+          certificationBody,
+          grade,
+          inspectedAt,
+        },
+        images: [
+          { imageUrl: frontImageUrl.trim() },
+          { imageUrl: backImageUrl.trim() },
+          ...(extraImageUrl.trim() ? [{ imageUrl: extraImageUrl.trim() }] : []),
+        ],
+      }),
+    onSuccess: () => {
+      toast.success("상품 정보가 수정되었습니다.");
+      queryClient.invalidateQueries({ queryKey: ["consignments"] });
+      navigate({ to: "/seller/products/$productId", params: { productId } });
+    },
+    onError: (error: AxiosError<ExceptionResponse>) => {
+      toast.error(error.response?.data?.message ?? DEFAULT_ERROR_MESSAGE);
+    },
+  });
+
+  const canSubmit =
+    grade.length > 0 &&
+    serialNumber.trim().length > 0 &&
+    inspectedAt.length > 0 &&
+    frontImageUrl.trim().length > 0 &&
+    backImageUrl.trim().length > 0;
+
+  return (
+    <PageContainer className="flex max-w-2xl flex-col gap-8">
+      <Link
+        to="/seller/products/$productId"
+        params={{ productId }}
+        className="inline-flex items-center gap-1 text-sm text-[var(--color-text-sub)] hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" /> 상품 상세
+      </Link>
+
+      <h1 className="text-2xl font-bold">{product.cardName} 정보 수정</h1>
+
+      <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-6">
+        <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
+          카드 자체 정보는 변경할 수 없으며, 감정서와 이미지, 주요 결함만
+          수정할 수 있습니다.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="인증기관" required>
+            <Select
+              value={certificationBody}
+              onChange={(e) =>
+                setCertificationBody(
+                  e.target.value as (typeof CERTIFICATION_BODIES)[number],
+                )
+              }
+            >
+              {CERTIFICATION_BODIES.map((body) => (
+                <option key={body} value={body}>
+                  {body}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="감정 등급" required>
+            <Select value={grade} onChange={(e) => setGrade(e.target.value)}>
+              <option value="" disabled>
+                등급 선택
+              </option>
+              {GRADES.map((g) => (
+                <option key={g.code} value={g.code}>
+                  {g.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="인증서 일련번호" required>
+            <Input
+              value={serialNumber}
+              onChange={(e) => setSerialNumber(e.target.value)}
+              placeholder="PSA-84213907"
+              className="tabular"
+            />
+          </Field>
+          <Field label="감정일" required>
+            <Input
+              type="date"
+              value={inspectedAt}
+              onChange={(e) => setInspectedAt(e.target.value)}
+            />
+          </Field>
+        </div>
+        <Field label="주요 결함 (손상 상세)">
+          <Input
+            value={majorDefect}
+            onChange={(e) => setMajorDefect(e.target.value)}
+            placeholder="예: 뒷면 우하단 미세 스크래치"
+          />
+        </Field>
+        <Field label="앞면 이미지 URL" required>
+          <Input
+            value={frontImageUrl}
+            onChange={(e) => setFrontImageUrl(e.target.value)}
+            placeholder="https://example.com/cards/front.png"
+          />
+        </Field>
+        <Field label="뒷면 이미지 URL" required>
+          <Input
+            value={backImageUrl}
+            onChange={(e) => setBackImageUrl(e.target.value)}
+            placeholder="https://example.com/cards/back.png"
+          />
+        </Field>
+        <Field label="추가 이미지 URL">
+          <Input
+            value={extraImageUrl}
+            onChange={(e) => setExtraImageUrl(e.target.value)}
+            placeholder="https://example.com/cards/extra.png"
+          />
+        </Field>
+      </div>
+
+      <div className="flex justify-end gap-3">
+        <Button variant="secondary" asChild>
+          <Link to="/seller/products/$productId" params={{ productId }}>
+            취소
+          </Link>
+        </Button>
+        <Button
+          onClick={() => submitModify()}
+          disabled={!canSubmit || isSubmitting}
+        >
+          {isSubmitting ? "저장 중..." : "저장하기"}
+        </Button>
+      </div>
+    </PageContainer>
+  );
+}
+
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label>
+        {label}
+        {required && <span className="text-[var(--color-danger)]">*</span>}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+function Select({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"select">) {
+  return (
+    <select
+      className={cn(
+        "h-11 w-full min-w-0 rounded-[var(--radius-sm)] bg-[var(--color-surface-2)] px-3.5 py-2 text-sm text-foreground",
+        "outline-none transition-[box-shadow,border-color]",
+        "border border-transparent",
+        "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+}
