@@ -69,7 +69,9 @@ public class BidDataJpaRepository implements BidRepository {
 
     return queryFactory
         .selectFrom(bid)
-        .where(bid.auction.auctionId.in(auctionIds), bid.bidStatus.eq(BidStatus.HIGHEST))
+        .where(
+            bid.auction.auctionId.in(auctionIds),
+            bid.bidStatus.in(BidStatus.HIGHEST, BidStatus.WON))
         .fetch()
         .stream()
         .collect(Collectors.toMap(highestBid -> highestBid.getAuction().getAuctionId(), Bid::getBidPrice));
