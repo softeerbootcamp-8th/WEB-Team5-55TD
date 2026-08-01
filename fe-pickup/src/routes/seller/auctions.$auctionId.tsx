@@ -5,10 +5,13 @@ import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { StatusBadge } from "@/components/domain/status-badge";
+import { EmptyState } from "@/components/domain/section-header";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
 import { BidList } from "@/components/domain/bid-list";
+import { Button } from "@/components/ui/button";
 import { getAuctionDetail } from "@/api/auctions";
+import { useNickname } from "@/lib/auth";
 import type { Bid } from "@/lib/types";
 
 export const Route = createFileRoute("/seller/auctions/$auctionId")({
@@ -57,6 +60,26 @@ const SAMPLE_BIDS: Bid[] = [
 /** DESIGN.md · seller-auction.html — 입찰 기능 제외, 모니터링 전용 */
 function SellerAuctionPage() {
   const { auction } = Route.useLoaderData();
+  const myNickname = useNickname();
+  // 서버가 아직 소유자 검증을 하지 않아 프런트에서 우선 가드한다 — 진짜 인가는 백엔드에서 처리돼야 한다.
+  const isOwner =
+    !myNickname || !auction.sellerNickname || myNickname === auction.sellerNickname;
+
+  if (!isOwner) {
+    return (
+      <PageContainer className="flex flex-col gap-6">
+        <EmptyState
+          title="본인 소유의 경매만 모니터링할 수 있습니다."
+          action={
+            <Button variant="secondary" asChild>
+              <Link to="/seller">셀러 홈으로</Link>
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
+
   const images = auction.images ?? [];
   const currentPrice = auction.currentPrice ?? auction.startPrice;
 
