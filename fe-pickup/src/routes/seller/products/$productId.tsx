@@ -43,7 +43,7 @@ function ProductDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
 
-  const { data: product, isPending } = useQuery({
+  const { data: product, isPending, isError } = useQuery({
     queryKey: ["consignments", "detail", productId],
     queryFn: () => getMyConsignmentDetail(productId),
   });
@@ -61,6 +61,17 @@ function ProductDetailPage() {
   });
 
   if (isPending) return null;
+
+  if (isError) {
+    return (
+      <PageContainer className="flex flex-col gap-6">
+        <EmptyState
+          title="상품 정보를 불러오지 못했습니다."
+          description="잠시 후 다시 시도해 주세요."
+        />
+      </PageContainer>
+    );
+  }
 
   if (!product) {
     return (
@@ -116,7 +127,9 @@ function ProductDetailPage() {
                   key={img}
                   type="button"
                   onClick={() => setActiveImage(i)}
-                  className="contents"
+                  aria-label={`${product.cardName} 이미지 ${i + 1}`}
+                  aria-pressed={i === activeImage}
+                  className="rounded-[var(--radius-md)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <CardThumb
                     cardName={product.cardName}
