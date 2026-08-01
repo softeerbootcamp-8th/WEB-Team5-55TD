@@ -183,7 +183,7 @@ function AuctionApplyPage() {
         </div>
       </div>
 
-      <p className="rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-4 py-3 text-xs text-[var(--color-warning)]">
+      <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
         신청 후에는 수정·삭제할 수 없습니다. 유찰 시 재신청이 가능합니다.
       </p>
 
