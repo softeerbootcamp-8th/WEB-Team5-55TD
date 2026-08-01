@@ -1,26 +1,31 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { AxiosError } from "axios";
 import { ChevronLeft, Lock, Radio } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
+import { StatusBadge } from "@/components/domain/status-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
 import { BidList } from "@/components/domain/bid-list";
-import { Badge } from "@/components/ui/badge";
-import { products } from "@/lib/mock/data";
+import { getAuctionDetail } from "@/api/auctions";
 import type { Bid } from "@/lib/types";
-import { PRODUCT_STATUS_META } from "@/lib/status";
 
 export const Route = createFileRoute("/seller/auctions/$auctionId")({
-  loader: ({ params }) => {
-    const product = products.find((p) => p.id === params.auctionId);
-    if (!product) throw notFound();
-    return { product };
+  loader: async ({ params }) => {
+    try {
+      return { auction: await getAuctionDetail(params.auctionId) };
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        throw notFound();
+      }
+      throw error;
+    }
   },
   component: SellerAuctionPage,
 });
 
-// 모니터링용 샘플 입찰 (읽기 전용)
+// 입찰 내역 조회 API가 아직 없어 모니터링 화면용 샘플 데이터로 대체한다.
 const now = Date.now();
 const SAMPLE_BIDS: Bid[] = [
   {
@@ -51,10 +56,9 @@ const SAMPLE_BIDS: Bid[] = [
 
 /** DESIGN.md · seller-auction.html — 입찰 기능 제외, 모니터링 전용 */
 function SellerAuctionPage() {
-  const { product } = Route.useLoaderData();
-  const meta = PRODUCT_STATUS_META[product.status];
-  const currentPrice = SAMPLE_BIDS[0].amount;
-  const endsAt = new Date(now + 27 * 60_000).toISOString();
+  const { auction } = Route.useLoaderData();
+  const images = auction.images ?? [];
+  const currentPrice = auction.currentPrice ?? auction.startPrice;
 
   return (
     <PageContainer className="grid gap-8 md:grid-cols-[1fr_380px]">
@@ -67,18 +71,22 @@ function SellerAuctionPage() {
         </Link>
 
         <div className="grid gap-6 sm:grid-cols-[220px_1fr]">
-          <CardThumb cardName={product.cardName} grade={product.grade} />
+          <CardThumb
+            cardName={auction.cardName}
+            grade={auction.grade}
+            imageUrl={images[0] ?? auction.thumbnailUrl}
+          />
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
-              <GradeBadge grade={product.grade} />
-              <Badge variant={meta.variant}>{meta.label}</Badge>
+              <GradeBadge grade={auction.grade} />
+              <StatusBadge status={auction.status} />
               <span className="inline-flex items-center gap-1 text-xs text-[var(--color-success)]">
                 <Radio className="size-3.5" /> 실시간 모니터링
               </span>
             </div>
-            <h1 className="text-2xl font-bold">{product.cardName}</h1>
+            <h1 className="text-2xl font-bold">{auction.cardName}</h1>
 
-            <div className="mt-2 grid grid-cols-3 gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
+            <div className="mt-2 grid grid-cols-1 gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-5 sm:grid-cols-3 sm:gap-3">
               <Price amount={currentPrice} label="현재가" size="md" />
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs text-[var(--color-text-muted)]">
@@ -92,7 +100,11 @@ function SellerAuctionPage() {
                 <span className="text-xs text-[var(--color-text-muted)]">
                   남은 시간
                 </span>
-                <Countdown to={endsAt} className="text-base" />
+                {auction.endsAt ? (
+                  <Countdown to={auction.endsAt} className="text-base" />
+                ) : (
+                  <span className="tabular text-base font-semibold">-</span>
+                )}
               </div>
             </div>
 
@@ -104,7 +116,7 @@ function SellerAuctionPage() {
         </div>
       </div>
 
-      {/* 입찰 내역 (읽기 전용) */}
+      {/* 입찰 내역 (읽기 전용, 아직 API 없음 — 샘플 데이터) */}
       <aside className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
         <h2 className="text-base font-semibold">입찰 내역</h2>
         <BidList bids={SAMPLE_BIDS} />
