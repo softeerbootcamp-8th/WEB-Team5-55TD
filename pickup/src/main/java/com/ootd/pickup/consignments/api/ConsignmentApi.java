@@ -144,6 +144,7 @@ public interface ConsignmentApi {
                               "items": [
                                 {
                                   "consignmentId": 100,
+                                  "auctionId": null,
                                   "card": {
                                     "cardId": 10,
                                     "cardName": "리자몽 1st Edition Holo",

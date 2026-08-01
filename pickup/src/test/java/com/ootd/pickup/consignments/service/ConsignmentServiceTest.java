@@ -3,6 +3,7 @@ package com.ootd.pickup.consignments.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
 
+import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -31,6 +32,7 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +56,8 @@ class ConsignmentServiceTest {
 
   @Mock private MemberManageService memberManageService;
 
+  @Mock private AuctionManageService auctionManageService;
+
   private ConsignmentService consignmentService;
 
   @BeforeEach
@@ -64,7 +68,8 @@ class ConsignmentServiceTest {
             consignmentRepository,
             certificateRepository,
             consignmentImageRepository,
-            memberManageService);
+            memberManageService,
+            auctionManageService);
   }
 
   @Test
@@ -593,6 +598,8 @@ class ConsignmentServiceTest {
         .willReturn(List.of(consignment));
     given(certificateRepository.findAllByConsignmentIn(List.of(consignment)))
         .willReturn(List.of(certificate));
+    given(auctionManageService.findAuctionIdsByConsignments(List.of(consignment)))
+        .willReturn(Map.of(100L, 300L));
 
     // when
     CursorPageResponse<GetMyConsignmentsResponse, Long> response =
@@ -604,10 +611,37 @@ class ConsignmentServiceTest {
     assertThat(response.items()).hasSize(1);
     GetMyConsignmentsResponse item = response.items().get(0);
     assertThat(item.consignmentId()).isEqualTo(100L);
+    assertThat(item.auctionId()).isEqualTo(300L);
     assertThat(item.sellerMemberId()).isEqualTo(sellerMemberId);
     assertThat(item.card().cardId()).isEqualTo(10L);
     assertThat(item.status()).isEqualTo(ConsignmentStatus.REGISTERABLE);
     assertThat(item.certificate().certificateId()).isEqualTo(200L);
+  }
+
+  @Test
+  void 경매가_등록되지_않은_상품을_조회하면_auctionId가_null이다() {
+    // given
+    Long sellerMemberId = 1L;
+    Card card = createCard(10L);
+    Consignment consignment = createConsignment(100L, card, ConsignmentStatus.REGISTERABLE);
+    Certificate certificate = createCertificate(200L, consignment);
+    GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("REGISTERABLE", null, 20);
+    given(
+            consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
+                sellerMemberId, ConsignmentStatus.REGISTERABLE, null, 21))
+        .willReturn(List.of(consignment));
+    given(certificateRepository.findAllByConsignmentIn(List.of(consignment)))
+        .willReturn(List.of(certificate));
+    given(auctionManageService.findAuctionIdsByConsignments(List.of(consignment)))
+        .willReturn(Map.of());
+
+    // when
+    CursorPageResponse<GetMyConsignmentsResponse, Long> response =
+        consignmentService.getMyConsignments(sellerMemberId, request);
+
+    // then
+    GetMyConsignmentsResponse item = response.items().get(0);
+    assertThat(item.auctionId()).isNull();
   }
 
   @Test
@@ -624,6 +658,8 @@ class ConsignmentServiceTest {
         .willReturn(List.of(first, second, extra));
     given(certificateRepository.findAllByConsignmentIn(List.of(first, second)))
         .willReturn(List.of(createCertificate(200L, first), createCertificate(201L, second)));
+    given(auctionManageService.findAuctionIdsByConsignments(List.of(first, second)))
+        .willReturn(Map.of(102L, 300L, 101L, 301L));
 
     // when
     CursorPageResponse<GetMyConsignmentsResponse, Long> response =

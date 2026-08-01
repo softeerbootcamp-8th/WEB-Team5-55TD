@@ -163,6 +163,7 @@ class ConsignmentControllerTest {
     GetMyConsignmentsResponse item =
         new GetMyConsignmentsResponse(
             100L,
+            500L,
             new GetCardDetailResponse(
                 10L,
                 "리자몽 1st Edition Holo",
@@ -197,6 +198,7 @@ class ConsignmentControllerTest {
         .andExpect(jsonPath("$.hasNext").value(true))
         .andExpect(jsonPath("$.cursor").value(100L))
         .andExpect(jsonPath("$.items[0].consignmentId").value(100L))
+        .andExpect(jsonPath("$.items[0].auctionId").value(500L))
         .andExpect(jsonPath("$.items[0].sellerMemberId").value(1L))
         .andExpect(jsonPath("$.items[0].status").value("REGISTERABLE"))
         .andExpect(jsonPath("$.items[0].card.cardId").value(10L))

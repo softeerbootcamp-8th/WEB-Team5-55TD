@@ -2,6 +2,7 @@ package com.ootd.pickup.consignments.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
 
+import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.service.CardManageService;
 import com.ootd.pickup.consignments.domain.Certificate;
@@ -42,6 +43,7 @@ public class ConsignmentService {
   private final CertificateRepository certificateRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
   private final MemberManageService memberManageService;
+  private final AuctionManageService auctionManageService;
 
   @Transactional
   public RegisterConsignmentResponse registerConsignment(
@@ -154,6 +156,9 @@ public class ConsignmentService {
                     certificate -> certificate.getConsignment().getConsignmentId(),
                     Function.identity()));
 
+    Map<Long, Long> auctionIdsByConsignmentId =
+        auctionManageService.findAuctionIdsByConsignments(consignments);
+
     List<GetMyConsignmentsResponse> items =
         consignments.stream()
             .map(
@@ -161,7 +166,8 @@ public class ConsignmentService {
                     GetMyConsignmentsResponse.fromEntity(
                         consignment,
                         sellerMemberId,
-                        certificatesByConsignmentId.get(consignment.getConsignmentId())))
+                        certificatesByConsignmentId.get(consignment.getConsignmentId()),
+                        auctionIdsByConsignmentId.get(consignment.getConsignmentId())))
             .toList();
 
     return CursorPageResponse.from(items, hasNext, nextCursor);

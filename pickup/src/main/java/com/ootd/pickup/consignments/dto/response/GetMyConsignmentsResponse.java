@@ -7,15 +7,17 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 
 public record GetMyConsignmentsResponse(
     Long consignmentId,
+    Long auctionId,
     GetCardDetailResponse card,
     Long sellerMemberId,
     String majorDefect,
     ConsignmentStatus status,
     CertificateResponse certificate) {
   public static GetMyConsignmentsResponse fromEntity(
-      Consignment consignment, Long sellerMemberId, Certificate certificate) {
+      Consignment consignment, Long sellerMemberId, Certificate certificate, Long auctionId) {
     return new GetMyConsignmentsResponse(
         consignment.getConsignmentId(),
+        auctionId,
         GetCardDetailResponse.from(consignment.getCard()),
         sellerMemberId,
         consignment.getMajorDefect(),
