@@ -44,6 +44,10 @@ public enum ExceptionCode {
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_PASSWORD, "비밀번호가 일치하지 않습니다."),
   INVALID_REFRESH_TOKEN(
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_REFRESH_TOKEN, "유효하지 않은 리프레시 토큰입니다."),
+  REFRESH_TOKEN_STORE_UNAVAILABLE(
+      HttpStatus.UNAUTHORIZED,
+      ClientExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE,
+      "일시적으로 토큰을 갱신할 수 없습니다. 다시 로그인해 주세요."),
   CONSIGNMENT_NOT_REGISTERABLE(
       HttpStatus.CONFLICT,
       ClientExceptionCode.CONSIGNMENT_NOT_REGISTERABLE,
