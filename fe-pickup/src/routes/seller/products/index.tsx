@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
@@ -6,26 +7,39 @@ import { EmptyState } from "@/components/domain/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { products } from "@/lib/mock/data";
-import { ProductStatus } from "@/lib/types";
-import type { Product } from "@/lib/types";
+import { getMyConsignments } from "@/api/consignments";
+import type { ApiConsignmentStatus, ConsignmentSummary } from "@/api/consignments";
 import { PRODUCT_STATUS_META } from "@/lib/status";
 
 export const Route = createFileRoute("/seller/products/")({
   component: ProductListPage,
 });
 
+async function fetchByStatuses(statuses: ApiConsignmentStatus[]) {
+  const pages = await Promise.all(
+    statuses.map((status) => getMyConsignments({ status })),
+  );
+  return pages.flatMap((page) => page.items);
+}
+
 /** DESIGN.md · product list.html — 등록 가능 / 경매 예정 / 판매 완료 (검수·반려 없음) */
 function ProductListPage() {
-  const registerable = products.filter(
-    (p) => p.status === ProductStatus.REGISTERABLE,
-  );
-  const upcoming = products.filter(
-    (p) =>
-      p.status === ProductStatus.AUCTION_UPCOMING ||
-      p.status === ProductStatus.AUCTION_LIVE,
-  );
-  const sold = products.filter((p) => p.status === ProductStatus.SOLD);
+  const registerableQuery = useQuery({
+    queryKey: ["consignments", "my", "REGISTERABLE"],
+    queryFn: () => fetchByStatuses(["REGISTERABLE"]),
+  });
+  const upcomingQuery = useQuery({
+    queryKey: ["consignments", "my", "AUCTION_SCHEDULED"],
+    queryFn: () => fetchByStatuses(["AUCTION_SCHEDULED"]),
+  });
+  const soldQuery = useQuery({
+    queryKey: ["consignments", "my", "WON"],
+    queryFn: () => fetchByStatuses(["WON"]),
+  });
+
+  const registerable = registerableQuery.data ?? [];
+  const upcoming = upcomingQuery.data ?? [];
+  const sold = soldQuery.data ?? [];
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -48,20 +62,27 @@ function ProductListPage() {
           <TabsTrigger value="sold">판매 완료</TabsTrigger>
         </TabsList>
         <TabsContent value="registerable">
-          <ProductGrid items={registerable} />
+          <ProductGrid items={registerable} isLoading={registerableQuery.isPending} />
         </TabsContent>
         <TabsContent value="upcoming">
-          <ProductGrid items={upcoming} />
+          <ProductGrid items={upcoming} isLoading={upcomingQuery.isPending} />
         </TabsContent>
         <TabsContent value="sold">
-          <ProductGrid items={sold} />
+          <ProductGrid items={sold} isLoading={soldQuery.isPending} />
         </TabsContent>
       </Tabs>
     </PageContainer>
   );
 }
 
-function ProductGrid({ items }: { items: Product[] }) {
+function ProductGrid({
+  items,
+  isLoading,
+}: {
+  items: ConsignmentSummary[];
+  isLoading?: boolean;
+}) {
+  if (isLoading) return null;
   if (items.length === 0) {
     return <EmptyState title="해당 상태의 상품이 없습니다." />;
   }
@@ -75,7 +96,11 @@ function ProductGrid({ items }: { items: Product[] }) {
             className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-3"
           >
             <div className="relative">
-              <CardThumb cardName={p.cardName} grade={p.grade} />
+              <CardThumb
+                cardName={p.cardName}
+                grade={p.grade}
+                imageUrl={p.thumbnailUrl}
+              />
               <Badge variant={meta.variant} className="absolute top-2 left-2">
                 {meta.label}
               </Badge>
@@ -86,7 +111,7 @@ function ProductGrid({ items }: { items: Product[] }) {
                 {p.cardName}
               </h3>
               <span className="tabular text-xs text-[var(--color-text-muted)]">
-                인증서 {p.grade.serial}
+                인증서 {p.grade?.serial}
               </span>
               <Button size="sm" variant="secondary" asChild className="mt-1">
                 <Link
