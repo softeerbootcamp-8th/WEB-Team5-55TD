@@ -107,6 +107,9 @@ function toUiStatus(status: ApiConsignmentStatus): ProductStatus {
       return ProductStatus.SOLD;
     case "PASSED":
       return ProductStatus.REAPPLICABLE;
+    default:
+      // 백엔드가 아직 FE에 반영되지 않은 상태값을 내려줄 경우를 대비한 안전한 기본값.
+      return ProductStatus.REGISTERABLE;
   }
 }
 

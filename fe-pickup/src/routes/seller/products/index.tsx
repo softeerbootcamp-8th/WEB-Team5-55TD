@@ -32,11 +32,20 @@ export const Route = createFileRoute("/seller/products/")({
   component: ProductListPage,
 });
 
+async function fetchAllByStatus(status: ApiConsignmentStatus) {
+  const items: ConsignmentSummary[] = [];
+  let cursor: number | undefined;
+  do {
+    const page = await getMyConsignments({ status, cursor });
+    items.push(...page.items);
+    cursor = page.hasNext ? page.cursor : undefined;
+  } while (cursor !== undefined);
+  return items;
+}
+
 async function fetchByStatuses(statuses: ApiConsignmentStatus[]) {
-  const pages = await Promise.all(
-    statuses.map((status) => getMyConsignments({ status })),
-  );
-  return pages.flatMap((page) => page.items);
+  const pages = await Promise.all(statuses.map(fetchAllByStatus));
+  return pages.flat();
 }
 
 /** DESIGN.md · product list.html — 등록 가능 / 경매 예정 / 판매 완료 (검수·반려 없음) */
@@ -100,16 +109,32 @@ function ProductListPage() {
           <TabsTrigger value="sold">판매 완료</TabsTrigger>
         </TabsList>
         <TabsContent value="registerable">
-          <ProductGrid items={registerable} isLoading={registerableQuery.isPending} />
+          <ProductGrid
+            items={registerable}
+            isLoading={registerableQuery.isPending}
+            isError={registerableQuery.isError}
+          />
         </TabsContent>
         <TabsContent value="upcoming">
-          <ProductGrid items={upcoming} isLoading={upcomingQuery.isPending} />
+          <ProductGrid
+            items={upcoming}
+            isLoading={upcomingQuery.isPending}
+            isError={upcomingQuery.isError}
+          />
         </TabsContent>
         <TabsContent value="ongoing">
-          <ProductGrid items={ongoing} isLoading={ongoingQuery.isPending} />
+          <ProductGrid
+            items={ongoing}
+            isLoading={ongoingQuery.isPending}
+            isError={ongoingQuery.isError}
+          />
         </TabsContent>
         <TabsContent value="sold">
-          <ProductGrid items={sold} isLoading={soldQuery.isPending} />
+          <ProductGrid
+            items={sold}
+            isLoading={soldQuery.isPending}
+            isError={soldQuery.isError}
+          />
         </TabsContent>
       </Tabs>
     </PageContainer>
@@ -119,11 +144,21 @@ function ProductListPage() {
 function ProductGrid({
   items,
   isLoading,
+  isError,
 }: {
   items: ConsignmentSummary[];
   isLoading?: boolean;
+  isError?: boolean;
 }) {
   if (isLoading) return null;
+  if (isError) {
+    return (
+      <EmptyState
+        title="상품을 불러오지 못했습니다."
+        description="잠시 후 다시 시도해 주세요."
+      />
+    );
+  }
   if (items.length === 0) {
     return <EmptyState title="해당 상태의 상품이 없습니다." />;
   }
