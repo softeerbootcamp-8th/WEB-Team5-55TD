@@ -16,7 +16,8 @@ public record MyBidListItemResponse(
     BidStatus status,
     AuctionStatus auctionStatus) {
 
-  public static MyBidListItemResponse of(Bid myLastBid, Certificate certificate, Long currentPrice) {
+  public static MyBidListItemResponse of(
+      Bid myLastBid, Certificate certificate, Long currentPrice) {
     Auction auction = myLastBid.getAuction();
     return new MyBidListItemResponse(
         auction.getAuctionId(),

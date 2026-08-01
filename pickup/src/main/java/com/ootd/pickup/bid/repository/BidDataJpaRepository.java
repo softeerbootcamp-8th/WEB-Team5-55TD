@@ -74,7 +74,9 @@ public class BidDataJpaRepository implements BidRepository {
             bid.bidStatus.in(BidStatus.HIGHEST, BidStatus.WON))
         .fetch()
         .stream()
-        .collect(Collectors.toMap(highestBid -> highestBid.getAuction().getAuctionId(), Bid::getBidPrice));
+        .collect(
+            Collectors.toMap(
+                highestBid -> highestBid.getAuction().getAuctionId(), Bid::getBidPrice));
   }
 
   private BooleanExpression cursorPredicate(Long cursorBidId) {

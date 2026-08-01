@@ -373,8 +373,7 @@ class MemberServiceTest {
   @Test
   void 유효하지_않은_커서값이면_예외가_발생한다() {
     // when & then
-    assertThatThrownBy(
-            () -> memberService.getMyBids(1L, new GetMyBidsRequest("not-a-number", 20)))
+    assertThatThrownBy(() -> memberService.getMyBids(1L, new GetMyBidsRequest("not-a-number", 20)))
         .isInstanceOf(PickUpException.class)
         .satisfies(
             exception ->
