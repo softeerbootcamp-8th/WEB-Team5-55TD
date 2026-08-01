@@ -16,4 +16,7 @@ public interface AuctionRepository {
       String q, List<AuctionStatus> statuses, AuctionSort sort, AuctionCursor cursor, int limit);
 
   Optional<Auction> findByIdWithConsignmentAndCard(Long auctionId);
+
+  List<Auction> findAllBySellerMemberIdWithCard(
+      Long sellerMemberId, List<AuctionStatus> statuses, SalesCursor cursor, int limit);
 }
