@@ -19,6 +19,7 @@ import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
@@ -40,6 +41,7 @@ public class AuctionService {
   private final ConsignmentRepository consignmentRepository;
   private final AuctionRepository auctionRepository;
   private final CertificateRepository certificateRepository;
+  private final CertificateManageService certificateManageService;
   private final ConsignmentImageRepository consignmentImageRepository;
   private final WatchRepository watchRepository;
 
@@ -142,8 +144,7 @@ public class AuctionService {
     Set<Long> watchedIds = watchRepository.findWatchedAuctionIds(viewerMemberId, auctionIds);
 
     Map<Long, Certificate> certificatesByConsignmentId =
-        certificateRepository.findAllByConsignmentIds(consignmentIds).stream()
-            .collect(Collectors.toMap(c -> c.getConsignment().getConsignmentId(), c -> c));
+        certificateManageService.getCertificatesByConsignmentId(consignmentIds);
 
     Map<Long, String> thumbnailsByConsignmentId = resolveThumbnails(consignmentIds);
 

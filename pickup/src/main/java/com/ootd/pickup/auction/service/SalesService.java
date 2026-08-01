@@ -9,14 +9,13 @@ import com.ootd.pickup.auction.dto.response.SaleHistoryItemResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.auction.SalesCursor;
 import com.ootd.pickup.consignments.domain.Certificate;
-import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
+import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
 import com.ootd.pickup.global.util.EpochMillis;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SalesService {
 
   private final AuctionRepository auctionRepository;
-  private final CertificateRepository certificateRepository;
+  private final CertificateManageService certificateManageService;
 
   public CursorPageResponse<SaleHistoryItemResponse, String> getSalesHistory(
       Long sellerMemberId, GetSalesHistoryRequest request) {
@@ -58,8 +57,7 @@ public class SalesService {
         auctions.stream().map(a -> a.getConsignment().getConsignmentId()).toList();
 
     Map<Long, Certificate> certificatesByConsignmentId =
-        certificateRepository.findAllByConsignmentIds(consignmentIds).stream()
-            .collect(Collectors.toMap(c -> c.getConsignment().getConsignmentId(), c -> c));
+        certificateManageService.getCertificatesByConsignmentId(consignmentIds);
 
     return auctions.stream()
         .map(

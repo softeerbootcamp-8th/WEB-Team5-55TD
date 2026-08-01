@@ -24,6 +24,7 @@ import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
@@ -51,6 +52,8 @@ class AuctionServiceTest {
 
   @Mock private CertificateRepository certificateRepository;
 
+  @Mock private CertificateManageService certificateManageService;
+
   @Mock private ConsignmentImageRepository consignmentImageRepository;
 
   @Mock private WatchRepository watchRepository;
@@ -64,6 +67,7 @@ class AuctionServiceTest {
             consignmentRepository,
             auctionRepository,
             certificateRepository,
+            certificateManageService,
             consignmentImageRepository,
             watchRepository);
   }
@@ -296,7 +300,7 @@ class AuctionServiceTest {
             LocalDateTime.now().plusHours(1));
     given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
         .willReturn(List.of(auction));
-    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
@@ -325,7 +329,7 @@ class AuctionServiceTest {
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
     given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
         .willReturn(List.of(auction));
-    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
@@ -398,7 +402,7 @@ class AuctionServiceTest {
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
     given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
         .willReturn(List.of(auction));
-    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
@@ -450,8 +454,11 @@ class AuctionServiceTest {
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
     given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
         .willReturn(List.of(auction));
-    given(certificateRepository.findAllByConsignmentIds(any()))
-        .willReturn(List.of(createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT)));
+    given(certificateManageService.getCertificatesByConsignmentId(any()))
+        .willReturn(
+            Map.of(
+                consignment.getConsignmentId(),
+                createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT)));
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
@@ -569,7 +576,7 @@ class AuctionServiceTest {
   }
 
   private void stubEmptyAssemblyDependencies() {
-    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
