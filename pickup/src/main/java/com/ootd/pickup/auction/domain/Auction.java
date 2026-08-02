@@ -80,6 +80,7 @@ public class Auction {
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
+    this.createdAt = LocalDateTime.now();
   }
 
   public Long getRemainingSeconds() {
