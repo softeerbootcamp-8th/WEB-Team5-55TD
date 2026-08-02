@@ -203,8 +203,8 @@ class AuctionSearchIntegrationTest {
   void 썸네일은_위탁상품의_첫번째_이미지를_사용한다() throws Exception {
     // given
     Consignment consignment = createConsignment();
-    createConsignmentImage(consignment, 2, "https://image.example.com/second.png");
-    createConsignmentImage(consignment, 1, "https://image.example.com/first.png");
+    createConsignmentImage(consignment, 2, "media/consignments/1/second.png");
+    createConsignmentImage(consignment, 1, "media/consignments/1/first.png");
     Auction auction = createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null);
 
     // when & then
@@ -213,7 +213,8 @@ class AuctionSearchIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[0].auctionId").value(auction.getAuctionId()))
         .andExpect(
-            jsonPath("$.items[0].thumbnailUrl").value("https://image.example.com/first.png"));
+            jsonPath("$.items[0].thumbnailUrl")
+                .value("https://images.test/media/consignments/1/first.png"));
   }
 
   @Test
@@ -293,7 +294,7 @@ class AuctionSearchIntegrationTest {
         ConsignmentImage.builder()
             .consignment(consignment)
             .imageOrder(order)
-            .imageUrl(url)
+            .objectKey(url)
             .build());
   }
 

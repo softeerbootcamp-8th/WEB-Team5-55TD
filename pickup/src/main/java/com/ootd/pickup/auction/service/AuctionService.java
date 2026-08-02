@@ -21,6 +21,7 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,6 +44,7 @@ public class AuctionService {
   private final CertificateRepository certificateRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
   private final WatchRepository watchRepository;
+  private final ImageUrlResolver imageUrlResolver;
 
   @Transactional
   public CreateAuctionResponse registerAuction(Long memberId, CreateAuctionRequest request) {
@@ -111,7 +113,8 @@ public class AuctionService {
     boolean watched =
         !watchRepository.findWatchedAuctionIds(viewerMemberId, List.of(auctionId)).isEmpty();
 
-    return AuctionDetailResponse.of(auction, certificate, images, watchCount, watched);
+    return AuctionDetailResponse.of(
+        auction, certificate, images, watchCount, watched, imageUrlResolver);
   }
 
   private Consignment getConsignment(Long consignmentId) {
@@ -176,7 +179,7 @@ public class AuctionService {
         .collect(
             Collectors.toMap(
                 image -> image.getConsignment().getConsignmentId(),
-                ConsignmentImage::getImageUrl,
+                image -> imageUrlResolver.resolve(image.getObjectKey()),
                 (first, second) -> first));
   }
 

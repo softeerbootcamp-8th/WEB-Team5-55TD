@@ -24,6 +24,10 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.domain.ImagePurpose;
+import com.ootd.pickup.images.service.ImageService;
+import com.ootd.pickup.images.service.ImageService.FinalizedImage;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import java.time.LocalDate;
@@ -51,6 +55,10 @@ class ConsignmentServiceTest {
 
   @Mock private MemberManageService memberManageService;
 
+  @Mock private ImageService imageService;
+
+  @Mock private ImageUrlResolver imageUrlResolver;
+
   private ConsignmentService consignmentService;
 
   @BeforeEach
@@ -61,7 +69,18 @@ class ConsignmentServiceTest {
             consignmentRepository,
             certificateRepository,
             consignmentImageRepository,
-            memberManageService);
+            memberManageService,
+            imageService,
+            imageUrlResolver);
+    lenient()
+        .when(imageService.finalizeImages(anyLong(), eq(ImagePurpose.CONSIGNMENT), anyList()))
+        .thenAnswer(
+            invocation ->
+                ((List<String>) invocation.getArgument(2))
+                    .stream().map(key -> new FinalizedImage(key, key)).toList());
+    lenient()
+        .when(imageUrlResolver.resolve(anyString()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
   }
 
   @Test
@@ -117,7 +136,7 @@ class ConsignmentServiceTest {
     ArgumentCaptor<List<ConsignmentImage>> imagesCaptor = ArgumentCaptor.forClass(List.class);
     then(consignmentImageRepository).should().saveAll(imagesCaptor.capture());
     assertThat(imagesCaptor.getValue())
-        .extracting(ConsignmentImage::getImageOrder, ConsignmentImage::getImageUrl)
+        .extracting(ConsignmentImage::getImageOrder, ConsignmentImage::getObjectKey)
         .containsExactly(
             tuple(1, "https://image.example.com/front.png"),
             tuple(2, "https://image.example.com/back.png"));
@@ -352,15 +371,58 @@ class ConsignmentServiceTest {
     assertThat(response.certificate().serialNumber()).isEqualTo("PSA-99999999");
     assertThat(response.certificate().grade()).isEqualTo("9");
     then(certificateRepository).should(never()).save(any());
-    then(consignmentImageRepository).should().deleteAllByConsignment(consignment);
+    then(consignmentImageRepository).should(never()).deleteAll(anyList());
 
     ArgumentCaptor<List<ConsignmentImage>> imagesCaptor = ArgumentCaptor.forClass(List.class);
     then(consignmentImageRepository).should().saveAll(imagesCaptor.capture());
     assertThat(imagesCaptor.getValue())
-        .extracting(ConsignmentImage::getImageOrder, ConsignmentImage::getImageUrl)
+        .extracting(ConsignmentImage::getImageOrder, ConsignmentImage::getObjectKey)
         .containsExactly(
             tuple(1, "https://image.example.com/new-front.png"),
             tuple(2, "https://image.example.com/new-back.png"));
+  }
+
+  @Test
+  void 상품을_수정하면_기존_이미지는_유지하고_빠진_이미지는_커밋후_삭제한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    Certificate certificate = createCertificate(200L, consignment);
+    ConsignmentImage retainedImage =
+        createConsignmentImage(
+            1L, consignment, 1, "media/consignments/1/00000000-0000-0000-0000-000000000001.jpg");
+    ConsignmentImage removedImage =
+        createConsignmentImage(
+            2L, consignment, 2, "media/consignments/1/00000000-0000-0000-0000-000000000002.jpg");
+    String temporaryObjectKey = "uploads/1/consignments/00000000-0000-0000-0000-000000000003.jpg";
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
+        .willReturn(Optional.of(consignment));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of(retainedImage, removedImage));
+    given(consignmentImageRepository.saveAll(anyList()))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest(1L, null),
+                new ConsignmentImageRequest(temporaryObjectKey)));
+
+    // when
+    GetConsignmentDetailResponse response =
+        consignmentService.modifyConsignment(consignmentId, sellerMemberId, request);
+
+    // then
+    assertThat(response.images())
+        .extracting(image -> image.productImageId(), image -> image.imageUrl())
+        .containsExactly(tuple(1L, retainedImage.getObjectKey()), tuple(null, temporaryObjectKey));
+    then(consignmentImageRepository).should().deleteAll(List.of(removedImage));
+    then(imageService).should().deleteAfterCommit(List.of(removedImage.getObjectKey()));
   }
 
   @Test
@@ -719,7 +781,7 @@ class ConsignmentServiceTest {
         ConsignmentImage.builder()
             .consignment(consignment)
             .imageOrder(imageOrder)
-            .imageUrl(imageUrl)
+            .objectKey(imageUrl)
             .build();
     ReflectionTestUtils.setField(consignmentImage, "consignmentImageId", consignmentImageId);
     return consignmentImage;

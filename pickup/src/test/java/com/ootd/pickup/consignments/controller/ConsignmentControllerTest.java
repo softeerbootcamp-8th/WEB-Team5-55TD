@@ -137,6 +137,34 @@ class ConsignmentControllerTest {
   }
 
   @Test
+  void 이미지가_5장을_초과하면_400을_반환한다() throws Exception {
+    // given
+    RegisterConsignmentRequest request =
+        new RegisterConsignmentRequest(
+            10L,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("uploads/1/consignments/1.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/2.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/3.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/4.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/5.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/6.jpg")));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 존재하지_않는_카드ID로_등록하면_404를_반환한다() throws Exception {
     // given
     RegisterConsignmentRequest request = createRequest();

@@ -50,8 +50,8 @@ public interface ConsignmentApi {
                             "inspectedAt": "2026-06-30"
                           },
                           "images": [
-                            { "imageUrl": "https://example.com/cards/10-front.png" },
-                            { "imageUrl": "https://example.com/cards/10-back.png" }
+                            { "temporaryObjectKey": "uploads/1/consignments/00000000-0000-0000-0000-000000000001.jpg" },
+                            { "temporaryObjectKey": "uploads/1/consignments/00000000-0000-0000-0000-000000000002.jpg" }
                           ]
                         }
                         """))),
@@ -168,7 +168,8 @@ public interface ConsignmentApi {
       summary = "상품 정보 수정",
       description =
           """
-            상품의 major defect, 감정서, 이미지 목록(전체 교체)을 수정합니다.
+            상품의 major defect, 감정서, 이미지 목록을 수정합니다.
+            기존 이미지는 productImageId로 유지하고 새 이미지는 temporaryObjectKey로 추가합니다.
             경매 신청 이후(AUCTION_SCHEDULED)/진행 중(AUCTION_ONGOING)/낙찰 완료(WON) 상태에서는 수정할 수 없습니다.
             """,
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
@@ -192,8 +193,8 @@ public interface ConsignmentApi {
                             "inspectedAt": "2026-06-30"
                           },
                           "images": [
-                            { "imageUrl": "https://example.com/cards/10-front.png" },
-                            { "imageUrl": "https://example.com/cards/10-back.png" }
+                            { "productImageId": 1 },
+                            { "temporaryObjectKey": "uploads/1/consignments/00000000-0000-0000-0000-000000000003.jpg" }
                           ]
                         }
                         """))),

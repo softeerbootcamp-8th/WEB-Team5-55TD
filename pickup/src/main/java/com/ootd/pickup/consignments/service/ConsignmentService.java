@@ -18,9 +18,18 @@ import com.ootd.pickup.consignments.repository.certificate.CertificateRepository
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.domain.ImagePurpose;
+import com.ootd.pickup.images.service.ImageService;
+import com.ootd.pickup.images.service.ImageService.FinalizedImage;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -36,6 +45,8 @@ public class ConsignmentService {
   private final CertificateRepository certificateRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
   private final MemberManageService memberManageService;
+  private final ImageService imageService;
+  private final ImageUrlResolver imageUrlResolver;
 
   @Transactional
   public RegisterConsignmentResponse registerConsignment(
@@ -46,6 +57,13 @@ public class ConsignmentService {
     // Consignment를 저장하기 전에 인증서 값부터 검증해 불필요한 INSERT를 막는다.
     Grade.from(request.certificate().grade());
     CertificationBody.from(request.certificate().certificationBody());
+    validateRegistrationImages(request);
+
+    List<FinalizedImage> finalizedImages =
+        imageService.finalizeImages(
+            sellerMemberId,
+            ImagePurpose.CONSIGNMENT,
+            request.images().stream().map(image -> image.temporaryObjectKey()).toList());
 
     Consignment consignment =
         consignmentRepository.save(
@@ -63,7 +81,16 @@ public class ConsignmentService {
       throw new PickUpException(CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS);
     }
 
-    consignmentImageRepository.saveAll(request.toConsignmentImages(consignment));
+    List<ConsignmentImage> images = new ArrayList<>();
+    for (int index = 0; index < finalizedImages.size(); index++) {
+      images.add(
+          ConsignmentImage.builder()
+              .consignment(consignment)
+              .imageOrder(index + 1)
+              .objectKey(finalizedImages.get(index).objectKey())
+              .build());
+    }
+    consignmentImageRepository.saveAll(images);
 
     return RegisterConsignmentResponse.of(consignment, certificate);
   }
@@ -80,7 +107,11 @@ public class ConsignmentService {
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
 
     return GetConsignmentDetailResponse.of(
-        consignment, certificate, images, consignment.getSellerMember().getNickname());
+        consignment,
+        certificate,
+        images,
+        consignment.getSellerMember().getNickname(),
+        imageUrlResolver);
   }
 
   @Transactional
@@ -106,7 +137,6 @@ public class ConsignmentService {
         CertificationBody.from(request.certificate().certificationBody());
 
     Certificate certificate = getCertificate(consignment);
-
     consignment.updateMajorDefect(request.majorDefect());
     certificate.update(
         request.certificate().serialNumber(),
@@ -119,12 +149,78 @@ public class ConsignmentService {
       throw new PickUpException(CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS);
     }
 
-    consignmentImageRepository.deleteAllByConsignment(consignment);
-    List<ConsignmentImage> images =
-        consignmentImageRepository.saveAll(request.toConsignmentImages(consignment));
+    List<ConsignmentImage> existingImages =
+        consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
+    Map<Long, ConsignmentImage> existingImageById = new HashMap<>();
+    for (ConsignmentImage image : existingImages) {
+      existingImageById.put(image.getConsignmentImageId(), image);
+    }
+
+    Set<Long> retainedImageIds = new HashSet<>();
+    List<String> temporaryObjectKeys = new ArrayList<>();
+    for (var imageRequest : request.images()) {
+      if (!imageRequest.isValidReference()) {
+        throw new PickUpException(ILLEGAL_ARGUMENT);
+      }
+      if (imageRequest.productImageId() != null) {
+        if (!existingImageById.containsKey(imageRequest.productImageId())) {
+          throw new PickUpException(ILLEGAL_ARGUMENT);
+        }
+        if (!retainedImageIds.add(imageRequest.productImageId())) {
+          throw new PickUpException(DUPLICATE_IMAGE_UPLOAD);
+        }
+      } else {
+        temporaryObjectKeys.add(imageRequest.temporaryObjectKey());
+      }
+    }
+
+    List<FinalizedImage> finalizedImages =
+        imageService.finalizeImages(sellerMemberId, ImagePurpose.CONSIGNMENT, temporaryObjectKeys);
+
+    List<ConsignmentImage> images = new ArrayList<>();
+    int finalizedIndex = 0;
+    for (int index = 0; index < request.images().size(); index++) {
+      var imageRequest = request.images().get(index);
+      ConsignmentImage image;
+      if (imageRequest.productImageId() != null) {
+        image = existingImageById.get(imageRequest.productImageId());
+        image.updateImageOrder(index + 1);
+      } else {
+        image =
+            ConsignmentImage.builder()
+                .consignment(consignment)
+                .imageOrder(index + 1)
+                .objectKey(finalizedImages.get(finalizedIndex++).objectKey())
+                .build();
+      }
+      images.add(image);
+    }
+
+    List<ConsignmentImage> removedImages =
+        existingImages.stream()
+            .filter(image -> !retainedImageIds.contains(image.getConsignmentImageId()))
+            .toList();
+    if (!removedImages.isEmpty()) {
+      consignmentImageRepository.deleteAll(removedImages);
+    }
+    images = consignmentImageRepository.saveAll(images);
+    imageService.deleteAfterCommit(
+        removedImages.stream().map(ConsignmentImage::getObjectKey).toList());
 
     return GetConsignmentDetailResponse.of(
-        consignment, certificate, images, consignment.getSellerMember().getNickname());
+        consignment,
+        certificate,
+        images,
+        consignment.getSellerMember().getNickname(),
+        imageUrlResolver);
+  }
+
+  private void validateRegistrationImages(RegisterConsignmentRequest request) {
+    for (var image : request.images()) {
+      if (!image.isValidReference() || image.productImageId() != null) {
+        throw new PickUpException(ILLEGAL_ARGUMENT);
+      }
+    }
   }
 
   @Transactional
