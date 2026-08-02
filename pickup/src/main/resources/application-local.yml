@@ -2,3 +2,10 @@ auth:
   cookie:
     secure: false
     same-site: Lax
+
+image:
+  storage:
+    bucket: ${IMAGE_STORAGE_BUCKET:pickup-s3-103554271110-ap-northeast-2-an}
+    region: ${IMAGE_STORAGE_REGION:ap-northeast-2}
+    media-base-url: ${IMAGE_MEDIA_BASE_URL:https://d38qqh1zkovln3.cloudfront.net}
+    upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}

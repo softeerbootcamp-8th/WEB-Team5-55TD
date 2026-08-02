@@ -20,3 +20,10 @@ auth:
   cookie:
     secure: true
     same-site: None
+
+image:
+  storage:
+    bucket: pickup-test
+    region: ap-northeast-2
+    media-base-url: https://images.test
+    upload-url-ttl: 5m

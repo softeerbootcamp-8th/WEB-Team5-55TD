@@ -8,3 +8,9 @@ auth:
   cookie:
     secure: true
     same-site: None
+image:
+  storage:
+    bucket: ${IMAGE_STORAGE_BUCKET:}
+    region: ${IMAGE_STORAGE_REGION:ap-northeast-2}
+    media-base-url: ${IMAGE_MEDIA_BASE_URL:}
+    upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}
