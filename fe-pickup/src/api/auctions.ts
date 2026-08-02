@@ -116,6 +116,26 @@ export async function searchAuctions(
   };
 }
 
+/** 진행 중인 경매가 하나도 없으면(404) null을 반환한다. */
+export async function getFeaturedAuction(): Promise<AuctionSummary | null> {
+  try {
+    const { data } = await axiosInstance.get<AuctionListItemResponse>(
+      "/auctions/featured",
+    );
+    return toSummary(data);
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "response" in error &&
+      (error as { response?: { status?: number } }).response?.status === 404
+    ) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 interface CertificateResponse {
   certificateId: number;
   serialNumber: string;

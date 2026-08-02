@@ -31,6 +31,8 @@ tags:
     description: 카드 검색
   - name: Consignment
     description: 상품(위탁) 등록
+  - name: Auction
+    description: 경매
   # 아래 두 태그는 아직 백엔드에 구현되지 않았습니다.
   # 화면 개발용 목 데이터의 타입 출처로만 쓰이며, 실제 호출하면 404 입니다.
   - name: auctions
@@ -345,6 +347,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExceptionResponse"
+  /auctions/featured:
+    get:
+      tags: [Auction]
+      operationId: getFeaturedAuction
+      summary: 대표 경매 조회
+      description: >
+        홈 화면에 노출할 대표 경매 1건을 조회합니다. 진행 중(ONGOING)인 경매 중
+        관심 수가 가장 많은 경매를 반환합니다.
+      responses:
+        "200":
+          description: 대표 경매 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuctionListItemResponse"
+        "404":
+          description: 대표로 보여줄 진행 중인 경매가 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
   /auctions:
     get:
       tags: [auctions]
@@ -567,6 +590,49 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SearchCardsResponse"
+    AuctionListItemResponse:
+      type: object
+      properties:
+        auctionId:
+          type: integer
+          format: int64
+        consignmentId:
+          type: integer
+          format: int64
+        card:
+          $ref: "#/components/schemas/SearchCardsResponse"
+        grade:
+          type: string
+          nullable: true
+        auctionStatus:
+          type: string
+          enum: [SCHEDULED, ONGOING, WON, PASSED]
+        startingPrice:
+          type: integer
+          format: int64
+        currentPrice:
+          type: integer
+          format: int64
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        remainingSeconds:
+          type: integer
+          format: int64
+          nullable: true
+        watchCount:
+          type: integer
+          format: int64
+        watched:
+          type: boolean
+        thumbnailUrl:
+          type: string
+          nullable: true
     CertificateRequest:
       type: object
       required: [serialNumber, certificationBody, grade, inspectedAt]
