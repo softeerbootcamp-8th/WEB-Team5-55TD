@@ -302,7 +302,7 @@ class ConsignmentServiceTest {
   }
 
   @Test
-  void 상품에_연결된_인증서를_찾을_수_없으면_예외가_발생한다() {
+  void 인증서가_없는_상품을_조회하면_certificate가_null이고_예외없이_반환된다() {
     // given
     Long consignmentId = 100L;
     Consignment consignment =
@@ -311,11 +311,14 @@ class ConsignmentServiceTest {
         .willReturn(Optional.of(consignment));
     given(certificateRepository.findCertificateByConsignment(consignment))
         .willReturn(Optional.empty());
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
 
-    // when & then
-    assertThatThrownBy(() -> consignmentService.getConsignment(consignmentId))
-        .isInstanceOf(PickUpException.class);
-    then(consignmentImageRepository).shouldHaveNoInteractions();
+    // when
+    GetConsignmentDetailResponse response = consignmentService.getConsignment(consignmentId);
+
+    // then
+    assertThat(response.certificate()).isNull();
   }
 
   @Test

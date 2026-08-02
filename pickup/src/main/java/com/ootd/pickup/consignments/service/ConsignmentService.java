@@ -74,7 +74,9 @@ public class ConsignmentService {
             .findConsignmentById(consignmentId)
             .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
 
-    Certificate certificate = getCertificate(consignment);
+    // 인증서는 상품과 0..1 관계이므로, 조회 시점에는 없을 수 있다(수정 시점과 달리 필수가 아님).
+    Certificate certificate =
+        certificateRepository.findCertificateByConsignment(consignment).orElse(null);
 
     List<ConsignmentImage> images =
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);

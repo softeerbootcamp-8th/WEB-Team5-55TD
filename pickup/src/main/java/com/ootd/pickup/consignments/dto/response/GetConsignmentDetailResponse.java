@@ -27,7 +27,7 @@ public record GetConsignmentDetailResponse(
         sellerMemberNickname,
         consignment.getMajorDefect(),
         consignment.getStatus(),
-        CertificateResponse.from(certificate),
+        certificate == null ? null : CertificateResponse.from(certificate),
         images.stream().map(ConsignmentImageResponse::from).toList(),
         consignment.getStatus() != ConsignmentStatus.REGISTERABLE);
   }
