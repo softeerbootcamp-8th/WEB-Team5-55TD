@@ -47,11 +47,9 @@ class SalesHistoryIntegrationTest {
     Member seller = createMember("seller");
     Consignment consignment = createConsignment(seller);
     Auction won =
-        createAuction(
-            consignment, AuctionStatus.WON, 12000L, LocalDateTime.now().minusHours(1));
+        createAuction(consignment, AuctionStatus.WON, 12000L, LocalDateTime.now().minusHours(1));
     Auction passed =
-        createAuction(
-            consignment, AuctionStatus.PASSED, 5000L, LocalDateTime.now().minusHours(2));
+        createAuction(consignment, AuctionStatus.PASSED, 5000L, LocalDateTime.now().minusHours(2));
     createAuction(consignment, AuctionStatus.ONGOING, 3000L, null);
 
     // when & then
@@ -59,7 +57,8 @@ class SalesHistoryIntegrationTest {
         .perform(
             get("/sellers/me/sales")
                 .requestAttr(
-                    AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(seller.getMemberId())))
+                    AuthenticationAttributes.ATTRIBUTE_NAME,
+                    new Authentication(seller.getMemberId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(2))
         .andExpect(jsonPath("$.items[0].auctionId").value(won.getAuctionId()))
@@ -74,8 +73,7 @@ class SalesHistoryIntegrationTest {
     Member seller = createMember("seller");
     Consignment consignment = createConsignment(seller);
     Auction won =
-        createAuction(
-            consignment, AuctionStatus.WON, 12000L, LocalDateTime.now().minusHours(1));
+        createAuction(consignment, AuctionStatus.WON, 12000L, LocalDateTime.now().minusHours(1));
     createAuction(consignment, AuctionStatus.PASSED, 5000L, LocalDateTime.now().minusHours(2));
 
     // when & then
@@ -84,7 +82,8 @@ class SalesHistoryIntegrationTest {
             get("/sellers/me/sales")
                 .param("status", "WON")
                 .requestAttr(
-                    AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(seller.getMemberId())))
+                    AuthenticationAttributes.ATTRIBUTE_NAME,
+                    new Authentication(seller.getMemberId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.items[0].auctionId").value(won.getAuctionId()));
@@ -115,11 +114,9 @@ class SalesHistoryIntegrationTest {
     Member seller = createMember("seller");
     Consignment consignment = createConsignment(seller);
     Auction newest =
-        createAuction(
-            consignment, AuctionStatus.WON, 1000L, LocalDateTime.now().minusHours(1));
+        createAuction(consignment, AuctionStatus.WON, 1000L, LocalDateTime.now().minusHours(1));
     Auction oldest =
-        createAuction(
-            consignment, AuctionStatus.WON, 2000L, LocalDateTime.now().minusHours(2));
+        createAuction(consignment, AuctionStatus.WON, 2000L, LocalDateTime.now().minusHours(2));
 
     String firstPage =
         mockMvc
@@ -141,7 +138,8 @@ class SalesHistoryIntegrationTest {
                 .param("size", "1")
                 .param("cursor", cursor)
                 .requestAttr(
-                    AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(seller.getMemberId())))
+                    AuthenticationAttributes.ATTRIBUTE_NAME,
+                    new Authentication(seller.getMemberId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.hasNext").value(false))
         .andExpect(jsonPath("$.cursor").doesNotExist())
