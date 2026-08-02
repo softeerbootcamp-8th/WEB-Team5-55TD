@@ -5,6 +5,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.*;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.dto.request.CreateAuctionRequest;
+import com.ootd.pickup.auction.dto.request.GetMyAuctionsRequest;
 import com.ootd.pickup.auction.dto.request.SearchAuctionsRequest;
 import com.ootd.pickup.auction.dto.response.AuctionDetailResponse;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
@@ -12,6 +13,7 @@ import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionCursor;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.auction.AuctionSort;
+import com.ootd.pickup.auction.repository.auction.SalesCursor;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
@@ -23,6 +25,7 @@ import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
+import com.ootd.pickup.global.util.EpochMillis;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -94,6 +97,29 @@ public class AuctionService {
       nextCursor =
           AuctionCursor.encode(
               sort, AuctionCursor.sortValueOf(sort, last, lastWatchCount), last.getAuctionId());
+    }
+
+    return CursorPageResponse.from(assembled.items(), hasNext, nextCursor);
+  }
+
+  public CursorPageResponse<AuctionListItemResponse, String> getMyOngoingAuctions(
+      Long sellerMemberId, GetMyAuctionsRequest request) {
+    int size = CursorPageSize.resolve(request.size());
+    SalesCursor decodedCursor = SalesCursor.decode(request.cursor());
+
+    List<Auction> fetched =
+        auctionRepository.findAllBySellerMemberIdWithCard(
+            sellerMemberId, List.of(AuctionStatus.ONGOING), decodedCursor, size + 1);
+
+    boolean hasNext = fetched.size() > size;
+    List<Auction> page = hasNext ? fetched.subList(0, size) : fetched;
+
+    Assembled assembled = assemble(page, sellerMemberId);
+
+    String nextCursor = null;
+    if (hasNext) {
+      Auction last = page.getLast();
+      nextCursor = SalesCursor.encode(EpochMillis.from(last.getEndedAt()), last.getAuctionId());
     }
 
     return CursorPageResponse.from(assembled.items(), hasNext, nextCursor);

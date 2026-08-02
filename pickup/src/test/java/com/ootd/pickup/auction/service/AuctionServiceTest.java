@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.*;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.dto.request.CreateAuctionRequest;
+import com.ootd.pickup.auction.dto.request.GetMyAuctionsRequest;
 import com.ootd.pickup.auction.dto.request.SearchAuctionsRequest;
 import com.ootd.pickup.auction.dto.response.AuctionDetailResponse;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
@@ -239,6 +240,65 @@ class AuctionServiceTest {
     // then
     assertThat(response.hasNext()).isFalse();
     assertThat(response.cursor()).isNull();
+  }
+
+  @Test
+  void 내_진행중_경매_조회시_ONGOING_상태로만_조회한다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction ongoing =
+        createAuction(
+            1L, consignment, AuctionStatus.ONGOING, LocalDateTime.now().minusHours(1), null);
+    given(
+            auctionRepository.findAllBySellerMemberIdWithCard(
+                eq(1L), eq(List.of(AuctionStatus.ONGOING)), isNull(), eq(21)))
+        .willReturn(List.of(ongoing));
+    stubEmptyAssemblyDependencies();
+
+    GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, null);
+
+    // when
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        auctionService.getMyOngoingAuctions(1L, request);
+
+    // then
+    assertThat(response.items()).extracting(AuctionListItemResponse::auctionId).containsExactly(1L);
+  }
+
+  @Test
+  void 내_진행중_경매가_size보다_많으면_hasNext가_true이고_커서가_생성된다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction first =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.ONGOING,
+            LocalDateTime.now().minusHours(1),
+            LocalDateTime.now().plusHours(1));
+    Auction second =
+        createAuction(
+            2L,
+            consignment,
+            AuctionStatus.ONGOING,
+            LocalDateTime.now().minusHours(2),
+            LocalDateTime.now().plusHours(2));
+    given(
+            auctionRepository.findAllBySellerMemberIdWithCard(
+                eq(1L), eq(List.of(AuctionStatus.ONGOING)), isNull(), eq(2)))
+        .willReturn(List.of(first, second));
+    stubEmptyAssemblyDependencies();
+
+    GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, 1);
+
+    // when
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        auctionService.getMyOngoingAuctions(1L, request);
+
+    // then
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.cursor()).isNotBlank();
+    assertThat(response.items()).extracting(AuctionListItemResponse::auctionId).containsExactly(1L);
   }
 
   @Test

@@ -1,6 +1,7 @@
 package com.ootd.pickup.consignments.repository.consignment;
 
 import com.ootd.pickup.consignments.domain.Consignment;
+import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -29,5 +30,10 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
   @Override
   public void deleteById(Long consignmentId) {
     consignmentJpaRepository.deleteById(consignmentId);
+  }
+
+  @Override
+  public long countBySellerMemberIdAndStatus(Long sellerMemberId, ConsignmentStatus status) {
+    return consignmentJpaRepository.countBySellerMember_MemberIdAndStatus(sellerMemberId, status);
   }
 }

@@ -214,4 +214,18 @@ public class AuctionDataJpaRepository implements AuctionRepository {
         .lt(endedAt)
         .or(auction.endedAt.eq(endedAt).and(auction.auctionId.lt(cursor.auctionId())));
   }
+
+  @Override
+  public long countBySellerMemberIdAndStatus(Long sellerMemberId, AuctionStatus status) {
+    Long count =
+        queryFactory
+            .select(auction.count())
+            .from(auction)
+            .join(auction.consignment, consignment)
+            .where(
+                consignment.sellerMember.memberId.eq(sellerMemberId),
+                auction.auctionStatus.eq(status))
+            .fetchOne();
+    return count != null ? count : 0L;
+  }
 }

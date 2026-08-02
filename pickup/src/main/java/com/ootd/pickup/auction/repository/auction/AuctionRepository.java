@@ -19,4 +19,6 @@ public interface AuctionRepository {
 
   List<Auction> findAllBySellerMemberIdWithCard(
       Long sellerMemberId, List<AuctionStatus> statuses, SalesCursor cursor, int limit);
+
+  long countBySellerMemberIdAndStatus(Long sellerMemberId, AuctionStatus status);
 }
