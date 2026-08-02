@@ -79,7 +79,39 @@ public enum ExceptionCode {
   CONSIGNMENT_NOT_DELETABLE(
       HttpStatus.CONFLICT,
       ClientExceptionCode.CONSIGNMENT_NOT_DELETABLE,
-      "경매가 시작된 이후에는 상품을 삭제할 수 없습니다.");
+      "경매가 시작된 이후에는 상품을 삭제할 수 없습니다."),
+  INVALID_IMAGE_CONTENT_TYPE(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.INVALID_IMAGE_CONTENT_TYPE,
+      "JPG, PNG, WebP 이미지만 업로드할 수 있습니다."),
+  INVALID_IMAGE_SIZE(
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_IMAGE_SIZE, "이미지는 10MB 이하여야 합니다."),
+  INVALID_IMAGE_CONTENT(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.INVALID_IMAGE_CONTENT,
+      "파일 내용이 이미지 형식과 일치하지 않습니다."),
+  INVALID_IMAGE_OBJECT_KEY(
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_IMAGE_OBJECT_KEY, "유효하지 않은 이미지 객체 키입니다."),
+  IMAGE_OBJECT_NOT_FOUND(
+      HttpStatus.CONFLICT, ClientExceptionCode.IMAGE_OBJECT_NOT_FOUND, "업로드된 이미지 객체를 찾을 수 없습니다."),
+  IMAGE_UPLOAD_OWNER_MISMATCH(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.IMAGE_UPLOAD_OWNER_MISMATCH,
+      "본인이 업로드한 이미지만 사용할 수 있습니다."),
+  IMAGE_UPLOAD_PURPOSE_MISMATCH(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.IMAGE_UPLOAD_PURPOSE_MISMATCH,
+      "이미지의 업로드 용도가 요청과 일치하지 않습니다."),
+  IMAGE_UPLOAD_CHANGED(
+      HttpStatus.CONFLICT, ClientExceptionCode.IMAGE_UPLOAD_CHANGED, "이미지 검증 중 업로드 객체가 변경되었습니다."),
+  DUPLICATE_IMAGE_UPLOAD(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.DUPLICATE_IMAGE_UPLOAD,
+      "같은 이미지를 중복해서 사용할 수 없습니다."),
+  IMAGE_STORAGE_UNAVAILABLE(
+      HttpStatus.SERVICE_UNAVAILABLE,
+      ClientExceptionCode.IMAGE_STORAGE_UNAVAILABLE,
+      "이미지 저장소를 일시적으로 사용할 수 없습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;
