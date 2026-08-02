@@ -95,18 +95,6 @@ export interface CardInfo {
   defects?: string; // 주요 결함
 }
 
-/** 셀러 상품 */
-export interface Product {
-  id: string;
-  cardName: string;
-  thumbnailUrl?: string;
-  grade: Grade;
-  status: ProductStatus;
-  card: CardInfo;
-  images: string[];
-  createdAt: string;
-}
-
 /** 마이페이지 입찰/낙찰 내역 항목 */
 export interface MyBidItem {
   auctionId: string;

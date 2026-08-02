@@ -9,8 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getMyConsignments } from "@/api/consignments";
 import { getMySalesHistory } from "@/api/sales";
-import { products } from "@/lib/mock/data";
-import { ProductStatus } from "@/lib/types";
+import { getMySellerStats } from "@/api/seller-stats";
 import { formatWon } from "@/lib/format";
 
 export const Route = createFileRoute("/seller/")({
@@ -19,14 +18,16 @@ export const Route = createFileRoute("/seller/")({
 
 /** DESIGN.md · seller home.html — 요약 통계 + 진행 중 경매 + 최근 낙찰 */
 function SellerHome() {
-  const count = (s: ProductStatus) =>
-    products.filter((p) => p.status === s).length;
+  const { data: sellerStats } = useQuery({
+    queryKey: ["sellers", "me", "stats"],
+    queryFn: getMySellerStats,
+  });
 
   const stats = [
-    { label: "등록 상품", value: products.length },
-    { label: "경매 예정", value: count(ProductStatus.AUCTION_UPCOMING) },
-    { label: "진행 중", value: count(ProductStatus.AUCTION_LIVE) },
-    { label: "판매 완료", value: count(ProductStatus.SOLD) },
+    { label: "등록 상품", value: sellerStats?.registered },
+    { label: "경매 예정", value: sellerStats?.scheduled },
+    { label: "진행 중", value: sellerStats?.ongoing },
+    { label: "판매 완료", value: sellerStats?.sold },
   ];
 
   const {
@@ -74,7 +75,9 @@ function SellerHome() {
             <span className="text-xs text-[var(--color-text-muted)]">
               {s.label}
             </span>
-            <span className="tabular text-2xl font-bold">{s.value}</span>
+            <span className="tabular text-2xl font-bold">
+              {s.value ?? "-"}
+            </span>
           </div>
         ))}
       </div>
