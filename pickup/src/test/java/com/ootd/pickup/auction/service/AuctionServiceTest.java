@@ -243,7 +243,7 @@ class AuctionServiceTest {
   }
 
   @Test
-  void status가_없으면_SCHEDULED와_ONGOING을_모두_조회한다() {
+  void status가_없으면_전체_상태를_조회한다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
     Auction ongoing =
@@ -251,10 +251,7 @@ class AuctionServiceTest {
             1L, consignment, AuctionStatus.ONGOING, LocalDateTime.now().minusHours(1), null);
     given(
             auctionRepository.findAllBySellerMemberIdWithCard(
-                eq(1L),
-                eq(List.of(AuctionStatus.SCHEDULED, AuctionStatus.ONGOING)),
-                isNull(),
-                eq(21)))
+                eq(1L), eq(List.of()), isNull(), eq(21)))
         .willReturn(List.of(ongoing));
     stubEmptyAssemblyDependencies();
 
@@ -292,9 +289,31 @@ class AuctionServiceTest {
   }
 
   @Test
-  void status로_종료_상태를_요청하면_예외가_발생한다() {
+  void status로_종료_상태를_지정해도_조회된다() {
     // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.WON, null);
+    Auction won =
+        createAuction(1L, consignment, AuctionStatus.WON, LocalDateTime.now().minusHours(1), null);
+    given(
+            auctionRepository.findAllBySellerMemberIdWithCard(
+                eq(1L), eq(List.of(AuctionStatus.WON)), isNull(), eq(21)))
+        .willReturn(List.of(won));
+    stubEmptyAssemblyDependencies();
+
     GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, null, "WON");
+
+    // when
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        auctionService.getMyAuctions(1L, request);
+
+    // then
+    assertThat(response.items()).extracting(AuctionListItemResponse::auctionId).containsExactly(1L);
+  }
+
+  @Test
+  void status가_유효하지_않으면_예외가_발생한다() {
+    // given
+    GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, null, "CANCELLED");
 
     // when & then
     assertThatThrownBy(() -> auctionService.getMyAuctions(1L, request))
@@ -324,12 +343,7 @@ class AuctionServiceTest {
             AuctionStatus.ONGOING,
             LocalDateTime.now().minusHours(2),
             LocalDateTime.now().plusHours(2));
-    given(
-            auctionRepository.findAllBySellerMemberIdWithCard(
-                eq(1L),
-                eq(List.of(AuctionStatus.SCHEDULED, AuctionStatus.ONGOING)),
-                isNull(),
-                eq(2)))
+    given(auctionRepository.findAllBySellerMemberIdWithCard(eq(1L), eq(List.of()), isNull(), eq(2)))
         .willReturn(List.of(first, second));
     stubEmptyAssemblyDependencies();
 

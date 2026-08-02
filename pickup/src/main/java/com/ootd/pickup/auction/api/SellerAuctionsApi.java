@@ -19,11 +19,11 @@ import org.springframework.http.ResponseEntity;
 public interface SellerAuctionsApi {
 
   @Operation(
-      summary = "종료되지 않은 경매 목록 조회",
+      summary = "경매 목록 조회",
       description =
           """
-            로그인한 셀러가 등록한 경매 중 아직 종료되지 않은(SCHEDULED/ONGOING) 경매를
-            커서 기반으로 조회합니다. status가 없으면 SCHEDULED/ONGOING을 모두 포함합니다.
+            로그인한 셀러가 등록한 경매를 상태(SCHEDULED/ONGOING/WON/PASSED)와 무관하게
+            커서 기반으로 조회합니다. status가 없으면 모든 상태를 포함합니다.
             """,
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {

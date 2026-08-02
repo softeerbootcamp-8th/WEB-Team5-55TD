@@ -86,7 +86,7 @@ class SellerAuctionsControllerTest {
     mockMvc
         .perform(
             get("/sellers/me/auctions")
-                .param("status", "WON")
+                .param("status", "CANCELLED")
                 .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.message").value(INVALID_AUCTION_STATUS.getMessage()));

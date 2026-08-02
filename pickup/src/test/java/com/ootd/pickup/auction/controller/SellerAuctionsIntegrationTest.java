@@ -31,7 +31,7 @@ class SellerAuctionsIntegrationTest extends SellerAuctionFixtureSupport {
   @Autowired private ObjectMapper objectMapper;
 
   @Test
-  void status가_없으면_종료되지_않은_경매를_모두_조회한다() throws Exception {
+  void status가_없으면_모든_상태의_경매를_조회한다() throws Exception {
     // given
     Member seller = createMember("seller");
     Consignment consignment = createConsignment(seller, ConsignmentStatus.AUCTION_ONGOING);
@@ -47,7 +47,7 @@ class SellerAuctionsIntegrationTest extends SellerAuctionFixtureSupport {
                     AuthenticationAttributes.ATTRIBUTE_NAME,
                     new Authentication(seller.getMemberId())))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.items.length()").value(2));
+        .andExpect(jsonPath("$.items.length()").value(3));
   }
 
   @Test
@@ -74,7 +74,30 @@ class SellerAuctionsIntegrationTest extends SellerAuctionFixtureSupport {
   }
 
   @Test
-  void status로_종료_상태를_요청하면_400을_반환한다() throws Exception {
+  void status로_WON만_필터링한다() throws Exception {
+    // given
+    Member seller = createMember("seller");
+    Consignment consignment = createConsignment(seller, ConsignmentStatus.WON);
+    Auction won =
+        createAuction(consignment, AuctionStatus.WON, 5000L, LocalDateTime.now().minusHours(1));
+    createAuction(consignment, AuctionStatus.ONGOING, 3000L, LocalDateTime.now().plusHours(1));
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/sellers/me/auctions")
+                .param("status", "WON")
+                .requestAttr(
+                    AuthenticationAttributes.ATTRIBUTE_NAME,
+                    new Authentication(seller.getMemberId())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(won.getAuctionId()))
+        .andExpect(jsonPath("$.items[0].auctionStatus").value("WON"));
+  }
+
+  @Test
+  void status가_유효하지_않으면_400을_반환한다() throws Exception {
     // given
     Member seller = createMember("seller");
 
@@ -82,7 +105,7 @@ class SellerAuctionsIntegrationTest extends SellerAuctionFixtureSupport {
     mockMvc
         .perform(
             get("/sellers/me/auctions")
-                .param("status", "WON")
+                .param("status", "CANCELLED")
                 .requestAttr(
                     AuthenticationAttributes.ATTRIBUTE_NAME,
                     new Authentication(seller.getMemberId())))

@@ -103,7 +103,8 @@ public class AuctionService {
 
   public CursorPageResponse<AuctionListItemResponse, String> getMyAuctions(
       Long sellerMemberId, GetMyAuctionsRequest request) {
-    List<AuctionStatus> statuses = resolveNonTerminalStatuses(request.status());
+    AuctionStatus status = AuctionStatus.from(request.status());
+    List<AuctionStatus> statuses = status == null ? List.of() : List.of(status);
 
     return SalesCursorPaginator.paginate(
         auctionRepository,
@@ -112,18 +113,6 @@ public class AuctionService {
         request.cursor(),
         request.size(),
         auctions -> assemble(auctions, sellerMemberId).items());
-  }
-
-  private List<AuctionStatus> resolveNonTerminalStatuses(String status) {
-    if (status == null || status.isBlank()) {
-      return AuctionStatus.nonTerminalStatuses();
-    }
-
-    AuctionStatus parsed = AuctionStatus.from(status);
-    if (parsed.isTerminal()) {
-      throw new PickUpException(INVALID_AUCTION_STATUS);
-    }
-    return List.of(parsed);
   }
 
   public AuctionDetailResponse getAuctionDetail(Long viewerMemberId, Long auctionId) {
