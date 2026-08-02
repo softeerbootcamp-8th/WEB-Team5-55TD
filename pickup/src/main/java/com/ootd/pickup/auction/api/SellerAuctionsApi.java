@@ -15,23 +15,27 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 
-@Tag(name = "SellerAuctions", description = "셀러 진행 중 경매 API")
+@Tag(name = "SellerAuctions", description = "셀러 경매 API")
 public interface SellerAuctionsApi {
 
   @Operation(
-      summary = "진행 중인 경매 목록 조회",
-      description = "로그인한 셀러가 등록한 경매 중 진행 중(ONGOING)인 경매를 커서 기반으로 조회합니다.",
+      summary = "종료되지 않은 경매 목록 조회",
+      description =
+          """
+            로그인한 셀러가 등록한 경매 중 아직 종료되지 않은(SCHEDULED/ONGOING) 경매를
+            커서 기반으로 조회합니다. status가 없으면 SCHEDULED/ONGOING을 모두 포함합니다.
+            """,
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {
         @ApiResponse(
             responseCode = "200",
-            description = "진행 중인 경매 목록 조회 성공",
+            description = "경매 목록 조회 성공",
             content =
                 @Content(
                     schema = @Schema(implementation = CursorPageResponse.class),
                     examples =
                         @ExampleObject(
-                            name = "진행 중인 경매 목록",
+                            name = "경매 목록",
                             value =
                                 """
                             {
@@ -67,13 +71,13 @@ public interface SellerAuctionsApi {
                             """))),
         @ApiResponse(
             responseCode = "400",
-            description = "요청 값 검증 실패 (잘못된 cursor/size)",
+            description = "요청 값 검증 실패 (잘못된 status/cursor/size)",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "401",
             description = "인증 필요",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
-  ResponseEntity<CursorPageResponse<AuctionListItemResponse, String>> getMyOngoingAuctions(
+  ResponseEntity<CursorPageResponse<AuctionListItemResponse, String>> getMyAuctions(
       @Parameter(hidden = true) Long memberId, GetMyAuctionsRequest request);
 }

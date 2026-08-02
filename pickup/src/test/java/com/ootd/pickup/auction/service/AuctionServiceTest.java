@@ -243,7 +243,7 @@ class AuctionServiceTest {
   }
 
   @Test
-  void 내_진행중_경매_조회시_ONGOING_상태로만_조회한다() {
+  void status가_없으면_SCHEDULED와_ONGOING을_모두_조회한다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
     Auction ongoing =
@@ -251,22 +251,63 @@ class AuctionServiceTest {
             1L, consignment, AuctionStatus.ONGOING, LocalDateTime.now().minusHours(1), null);
     given(
             auctionRepository.findAllBySellerMemberIdWithCard(
-                eq(1L), eq(List.of(AuctionStatus.ONGOING)), isNull(), eq(21)))
+                eq(1L),
+                eq(List.of(AuctionStatus.SCHEDULED, AuctionStatus.ONGOING)),
+                isNull(),
+                eq(21)))
         .willReturn(List.of(ongoing));
     stubEmptyAssemblyDependencies();
 
-    GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, null);
+    GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
-        auctionService.getMyOngoingAuctions(1L, request);
+        auctionService.getMyAuctions(1L, request);
 
     // then
     assertThat(response.items()).extracting(AuctionListItemResponse::auctionId).containsExactly(1L);
   }
 
   @Test
-  void 내_진행중_경매가_size보다_많으면_hasNext가_true이고_커서가_생성된다() {
+  void status를_지정하면_해당_상태로만_조회한다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.REGISTERABLE, null);
+    Auction scheduled =
+        createAuction(
+            1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
+    given(
+            auctionRepository.findAllBySellerMemberIdWithCard(
+                eq(1L), eq(List.of(AuctionStatus.SCHEDULED)), isNull(), eq(21)))
+        .willReturn(List.of(scheduled));
+    stubEmptyAssemblyDependencies();
+
+    GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, null, "SCHEDULED");
+
+    // when
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        auctionService.getMyAuctions(1L, request);
+
+    // then
+    assertThat(response.items()).extracting(AuctionListItemResponse::auctionId).containsExactly(1L);
+  }
+
+  @Test
+  void status로_종료_상태를_요청하면_예외가_발생한다() {
+    // given
+    GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, null, "WON");
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.getMyAuctions(1L, request))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            e ->
+                assertThat(((PickUpException) e).getMessage())
+                    .isEqualTo(ExceptionCode.INVALID_AUCTION_STATUS.getMessage()));
+    then(auctionRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 내_경매가_size보다_많으면_hasNext가_true이고_커서가_생성된다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
     Auction first =
@@ -285,15 +326,18 @@ class AuctionServiceTest {
             LocalDateTime.now().plusHours(2));
     given(
             auctionRepository.findAllBySellerMemberIdWithCard(
-                eq(1L), eq(List.of(AuctionStatus.ONGOING)), isNull(), eq(2)))
+                eq(1L),
+                eq(List.of(AuctionStatus.SCHEDULED, AuctionStatus.ONGOING)),
+                isNull(),
+                eq(2)))
         .willReturn(List.of(first, second));
     stubEmptyAssemblyDependencies();
 
-    GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, 1);
+    GetMyAuctionsRequest request = new GetMyAuctionsRequest(null, 1, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
-        auctionService.getMyOngoingAuctions(1L, request);
+        auctionService.getMyAuctions(1L, request);
 
     // then
     assertThat(response.hasNext()).isTrue();

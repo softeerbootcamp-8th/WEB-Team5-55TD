@@ -31,12 +31,11 @@ class SellerAuctionsIntegrationTest extends SellerAuctionFixtureSupport {
   @Autowired private ObjectMapper objectMapper;
 
   @Test
-  void 판매자의_진행중인_경매만_조회한다() throws Exception {
+  void status가_없으면_종료되지_않은_경매를_모두_조회한다() throws Exception {
     // given
     Member seller = createMember("seller");
     Consignment consignment = createConsignment(seller, ConsignmentStatus.AUCTION_ONGOING);
-    Auction ongoing =
-        createAuction(consignment, AuctionStatus.ONGOING, 3000L, LocalDateTime.now().plusHours(1));
+    createAuction(consignment, AuctionStatus.ONGOING, 3000L, LocalDateTime.now().plusHours(1));
     createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null);
     createAuction(consignment, AuctionStatus.WON, 5000L, LocalDateTime.now().minusHours(1));
 
@@ -48,9 +47,46 @@ class SellerAuctionsIntegrationTest extends SellerAuctionFixtureSupport {
                     AuthenticationAttributes.ATTRIBUTE_NAME,
                     new Authentication(seller.getMemberId())))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2));
+  }
+
+  @Test
+  void status로_ONGOING만_필터링한다() throws Exception {
+    // given
+    Member seller = createMember("seller");
+    Consignment consignment = createConsignment(seller, ConsignmentStatus.AUCTION_ONGOING);
+    Auction ongoing =
+        createAuction(consignment, AuctionStatus.ONGOING, 3000L, LocalDateTime.now().plusHours(1));
+    createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null);
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/sellers/me/auctions")
+                .param("status", "ONGOING")
+                .requestAttr(
+                    AuthenticationAttributes.ATTRIBUTE_NAME,
+                    new Authentication(seller.getMemberId())))
+        .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.items[0].auctionId").value(ongoing.getAuctionId()))
         .andExpect(jsonPath("$.items[0].auctionStatus").value("ONGOING"));
+  }
+
+  @Test
+  void status로_종료_상태를_요청하면_400을_반환한다() throws Exception {
+    // given
+    Member seller = createMember("seller");
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/sellers/me/auctions")
+                .param("status", "WON")
+                .requestAttr(
+                    AuthenticationAttributes.ATTRIBUTE_NAME,
+                    new Authentication(seller.getMemberId())))
+        .andExpect(status().isBadRequest());
   }
 
   @Test

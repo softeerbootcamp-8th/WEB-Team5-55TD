@@ -36,7 +36,7 @@ class SellerAuctionsControllerTest {
   @Test
   void 인증된_회원이_진행중_경매를_조회하면_200과_회원ID가_서비스에_전달된다() throws Exception {
     // given
-    given(auctionService.getMyOngoingAuctions(eq(1L), any(GetMyAuctionsRequest.class)))
+    given(auctionService.getMyAuctions(eq(1L), any(GetMyAuctionsRequest.class)))
         .willReturn(CursorPageResponse.from(List.of(createItem()), false, null));
 
     // when & then
@@ -49,7 +49,7 @@ class SellerAuctionsControllerTest {
         .andExpect(jsonPath("$.items[0].auctionId").value(1L))
         .andExpect(jsonPath("$.items[0].auctionStatus").value("ONGOING"));
 
-    then(auctionService).should().getMyOngoingAuctions(eq(1L), any(GetMyAuctionsRequest.class));
+    then(auctionService).should().getMyAuctions(eq(1L), any(GetMyAuctionsRequest.class));
   }
 
   @Test
@@ -63,7 +63,7 @@ class SellerAuctionsControllerTest {
   @Test
   void 커서가_잘못되면_400을_반환한다() throws Exception {
     // given
-    given(auctionService.getMyOngoingAuctions(eq(1L), any(GetMyAuctionsRequest.class)))
+    given(auctionService.getMyAuctions(eq(1L), any(GetMyAuctionsRequest.class)))
         .willThrow(new PickUpException(INVALID_CURSOR));
 
     // when & then
@@ -74,6 +74,22 @@ class SellerAuctionsControllerTest {
                 .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.message").value(INVALID_CURSOR.getMessage()));
+  }
+
+  @Test
+  void status가_잘못되면_400을_반환한다() throws Exception {
+    // given
+    given(auctionService.getMyAuctions(eq(1L), any(GetMyAuctionsRequest.class)))
+        .willThrow(new PickUpException(INVALID_AUCTION_STATUS));
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/sellers/me/auctions")
+                .param("status", "WON")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(INVALID_AUCTION_STATUS.getMessage()));
   }
 
   private AuctionListItemResponse createItem() {

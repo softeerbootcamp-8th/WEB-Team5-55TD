@@ -25,8 +25,8 @@ public class SellerAuctionsController implements SellerAuctionsApi {
   @GetMapping
   @RequireAuthentication
   @Override
-  public ResponseEntity<CursorPageResponse<AuctionListItemResponse, String>> getMyOngoingAuctions(
+  public ResponseEntity<CursorPageResponse<AuctionListItemResponse, String>> getMyAuctions(
       @MemberId Long memberId, @Valid @ModelAttribute GetMyAuctionsRequest request) {
-    return ResponseEntity.ok(auctionService.getMyOngoingAuctions(memberId, request));
+    return ResponseEntity.ok(auctionService.getMyAuctions(memberId, request));
   }
 }

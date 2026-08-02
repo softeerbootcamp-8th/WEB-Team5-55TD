@@ -17,9 +17,14 @@ public enum AuctionStatus {
   PASSED;
 
   private static final List<AuctionStatus> TERMINAL_STATUSES = List.of(WON, PASSED);
+  private static final List<AuctionStatus> NON_TERMINAL_STATUSES = List.of(SCHEDULED, ONGOING);
 
   public static List<AuctionStatus> terminalStatuses() {
     return TERMINAL_STATUSES;
+  }
+
+  public static List<AuctionStatus> nonTerminalStatuses() {
+    return NON_TERMINAL_STATUSES;
   }
 
   public boolean isTerminal() {
