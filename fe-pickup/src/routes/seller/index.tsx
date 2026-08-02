@@ -5,9 +5,11 @@ import { PageContainer } from "@/components/layout/page";
 import { SectionHeader } from "@/components/domain/section-header";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getMyConsignments } from "@/api/consignments";
-import { products, sales } from "@/lib/mock/data";
+import { getMySalesHistory } from "@/api/sales";
+import { products } from "@/lib/mock/data";
 import { ProductStatus } from "@/lib/types";
 import { formatWon } from "@/lib/format";
 
@@ -37,7 +39,14 @@ function SellerHome() {
       getMyConsignments({ status: "AUCTION_ONGOING" }).then((r) => r.items),
   });
 
-  const recentSold = sales.filter((s) => s.status === ProductStatus.SOLD);
+  const {
+    data: recentSales,
+    isPending: isSalesLoading,
+    isError: isSalesError,
+  } = useQuery({
+    queryKey: ["sales", "my", "recent"],
+    queryFn: () => getMySalesHistory({ size: 3 }).then((r) => r.items),
+  });
 
   return (
     <PageContainer className="flex flex-col gap-10">
@@ -145,27 +154,53 @@ function SellerHome() {
             </Link>
           }
         />
-        <ul className="flex flex-col gap-3">
-          {recentSold.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4"
-            >
-              <CardThumb
-                cardName={s.cardName}
-                aspect="aspect-square"
-                className="w-14"
-              />
-              <div className="flex flex-1 flex-col gap-1">
-                <GradeBadge grade={s.grade} />
-                <span className="text-sm font-semibold">{s.cardName}</span>
-              </div>
-              <span className="tabular text-sm font-semibold text-[var(--color-price)]">
-                {formatWon(s.finalPrice)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {isSalesLoading ? null : isSalesError ? (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            최근 낙찰 상품을 불러오지 못했습니다.
+          </p>
+        ) : recentSales && recentSales.length > 0 ? (
+          <ul className="flex flex-col gap-3">
+            {recentSales.map((s) => {
+              const won = s.resultType === "WON";
+              return (
+                <li
+                  key={s.auctionId}
+                  className="flex items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4"
+                >
+                  <CardThumb
+                    cardName={s.cardName}
+                    imageUrl={s.thumbnailUrl}
+                    aspect="aspect-square"
+                    className="w-14"
+                  />
+                  <div className="flex flex-1 flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <GradeBadge grade={s.grade} />
+                      <Badge variant={won ? "success" : "muted"}>
+                        {won ? "낙찰" : "유찰"}
+                      </Badge>
+                    </div>
+                    <span className="text-sm font-semibold">{s.cardName}</span>
+                  </div>
+                  <span
+                    className={
+                      "tabular text-sm font-semibold " +
+                      (won
+                        ? "text-[var(--color-price)]"
+                        : "text-[var(--color-text-muted)]")
+                    }
+                  >
+                    {won ? formatWon(s.finalPrice) : "유찰"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            최근 낙찰 상품이 없습니다.
+          </p>
+        )}
       </section>
     </PageContainer>
   );
