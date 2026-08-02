@@ -63,7 +63,7 @@ function AuctionDetailPage() {
             <div className="grid grid-cols-4 gap-2">
               {images.map((img, i) => (
                 <CardThumb
-                  key={img}
+                  key={i}
                   cardName={auction.cardName}
                   imageUrl={img}
                   aspect="aspect-square"
@@ -154,6 +154,12 @@ function AuctionDetailPage() {
                   <Row
                     label="인증서 일련번호"
                     value={auction.grade?.serial ?? "-"}
+                  />
+                  <Row label="카드 상태" value={auction.cardState ?? "-"} full />
+                  <Row
+                    label="주요 결함"
+                    value={auction.majorDefect ?? "-"}
+                    full
                   />
                 </dl>
               </AccordionContent>
