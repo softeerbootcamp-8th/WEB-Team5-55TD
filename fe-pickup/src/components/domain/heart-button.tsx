@@ -6,6 +6,7 @@ import { Heart } from "lucide-react";
 import { toast } from "sonner";
 import { useDeleteWatch, useRegisterWatch } from "@/api/generated/watch/watch";
 import type { ExceptionResponse } from "@/api/generated/model";
+import { useIsAuthenticated } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 /** 관심(하트) 버튼 (DESIGN.md §5.3). 카드 우상단 배치용. */
@@ -24,6 +25,8 @@ export function HeartButton({
   isPending?: boolean;
   onToggle?: (active: boolean) => void;
 }) {
+  const navigate = useNavigate();
+  const isAuthenticated = useIsAuthenticated();
   const [localActive, setLocalActive] = useState(defaultActive);
   const active = controlledActive ?? localActive;
 
@@ -37,6 +40,16 @@ export function HeartButton({
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (!isAuthenticated) {
+          toast.info("로그인 후 관심 경매를 등록할 수 있습니다.", {
+            action: {
+              label: "로그인",
+              onClick: () => navigate({ to: "/login" }),
+            },
+          });
+          return;
+        }
+
         const nextActive = !active;
         if (controlledActive == null) setLocalActive(nextActive);
         onToggle?.(nextActive);
