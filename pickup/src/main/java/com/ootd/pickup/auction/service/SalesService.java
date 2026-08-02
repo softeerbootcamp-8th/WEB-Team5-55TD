@@ -7,13 +7,11 @@ import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.dto.request.GetSalesHistoryRequest;
 import com.ootd.pickup.auction.dto.response.SaleHistoryItemResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
-import com.ootd.pickup.auction.repository.auction.SalesCursor;
+import com.ootd.pickup.auction.repository.auction.SalesCursorPaginator;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
-import com.ootd.pickup.global.util.CursorPageSize;
-import com.ootd.pickup.global.util.EpochMillis;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -31,25 +29,14 @@ public class SalesService {
   public CursorPageResponse<SaleHistoryItemResponse, String> getSalesHistory(
       Long sellerMemberId, GetSalesHistoryRequest request) {
     List<AuctionStatus> statuses = resolveStatuses(request.status());
-    int size = CursorPageSize.resolve(request.size());
-    SalesCursor decodedCursor = SalesCursor.decode(request.cursor());
 
-    List<Auction> fetched =
-        auctionRepository.findAllBySellerMemberIdWithCard(
-            sellerMemberId, statuses, decodedCursor, size + 1);
-
-    boolean hasNext = fetched.size() > size;
-    List<Auction> page = hasNext ? fetched.subList(0, size) : fetched;
-
-    List<SaleHistoryItemResponse> items = assembleItems(page);
-
-    String nextCursor = null;
-    if (hasNext) {
-      Auction last = page.getLast();
-      nextCursor = SalesCursor.encode(EpochMillis.from(last.getEndedAt()), last.getAuctionId());
-    }
-
-    return CursorPageResponse.from(items, hasNext, nextCursor);
+    return SalesCursorPaginator.paginate(
+        auctionRepository,
+        sellerMemberId,
+        statuses,
+        request.cursor(),
+        request.size(),
+        this::assembleItems);
   }
 
   private List<SaleHistoryItemResponse> assembleItems(List<Auction> auctions) {
