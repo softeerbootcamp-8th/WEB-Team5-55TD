@@ -7,15 +7,16 @@ import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.domain.ImagePurpose;
+import com.ootd.pickup.images.service.ImageService;
+import com.ootd.pickup.images.service.ImageService.FinalizedImage;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
-import com.ootd.pickup.member.dto.MemberRequest;
-import com.ootd.pickup.member.dto.MemberResponse;
-import com.ootd.pickup.member.dto.MyProfileResponse;
-import com.ootd.pickup.member.dto.PointBalanceResponse;
-import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
+import com.ootd.pickup.member.dto.*;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,8 @@ public class MemberService {
   private final MemberRepository memberRepository;
   private final MemberManageService memberManageService;
   private final PointRepository pointRepository;
+  private final ImageService imageService;
+  private final ImageUrlResolver imageUrlResolver;
 
   public MemberResponse createMember(MemberRequest memberRequest) {
     if (memberRepository.existsByLoginId(memberRequest.loginId())) {
@@ -52,15 +55,13 @@ public class MemberService {
 
     pointRepository.save(Point.create(savedMember.getMemberId()));
     return new MemberResponse(
-        savedMember.getMemberId(),
-        savedMember.getLoginId(),
-        savedMember.getNickname(),
-        savedMember.getProfileImageUrl());
+        savedMember.getMemberId(), savedMember.getLoginId(), savedMember.getNickname(), null);
   }
 
   @Transactional(readOnly = true)
   public MyProfileResponse getMyProfile(Long memberId) {
-    return MyProfileResponse.from(memberManageService.getMemberById(memberId));
+    Member member = memberManageService.getMemberById(memberId);
+    return toMyProfileResponse(member);
   }
 
   public MyProfileResponse updateMyProfile(
@@ -83,8 +84,9 @@ public class MemberService {
         updateMyProfileRequest.password() == null
             ? null
             : hashPassword(updateMyProfileRequest.password());
-    member.updateProfile(nickname, passwordHash, updateMyProfileRequest.profileImageUrl());
-    return MyProfileResponse.from(member);
+    member.updateProfile(nickname, passwordHash);
+    updateProfileImage(memberId, member, updateMyProfileRequest);
+    return toMyProfileResponse(member);
   }
 
   @Transactional(readOnly = true)
@@ -98,5 +100,37 @@ public class MemberService {
 
   private String hashPassword(String rawPassword) {
     return BCrypt.withDefaults().hashToString(BCRYPT_COST_FACTOR, rawPassword.toCharArray());
+  }
+
+  private void updateProfileImage(
+      Long memberId, Member member, UpdateMyProfileRequest updateMyProfileRequest) {
+    ProfileImageUpdateRequest profileImageUpdate = updateMyProfileRequest.profileImageUpdate();
+    if (profileImageUpdate == null) {
+      return;
+    }
+
+    String previousObjectKey = member.getProfileImageObjectKey();
+    switch (profileImageUpdate.action()) {
+      case SET -> {
+        FinalizedImage finalizedImage =
+            imageService
+                .finalizeImages(
+                    memberId,
+                    ImagePurpose.PROFILE,
+                    List.of(profileImageUpdate.temporaryObjectKey()))
+                .getFirst();
+        member.updateProfileImage(finalizedImage.objectKey());
+      }
+      case REMOVE -> member.removeProfileImage();
+    }
+
+    if (previousObjectKey != null && !previousObjectKey.equals(member.getProfileImageObjectKey())) {
+      imageService.deleteAfterCommit(List.of(previousObjectKey));
+    }
+  }
+
+  private MyProfileResponse toMyProfileResponse(Member member) {
+    return MyProfileResponse.from(
+        member, imageUrlResolver.resolve(member.getProfileImageObjectKey()));
   }
 }

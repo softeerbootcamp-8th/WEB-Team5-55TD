@@ -8,16 +8,23 @@ import static org.mockito.Mockito.*;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.domain.ImagePurpose;
+import com.ootd.pickup.images.service.ImageService;
+import com.ootd.pickup.images.service.ImageService.FinalizedImage;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.dto.MemberRequest;
 import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
+import com.ootd.pickup.member.dto.ProfileImageAction;
+import com.ootd.pickup.member.dto.ProfileImageUpdateRequest;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +41,10 @@ class MemberServiceTest {
   @Mock private MemberManageService memberManageService;
 
   @Mock private PointRepository pointRepository;
+
+  @Mock private ImageService imageService;
+
+  @Mock private ImageUrlResolver imageUrlResolver;
 
   @InjectMocks private MemberService memberService;
 
@@ -192,18 +203,48 @@ class MemberServiceTest {
   }
 
   @Test
-  void 프로필이미지URL만_수정하면_새_URL을_반환한다() {
+  void 프로필이미지를_수정하면_최종_객체의_URL을_반환한다() {
     // given
     Member member = Member.create("pickup-user", "password-hash", "픽업회원");
+    String temporaryObjectKey = "uploads/1/profiles/00000000-0000-0000-0000-000000000001.jpg";
+    String objectKey = "media/profiles/1/00000000-0000-0000-0000-000000000001.jpg";
     UpdateMyProfileRequest request =
-        new UpdateMyProfileRequest(null, null, null, "https://example.com/profile.png");
+        new UpdateMyProfileRequest(
+            null,
+            null,
+            null,
+            new ProfileImageUpdateRequest(ProfileImageAction.SET, temporaryObjectKey));
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(imageService.finalizeImages(1L, ImagePurpose.PROFILE, List.of(temporaryObjectKey)))
+        .willReturn(List.of(new FinalizedImage(temporaryObjectKey, objectKey)));
+    given(imageUrlResolver.resolve(objectKey)).willReturn("https://images.test/" + objectKey);
+
+    // when
+    MyProfileResponse response = memberService.updateMyProfile(1L, request);
+
+    // then
+    assertThat(response.profileImageUrl()).isEqualTo("https://images.test/" + objectKey);
+    assertThat(member.getProfileImageObjectKey()).isEqualTo(objectKey);
+  }
+
+  @Test
+  void 프로필이미지를_삭제하면_DB_연결을_지우고_커밋후_객체를_삭제한다() {
+    // given
+    Member member = Member.create("pickup-user", "password-hash", "픽업회원");
+    String previousObjectKey = "media/profiles/1/00000000-0000-0000-0000-000000000001.jpg";
+    member.updateProfileImage(previousObjectKey);
+    UpdateMyProfileRequest request =
+        new UpdateMyProfileRequest(
+            null, null, null, new ProfileImageUpdateRequest(ProfileImageAction.REMOVE, null));
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when
     MyProfileResponse response = memberService.updateMyProfile(1L, request);
 
     // then
-    assertThat(response.profileImageUrl()).isEqualTo("https://example.com/profile.png");
+    assertThat(response.profileImageUrl()).isNull();
+    assertThat(member.getProfileImageObjectKey()).isNull();
+    then(imageService).should().deleteAfterCommit(List.of(previousObjectKey));
   }
 
   @Test
