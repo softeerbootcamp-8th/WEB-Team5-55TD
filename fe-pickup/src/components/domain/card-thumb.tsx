@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Grade } from "@/lib/types";
 
@@ -28,6 +29,14 @@ export function CardThumb({
   aspect?: string;
 }) {
   const hue = hashHue(cardName);
+  const [loaded, setLoaded] = useState(false);
+  const [loadedForUrl, setLoadedForUrl] = useState(imageUrl);
+  if (imageUrl !== loadedForUrl) {
+    setLoadedForUrl(imageUrl);
+    setLoaded(false);
+  }
+  const showImage = Boolean(imageUrl) && loaded;
+
   return (
     <div
       className={cn(
@@ -43,14 +52,19 @@ export function CardThumb({
         <img
           src={imageUrl}
           alt={cardName}
-          className="absolute inset-0 size-full object-cover"
+          className={cn(
+            "absolute inset-0 size-full object-cover",
+            !loaded && "hidden",
+          )}
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(false)}
         />
       )}
       <div className="flex flex-col items-center gap-1 px-3 text-center">
         <span
           className={cn(
             "text-sm font-semibold text-white/90 [text-wrap:balance]",
-            imageUrl && "sr-only",
+            showImage && "sr-only",
           )}
         >
           {cardName}
