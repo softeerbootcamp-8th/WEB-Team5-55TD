@@ -62,7 +62,15 @@ class ConsignmentModifyIntegrationTest {
         .willAnswer(
             invocation ->
                 ((List<String>) invocation.getArgument(2))
-                    .stream().map(key -> new FinalizedImage(key, key)).toList());
+                    .stream()
+                        .map(
+                            key ->
+                                new FinalizedImage(
+                                    key,
+                                    "media/consignments/1/"
+                                        + Integer.toUnsignedString(key.hashCode())
+                                        + ".jpg"))
+                        .toList());
   }
 
   @Test

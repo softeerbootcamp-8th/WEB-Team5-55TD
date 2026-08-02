@@ -239,9 +239,14 @@ public class ConsignmentService {
       throw new PickUpException(CONSIGNMENT_NOT_DELETABLE);
     }
 
+    List<String> imageObjectKeys =
+        consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment).stream()
+            .map(ConsignmentImage::getObjectKey)
+            .toList();
     certificateRepository.deleteByConsignment(consignment);
     consignmentImageRepository.deleteAllByConsignment(consignment);
     consignmentRepository.deleteById(consignmentId);
+    imageService.deleteAfterCommit(imageObjectKeys);
   }
 
   private Certificate getCertificate(Consignment consignment) {

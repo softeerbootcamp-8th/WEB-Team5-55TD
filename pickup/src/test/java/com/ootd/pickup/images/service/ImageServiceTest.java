@@ -2,6 +2,7 @@ package com.ootd.pickup.images.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -32,10 +33,15 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
 
+  private static final long MAX_IMAGE_SIZE = 10L * 1024 * 1024;
   private static final String FIRST_TEMPORARY_KEY =
       "uploads/1/consignments/00000000-0000-0000-0000-000000000001.jpg";
   private static final String SECOND_TEMPORARY_KEY =
       "uploads/1/consignments/00000000-0000-0000-0000-000000000002.jpg";
+  private static final String PNG_TEMPORARY_KEY =
+      "uploads/1/consignments/00000000-0000-0000-0000-000000000003.png";
+  private static final String WEBP_TEMPORARY_KEY =
+      "uploads/1/consignments/00000000-0000-0000-0000-000000000004.webp";
 
   @Mock private MemberManageService memberManageService;
 
@@ -77,6 +83,60 @@ class ImageServiceTest {
   }
 
   @Test
+  void 선언한_이미지_크기가_정확히_10MiB면_업로드_URL을_발급한다() {
+    Instant expiresAt = Instant.now().plusSeconds(300);
+    given(imageStorage.createUploadUrl(org.mockito.ArgumentMatchers.anyString(), eq("image/png")))
+        .willReturn(
+            new PresignedUpload(
+                "https://s3.example.com/upload", Map.of("Content-Type", "image/png"), expiresAt));
+
+    CreateImageUploadResponse response =
+        imageService.createUpload(
+            1L,
+            new CreateImageUploadRequest(ImagePurpose.CONSIGNMENT, "image/png", MAX_IMAGE_SIZE));
+
+    assertThat(response.temporaryObjectKey()).endsWith(".png");
+  }
+
+  @Test
+  void 선언한_이미지_크기가_0이면_업로드_URL을_발급하지_않는다() {
+    assertThatThrownBy(
+            () ->
+                imageService.createUpload(
+                    1L, new CreateImageUploadRequest(ImagePurpose.PROFILE, "image/jpeg", 0)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.INVALID_IMAGE_SIZE.getMessage());
+
+    then(imageStorage).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 선언한_이미지_크기가_10MiB를_초과하면_업로드_URL을_발급하지_않는다() {
+    assertThatThrownBy(
+            () ->
+                imageService.createUpload(
+                    1L,
+                    new CreateImageUploadRequest(
+                        ImagePurpose.PROFILE, "image/jpeg", MAX_IMAGE_SIZE + 1)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.INVALID_IMAGE_SIZE.getMessage());
+
+    then(imageStorage).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 지원하지_않는_ContentType이면_업로드_URL을_발급하지_않는다() {
+    assertThatThrownBy(
+            () ->
+                imageService.createUpload(
+                    1L, new CreateImageUploadRequest(ImagePurpose.PROFILE, "image/gif", 1024)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.INVALID_IMAGE_CONTENT_TYPE.getMessage());
+
+    then(imageStorage).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 업로드된_JPEG을_검증하고_최종_객체로_복사한다() {
     given(imageStorage.getObject(FIRST_TEMPORARY_KEY))
         .willReturn(new StoredObject(1024, "image/jpeg", "etag"));
@@ -113,6 +173,40 @@ class ImageServiceTest {
             .getFirst();
 
     assertThat(first.objectKey()).isNotEqualTo(second.objectKey());
+  }
+
+  @Test
+  void 같은_임시_객체키가_한_요청에_중복되면_거부한다() {
+    assertThatThrownBy(
+            () ->
+                imageService.finalizeImages(
+                    1L,
+                    ImagePurpose.CONSIGNMENT,
+                    List.of(FIRST_TEMPORARY_KEY, FIRST_TEMPORARY_KEY)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.DUPLICATE_IMAGE_UPLOAD.getMessage());
+
+    then(imageStorage).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 잘못된_형식의_임시_객체키는_거부한다() {
+    List<String> invalidObjectKeys =
+        List.of(
+            "media/1/consignments/00000000-0000-0000-0000-000000000001.jpg",
+            "uploads/1/consignments/not-a-uuid.jpg",
+            "uploads/1/consignments/extra/00000000-0000-0000-0000-000000000001.jpg");
+
+    for (String invalidObjectKey : invalidObjectKeys) {
+      assertThatThrownBy(
+              () ->
+                  imageService.finalizeImages(
+                      1L, ImagePurpose.CONSIGNMENT, List.of(invalidObjectKey)))
+          .isInstanceOf(PickUpException.class)
+          .hasMessage(ExceptionCode.INVALID_IMAGE_OBJECT_KEY.getMessage());
+    }
+
+    then(imageStorage).shouldHaveNoInteractions();
   }
 
   @Test
@@ -157,6 +251,98 @@ class ImageServiceTest {
             org.mockito.ArgumentMatchers.anyString(),
             org.mockito.ArgumentMatchers.anyString(),
             org.mockito.ArgumentMatchers.anyString());
+  }
+
+  @Test
+  void 객체_확장자와_저장된_ContentType이_다르면_거부한다() {
+    given(imageStorage.getObject(FIRST_TEMPORARY_KEY))
+        .willReturn(new StoredObject(1024, "image/png", "etag"));
+
+    assertThatThrownBy(
+            () ->
+                imageService.finalizeImages(
+                    1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.INVALID_IMAGE_CONTENT_TYPE.getMessage());
+
+    then(imageStorage).should(never()).readHeader(FIRST_TEMPORARY_KEY, 11);
+  }
+
+  @Test
+  void 저장된_객체_크기가_0이면_거부한다() {
+    given(imageStorage.getObject(FIRST_TEMPORARY_KEY))
+        .willReturn(new StoredObject(0, "image/jpeg", "etag"));
+
+    assertThatThrownBy(
+            () ->
+                imageService.finalizeImages(
+                    1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.INVALID_IMAGE_SIZE.getMessage());
+  }
+
+  @Test
+  void 저장된_객체_크기가_10MiB를_초과하면_거부한다() {
+    given(imageStorage.getObject(FIRST_TEMPORARY_KEY))
+        .willReturn(new StoredObject(MAX_IMAGE_SIZE + 1, "image/jpeg", "etag"));
+
+    assertThatThrownBy(
+            () ->
+                imageService.finalizeImages(
+                    1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.INVALID_IMAGE_SIZE.getMessage());
+  }
+
+  @Test
+  void 업로드된_PNG_시그니처가_정상이면_최종_객체로_복사한다() {
+    given(imageStorage.getObject(PNG_TEMPORARY_KEY))
+        .willReturn(new StoredObject(1024, "image/png", "png-etag"));
+    given(imageStorage.readHeader(PNG_TEMPORARY_KEY, 11))
+        .willReturn(new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a});
+
+    FinalizedImage result =
+        imageService
+            .finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(PNG_TEMPORARY_KEY))
+            .getFirst();
+
+    assertThat(result.objectKey()).endsWith(".png");
+    then(imageStorage)
+        .should()
+        .copyToFinalObject(PNG_TEMPORARY_KEY, result.objectKey(), "png-etag", "image/png");
+  }
+
+  @Test
+  void 업로드된_WebP_시그니처가_정상이면_최종_객체로_복사한다() {
+    given(imageStorage.getObject(WEBP_TEMPORARY_KEY))
+        .willReturn(new StoredObject(1024, "image/webp", "webp-etag"));
+    given(imageStorage.readHeader(WEBP_TEMPORARY_KEY, 11))
+        .willReturn(new byte[] {'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'});
+
+    FinalizedImage result =
+        imageService
+            .finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(WEBP_TEMPORARY_KEY))
+            .getFirst();
+
+    assertThat(result.objectKey()).endsWith(".webp");
+    then(imageStorage)
+        .should()
+        .copyToFinalObject(WEBP_TEMPORARY_KEY, result.objectKey(), "webp-etag", "image/webp");
+  }
+
+  @Test
+  void WebP_헤더가_12바이트보다_짧으면_거부한다() {
+    given(imageStorage.getObject(WEBP_TEMPORARY_KEY))
+        .willReturn(new StoredObject(1024, "image/webp", "etag"));
+    given(imageStorage.readHeader(WEBP_TEMPORARY_KEY, 11))
+        .willReturn(new byte[] {'R', 'I', 'F', 'F'});
+
+    assertThatThrownBy(
+            () ->
+                imageService.finalizeImages(
+                    1L, ImagePurpose.CONSIGNMENT, List.of(WEBP_TEMPORARY_KEY)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.INVALID_IMAGE_CONTENT.getMessage());
   }
 
   @Test

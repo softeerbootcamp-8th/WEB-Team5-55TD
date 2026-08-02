@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.ootd.pickup.global.auth.Authentication;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.exception.ClientExceptionCode;
 import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import com.ootd.pickup.images.domain.ImagePurpose;
 import com.ootd.pickup.images.dto.CreateImageUploadRequest;
@@ -85,5 +86,25 @@ class ImageControllerTest {
     then(imageService)
         .should(never())
         .createUpload(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void 인증없이_업로드_URL을_요청하면_401을_반환한다() throws Exception {
+    mockMvc
+        .perform(
+            post("/image-uploads")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "purpose": "PROFILE",
+                      "contentType": "image/png",
+                      "contentLength": 1024
+                    }
+                    """))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error").value(ClientExceptionCode.AUTHENTICATION_REQUIRED.name()));
+
+    then(imageService).shouldHaveNoInteractions();
   }
 }
