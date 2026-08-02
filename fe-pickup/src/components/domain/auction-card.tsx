@@ -55,7 +55,7 @@ export function AuctionCard({
         </h3>
 
         {isLive && (
-          <div className="flex items-end justify-between">
+          <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
             <Price amount={auction.currentPrice} label="현재가" size="md" />
             <div className="flex flex-col items-end gap-0.5">
               <span className="text-xs text-[var(--color-text-muted)]">

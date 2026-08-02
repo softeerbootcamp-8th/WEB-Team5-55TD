@@ -39,7 +39,7 @@ export function Countdown({
   return (
     <span
       className={cn(
-        "tabular text-xl font-semibold tracking-wide",
+        "tabular text-xl font-semibold tracking-wide whitespace-nowrap",
         urgent ? "text-[var(--color-danger)]" : "text-foreground",
         className,
       )}
