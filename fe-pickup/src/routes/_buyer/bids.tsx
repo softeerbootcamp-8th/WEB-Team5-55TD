@@ -93,7 +93,7 @@ function BidTable({ items }: { items: MyBidItem[] }) {
         return (
           <li
             key={it.auctionId}
-            className="flex items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4"
+            className="flex flex-wrap items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4"
           >
             <CardThumb
               cardName={it.cardName}
@@ -101,34 +101,36 @@ function BidTable({ items }: { items: MyBidItem[] }) {
               aspect="aspect-square"
               className="w-16 shrink-0"
             />
-            <div className="flex flex-1 flex-col gap-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-center gap-2">
                 <GradeBadge grade={it.grade} />
                 <Badge variant={meta.variant}>{meta.label}</Badge>
               </div>
               <span className="text-sm font-semibold">{it.cardName}</span>
             </div>
-            <div className="flex flex-col items-end gap-0.5">
-              <span className="text-xs text-[var(--color-text-muted)]">
-                내 입찰가
-              </span>
-              <span className="tabular text-sm font-semibold">
-                {formatWon(it.myBid)}
-              </span>
-              <span className="tabular text-xs text-[var(--color-text-muted)]">
-                현재가 {formatWon(it.currentPrice)}
-              </span>
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  내 입찰가
+                </span>
+                <span className="tabular text-sm font-semibold">
+                  {formatWon(it.myBid)}
+                </span>
+                <span className="tabular text-xs text-[var(--color-text-muted)]">
+                  현재가 {formatWon(it.currentPrice)}
+                </span>
+              </div>
+              {it.live && (
+                <Button size="sm" variant="secondary" asChild>
+                  <Link
+                    to="/auctions/$auctionId/live"
+                    params={{ auctionId: it.auctionId }}
+                  >
+                    경매방 이동
+                  </Link>
+                </Button>
+              )}
             </div>
-            {it.live && (
-              <Button size="sm" variant="secondary" asChild>
-                <Link
-                  to="/auctions/$auctionId/live"
-                  params={{ auctionId: it.auctionId }}
-                >
-                  경매방 이동
-                </Link>
-              </Button>
-            )}
           </li>
         );
       })}
