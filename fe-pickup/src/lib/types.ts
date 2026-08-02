@@ -75,15 +75,6 @@ export const ProductStatus = {
 } as const;
 export type ProductStatus = (typeof ProductStatus)[keyof typeof ProductStatus];
 
-/** 정산 상태 (DESIGN.md §8 sales) */
-export const SettlementStatus = {
-  PENDING: "PENDING", // 정산 예정
-  DONE: "DONE", // 정산 완료
-  REAPPLICABLE: "REAPPLICABLE", // 재신청 가능
-} as const;
-export type SettlementStatus =
-  (typeof SettlementStatus)[keyof typeof SettlementStatus];
-
 /** 내 입찰 상태 (DESIGN.md §7 mypage) */
 export const MyBidStatus = {
   OUTBID: "OUTBID", // 추월됨
@@ -114,18 +105,6 @@ export interface Product {
   card: CardInfo;
   images: string[];
   createdAt: string;
-}
-
-/** 판매 내역 항목 */
-export interface SaleItem {
-  id: string;
-  cardName: string;
-  thumbnailUrl?: string;
-  grade: Grade;
-  finalPrice?: number;
-  status: ProductStatus | "LOST";
-  settlement: SettlementStatus;
-  endedAt: string;
 }
 
 /** 마이페이지 입찰/낙찰 내역 항목 */

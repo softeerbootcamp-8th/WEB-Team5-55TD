@@ -11,7 +11,6 @@ import type {
   Grade,
   MyBidItem,
   Product,
-  SaleItem,
   User,
 } from "@/lib/types";
 import {
@@ -19,7 +18,6 @@ import {
   GradeAgency,
   MyBidStatus,
   ProductStatus,
-  SettlementStatus,
   UserRole,
 } from "@/lib/types";
 import { minBidUnit } from "@/lib/format";
@@ -371,36 +369,6 @@ export const products: Product[] = [
     },
     images: ["front", "back"],
     createdAt: iso(-day(9)),
-  },
-];
-
-/** 판매 내역 */
-export const sales: SaleItem[] = [
-  {
-    id: "s1",
-    cardName: "썬더 (Fossil)",
-    grade: g("PSA", "10", "PSA-90223311"),
-    finalPrice: 780_000,
-    status: ProductStatus.SOLD,
-    settlement: SettlementStatus.DONE,
-    endedAt: iso(-day(5)),
-  },
-  {
-    id: "s2",
-    cardName: "다크 마그마 (Team Rocket)",
-    grade: g("CGC", "8.5", "CGC-119002"),
-    finalPrice: 210_000,
-    status: ProductStatus.SOLD,
-    settlement: SettlementStatus.PENDING,
-    endedAt: iso(-day(1)),
-  },
-  {
-    id: "s3",
-    cardName: "라프라스 (Fossil)",
-    grade: g("PSA", "8", "PSA-66110234"),
-    status: "LOST",
-    settlement: SettlementStatus.REAPPLICABLE,
-    endedAt: iso(-day(8)),
   },
 ];
 
