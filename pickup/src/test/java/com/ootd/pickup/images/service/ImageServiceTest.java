@@ -23,6 +23,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -33,8 +34,6 @@ class ImageServiceTest {
 
   private static final String FIRST_TEMPORARY_KEY =
       "uploads/1/consignments/00000000-0000-0000-0000-000000000001.jpg";
-  private static final String FIRST_OBJECT_KEY =
-      "media/consignments/1/00000000-0000-0000-0000-000000000001.jpg";
   private static final String SECOND_TEMPORARY_KEY =
       "uploads/1/consignments/00000000-0000-0000-0000-000000000002.jpg";
 
@@ -87,10 +86,33 @@ class ImageServiceTest {
     List<FinalizedImage> result =
         imageService.finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY));
 
-    assertThat(result).containsExactly(new FinalizedImage(FIRST_TEMPORARY_KEY, FIRST_OBJECT_KEY));
+    assertThat(result).hasSize(1);
+    String objectKey = result.getFirst().objectKey();
+    assertThat(result.getFirst().temporaryObjectKey()).isEqualTo(FIRST_TEMPORARY_KEY);
+    assertThat(objectKey).matches("media/consignments/1/[0-9a-f-]{36}\\.jpg");
+    assertThat(objectKey).doesNotEndWith("00000000-0000-0000-0000-000000000001.jpg");
     then(imageStorage)
         .should()
-        .copyToFinalObject(FIRST_TEMPORARY_KEY, FIRST_OBJECT_KEY, "etag", "image/jpeg");
+        .copyToFinalObject(FIRST_TEMPORARY_KEY, objectKey, "etag", "image/jpeg");
+  }
+
+  @Test
+  void 같은_임시_객체를_여러번_최종화해도_서로_다른_최종_객체키를_사용한다() {
+    given(imageStorage.getObject(FIRST_TEMPORARY_KEY))
+        .willReturn(new StoredObject(1024, "image/jpeg", "etag"));
+    given(imageStorage.readHeader(FIRST_TEMPORARY_KEY, 11))
+        .willReturn(new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff});
+
+    FinalizedImage first =
+        imageService
+            .finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY))
+            .getFirst();
+    FinalizedImage second =
+        imageService
+            .finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY))
+            .getFirst();
+
+    assertThat(first.objectKey()).isNotEqualTo(second.objectKey());
   }
 
   @Test
@@ -155,7 +177,15 @@ class ImageServiceTest {
         .isInstanceOf(PickUpException.class)
         .hasMessage(ExceptionCode.IMAGE_OBJECT_NOT_FOUND.getMessage());
 
-    then(imageStorage).should().deleteObject(FIRST_OBJECT_KEY);
+    ArgumentCaptor<String> copiedObjectKey = ArgumentCaptor.forClass(String.class);
+    then(imageStorage)
+        .should()
+        .copyToFinalObject(
+            org.mockito.ArgumentMatchers.eq(FIRST_TEMPORARY_KEY),
+            copiedObjectKey.capture(),
+            org.mockito.ArgumentMatchers.eq("first-etag"),
+            org.mockito.ArgumentMatchers.eq("image/jpeg"));
+    then(imageStorage).should().deleteObject(copiedObjectKey.getValue());
   }
 
   @Test
@@ -166,7 +196,10 @@ class ImageServiceTest {
     given(imageStorage.readHeader(FIRST_TEMPORARY_KEY, 11))
         .willReturn(new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff});
 
-    imageService.finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY));
+    FinalizedImage finalizedImage =
+        imageService
+            .finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY))
+            .getFirst();
     for (TransactionSynchronization synchronization :
         TransactionSynchronizationManager.getSynchronizations()) {
       synchronization.afterCommit();
@@ -174,7 +207,7 @@ class ImageServiceTest {
     }
 
     then(imageStorage).should().deleteObject(FIRST_TEMPORARY_KEY);
-    then(imageStorage).should(never()).deleteObject(FIRST_OBJECT_KEY);
+    then(imageStorage).should(never()).deleteObject(finalizedImage.objectKey());
   }
 
   @Test
@@ -185,13 +218,16 @@ class ImageServiceTest {
     given(imageStorage.readHeader(FIRST_TEMPORARY_KEY, 11))
         .willReturn(new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff});
 
-    imageService.finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY));
+    FinalizedImage finalizedImage =
+        imageService
+            .finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY))
+            .getFirst();
     for (TransactionSynchronization synchronization :
         TransactionSynchronizationManager.getSynchronizations()) {
       synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
     }
 
-    then(imageStorage).should().deleteObject(FIRST_OBJECT_KEY);
+    then(imageStorage).should().deleteObject(finalizedImage.objectKey());
     then(imageStorage).should(never()).deleteObject(FIRST_TEMPORARY_KEY);
   }
 }

@@ -129,8 +129,11 @@ public class ImageService {
     byte[] header = imageStorage.readHeader(temporaryObjectKey, IMAGE_HEADER_LAST_BYTE_INDEX);
     validateSignature(storedObject.contentType(), header);
 
+    // 같은 임시 키를 동시에 최종화해도 각 요청의 보상 삭제가 서로 영향을 주지 않게 분리한다.
     String objectKey =
-        "media/%s/%d/%s".formatted(purpose.getDirectory(), memberId, parsedObjectKey.fileName());
+        "media/%s/%d/%s.%s"
+            .formatted(
+                purpose.getDirectory(), memberId, UUID.randomUUID(), parsedObjectKey.extension());
     imageStorage.copyToFinalObject(
         temporaryObjectKey, objectKey, storedObject.eTag(), storedObject.contentType());
     return new FinalizedImage(temporaryObjectKey, objectKey);
@@ -160,7 +163,7 @@ public class ImageService {
       throw new PickUpException(INVALID_IMAGE_OBJECT_KEY);
     }
     String extension = parts[3].substring(parts[3].lastIndexOf('.') + 1);
-    return new ParsedObjectKey(ownerMemberId, parts[2], parts[3], extension);
+    return new ParsedObjectKey(ownerMemberId, parts[2], extension);
   }
 
   /*
@@ -270,6 +273,5 @@ public class ImageService {
 
   public record FinalizedImage(String temporaryObjectKey, String objectKey) {}
 
-  private record ParsedObjectKey(
-      long ownerMemberId, String directory, String fileName, String extension) {}
+  private record ParsedObjectKey(long ownerMemberId, String directory, String extension) {}
 }
