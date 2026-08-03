@@ -5,6 +5,8 @@ import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_STARTED;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_SELLER_BID_FORBIDDEN;
 import static com.ootd.pickup.global.exception.ExceptionCode.BELOW_MIN_INCREMENT;
+import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
+import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
 import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -18,16 +20,20 @@ import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
+import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
+import com.ootd.pickup.bid.dto.response.AuctionBidListItemResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -207,6 +213,124 @@ class BidServiceTest {
     assertExceptionCode(
         () -> bidService.placeBid(999L, 2L, new PlaceBidRequest(10_500L)), AUCTION_NOT_FOUND);
     then(bidRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 경매_입찰_내역을_조회하면_최근_입찰_순으로_마스킹된_닉네임과_함께_반환된다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Member viewer = createMember(2L);
+    Member other = createMember(3L);
+    Bid myBid = createBid(auction, viewer, 11_000L, 101L);
+    Bid otherBid = createBid(auction, other, 10_500L, 100L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(bidRepository.findAllByAuctionId(1L, null, 21)).willReturn(List.of(myBid, otherBid));
+
+    // when
+    CursorPageResponse<AuctionBidListItemResponse, String> response =
+        bidService.getAuctionBids(1L, 2L, new GetAuctionBidsRequest(null, 20));
+
+    // then
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.cursor()).isNull();
+    assertThat(response.items()).hasSize(2);
+
+    AuctionBidListItemResponse first = response.items().get(0);
+    assertThat(first.bidId()).isEqualTo(101L);
+    assertThat(first.nicknameMasked()).isEqualTo("닉네임***임2");
+    assertThat(first.bidPrice()).isEqualTo(11_000L);
+    assertThat(first.isMine()).isTrue();
+
+    AuctionBidListItemResponse second = response.items().get(1);
+    assertThat(second.isMine()).isFalse();
+  }
+
+  @Test
+  void 비로그인_상태로_조회하면_isMine이_모두_false다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Bid bid = createBid(auction, createMember(3L), 10_500L, 100L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(bidRepository.findAllByAuctionId(1L, null, 21)).willReturn(List.of(bid));
+
+    // when
+    CursorPageResponse<AuctionBidListItemResponse, String> response =
+        bidService.getAuctionBids(1L, null, new GetAuctionBidsRequest(null, 20));
+
+    // then
+    assertThat(response.items())
+        .extracting(AuctionBidListItemResponse::isMine)
+        .containsExactly(false);
+  }
+
+  @Test
+  void 입찰_내역이_size보다_많으면_hasNext가_true이고_커서가_마지막_입찰ID다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Bid bidA = createBid(auction, createMember(2L), 11_000L, 101L);
+    Bid bidB = createBid(auction, createMember(3L), 10_500L, 100L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(bidRepository.findAllByAuctionId(1L, null, 2)).willReturn(List.of(bidA, bidB));
+
+    // when
+    CursorPageResponse<AuctionBidListItemResponse, String> response =
+        bidService.getAuctionBids(1L, null, new GetAuctionBidsRequest(null, 1));
+
+    // then
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.cursor()).isEqualTo("101");
+    assertThat(response.items())
+        .extracting(AuctionBidListItemResponse::bidId)
+        .containsExactly(101L);
+  }
+
+  @Test
+  void 존재하지_않는_경매의_입찰_내역을_조회하면_예외가_발생한다() {
+    // given
+    given(auctionRepository.findById(999L)).willReturn(Optional.empty());
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.getAuctionBids(999L, null, new GetAuctionBidsRequest(null, 20)),
+        AUCTION_NOT_FOUND);
+    then(bidRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 입찰_내역_조회시_유효하지_않은_커서값이면_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.getAuctionBids(1L, null, new GetAuctionBidsRequest("not-a-number", 20)),
+        INVALID_CURSOR);
+    then(bidRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 입찰_내역_조회시_size가_1보다_작으면_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.getAuctionBids(1L, null, new GetAuctionBidsRequest(null, 0)),
+        ILLEGAL_ARGUMENT);
+    then(bidRepository).shouldHaveNoInteractions();
+  }
+
+  private Bid createBid(Auction auction, Member member, Long bidPrice, Long bidId) {
+    Bid bid = Bid.create(auction, member, bidPrice);
+    ReflectionTestUtils.setField(bid, "bidId", bidId);
+    return bid;
   }
 
   private void assertExceptionCode(Runnable runnable, ExceptionCode exceptionCode) {
