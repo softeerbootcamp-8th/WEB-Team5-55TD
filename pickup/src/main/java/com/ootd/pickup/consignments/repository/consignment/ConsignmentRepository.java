@@ -2,6 +2,7 @@ package com.ootd.pickup.consignments.repository.consignment;
 
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
+import java.util.List;
 import java.util.Optional;
 
 public interface ConsignmentRepository {
@@ -14,4 +15,7 @@ public interface ConsignmentRepository {
   void deleteById(Long consignmentId);
 
   long countBySellerMemberIdAndStatus(Long sellerMemberId, ConsignmentStatus status);
+
+  List<Consignment> findAllBySellerMemberIdAndStatusAndCursor(
+      Long sellerMemberId, ConsignmentStatus status, Long cursor, int size);
 }
