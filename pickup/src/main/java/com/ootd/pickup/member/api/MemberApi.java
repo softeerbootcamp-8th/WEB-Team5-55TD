@@ -1,6 +1,7 @@
 package com.ootd.pickup.member.api;
 
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
+import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.global.config.SwaggerConfig;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
@@ -124,4 +125,25 @@ public interface MemberApi {
       })
   ResponseEntity<CursorPageResponse<MyBidListItemResponse, String>> getMyBids(
       @Parameter(hidden = true) Long memberId, GetMyBidsRequest getMyBidsRequest);
+
+  @Operation(
+      summary = "내 낙찰 내역 조회",
+      description = "회원이 낙찰받은 경매 목록을 최근 입찰 순으로 조회합니다. 경매당 마지막(최신) 입찰이 낙찰(WON)인 것만 반환합니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "내 낙찰 내역 조회 성공",
+            content = @Content(schema = @Schema(implementation = CursorPageResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "유효하지 않은 커서 값",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 필요",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<CursorPageResponse<MyBidListItemResponse, String>> getMyWins(
+      @Parameter(hidden = true) Long memberId, GetMyWinsRequest getMyWinsRequest);
 }
