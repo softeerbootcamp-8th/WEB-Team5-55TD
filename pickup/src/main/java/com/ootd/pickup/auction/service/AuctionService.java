@@ -98,6 +98,18 @@ public class AuctionService {
     return CursorPageResponse.from(assembled.items(), hasNext, nextCursor);
   }
 
+  public AuctionListItemResponse getFeaturedAuction(Long viewerMemberId) {
+    List<Auction> candidates =
+        auctionRepository.searchAuctions(
+            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1);
+    Auction featured =
+        candidates.stream()
+            .findFirst()
+            .orElseThrow(() -> new PickUpException(FEATURED_AUCTION_NOT_FOUND));
+
+    return assemble(List.of(featured), viewerMemberId).items().getFirst();
+  }
+
   public AuctionDetailResponse getAuctionDetail(Long viewerMemberId, Long auctionId) {
     Auction auction = getAuction(auctionId);
     Consignment consignment = auction.getConsignment();
