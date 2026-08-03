@@ -79,7 +79,11 @@ public enum ExceptionCode {
   CONSIGNMENT_NOT_DELETABLE(
       HttpStatus.CONFLICT,
       ClientExceptionCode.CONSIGNMENT_NOT_DELETABLE,
-      "경매가 시작된 이후에는 상품을 삭제할 수 없습니다.");
+      "경매가 시작된 이후에는 상품을 삭제할 수 없습니다."),
+  INVALID_CONSIGNMENT_STATUS(
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CONSIGNMENT_STATUS, "유효하지 않은 상품 상태입니다."),
+  INVALID_PAGE_SIZE(
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;
