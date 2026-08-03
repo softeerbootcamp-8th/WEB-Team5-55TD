@@ -4,6 +4,7 @@ import static com.ootd.pickup.auction.domain.QAuction.auction;
 import static com.ootd.pickup.bid.domain.QBid.bid;
 import static com.ootd.pickup.cards.domain.QCard.card;
 import static com.ootd.pickup.consignments.domain.QConsignment.consignment;
+import static com.ootd.pickup.member.domain.QMember.member;
 
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
@@ -38,6 +39,16 @@ public class BidDataJpaRepository implements BidRepository {
 
   @Override
   public List<Bid> findLastBidsByMemberId(Long memberId, Long cursorBidId, int limit) {
+    return queryLastBidsByMemberId(memberId, cursorBidId, limit, null);
+  }
+
+  @Override
+  public List<Bid> findWonBidsByMemberId(Long memberId, Long cursorBidId, int limit) {
+    return queryLastBidsByMemberId(memberId, cursorBidId, limit, bid.bidStatus.eq(BidStatus.WON));
+  }
+
+  private List<Bid> queryLastBidsByMemberId(
+      Long memberId, Long cursorBidId, int limit, BooleanExpression additionalPredicate) {
     QBid subBid = new QBid("subBid");
     BooleanExpression isLastBidForAuction =
         bid.bidId.eq(
@@ -55,7 +66,11 @@ public class BidDataJpaRepository implements BidRepository {
         .fetchJoin()
         .join(consignment.card, card)
         .fetchJoin()
-        .where(bid.member.memberId.eq(memberId), isLastBidForAuction, cursorPredicate(cursorBidId))
+        .where(
+            bid.member.memberId.eq(memberId),
+            isLastBidForAuction,
+            additionalPredicate,
+            cursorPredicate(cursorBidId))
         .orderBy(bid.bidId.desc())
         .limit(limit)
         .fetch();
@@ -77,6 +92,18 @@ public class BidDataJpaRepository implements BidRepository {
         .collect(
             Collectors.toMap(
                 highestBid -> highestBid.getAuction().getAuctionId(), Bid::getBidPrice));
+  }
+
+  @Override
+  public List<Bid> findAllByAuctionId(Long auctionId, Long cursorBidId, int limit) {
+    return queryFactory
+        .selectFrom(bid)
+        .join(bid.member, member)
+        .fetchJoin()
+        .where(bid.auction.auctionId.eq(auctionId), cursorPredicate(cursorBidId))
+        .orderBy(bid.bidId.desc())
+        .limit(limit)
+        .fetch();
   }
 
   private BooleanExpression cursorPredicate(Long cursorBidId) {

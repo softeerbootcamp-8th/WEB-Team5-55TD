@@ -14,6 +14,7 @@ import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
+import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.cards.domain.Card;
@@ -394,6 +395,63 @@ class MemberServiceTest {
     then(bidRepository).shouldHaveNoInteractions();
   }
 
+  @Test
+  void 내_낙찰_내역을_조회하면_낙찰된_항목만_반환한다() {
+    // given
+    Member member = createMember(1L);
+    Card card = createCard();
+    Consignment consignment = createConsignment(2L, card);
+    Auction auction = createAuction(11L, consignment, AuctionStatus.WON, 300_000L);
+    Bid wonBid = createBid(auction, member, 330_000L, BidStatus.WON, 200L);
+    Certificate certificate = createCertificate(consignment, Grade.NM, CertificationBody.CGC);
+
+    given(bidRepository.findWonBidsByMemberId(1L, null, 21)).willReturn(List.of(wonBid));
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(11L)))
+        .willReturn(Map.of(11L, 330_000L));
+    given(certificateRepository.findAllByConsignmentIds(List.of(2L)))
+        .willReturn(List.of(certificate));
+
+    // when
+    CursorPageResponse<MyBidListItemResponse, String> response =
+        memberService.getMyWins(1L, new GetMyWinsRequest(null, 20));
+
+    // then
+    assertThat(response.items()).hasSize(1);
+    MyBidListItemResponse item = response.items().get(0);
+    assertThat(item.auctionId()).isEqualTo(11L);
+    assertThat(item.status()).isEqualTo(BidStatus.WON);
+    assertThat(item.auctionStatus()).isEqualTo(AuctionStatus.WON);
+    assertThat(item.myBidPrice()).isEqualTo(330_000L);
+    assertThat(item.currentPrice()).isEqualTo(330_000L);
+    then(bidRepository).should(never()).findLastBidsByMemberId(any(), any(), anyInt());
+  }
+
+  @Test
+  void 낙찰_내역도_결과가_size보다_많으면_hasNext가_true이고_커서가_마지막_입찰ID다() {
+    // given
+    Member member = createMember(1L);
+    Consignment consignmentA = createConsignment(2L, createCard());
+    Consignment consignmentB = createConsignment(3L, createCard());
+    Auction auctionA = createAuction(10L, consignmentA, AuctionStatus.WON, 10_000L);
+    Auction auctionB = createAuction(11L, consignmentB, AuctionStatus.WON, 20_000L);
+    Bid bidA = createBid(auctionA, member, 11_000L, BidStatus.WON, 101L);
+    Bid bidB = createBid(auctionB, member, 21_000L, BidStatus.WON, 100L);
+
+    given(bidRepository.findWonBidsByMemberId(1L, null, 2)).willReturn(List.of(bidA, bidB));
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
+        .willReturn(Map.of(10L, 11_000L));
+    given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
+
+    // when
+    CursorPageResponse<MyBidListItemResponse, String> response =
+        memberService.getMyWins(1L, new GetMyWinsRequest(null, 1));
+
+    // then
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.cursor()).isEqualTo("101");
+    assertThat(response.items()).extracting(MyBidListItemResponse::auctionId).containsExactly(10L);
+  }
+
   private Member createMember(Long memberId) {
     Member member = Member.create("loginId" + memberId, "password-hash", "닉네임" + memberId);
     ReflectionTestUtils.setField(member, "memberId", memberId);
@@ -443,6 +501,9 @@ class MemberServiceTest {
     Bid bid = Bid.create(auction, member, bidPrice);
     if (bidStatus == BidStatus.OUTBID) {
       bid.outbid();
+    } else if (bidStatus == BidStatus.WON) {
+      // Bid 도메인에 WON 전환 뮤테이터가 아직 없어(경매 종료 배치 미구현) 테스트에서 직접 필드를 설정한다.
+      ReflectionTestUtils.setField(bid, "bidStatus", BidStatus.WON);
     }
     ReflectionTestUtils.setField(bid, "bidId", bidId);
     return bid;

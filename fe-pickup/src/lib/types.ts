@@ -30,6 +30,7 @@ export interface AuctionSummary {
   endsAt?: string;
   startsAt?: string;
   watchCount?: number;
+  watched?: boolean;
 }
 
 export type AuctionDetail = AuctionSummary & {
@@ -133,7 +134,7 @@ export interface MyBidItem {
   auctionId: string;
   cardName: string;
   thumbnailUrl?: string;
-  grade: Grade;
+  grade?: Grade;
   myBid: number;
   currentPrice: number;
   status: MyBidStatus;
