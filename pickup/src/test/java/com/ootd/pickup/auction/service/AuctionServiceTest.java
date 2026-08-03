@@ -284,6 +284,53 @@ class AuctionServiceTest {
   }
 
   @Test
+  void 대표_경매를_조회하면_진행중인_경매_중_관심수가_가장_많은_경매를_반환한다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.ONGOING,
+            LocalDateTime.now().minusHours(1),
+            LocalDateTime.now().plusHours(1));
+    given(
+            auctionRepository.searchAuctions(
+                isNull(), eq(List.of(AuctionStatus.ONGOING)), any(), isNull(), eq(1)))
+        .willReturn(List.of(auction));
+    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of(1L, 10L));
+    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(
+            consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+                any()))
+        .willReturn(List.of());
+
+    // when
+    AuctionListItemResponse response = auctionService.getFeaturedAuction(null);
+
+    // then
+    assertThat(response.auctionId()).isEqualTo(1L);
+    assertThat(response.auctionStatus()).isEqualTo(AuctionStatus.ONGOING);
+    assertThat(response.watchCount()).isEqualTo(10L);
+  }
+
+  @Test
+  void 진행중인_경매가_없으면_대표_경매_조회시_예외가_발생한다() {
+    // given
+    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+        .willReturn(List.of());
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.getFeaturedAuction(null))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            e ->
+                assertThat(((PickUpException) e).getMessage())
+                    .isEqualTo(ExceptionCode.FEATURED_AUCTION_NOT_FOUND.getMessage()));
+  }
+
+  @Test
   void 관심_등록한_경매는_watched가_true이고_관심수가_반영된다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
