@@ -431,7 +431,7 @@ class ConsignmentServiceTest {
 
     // then
     assertThat(response.images())
-        .extracting(image -> image.productImageId(), image -> image.imageUrl())
+        .extracting(image -> image.consignmentImageId(), image -> image.imageUrl())
         .containsExactly(
             tuple(1L, retainedImage.getObjectKey()),
             tuple(null, finalObjectKey(temporaryObjectKey)));

@@ -125,7 +125,7 @@ interface CertificateResponse {
 }
 
 interface ConsignmentImageResponse {
-  productImageId: number;
+  consignmentImageId: number;
   imageOrder: number;
   imageUrl: string;
 }

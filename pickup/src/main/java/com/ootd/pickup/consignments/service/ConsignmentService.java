@@ -162,11 +162,11 @@ public class ConsignmentService {
       if (!imageRequest.isValidReference()) {
         throw new PickUpException(ILLEGAL_ARGUMENT);
       }
-      if (imageRequest.productImageId() != null) {
-        if (!existingImageById.containsKey(imageRequest.productImageId())) {
+      if (imageRequest.consignmentImageId() != null) {
+        if (!existingImageById.containsKey(imageRequest.consignmentImageId())) {
           throw new PickUpException(ILLEGAL_ARGUMENT);
         }
-        if (!retainedImageIds.add(imageRequest.productImageId())) {
+        if (!retainedImageIds.add(imageRequest.consignmentImageId())) {
           throw new PickUpException(DUPLICATE_IMAGE_UPLOAD);
         }
       } else {
@@ -182,8 +182,8 @@ public class ConsignmentService {
     for (int index = 0; index < request.images().size(); index++) {
       var imageRequest = request.images().get(index);
       ConsignmentImage image;
-      if (imageRequest.productImageId() != null) {
-        image = existingImageById.get(imageRequest.productImageId());
+      if (imageRequest.consignmentImageId() != null) {
+        image = existingImageById.get(imageRequest.consignmentImageId());
         image.updateImageOrder(index + 1);
       } else {
         image =
@@ -217,7 +217,7 @@ public class ConsignmentService {
 
   private void validateRegistrationImages(RegisterConsignmentRequest request) {
     for (var image : request.images()) {
-      if (!image.isValidReference() || image.productImageId() != null) {
+      if (!image.isValidReference() || image.consignmentImageId() != null) {
         throw new PickUpException(ILLEGAL_ARGUMENT);
       }
     }

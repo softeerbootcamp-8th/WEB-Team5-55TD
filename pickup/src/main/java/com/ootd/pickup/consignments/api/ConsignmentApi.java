@@ -150,8 +150,8 @@ public interface ConsignmentApi {
                                 "inspectedAt": "2026-06-30"
                               },
                               "images": [
-                                { "productImageId": 1, "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
-                                { "productImageId": 2, "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
+                                { "consignmentImageId": 1, "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
+                                { "consignmentImageId": 2, "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
                               ],
                               "auctionRegistered": false
                             }
@@ -169,7 +169,7 @@ public interface ConsignmentApi {
       description =
           """
             상품의 major defect, 감정서, 이미지 목록을 수정합니다.
-            images는 수정 후 남길 최종 이미지 목록입니다. 기존 이미지는 productImageId로 유지하고
+            images는 수정 후 남길 최종 이미지 목록입니다. 기존 이미지는 consignmentImageId로 유지하고
             새 이미지는 temporaryObjectKey로 추가하며, 목록에서 빠진 기존 이미지는 삭제합니다.
             배열 순서가 최종 이미지 순서가 됩니다.
             경매 신청 이후(AUCTION_SCHEDULED)/진행 중(AUCTION_ONGOING)/낙찰 완료(WON) 상태에서는 수정할 수 없습니다.
@@ -195,7 +195,7 @@ public interface ConsignmentApi {
                             "inspectedAt": "2026-06-30"
                           },
                           "images": [
-                            { "productImageId": 1 },
+                            { "consignmentImageId": 1 },
                             { "temporaryObjectKey": "uploads/1/consignments/00000000-0000-0000-0000-000000000003.jpg" }
                           ]
                         }
@@ -235,8 +235,8 @@ public interface ConsignmentApi {
                                 "inspectedAt": "2026-06-30"
                               },
                               "images": [
-                                { "productImageId": 1, "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
-                                { "productImageId": 3, "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
+                                { "consignmentImageId": 1, "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
+                                { "consignmentImageId": 3, "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
                               ],
                               "auctionRegistered": false
                             }

@@ -222,7 +222,7 @@ class ConsignmentControllerTest {
         .andExpect(jsonPath("$.sellerMemberNickname").value("피카츄"))
         .andExpect(jsonPath("$.status").value("REGISTERABLE"))
         .andExpect(jsonPath("$.certificate.certificateId").value(200L))
-        .andExpect(jsonPath("$.images[0].productImageId").value(1L))
+        .andExpect(jsonPath("$.images[0].consignmentImageId").value(1L))
         .andExpect(jsonPath("$.images[0].imageOrder").value(1))
         .andExpect(jsonPath("$.images[1].imageOrder").value(2))
         .andExpect(jsonPath("$.auctionRegistered").value(false));
