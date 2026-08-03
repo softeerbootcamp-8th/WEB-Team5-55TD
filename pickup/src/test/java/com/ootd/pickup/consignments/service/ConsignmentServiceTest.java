@@ -3,6 +3,7 @@ package com.ootd.pickup.consignments.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
 
+import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -15,13 +16,16 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.dto.request.CertificateRequest;
 import com.ootd.pickup.consignments.dto.request.ConsignmentImageRequest;
+import com.ootd.pickup.consignments.dto.request.GetMyConsignmentsRequest;
 import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
+import com.ootd.pickup.consignments.dto.response.GetMyConsignmentsResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.domain.ImagePurpose;
@@ -32,6 +36,7 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,6 +64,8 @@ class ConsignmentServiceTest {
 
   @Mock private ImageUrlResolver imageUrlResolver;
 
+  @Mock private AuctionManageService auctionManageService;
+
   private ConsignmentService consignmentService;
 
   @BeforeEach
@@ -71,7 +78,8 @@ class ConsignmentServiceTest {
             consignmentImageRepository,
             memberManageService,
             imageService,
-            imageUrlResolver);
+            imageUrlResolver,
+            auctionManageService);
     lenient()
         .when(imageService.finalizeImages(anyLong(), eq(ImagePurpose.CONSIGNMENT), anyList()))
         .thenAnswer(
@@ -650,6 +658,141 @@ class ConsignmentServiceTest {
         .isInstanceOf(PickUpException.class)
         .hasMessage(ExceptionCode.CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS.getMessage());
     then(consignmentImageRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 유효한_요청으로_내_상품_목록을_조회하면_상품_목록을_반환한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Card card = createCard(10L);
+    Consignment consignment = createConsignment(100L, card, ConsignmentStatus.REGISTERABLE);
+    Certificate certificate = createCertificate(200L, consignment);
+    GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("REGISTERABLE", null, 20);
+    given(
+            consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
+                sellerMemberId, ConsignmentStatus.REGISTERABLE, null, 21))
+        .willReturn(List.of(consignment));
+    given(certificateRepository.findAllByConsignmentIn(List.of(consignment)))
+        .willReturn(List.of(certificate));
+    given(auctionManageService.findAuctionIdsByConsignments(List.of(consignment)))
+        .willReturn(Map.of(100L, 300L));
+
+    // when
+    CursorPageResponse<GetMyConsignmentsResponse, Long> response =
+        consignmentService.getMyConsignments(sellerMemberId, request);
+
+    // then
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.cursor()).isNull();
+    assertThat(response.items()).hasSize(1);
+    GetMyConsignmentsResponse item = response.items().get(0);
+    assertThat(item.consignmentId()).isEqualTo(100L);
+    assertThat(item.auctionId()).isEqualTo(300L);
+    assertThat(item.sellerMemberId()).isEqualTo(sellerMemberId);
+    assertThat(item.card().cardId()).isEqualTo(10L);
+    assertThat(item.status()).isEqualTo(ConsignmentStatus.REGISTERABLE);
+    assertThat(item.certificate().certificateId()).isEqualTo(200L);
+  }
+
+  @Test
+  void 경매가_등록되지_않은_상품을_조회하면_auctionId가_null이다() {
+    // given
+    Long sellerMemberId = 1L;
+    Card card = createCard(10L);
+    Consignment consignment = createConsignment(100L, card, ConsignmentStatus.REGISTERABLE);
+    Certificate certificate = createCertificate(200L, consignment);
+    GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("REGISTERABLE", null, 20);
+    given(
+            consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
+                sellerMemberId, ConsignmentStatus.REGISTERABLE, null, 21))
+        .willReturn(List.of(consignment));
+    given(certificateRepository.findAllByConsignmentIn(List.of(consignment)))
+        .willReturn(List.of(certificate));
+    given(auctionManageService.findAuctionIdsByConsignments(List.of(consignment)))
+        .willReturn(Map.of());
+
+    // when
+    CursorPageResponse<GetMyConsignmentsResponse, Long> response =
+        consignmentService.getMyConsignments(sellerMemberId, request);
+
+    // then
+    GetMyConsignmentsResponse item = response.items().get(0);
+    assertThat(item.auctionId()).isNull();
+  }
+
+  @Test
+  void 조회_결과가_페이지_크기보다_많으면_hasNext가_true이고_다음_커서를_반환한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Consignment first = createConsignment(102L, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    Consignment second = createConsignment(101L, createCard(11L), ConsignmentStatus.REGISTERABLE);
+    Consignment extra = createConsignment(100L, createCard(12L), ConsignmentStatus.REGISTERABLE);
+    GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("REGISTERABLE", null, 2);
+    given(
+            consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
+                sellerMemberId, ConsignmentStatus.REGISTERABLE, null, 3))
+        .willReturn(List.of(first, second, extra));
+    given(certificateRepository.findAllByConsignmentIn(List.of(first, second)))
+        .willReturn(List.of(createCertificate(200L, first), createCertificate(201L, second)));
+    given(auctionManageService.findAuctionIdsByConsignments(List.of(first, second)))
+        .willReturn(Map.of(102L, 300L, 101L, 301L));
+
+    // when
+    CursorPageResponse<GetMyConsignmentsResponse, Long> response =
+        consignmentService.getMyConsignments(sellerMemberId, request);
+
+    // then
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.cursor()).isEqualTo(101L);
+    assertThat(response.items())
+        .extracting(GetMyConsignmentsResponse::consignmentId)
+        .containsExactly(102L, 101L);
+  }
+
+  @Test
+  void 조회_결과가_없으면_빈_목록을_반환한다() {
+    // given
+    Long sellerMemberId = 1L;
+    GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("REGISTERABLE", null, 20);
+    given(
+            consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
+                sellerMemberId, ConsignmentStatus.REGISTERABLE, null, 21))
+        .willReturn(List.of());
+    given(certificateRepository.findAllByConsignmentIn(List.of())).willReturn(List.of());
+
+    // when
+    CursorPageResponse<GetMyConsignmentsResponse, Long> response =
+        consignmentService.getMyConsignments(sellerMemberId, request);
+
+    // then
+    assertThat(response.items()).isEmpty();
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.cursor()).isNull();
+    then(certificateRepository).should().findAllByConsignmentIn(List.of());
+  }
+
+  @Test
+  void 유효하지_않은_status로_내_상품_목록을_조회하면_예외가_발생한다() {
+    // given
+    GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("존재하지않는상태", null, 20);
+
+    // when & then
+    assertThatThrownBy(() -> consignmentService.getMyConsignments(1L, request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.INVALID_CONSIGNMENT_STATUS.getMessage());
+    then(consignmentRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void size가_유효하지_않으면_내_상품_목록_조회시_예외가_발생한다() {
+    // given
+    GetMyConsignmentsRequest request = new GetMyConsignmentsRequest("REGISTERABLE", null, 0);
+
+    // when & then
+    assertThatThrownBy(() -> consignmentService.getMyConsignments(1L, request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.INVALID_PAGE_SIZE.getMessage());
+    then(consignmentRepository).shouldHaveNoInteractions();
   }
 
   @Test

@@ -9,7 +9,9 @@ import static com.ootd.pickup.member.domain.QMember.member;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.cards.domain.Language;
+import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.global.util.EpochMillis;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.DateTimeExpression;
@@ -20,7 +22,9 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -183,5 +187,55 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   @Override
   public Optional<Auction> findByIdForUpdate(Long auctionId) {
     return auctionJpaRepository.findByIdForUpdate(auctionId);
+  }
+
+  @Override
+  public Map<Long, Long> findAuctionIdsByConsignmentIn(List<Consignment> consignments) {
+    if (consignments.isEmpty()) {
+      return Map.of();
+    }
+
+    List<Tuple> rows =
+        queryFactory
+            .select(auction.consignment.consignmentId, auction.auctionId)
+            .from(auction)
+            .where(auction.consignment.in(consignments))
+            .fetch();
+
+    return rows.stream()
+        .collect(
+            Collectors.toMap(
+                row -> row.get(auction.consignment.consignmentId),
+                row -> row.get(auction.auctionId)));
+  }
+
+  @Override
+  public List<Auction> findAllBySellerMemberIdWithCard(
+      Long sellerMemberId, List<AuctionStatus> statuses, SalesCursor cursor, int limit) {
+    return queryFactory
+        .selectFrom(auction)
+        .join(auction.consignment, consignment)
+        .fetchJoin()
+        .join(consignment.card, card)
+        .fetchJoin()
+        .where(
+            consignment.sellerMember.memberId.eq(sellerMemberId),
+            statusIn(statuses),
+            salesKeysetPredicate(cursor))
+        .orderBy(auction.endedAt.desc(), auction.auctionId.desc())
+        .limit(limit)
+        .fetch();
+  }
+
+  private BooleanExpression salesKeysetPredicate(SalesCursor cursor) {
+    if (cursor == null) {
+      return null;
+    }
+
+    LocalDateTime endedAt = EpochMillis.toLocalDateTime(cursor.endedAtEpochMillis());
+    return auction
+        .endedAt
+        .lt(endedAt)
+        .or(auction.endedAt.eq(endedAt).and(auction.auctionId.lt(cursor.auctionId())));
   }
 }
