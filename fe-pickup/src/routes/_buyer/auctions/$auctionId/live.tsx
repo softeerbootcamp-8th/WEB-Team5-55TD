@@ -5,7 +5,7 @@ import {
   notFound,
   useNavigate,
 } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
@@ -24,10 +24,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getAuctionDetail } from "@/api/auctions";
-import { getBidErrorMessage, placeBid } from "@/api/bids";
-import type { Bid } from "@/lib/types";
+import { getAuctionBids, getBidErrorMessage, placeBid } from "@/api/bids";
 import { useIsAuthenticated } from "@/lib/auth";
 import { formatWon } from "@/lib/format";
+
+const BID_PREVIEW_SIZE = 6;
+const BID_MODAL_SIZE = 100;
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/live")({
   loader: async ({ params }) => {
@@ -43,22 +45,33 @@ export const Route = createFileRoute("/_buyer/auctions/$auctionId/live")({
   component: LiveAuctionPage,
 });
 
-/** DESIGN.md · live-auction.html — 실 입찰 API 연동 (다른 입찰자 내역/실시간 갱신은 백엔드 미제공) */
+/** DESIGN.md · live-auction.html — 실 입찰 API 연동, §5.9 최근 6건 + 전체 모달 */
 function LiveAuctionPage() {
   const { auction } = Route.useLoaderData();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isAuthenticated = useIsAuthenticated();
   const minUnit = auction.minBidUnit ?? 0;
 
-  const [myBids, setMyBids] = useState<Bid[]>([]);
   const [currentPrice, setCurrentPrice] = useState(
     auction.currentPrice ?? auction.startPrice ?? 0,
   );
   const [amount, setAmount] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [fail, setFail] = useState<string | null>(null);
+  const [allBidsOpen, setAllBidsOpen] = useState(false);
 
   const minNext = currentPrice + minUnit;
+
+  const previewBidsQuery = useQuery({
+    queryKey: ["auction-bids", auction.id, "preview"],
+    queryFn: () => getAuctionBids(auction.id, { size: BID_PREVIEW_SIZE }),
+  });
+  const allBidsQuery = useQuery({
+    queryKey: ["auction-bids", auction.id, "all"],
+    queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
+    enabled: allBidsOpen,
+  });
 
   const bidMutation = useMutation({
     mutationFn: (bidPrice: number) => placeBid(auction.id, bidPrice),
@@ -78,22 +91,13 @@ function LiveAuctionPage() {
     setConfirmOpen(false);
     bidMutation.mutate(value, {
       onSuccess: (placed) => {
-        setMyBids((prev) => [
-          {
-            id: String(placed.bidId),
-            maskedNickname: "나",
-            amount: placed.bidPrice,
-            createdAt: placed.createdAt,
-            isMine: true,
-          },
-          ...prev,
-        ]);
+        queryClient.invalidateQueries({ queryKey: ["auction-bids", auction.id] });
         setCurrentPrice(placed.bidPrice);
         setAmount("");
       },
       onError: (error) => setFail(getBidErrorMessage(error)),
     });
-  }, [amount, bidMutation]);
+  }, [amount, auction.id, bidMutation, queryClient]);
 
   const goEnd = useCallback(() => {
     navigate({
@@ -173,11 +177,45 @@ function LiveAuctionPage() {
         )}
       </div>
 
-      {/* 우: 내 입찰 내역 */}
+      {/* 우: 입찰 내역 (최근 6건 + 전체 모달) */}
       <aside className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
-        <h2 className="text-base font-semibold">내 입찰 내역</h2>
-        <BidList bids={myBids} />
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold">입찰 내역</h2>
+          <button
+            type="button"
+            onClick={() => setAllBidsOpen(true)}
+            className="text-sm font-semibold text-primary hover:underline"
+          >
+            전체
+          </button>
+        </div>
+        {previewBidsQuery.isPending ? (
+          <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+            불러오는 중입니다.
+          </p>
+        ) : (
+          <BidList bids={previewBidsQuery.data?.items ?? []} />
+        )}
       </aside>
+
+      {/* 전체 입찰 모달 */}
+      <Dialog open={allBidsOpen} onOpenChange={setAllBidsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>전체 입찰 내역</DialogTitle>
+          </DialogHeader>
+          {allBidsQuery.isPending ? (
+            <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+              불러오는 중입니다.
+            </p>
+          ) : (
+            <BidList
+              bids={allBidsQuery.data?.items ?? []}
+              className="max-h-96 overflow-y-auto"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 입찰 확인 모달 */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
