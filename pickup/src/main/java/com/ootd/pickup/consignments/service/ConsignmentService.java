@@ -2,6 +2,7 @@ package com.ootd.pickup.consignments.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
 
+import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.service.CardManageService;
 import com.ootd.pickup.consignments.domain.Certificate;
@@ -10,17 +11,23 @@ import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.domain.Grade;
+import com.ootd.pickup.consignments.dto.request.GetMyConsignmentsRequest;
 import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
+import com.ootd.pickup.consignments.dto.response.GetMyConsignmentsResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -36,6 +43,7 @@ public class ConsignmentService {
   private final CertificateRepository certificateRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
   private final MemberManageService memberManageService;
+  private final AuctionManageService auctionManageService;
 
   @Transactional
   public RegisterConsignmentResponse registerConsignment(
@@ -125,6 +133,44 @@ public class ConsignmentService {
 
     return GetConsignmentDetailResponse.of(
         consignment, certificate, images, consignment.getSellerMember().getNickname());
+  }
+
+  public CursorPageResponse<GetMyConsignmentsResponse, Long> getMyConsignments(
+      Long sellerMemberId, GetMyConsignmentsRequest request) {
+    request.validateSize();
+    ConsignmentStatus status = ConsignmentStatus.from(request.status());
+
+    List<Consignment> searchedConsignments =
+        consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
+            sellerMemberId, status, request.cursor(), request.size() + 1);
+
+    boolean hasNext = searchedConsignments.size() > request.size();
+    List<Consignment> consignments =
+        hasNext ? searchedConsignments.subList(0, request.size()) : searchedConsignments;
+    Long nextCursor = hasNext ? consignments.getLast().getConsignmentId() : null;
+
+    Map<Long, Certificate> certificatesByConsignmentId =
+        certificateRepository.findAllByConsignmentIn(consignments).stream()
+            .collect(
+                Collectors.toMap(
+                    certificate -> certificate.getConsignment().getConsignmentId(),
+                    Function.identity()));
+
+    Map<Long, Long> auctionIdsByConsignmentId =
+        auctionManageService.findAuctionIdsByConsignments(consignments);
+
+    List<GetMyConsignmentsResponse> items =
+        consignments.stream()
+            .map(
+                consignment ->
+                    GetMyConsignmentsResponse.fromEntity(
+                        consignment,
+                        sellerMemberId,
+                        certificatesByConsignmentId.get(consignment.getConsignmentId()),
+                        auctionIdsByConsignmentId.get(consignment.getConsignmentId())))
+            .toList();
+
+    return CursorPageResponse.from(items, hasNext, nextCursor);
   }
 
   @Transactional

@@ -2,7 +2,9 @@ package com.ootd.pickup.auction.repository.auction;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.consignments.domain.Consignment;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface AuctionRepository {
@@ -19,4 +21,6 @@ public interface AuctionRepository {
 
   List<Auction> findAllBySellerMemberIdWithCard(
       Long sellerMemberId, List<AuctionStatus> statuses, SalesCursor cursor, int limit);
+
+  Map<Long, Long> findAuctionIdsByConsignmentIn(List<Consignment> consignments);
 }
