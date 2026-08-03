@@ -133,7 +133,7 @@ export interface MyBidItem {
   auctionId: string;
   cardName: string;
   thumbnailUrl?: string;
-  grade: Grade;
+  grade?: Grade;
   myBid: number;
   currentPrice: number;
   status: MyBidStatus;
