@@ -14,7 +14,7 @@ export function GradeBadge({
   return (
     <Badge
       variant="neutral"
-      className={cn("font-semibold text-foreground", className)}
+      className={cn("self-start font-semibold text-foreground", className)}
     >
       {grade.agency} {grade.score}
     </Badge>

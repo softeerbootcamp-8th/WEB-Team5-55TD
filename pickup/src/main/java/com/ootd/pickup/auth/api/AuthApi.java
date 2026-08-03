@@ -54,7 +54,7 @@ public interface AuthApi {
             content = @Content(schema = @Schema(implementation = RefreshResponseBody.class))),
         @ApiResponse(
             responseCode = "401",
-            description = "Refresh Token이 없거나 유효하지 않음",
+            description = "Refresh Token이 없거나 유효하지 않음, 또는 토큰 저장소 장애",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<RefreshResponseBody> refresh(String refreshToken);

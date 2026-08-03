@@ -1,13 +1,16 @@
 package com.ootd.pickup.consignments.controller;
 
 import com.ootd.pickup.consignments.api.ConsignmentApi;
+import com.ootd.pickup.consignments.dto.request.GetMyConsignmentsRequest;
 import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
+import com.ootd.pickup.consignments.dto.response.GetMyConsignmentsResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.auth.annotation.MemberId;
 import com.ootd.pickup.global.auth.annotation.RequireAuthentication;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,6 +32,16 @@ public class ConsignmentController implements ConsignmentApi {
       @Valid @RequestBody RegisterConsignmentRequest registerConsignmentRequest) {
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(consignmentService.registerConsignment(sellerMemberId, registerConsignmentRequest));
+  }
+
+  @GetMapping
+  @Override
+  @RequireAuthentication
+  public ResponseEntity<CursorPageResponse<GetMyConsignmentsResponse, Long>> getMyConsignments(
+      @MemberId Long sellerMemberId,
+      @Valid @ModelAttribute GetMyConsignmentsRequest getMyConsignmentsRequest) {
+    return ResponseEntity.ok(
+        consignmentService.getMyConsignments(sellerMemberId, getMyConsignmentsRequest));
   }
 
   @GetMapping("/{consignmentId}")
