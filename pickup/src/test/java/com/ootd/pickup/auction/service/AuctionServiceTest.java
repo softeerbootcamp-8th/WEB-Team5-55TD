@@ -304,7 +304,7 @@ class AuctionServiceTest {
         .willReturn(List.of(auction));
     given(watchRepository.countByAuctionIds(any())).willReturn(Map.of(1L, 10L));
     given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
-    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
