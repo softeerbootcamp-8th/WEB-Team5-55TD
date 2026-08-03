@@ -1,7 +1,10 @@
 package com.ootd.pickup.member.controller;
 
+import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
+import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.global.auth.annotation.MemberId;
 import com.ootd.pickup.global.auth.annotation.RequireAuthentication;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.member.api.MemberApi;
 import com.ootd.pickup.member.dto.MemberRequest;
 import com.ootd.pickup.member.dto.MemberResponse;
@@ -14,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -53,5 +57,13 @@ public class MemberController implements MemberApi {
   @RequireAuthentication
   public ResponseEntity<PointBalanceResponse> getMyPointBalance(@MemberId Long memberId) {
     return ResponseEntity.ok(memberService.getMyPointBalance(memberId));
+  }
+
+  @GetMapping("/me/bids")
+  @Override
+  @RequireAuthentication
+  public ResponseEntity<CursorPageResponse<MyBidListItemResponse, String>> getMyBids(
+      @MemberId Long memberId, @Valid @ModelAttribute GetMyBidsRequest getMyBidsRequest) {
+    return ResponseEntity.ok(memberService.getMyBids(memberId, getMyBidsRequest));
   }
 }
