@@ -120,3 +120,20 @@ export async function getMyBids(params: MyBidsParams = {}): Promise<{
     cursor: data.cursor ?? undefined,
   };
 }
+
+export async function getMyWins(params: MyBidsParams = {}): Promise<{
+  items: MyBidItem[];
+  hasNext: boolean;
+  cursor?: string;
+}> {
+  const { data } = await axiosInstance.get<MyBidsPageResponse>(
+    "/members/me/wins",
+    { params: { cursor: params.cursor, size: params.size ?? 20 } },
+  );
+
+  return {
+    items: data.items.map(toMyBidItem),
+    hasNext: data.hasNext,
+    cursor: data.cursor ?? undefined,
+  };
+}
