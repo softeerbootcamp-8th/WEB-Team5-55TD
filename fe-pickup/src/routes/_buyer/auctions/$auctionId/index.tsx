@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/domain/status-badge";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
-import { HeartButton } from "@/components/domain/heart-button";
+import { WatchButton } from "@/components/domain/heart-button";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -81,8 +81,10 @@ function AuctionDetailPage() {
               <StatusBadge status={auction.status} />
               <GradeBadge grade={auction.grade} />
             </div>
-            <HeartButton
+            <WatchButton
+              auctionId={auction.id}
               count={auction.watchCount}
+              watched={auction.watched ?? false}
               className="bg-[var(--color-surface-2)] !text-[var(--color-text-sub)]"
             />
           </div>

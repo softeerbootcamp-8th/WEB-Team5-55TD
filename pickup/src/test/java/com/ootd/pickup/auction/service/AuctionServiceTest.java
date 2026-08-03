@@ -12,6 +12,7 @@ import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -24,6 +25,7 @@ import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
@@ -51,9 +53,13 @@ class AuctionServiceTest {
 
   @Mock private CertificateRepository certificateRepository;
 
+  @Mock private CertificateManageService certificateManageService;
+
   @Mock private ConsignmentImageRepository consignmentImageRepository;
 
   @Mock private WatchRepository watchRepository;
+
+  @Mock private BidRepository bidRepository;
 
   private AuctionService auctionService;
 
@@ -64,8 +70,10 @@ class AuctionServiceTest {
             consignmentRepository,
             auctionRepository,
             certificateRepository,
+            certificateManageService,
             consignmentImageRepository,
-            watchRepository);
+            watchRepository,
+            bidRepository);
   }
 
   @Test
@@ -284,6 +292,53 @@ class AuctionServiceTest {
   }
 
   @Test
+  void 대표_경매를_조회하면_진행중인_경매_중_관심수가_가장_많은_경매를_반환한다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.ONGOING,
+            LocalDateTime.now().minusHours(1),
+            LocalDateTime.now().plusHours(1));
+    given(
+            auctionRepository.searchAuctions(
+                isNull(), eq(List.of(AuctionStatus.ONGOING)), any(), isNull(), eq(1)))
+        .willReturn(List.of(auction));
+    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of(1L, 10L));
+    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
+    given(
+            consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+                any()))
+        .willReturn(List.of());
+
+    // when
+    AuctionListItemResponse response = auctionService.getFeaturedAuction(null);
+
+    // then
+    assertThat(response.auctionId()).isEqualTo(1L);
+    assertThat(response.auctionStatus()).isEqualTo(AuctionStatus.ONGOING);
+    assertThat(response.watchCount()).isEqualTo(10L);
+  }
+
+  @Test
+  void 진행중인_경매가_없으면_대표_경매_조회시_예외가_발생한다() {
+    // given
+    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+        .willReturn(List.of());
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.getFeaturedAuction(null))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            e ->
+                assertThat(((PickUpException) e).getMessage())
+                    .isEqualTo(ExceptionCode.FEATURED_AUCTION_NOT_FOUND.getMessage()));
+  }
+
+  @Test
   void 관심_등록한_경매는_watched가_true이고_관심수가_반영된다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
@@ -296,13 +351,14 @@ class AuctionServiceTest {
             LocalDateTime.now().plusHours(1));
     given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
         .willReturn(List.of(auction));
-    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
     given(watchRepository.countByAuctionIds(any())).willReturn(Map.of(1L, 3L));
     given(watchRepository.findWatchedAuctionIds(eq(9L), any())).willReturn(Set.of(1L));
+    given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
 
@@ -325,13 +381,14 @@ class AuctionServiceTest {
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
     given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
         .willReturn(List.of(auction));
-    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
     given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
     given(watchRepository.findWatchedAuctionIds(isNull(), any())).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
 
@@ -344,7 +401,7 @@ class AuctionServiceTest {
   }
 
   @Test
-  void 진행중이고_종료시각이_있으면_남은시간이_계산되고_currentPrice는_null이다() {
+  void 진행중이고_입찰이_없으면_남은시간이_계산되고_currentPrice는_시작가다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
     LocalDateTime endedAt = LocalDateTime.now().plusMinutes(30);
@@ -363,13 +420,45 @@ class AuctionServiceTest {
 
     // then
     AuctionListItemResponse item = response.items().get(0);
-    assertThat(item.currentPrice()).isNull();
+    assertThat(item.currentPrice()).isEqualTo(10000L);
     assertThat(item.remainingSeconds()).isNotNull();
     assertThat(item.remainingSeconds()).isCloseTo(30 * 60L, Offset.offset(5L));
   }
 
   @Test
-  void 예정_상태면_남은시간이_null이다() {
+  void 진행중이고_입찰이_있으면_currentPrice는_최고_입찰가다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.ONGOING,
+            LocalDateTime.now().minusHours(1),
+            LocalDateTime.now().plusHours(1));
+    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+        .willReturn(List.of(auction));
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
+    given(
+            consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+                any()))
+        .willReturn(List.of());
+    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
+    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of(1L, 12000L));
+
+    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
+
+    // when
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        auctionService.searchAuctions(null, request);
+
+    // then
+    assertThat(response.items().get(0).currentPrice()).isEqualTo(12000L);
+  }
+
+  @Test
+  void 예정_상태면_남은시간과_currentPrice가_null이다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
     Auction auction =
@@ -387,6 +476,7 @@ class AuctionServiceTest {
 
     // then
     assertThat(response.items().get(0).remainingSeconds()).isNull();
+    assertThat(response.items().get(0).currentPrice()).isNull();
   }
 
   @Test
@@ -398,7 +488,7 @@ class AuctionServiceTest {
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
     given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
         .willReturn(List.of(auction));
-    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
@@ -408,6 +498,7 @@ class AuctionServiceTest {
                 createConsignmentImage(consignment, 2, "https://image.example.com/back.png")));
     given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
     given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
 
@@ -450,14 +541,18 @@ class AuctionServiceTest {
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
     given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
         .willReturn(List.of(auction));
-    given(certificateRepository.findAllByConsignmentIds(any()))
-        .willReturn(List.of(createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT)));
+    given(certificateManageService.getCertificatesByConsignmentId(any()))
+        .willReturn(
+            Map.of(
+                consignment.getConsignmentId(),
+                createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT)));
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
     given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
     given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
 
@@ -490,6 +585,7 @@ class AuctionServiceTest {
         .willReturn(List.of(front));
     given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 4L));
     given(watchRepository.findWatchedAuctionIds(9L, List.of(1L))).willReturn(Set.of(1L));
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of());
 
     // when
     AuctionDetailResponse response = auctionService.getAuctionDetail(9L, 1L);
@@ -503,10 +599,39 @@ class AuctionServiceTest {
     assertThat(response.thumbnailUrl()).isEqualTo("https://image.example.com/front.png");
     assertThat(response.watchCount()).isEqualTo(4L);
     assertThat(response.watched()).isTrue();
-    assertThat(response.currentPrice()).isNull();
-    assertThat(response.nextMinBid()).isEqualTo(10000L);
+    assertThat(response.currentPrice()).isEqualTo(10000L);
+    assertThat(response.nextMinBid()).isEqualTo(10500L);
     assertThat(response.recommendedBid()).isNull();
     assertThat(response.remainingSeconds()).isCloseTo(60 * 60L, Offset.offset(5L));
+  }
+
+  @Test
+  void 입찰이_있는_경매_상세를_조회하면_currentPrice와_nextMinBid가_반영된다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.ONGOING,
+            LocalDateTime.now().minusHours(1),
+            LocalDateTime.now().plusHours(1));
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
+    given(watchRepository.findWatchedAuctionIds(isNull(), eq(List.of(1L)))).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 12000L));
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
+
+    // then
+    assertThat(response.currentPrice()).isEqualTo(12000L);
+    assertThat(response.nextMinBid()).isEqualTo(12500L);
   }
 
   @Test
@@ -524,6 +649,7 @@ class AuctionServiceTest {
         .willReturn(List.of());
     given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
     given(watchRepository.findWatchedAuctionIds(isNull(), eq(List.of(1L)))).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of());
 
     // when
     AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
@@ -532,6 +658,7 @@ class AuctionServiceTest {
     assertThat(response.watched()).isFalse();
     assertThat(response.watchCount()).isEqualTo(0L);
     assertThat(response.thumbnailUrl()).isNull();
+    assertThat(response.currentPrice()).isNull();
   }
 
   @Test
@@ -569,13 +696,14 @@ class AuctionServiceTest {
   }
 
   private void stubEmptyAssemblyDependencies() {
-    given(certificateRepository.findAllByConsignmentIds(any())).willReturn(List.of());
+    given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
     given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
     given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
   }
 
   private Consignment createConsignment(
