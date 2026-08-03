@@ -1,6 +1,7 @@
 package com.ootd.pickup.member.controller;
 
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
+import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.global.auth.annotation.MemberId;
 import com.ootd.pickup.global.auth.annotation.RequireAuthentication;
@@ -65,5 +66,13 @@ public class MemberController implements MemberApi {
   public ResponseEntity<CursorPageResponse<MyBidListItemResponse, String>> getMyBids(
       @MemberId Long memberId, @Valid @ModelAttribute GetMyBidsRequest getMyBidsRequest) {
     return ResponseEntity.ok(memberService.getMyBids(memberId, getMyBidsRequest));
+  }
+
+  @GetMapping("/me/wins")
+  @Override
+  @RequireAuthentication
+  public ResponseEntity<CursorPageResponse<MyBidListItemResponse, String>> getMyWins(
+      @MemberId Long memberId, @Valid @ModelAttribute GetMyWinsRequest getMyWinsRequest) {
+    return ResponseEntity.ok(memberService.getMyWins(memberId, getMyWinsRequest));
   }
 }

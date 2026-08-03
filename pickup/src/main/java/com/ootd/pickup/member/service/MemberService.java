@@ -10,6 +10,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
+import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
@@ -120,6 +121,22 @@ public class MemberService {
     Long cursorBidId = decodeCursor(request.cursor());
 
     List<Bid> fetched = bidRepository.findLastBidsByMemberId(memberId, cursorBidId, size + 1);
+    boolean hasNext = fetched.size() > size;
+    List<Bid> page = hasNext ? fetched.subList(0, size) : fetched;
+
+    List<MyBidListItemResponse> items = assembleMyBids(page);
+
+    String nextCursor = hasNext ? String.valueOf(page.getLast().getBidId()) : null;
+    return CursorPageResponse.from(items, hasNext, nextCursor);
+  }
+
+  @Transactional(readOnly = true)
+  public CursorPageResponse<MyBidListItemResponse, String> getMyWins(
+      Long memberId, GetMyWinsRequest request) {
+    int size = resolveSize(request.size());
+    Long cursorBidId = decodeCursor(request.cursor());
+
+    List<Bid> fetched = bidRepository.findWonBidsByMemberId(memberId, cursorBidId, size + 1);
     boolean hasNext = fetched.size() > size;
     List<Bid> page = hasNext ? fetched.subList(0, size) : fetched;
 
