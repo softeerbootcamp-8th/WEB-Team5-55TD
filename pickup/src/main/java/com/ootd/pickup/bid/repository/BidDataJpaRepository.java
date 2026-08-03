@@ -4,6 +4,7 @@ import static com.ootd.pickup.auction.domain.QAuction.auction;
 import static com.ootd.pickup.bid.domain.QBid.bid;
 import static com.ootd.pickup.cards.domain.QCard.card;
 import static com.ootd.pickup.consignments.domain.QConsignment.consignment;
+import static com.ootd.pickup.member.domain.QMember.member;
 
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
@@ -91,6 +92,18 @@ public class BidDataJpaRepository implements BidRepository {
         .collect(
             Collectors.toMap(
                 highestBid -> highestBid.getAuction().getAuctionId(), Bid::getBidPrice));
+  }
+
+  @Override
+  public List<Bid> findAllByAuctionId(Long auctionId, Long cursorBidId, int limit) {
+    return queryFactory
+        .selectFrom(bid)
+        .join(bid.member, member)
+        .fetchJoin()
+        .where(bid.auction.auctionId.eq(auctionId), cursorPredicate(cursorBidId))
+        .orderBy(bid.bidId.desc())
+        .limit(limit)
+        .fetch();
   }
 
   private BooleanExpression cursorPredicate(Long cursorBidId) {
