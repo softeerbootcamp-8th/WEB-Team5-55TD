@@ -30,7 +30,7 @@ public class CardService {
 
   public CursorPageResponse<SearchCardsResponse, Long> searchCards(
       SearchCardsRequest searchCardsRequest) {
-    validateSize(searchCardsRequest.size());
+    searchCardsRequest.validateSize();
 
     List<Card> searchedCards =
         cardRepository.searchCards(
@@ -48,11 +48,5 @@ public class CardService {
     List<SearchCardsResponse> items = cards.stream().map(SearchCardsResponse::from).toList();
 
     return CursorPageResponse.from(items, hasNext, nextCursor);
-  }
-
-  private void validateSize(Integer size) {
-    if (size == null || size < 1) {
-      throw new PickUpException(ILLEGAL_ARGUMENT);
-    }
   }
 }

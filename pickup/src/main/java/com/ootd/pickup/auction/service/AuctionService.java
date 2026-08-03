@@ -13,14 +13,17 @@ import com.ootd.pickup.auction.repository.auction.AuctionCursor;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.auction.AuctionSort;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.global.util.CursorPageSize;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 import java.util.Map;
@@ -36,15 +39,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuctionService {
 
   private static final double BID_INCREMENT_RATIO = 0.05;
-  private static final int DEFAULT_SIZE = 20;
-  private static final int MAX_SIZE = 100;
 
   private final ConsignmentRepository consignmentRepository;
   private final AuctionRepository auctionRepository;
   private final CertificateRepository certificateRepository;
+  private final CertificateManageService certificateManageService;
   private final ConsignmentImageRepository consignmentImageRepository;
   private final WatchRepository watchRepository;
   private final ImageUrlResolver imageUrlResolver;
+  private final BidRepository bidRepository;
 
   @Transactional
   public CreateAuctionResponse registerAuction(Long memberId, CreateAuctionRequest request) {
@@ -78,7 +81,7 @@ public class AuctionService {
       return CursorPageResponse.from(assembled.items(), false, null);
     }
 
-    int size = resolveSize(request.size());
+    int size = CursorPageSize.resolve(request.size());
     AuctionCursor decodedCursor = AuctionCursor.decode(request.cursor(), sort);
     List<Auction> fetched =
         auctionRepository.searchAuctions(request.q(), statuses, sort, decodedCursor, size + 1);
@@ -100,6 +103,18 @@ public class AuctionService {
     return CursorPageResponse.from(assembled.items(), hasNext, nextCursor);
   }
 
+  public AuctionListItemResponse getFeaturedAuction(Long viewerMemberId) {
+    List<Auction> candidates =
+        auctionRepository.searchAuctions(
+            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1);
+    Auction featured =
+        candidates.stream()
+            .findFirst()
+            .orElseThrow(() -> new PickUpException(FEATURED_AUCTION_NOT_FOUND));
+
+    return assemble(List.of(featured), viewerMemberId).items().getFirst();
+  }
+
   public AuctionDetailResponse getAuctionDetail(Long viewerMemberId, Long auctionId) {
     Auction auction = getAuction(auctionId);
     Consignment consignment = auction.getConsignment();
@@ -112,9 +127,12 @@ public class AuctionService {
         watchRepository.countByAuctionIds(List.of(auctionId)).getOrDefault(auctionId, 0L);
     boolean watched =
         !watchRepository.findWatchedAuctionIds(viewerMemberId, List.of(auctionId)).isEmpty();
+    Long currentPrice =
+        resolveCurrentPrice(
+            auction, bidRepository.findCurrentPricesByAuctionIds(List.of(auctionId)));
 
     return AuctionDetailResponse.of(
-        auction, certificate, images, watchCount, watched, imageUrlResolver);
+        auction, certificate, images, watchCount, watched, currentPrice, imageUrlResolver);
   }
 
   private Consignment getConsignment(Long consignmentId) {
@@ -144,10 +162,10 @@ public class AuctionService {
 
     Map<Long, Long> watchCounts = watchRepository.countByAuctionIds(auctionIds);
     Set<Long> watchedIds = watchRepository.findWatchedAuctionIds(viewerMemberId, auctionIds);
+    Map<Long, Long> currentPrices = bidRepository.findCurrentPricesByAuctionIds(auctionIds);
 
     Map<Long, Certificate> certificatesByConsignmentId =
-        certificateRepository.findAllByConsignmentIds(consignmentIds).stream()
-            .collect(Collectors.toMap(c -> c.getConsignment().getConsignmentId(), c -> c));
+        certificateManageService.getCertificatesByConsignmentId(consignmentIds);
 
     Map<Long, String> thumbnailsByConsignmentId = resolveThumbnails(consignmentIds);
 
@@ -160,10 +178,19 @@ public class AuctionService {
                         certificatesByConsignmentId.get(a.getConsignment().getConsignmentId()),
                         thumbnailsByConsignmentId.get(a.getConsignment().getConsignmentId()),
                         watchCounts.getOrDefault(a.getAuctionId(), 0L),
-                        watchedIds.contains(a.getAuctionId())))
+                        watchedIds.contains(a.getAuctionId()),
+                        resolveCurrentPrice(a, currentPrices)))
             .toList();
 
     return new Assembled(items, watchCounts);
+  }
+
+  /** 경매 시작 전에는 현재가 개념이 없으므로 null, 그 외에는 최고 입찰가(없으면 시작가)를 반환한다. */
+  private Long resolveCurrentPrice(Auction auction, Map<Long, Long> currentPrices) {
+    if (auction.getAuctionStatus() == AuctionStatus.SCHEDULED) {
+      return null;
+    }
+    return currentPrices.getOrDefault(auction.getAuctionId(), auction.getStartingPrice());
   }
 
   private Map<Long, String> resolveThumbnails(List<Long> consignmentIds) {
@@ -187,16 +214,6 @@ public class AuctionService {
     if (limit < 1) {
       throw new PickUpException(ILLEGAL_ARGUMENT);
     }
-    return Math.min(limit, MAX_SIZE);
-  }
-
-  private int resolveSize(Integer size) {
-    if (size == null) {
-      return DEFAULT_SIZE;
-    }
-    if (size < 1) {
-      throw new PickUpException(ILLEGAL_ARGUMENT);
-    }
-    return Math.min(size, MAX_SIZE);
+    return Math.min(limit, CursorPageSize.MAX_SIZE);
   }
 }

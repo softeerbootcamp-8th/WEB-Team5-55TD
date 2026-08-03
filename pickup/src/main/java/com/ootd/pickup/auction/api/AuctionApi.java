@@ -150,6 +150,53 @@ public interface AuctionApi {
       Long memberId, SearchAuctionsRequest searchAuctionsRequest);
 
   @Operation(
+      summary = "대표 경매 조회",
+      description = "홈 화면에 노출할 대표 경매 1건을 조회합니다. 진행 중(ONGOING)인 경매 중 관심 수가 가장 많은 경매를 반환합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "대표 경매 조회 성공",
+            content =
+                @Content(
+                    schema = @Schema(implementation = AuctionListItemResponse.class),
+                    examples =
+                        @ExampleObject(
+                            name = "대표 경매 조회 결과",
+                            value =
+                                """
+                            {
+                              "auctionId": 1,
+                              "consignmentId": 100,
+                              "card": {
+                                "cardId": 10,
+                                "cardName": "리자몽 1st Edition Holo",
+                                "setName": "Base Set",
+                                "cardNumber": "4/102",
+                                "language": "일본어",
+                                "rarity": "MINT",
+                                "imageUrl": "https://example.com/cards/10.png"
+                              },
+                              "grade": "PSA 10",
+                              "auctionStatus": "ONGOING",
+                              "startingPrice": 10000,
+                              "currentPrice": 12000,
+                              "startedAt": "2026-08-01T10:00:00",
+                              "endedAt": "2026-08-01T12:00:00",
+                              "remainingSeconds": 3600,
+                              "watchCount": 42,
+                              "watched": false,
+                              "thumbnailUrl": "https://example.com/consignments/100-front.png"
+                            }
+                            """))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "대표로 보여줄 진행 중인 경매가 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<AuctionListItemResponse> getFeaturedAuction(
+      @Parameter(hidden = true) Long memberId);
+
+  @Operation(
       summary = "경매 상세 조회",
       description = "경매 ID로 경매 상세 정보(카드, 인증서, 이미지, 판매자, 입찰 관련 정보 등)를 조회합니다.",
       responses = {

@@ -1,14 +1,13 @@
 import { useState } from "react";
-import {
-  createFileRoute,
-  Link,
-  notFound,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
+import { toast } from "sonner";
+import type { AxiosError } from "axios";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
+import { EmptyState } from "@/components/domain/section-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,36 +19,100 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { products } from "@/lib/mock/data";
+import { registerAuction } from "@/api/auctions";
+import { getMyConsignmentDetail } from "@/api/consignments";
+import type { ExceptionResponse } from "@/api/generated/model";
+import { ProductStatus } from "@/lib/types";
 import { formatWon, minBidUnit } from "@/lib/format";
 
 export const Route = createFileRoute("/seller/apply/$productId")({
-  loader: ({ params }) => {
-    const product = products.find((p) => p.id === params.productId);
-    if (!product) throw notFound();
-    return { product };
-  },
   component: AuctionApplyPage,
 });
 
+const DEFAULT_ERROR_MESSAGE =
+  "경매 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+
 /** DESIGN.md · auction-apply.html — 희망 시작가/낙찰가/일정, 신청 후 수정·삭제 불가 */
 function AuctionApplyPage() {
-  const { product } = Route.useLoaderData();
+  const { productId } = Route.useParams();
   const navigate = useNavigate();
+
+  const { data: product, isPending } = useQuery({
+    queryKey: ["consignments", "detail", productId],
+    queryFn: () => getMyConsignmentDetail(productId),
+  });
+
   const [startPrice, setStartPrice] = useState("");
   const [reserve, setReserve] = useState("");
   const [schedule, setSchedule] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const startValue = Number(startPrice.replace(/[^0-9]/g, ""));
+  const reserveValue = Number(reserve.replace(/[^0-9]/g, ""));
   const unit = startValue ? minBidUnit(startValue) : 0;
-  const valid = startValue > 0 && schedule.length > 0;
+  const valid = startValue > 0 && reserveValue > 0 && schedule.length > 0;
+
+  const { mutate: submitApply, isPending: isSubmitting } = useMutation({
+    mutationFn: () =>
+      registerAuction({
+        consignmentId: productId,
+        startingPrice: startValue,
+        reserve: reserveValue,
+        scheduledStartAt: `${schedule}:00`,
+      }),
+    onSuccess: () => {
+      toast.success("경매 신청이 완료되었습니다.");
+      navigate({ to: "/seller/products/$productId", params: { productId } });
+    },
+    onError: (error: AxiosError<ExceptionResponse>) => {
+      setConfirmOpen(false);
+      toast.error(error.response?.data?.message ?? DEFAULT_ERROR_MESSAGE);
+    },
+  });
+
+  if (isPending) return null;
+
+  if (!product) {
+    return (
+      <PageContainer className="flex flex-col gap-6">
+        <EmptyState
+          title="상품을 찾을 수 없습니다."
+          action={
+            <Button variant="secondary" asChild>
+              <Link to="/seller/products">상품 목록으로</Link>
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
+
+  if (product.status !== ProductStatus.REGISTERABLE) {
+    return (
+      <PageContainer className="flex flex-col gap-6">
+        <EmptyState
+          title="지금은 경매를 신청할 수 없는 상품이에요."
+          description="등록 가능 상태의 상품만 경매를 신청할 수 있습니다."
+          action={
+            <Button variant="secondary" asChild>
+              <Link
+                to="/seller/products/$productId"
+                params={{ productId }}
+              >
+                상품 상세로
+              </Link>
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer className="flex max-w-2xl flex-col gap-6">
       <Link
         to="/seller/products/$productId"
-        params={{ productId: product.id }}
+        params={{ productId }}
         className="inline-flex items-center gap-1 text-sm text-[var(--color-text-sub)] hover:text-foreground"
       >
         <ChevronLeft className="size-4" /> 상품 상세
@@ -61,6 +124,7 @@ function AuctionApplyPage() {
       <div className="flex items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4">
         <CardThumb
           cardName={product.cardName}
+          imageUrl={product.thumbnailUrl}
           aspect="aspect-square"
           className="w-16"
         />
@@ -68,7 +132,7 @@ function AuctionApplyPage() {
           <GradeBadge grade={product.grade} />
           <span className="text-sm font-semibold">{product.cardName}</span>
           <span className="tabular text-xs text-[var(--color-text-muted)]">
-            인증서 {product.grade.serial}
+            인증서 {product.grade?.serial ?? "-"}
           </span>
         </div>
       </div>
@@ -94,7 +158,10 @@ function AuctionApplyPage() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label>최소 희망 낙찰가 (비공개)</Label>
+          <Label>
+            최소 희망 낙찰가 (비공개){" "}
+            <span className="text-[var(--color-danger)]">*</span>
+          </Label>
           <Input
             inputMode="numeric"
             value={reserve}
@@ -116,7 +183,7 @@ function AuctionApplyPage() {
         </div>
       </div>
 
-      <p className="rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-4 py-3 text-xs text-[var(--color-warning)]">
+      <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
         신청 후에는 수정·삭제할 수 없습니다. 유찰 시 재신청이 가능합니다.
       </p>
 
@@ -152,14 +219,16 @@ function AuctionApplyPage() {
               variant="secondary"
               className="flex-1"
               onClick={() => setConfirmOpen(false)}
+              disabled={isSubmitting}
             >
               취소
             </Button>
             <Button
               className="flex-1"
-              onClick={() => navigate({ to: "/seller/products" })}
+              onClick={() => submitApply()}
+              disabled={isSubmitting}
             >
-              신청 확정
+              {isSubmitting ? "신청 중..." : "신청 확정"}
             </Button>
           </DialogFooter>
         </DialogContent>

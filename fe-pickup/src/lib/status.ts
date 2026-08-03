@@ -1,4 +1,4 @@
-import { ProductStatus, SettlementStatus } from "@/lib/types";
+import { ProductStatus } from "@/lib/types";
 import type { MyBidStatus } from "@/lib/types";
 
 type BadgeVariant =
@@ -16,16 +16,6 @@ export const PRODUCT_STATUS_META: Record<
   REAPPLICABLE: { label: "재신청 가능", variant: "outline" },
 };
 
-/** 정산 상태 (DESIGN.md §8 sales) */
-export const SETTLEMENT_STATUS_META: Record<
-  SettlementStatus,
-  { label: string; variant: BadgeVariant }
-> = {
-  PENDING: { label: "정산 예정", variant: "warning" },
-  DONE: { label: "정산 완료", variant: "success" },
-  REAPPLICABLE: { label: "재신청 가능", variant: "outline" },
-};
-
 /** 내 입찰 상태 (DESIGN.md §7 mypage) */
 export const MY_BID_STATUS_META: Record<
   MyBidStatus,
@@ -37,4 +27,4 @@ export const MY_BID_STATUS_META: Record<
   LOST: { label: "미낙찰", variant: "neutral" },
 };
 
-export { ProductStatus, SettlementStatus };
+export { ProductStatus };

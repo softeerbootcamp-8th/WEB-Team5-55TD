@@ -86,7 +86,44 @@ function toSummary(item: AuctionListItemResponse): AuctionSummary {
     endsAt: item.endedAt ?? undefined,
     startsAt: item.startedAt ?? undefined,
     watchCount: item.watchCount,
+    watched: item.watched,
   };
+}
+
+export interface CreateAuctionPayload {
+  consignmentId: string;
+  startingPrice: number;
+  reserve: number;
+  /** LocalDateTime 형식 (타임존 없이) — 예: "2026-08-01T10:00:00" */
+  scheduledStartAt: string;
+}
+
+interface CreateAuctionResponse {
+  auctionId: number;
+  consignmentId: number;
+  auctionStatus: ApiAuctionStatus;
+  startingPrice: number;
+  bidIncrement: number;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  winningBidId?: number | null;
+  winningPrice?: number | null;
+  createdAt: string;
+}
+
+export async function registerAuction(
+  payload: CreateAuctionPayload,
+): Promise<{ auctionId: string; bidIncrement: number }> {
+  const { data } = await axiosInstance.post<CreateAuctionResponse>(
+    "/auctions",
+    {
+      consignmentId: Number(payload.consignmentId),
+      startingPrice: payload.startingPrice,
+      reserve: payload.reserve,
+      scheduledStartAt: payload.scheduledStartAt,
+    },
+  );
+  return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
 }
 
 export async function searchAuctions(
@@ -114,6 +151,47 @@ export async function searchAuctions(
     hasNext: data.hasNext,
     cursor: data.cursor ?? undefined,
   };
+}
+
+export async function getWatchlist(): Promise<AuctionSummary[]> {
+  const watchedAuctions: AuctionSummary[] = [];
+  let cursor: string | undefined;
+
+  while (true) {
+    const page = await searchAuctions({
+      status: ["SCHEDULED"],
+      sort: "RECENT",
+      cursor,
+      size: 100,
+    });
+    watchedAuctions.push(...page.items.filter((auction) => auction.watched));
+
+    if (!page.hasNext) return watchedAuctions;
+    if (!page.cursor) {
+      throw new Error("관심 목록 다음 페이지 커서가 없습니다.");
+    }
+    cursor = page.cursor;
+  }
+}
+
+/** 진행 중인 경매가 하나도 없으면(404) null을 반환한다. */
+export async function getFeaturedAuction(): Promise<AuctionSummary | null> {
+  try {
+    const { data } = await axiosInstance.get<AuctionListItemResponse>(
+      "/auctions/featured",
+    );
+    return toSummary(data);
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "response" in error &&
+      (error as { response?: { status?: number } }).response?.status === 404
+    ) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 interface CertificateResponse {

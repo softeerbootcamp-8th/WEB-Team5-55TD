@@ -11,16 +11,19 @@ import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.dto.request.CertificateRequest;
 import com.ootd.pickup.consignments.dto.request.ConsignmentImageRequest;
+import com.ootd.pickup.consignments.dto.request.GetMyConsignmentsRequest;
 import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.CertificateResponse;
 import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
+import com.ootd.pickup.consignments.dto.response.GetMyConsignmentsResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.consignments.service.ConsignmentApplicationService;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.auth.Authentication;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import java.time.LocalDate;
@@ -187,6 +190,107 @@ class ConsignmentControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value(CARD_NOT_FOUND.getMessage()));
+  }
+
+  @Test
+  void 유효한_요청으로_내_상품_목록을_조회하면_200과_커서페이지를_반환한다() throws Exception {
+    // given
+    GetMyConsignmentsResponse item =
+        new GetMyConsignmentsResponse(
+            100L,
+            500L,
+            new GetCardDetailResponse(
+                10L,
+                "리자몽 1st Edition Holo",
+                "Base Set",
+                "4/102",
+                "일본어",
+                "MINT",
+                "https://image.example.com/card.png"),
+            1L,
+            "모서리에 약간의 마모",
+            ConsignmentStatus.REGISTERABLE,
+            new CertificateResponse(
+                200L,
+                "PSA-84213907",
+                CertificationBody.PSA,
+                "10",
+                "GEM_MINT",
+                LocalDate.of(2026, 6, 30)));
+    CursorPageResponse<GetMyConsignmentsResponse, Long> response =
+        new CursorPageResponse<>(true, 100L, 1, List.of(item));
+    given(consignmentService.getMyConsignments(eq(1L), any(GetMyConsignmentsRequest.class)))
+        .willReturn(response);
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .param("status", "REGISTERABLE")
+                .param("size", "1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hasNext").value(true))
+        .andExpect(jsonPath("$.cursor").value(100L))
+        .andExpect(jsonPath("$.items[0].consignmentId").value(100L))
+        .andExpect(jsonPath("$.items[0].auctionId").value(500L))
+        .andExpect(jsonPath("$.items[0].sellerMemberId").value(1L))
+        .andExpect(jsonPath("$.items[0].status").value("REGISTERABLE"))
+        .andExpect(jsonPath("$.items[0].card.cardId").value(10L))
+        .andExpect(jsonPath("$.items[0].certificate.certificateId").value(200L));
+  }
+
+  @Test
+  void 인증_없이_내_상품_목록을_조회하면_401을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(get("/consignments").param("status", "REGISTERABLE").param("size", "20"))
+        .andExpect(status().isUnauthorized());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 크기를_생략하고_내_상품_목록을_조회하면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(
+            get("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .param("status", "REGISTERABLE"))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void status를_생략하고_내_상품_목록을_조회하면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(
+            get("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .param("size", "20"))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 유효하지_않은_status로_내_상품_목록을_조회하면_400을_반환한다() throws Exception {
+    // given
+    given(consignmentService.getMyConsignments(eq(1L), any(GetMyConsignmentsRequest.class)))
+        .willThrow(new PickUpException(INVALID_CONSIGNMENT_STATUS));
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .param("status", "존재하지않는상태")
+                .param("size", "20"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(INVALID_CONSIGNMENT_STATUS.getMessage()));
   }
 
   @Test
