@@ -41,10 +41,10 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       DEPLOY_S3_BUCKET: ${{ vars.DEPLOY_S3_BUCKET }}
-      IMAGE_STORAGE_BUCKET: ${{ vars.IMAGE_STORAGE_BUCKET }}
-      IMAGE_STORAGE_REGION: ${{ vars.IMAGE_STORAGE_REGION }}
-      IMAGE_MEDIA_BASE_URL: ${{ vars.IMAGE_MEDIA_BASE_URL }}
-      IMAGE_UPLOAD_URL_TTL: ${{ vars.IMAGE_UPLOAD_URL_TTL }}
+      IMAGE_STORAGE_BUCKET: ${{ secrets.IMAGE_STORAGE_BUCKET }}
+      IMAGE_STORAGE_REGION: ${{ secrets.IMAGE_STORAGE_REGION }}
+      IMAGE_MEDIA_BASE_URL: ${{ secrets.IMAGE_MEDIA_BASE_URL }}
+      IMAGE_UPLOAD_URL_TTL: ${{ secrets.IMAGE_UPLOAD_URL_TTL }}
       # 커밋별 디렉터리에 jar 과 deploy.sh 를 짝으로 올린다.
       # deploy.sh 를 고정 경로에 두면 옛 jar 을 최신 배포 로직으로 배포하게 된다.
       S3_PREFIX: pickup/${{ github.sha }}
@@ -62,10 +62,10 @@ jobs:
           missing=()
           [ -n "${AWS_REGION}" ]       || missing+=("vars.AWS_REGION")
           [ -n "${DEPLOY_S3_BUCKET}" ] || missing+=("vars.DEPLOY_S3_BUCKET")
-          [ -n "${IMAGE_STORAGE_BUCKET}" ] || missing+=("vars.IMAGE_STORAGE_BUCKET")
-          [ -n "${IMAGE_STORAGE_REGION}" ] || missing+=("vars.IMAGE_STORAGE_REGION")
-          [ -n "${IMAGE_MEDIA_BASE_URL}" ] || missing+=("vars.IMAGE_MEDIA_BASE_URL")
-          [ -n "${IMAGE_UPLOAD_URL_TTL}" ] || missing+=("vars.IMAGE_UPLOAD_URL_TTL")
+          [ -n "${IMAGE_STORAGE_BUCKET}" ] || missing+=("secrets.IMAGE_STORAGE_BUCKET")
+          [ -n "${IMAGE_STORAGE_REGION}" ] || missing+=("secrets.IMAGE_STORAGE_REGION")
+          [ -n "${IMAGE_MEDIA_BASE_URL}" ] || missing+=("secrets.IMAGE_MEDIA_BASE_URL")
+          [ -n "${IMAGE_UPLOAD_URL_TTL}" ] || missing+=("secrets.IMAGE_UPLOAD_URL_TTL")
           [ -n "${ROLE_ARN}" ]         || missing+=("secrets.AWS_DEPLOY_ROLE_ARN")
 
           if [ ${#missing[@]} -gt 0 ]; then
@@ -75,13 +75,13 @@ jobs:
 
           invalid=()
           [[ "${IMAGE_STORAGE_BUCKET}" =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]] \
-            || invalid+=("vars.IMAGE_STORAGE_BUCKET")
+            || invalid+=("secrets.IMAGE_STORAGE_BUCKET")
           [ "${IMAGE_STORAGE_REGION}" = "ap-northeast-2" ] \
-            || invalid+=("vars.IMAGE_STORAGE_REGION")
+            || invalid+=("secrets.IMAGE_STORAGE_REGION")
           [[ "${IMAGE_MEDIA_BASE_URL}" =~ ^https://[A-Za-z0-9.-]+$ ]] \
-            || invalid+=("vars.IMAGE_MEDIA_BASE_URL")
+            || invalid+=("secrets.IMAGE_MEDIA_BASE_URL")
           [[ "${IMAGE_UPLOAD_URL_TTL}" =~ ^[1-9][0-9]*[smhd]$ ]] \
-            || invalid+=("vars.IMAGE_UPLOAD_URL_TTL")
+            || invalid+=("secrets.IMAGE_UPLOAD_URL_TTL")
 
           if [ ${#invalid[@]} -gt 0 ]; then
             echo "::error::다음 설정의 형식이 올바르지 않습니다: ${invalid[*]}"
