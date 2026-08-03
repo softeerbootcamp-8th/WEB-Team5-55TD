@@ -89,6 +89,42 @@ function toSummary(item: AuctionListItemResponse): AuctionSummary {
   };
 }
 
+export interface CreateAuctionPayload {
+  consignmentId: string;
+  startingPrice: number;
+  reserve: number;
+  /** LocalDateTime 형식 (타임존 없이) — 예: "2026-08-01T10:00:00" */
+  scheduledStartAt: string;
+}
+
+interface CreateAuctionResponse {
+  auctionId: number;
+  consignmentId: number;
+  auctionStatus: ApiAuctionStatus;
+  startingPrice: number;
+  bidIncrement: number;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  winningBidId?: number | null;
+  winningPrice?: number | null;
+  createdAt: string;
+}
+
+export async function registerAuction(
+  payload: CreateAuctionPayload,
+): Promise<{ auctionId: string; bidIncrement: number }> {
+  const { data } = await axiosInstance.post<CreateAuctionResponse>(
+    "/auctions",
+    {
+      consignmentId: Number(payload.consignmentId),
+      startingPrice: payload.startingPrice,
+      reserve: payload.reserve,
+      scheduledStartAt: payload.scheduledStartAt,
+    },
+  );
+  return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
+}
+
 export async function searchAuctions(
   params: AuctionSearchParams,
 ): Promise<{

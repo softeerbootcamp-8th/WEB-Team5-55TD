@@ -44,6 +44,10 @@ public enum ExceptionCode {
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_PASSWORD, "비밀번호가 일치하지 않습니다."),
   INVALID_REFRESH_TOKEN(
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_REFRESH_TOKEN, "유효하지 않은 리프레시 토큰입니다."),
+  REFRESH_TOKEN_STORE_UNAVAILABLE(
+      HttpStatus.UNAUTHORIZED,
+      ClientExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE,
+      "일시적으로 토큰을 갱신할 수 없습니다. 다시 로그인해 주세요."),
   CONSIGNMENT_NOT_REGISTERABLE(
       HttpStatus.CONFLICT,
       ClientExceptionCode.CONSIGNMENT_NOT_REGISTERABLE,
@@ -79,7 +83,11 @@ public enum ExceptionCode {
   CONSIGNMENT_NOT_DELETABLE(
       HttpStatus.CONFLICT,
       ClientExceptionCode.CONSIGNMENT_NOT_DELETABLE,
-      "경매가 시작된 이후에는 상품을 삭제할 수 없습니다.");
+      "경매가 시작된 이후에는 상품을 삭제할 수 없습니다."),
+  INVALID_CONSIGNMENT_STATUS(
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CONSIGNMENT_STATUS, "유효하지 않은 상품 상태입니다."),
+  INVALID_PAGE_SIZE(
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;
