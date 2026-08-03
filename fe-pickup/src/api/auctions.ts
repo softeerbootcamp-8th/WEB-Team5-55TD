@@ -86,6 +86,7 @@ function toSummary(item: AuctionListItemResponse): AuctionSummary {
     endsAt: item.endedAt ?? undefined,
     startsAt: item.startedAt ?? undefined,
     watchCount: item.watchCount,
+    watched: item.watched,
   };
 }
 
@@ -150,6 +151,27 @@ export async function searchAuctions(
     hasNext: data.hasNext,
     cursor: data.cursor ?? undefined,
   };
+}
+
+export async function getWatchlist(): Promise<AuctionSummary[]> {
+  const watchedAuctions: AuctionSummary[] = [];
+  let cursor: string | undefined;
+
+  while (true) {
+    const page = await searchAuctions({
+      status: ["SCHEDULED"],
+      sort: "RECENT",
+      cursor,
+      size: 100,
+    });
+    watchedAuctions.push(...page.items.filter((auction) => auction.watched));
+
+    if (!page.hasNext) return watchedAuctions;
+    if (!page.cursor) {
+      throw new Error("관심 목록 다음 페이지 커서가 없습니다.");
+    }
+    cursor = page.cursor;
+  }
 }
 
 /** 진행 중인 경매가 하나도 없으면(404) null을 반환한다. */
