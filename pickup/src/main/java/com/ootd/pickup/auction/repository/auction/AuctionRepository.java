@@ -19,5 +19,8 @@ public interface AuctionRepository {
 
   Optional<Auction> findByIdWithConsignmentAndCard(Long auctionId);
 
+  List<Auction> findAllBySellerMemberIdWithCard(
+      Long sellerMemberId, List<AuctionStatus> statuses, SalesCursor cursor, int limit);
+
   Map<Long, Long> findAuctionIdsByConsignmentIn(List<Consignment> consignments);
 }

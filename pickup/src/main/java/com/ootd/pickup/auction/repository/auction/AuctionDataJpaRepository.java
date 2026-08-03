@@ -208,4 +208,34 @@ public class AuctionDataJpaRepository implements AuctionRepository {
                 row -> row.get(auction.consignment.consignmentId),
                 row -> row.get(auction.auctionId)));
   }
+
+  @Override
+  public List<Auction> findAllBySellerMemberIdWithCard(
+      Long sellerMemberId, List<AuctionStatus> statuses, SalesCursor cursor, int limit) {
+    return queryFactory
+        .selectFrom(auction)
+        .join(auction.consignment, consignment)
+        .fetchJoin()
+        .join(consignment.card, card)
+        .fetchJoin()
+        .where(
+            consignment.sellerMember.memberId.eq(sellerMemberId),
+            statusIn(statuses),
+            salesKeysetPredicate(cursor))
+        .orderBy(auction.endedAt.desc(), auction.auctionId.desc())
+        .limit(limit)
+        .fetch();
+  }
+
+  private BooleanExpression salesKeysetPredicate(SalesCursor cursor) {
+    if (cursor == null) {
+      return null;
+    }
+
+    LocalDateTime endedAt = EpochMillis.toLocalDateTime(cursor.endedAtEpochMillis());
+    return auction
+        .endedAt
+        .lt(endedAt)
+        .or(auction.endedAt.eq(endedAt).and(auction.auctionId.lt(cursor.auctionId())));
+  }
 }
