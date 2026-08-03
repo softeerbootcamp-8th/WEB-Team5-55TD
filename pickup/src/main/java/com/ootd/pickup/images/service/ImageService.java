@@ -7,6 +7,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_IMAGE_CONTE
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_IMAGE_CONTENT_TYPE;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_IMAGE_OBJECT_KEY;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_IMAGE_SIZE;
+import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.ImageStorage;
@@ -15,7 +16,7 @@ import com.ootd.pickup.images.ImageStorage.StoredObject;
 import com.ootd.pickup.images.domain.ImagePurpose;
 import com.ootd.pickup.images.dto.CreateImageUploadRequest;
 import com.ootd.pickup.images.dto.CreateImageUploadResponse;
-import com.ootd.pickup.member.service.MemberManageService;
+import com.ootd.pickup.member.repository.MemberRepository;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -26,8 +27,6 @@ import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -48,7 +47,7 @@ public class ImageService {
   private static final Map<String, String> CONTENT_TYPE_BY_EXTENSION =
       Map.of("jpg", "image/jpeg", "png", "image/png", "webp", "image/webp");
 
-  private final MemberManageService memberManageService;
+  private final MemberRepository memberRepository;
   private final ImageStorage imageStorage;
 
   /*
@@ -56,7 +55,9 @@ public class ImageService {
    */
   public CreateImageUploadResponse createUpload(Long memberId, CreateImageUploadRequest request) {
     validateDeclaredImage(request.contentType(), request.contentLength());
-    memberManageService.getMemberById(memberId);
+    if (!memberRepository.existsById(memberId)) {
+      throw new PickUpException(MEMBER_NOT_FOUND);
+    }
 
     String extension = EXTENSION_BY_CONTENT_TYPE.get(request.contentType());
     String temporaryObjectKey =
@@ -91,28 +92,22 @@ public class ImageService {
       throw exception;
     }
 
-    registerFinalizationCleanup(finalizedImages);
     return List.copyOf(finalizedImages);
   }
 
-  // DB 롤백 시 기존 이미지가 사라지지 않도록 교체·제거된 객체는 커밋 후 삭제한다.
-  public void deleteAfterCommit(List<String> objectKeys) {
-    if (objectKeys.isEmpty()) {
-      return;
-    }
-    List<String> keys = List.copyOf(objectKeys);
-    // DB 트랜잭션 상태를 확인하고 커밋이나 종료 후 실행할 콜백을 등록하는 관리자
-    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-      deleteIgnoringFailure(keys, "delete-without-transaction");
-      return;
-    }
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            deleteIgnoringFailure(keys, "delete-after-commit");
-          }
-        });
+  public void deleteTemporaryImages(List<FinalizedImage> finalizedImages) {
+    deleteIgnoringFailure(
+        finalizedImages.stream().map(FinalizedImage::temporaryObjectKey).toList(),
+        "temporary-after-db-commit");
+  }
+
+  public void deleteFinalImages(List<FinalizedImage> finalizedImages) {
+    deleteIgnoringFailure(
+        finalizedImages.stream().map(FinalizedImage::objectKey).toList(), "db-compensation");
+  }
+
+  public void deleteObjects(List<String> objectKeys) {
+    deleteIgnoringFailure(List.copyOf(objectKeys), "obsolete-after-db-commit");
   }
 
   /*
@@ -231,42 +226,14 @@ public class ImageService {
     return true;
   }
 
-  // S3 작업은 DB 트랜잭션에 참여하지 않으므로 커밋 여부에 따라 반대 객체를 보상 삭제한다.
-  private void registerFinalizationCleanup(List<FinalizedImage> finalizedImages) {
-    if (finalizedImages.isEmpty()) {
-      return;
-    }
-    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-      return;
-    }
-    List<String> temporaryObjectKeys =
-        finalizedImages.stream().map(FinalizedImage::temporaryObjectKey).toList();
-    List<String> objectKeys = finalizedImages.stream().map(FinalizedImage::objectKey).toList();
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            // DB가 최종 객체 키를 참조하게 된 뒤에만 재시도용 임시 객체를 삭제한다.
-            deleteIgnoringFailure(temporaryObjectKeys, "temporary-after-commit");
-          }
-
-          @Override
-          public void afterCompletion(int status) {
-            if (status != STATUS_COMMITTED) {
-              // DB가 참조하지 않는 최종 객체가 남지 않도록 이번 요청에서 복사한 객체를 삭제한다.
-              deleteIgnoringFailure(objectKeys, "rollback-compensation");
-            }
-          }
-        });
-  }
-
   // 이미 결정된 DB 결과를 뒤집을 수 없으므로 정리 실패는 기록하고 원래 요청 결과는 유지한다.
   private void deleteIgnoringFailure(List<String> objectKeys, String operation) {
     for (String objectKey : objectKeys) {
       try {
         imageStorage.deleteObject(objectKey);
       } catch (RuntimeException exception) {
-        log.error("Image cleanup failed. operation={}, objectKey={}", operation, objectKey);
+        log.error(
+            "Image cleanup failed. operation={}, objectKey={}", operation, objectKey, exception);
       }
     }
   }

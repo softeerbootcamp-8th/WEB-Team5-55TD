@@ -108,8 +108,13 @@ class ConsignmentModifyIntegrationTest {
     assertThatCode(
             () -> {
               GetConsignmentDetailResponse response =
-                  consignmentService.modifyConsignment(
-                      consignment.getConsignmentId(), seller.getMemberId(), request);
+                  consignmentService
+                      .modifyConsignment(
+                          consignment.getConsignmentId(),
+                          seller.getMemberId(),
+                          request,
+                          finalizedImages(request))
+                      .response();
               entityManager.flush();
               assertThat(response.majorDefect()).isEqualTo("동일한 일련번호로 재수정");
               assertThat(response.certificate().serialNumber()).isEqualTo("PSA-84213907");
@@ -171,7 +176,10 @@ class ConsignmentModifyIntegrationTest {
     assertThatThrownBy(
             () -> {
               consignmentService.modifyConsignment(
-                  consignment.getConsignmentId(), seller.getMemberId(), request);
+                  consignment.getConsignmentId(),
+                  seller.getMemberId(),
+                  request,
+                  finalizedImages(request));
               entityManager.flush();
             })
         .isInstanceOf(PickUpException.class)
@@ -187,5 +195,17 @@ class ConsignmentModifyIntegrationTest {
         .rarity(Rarity.MINT)
         .imageUrl("https://image.example.com/card.png")
         .build();
+  }
+
+  private List<FinalizedImage> finalizedImages(ModifyConsignmentRequest request) {
+    return request.images().stream()
+        .filter(image -> image.temporaryObjectKey() != null)
+        .map(image -> image.temporaryObjectKey())
+        .map(
+            key ->
+                new FinalizedImage(
+                    key,
+                    "media/consignments/1/" + Integer.toUnsignedString(key.hashCode()) + ".jpg"))
+        .toList();
   }
 }

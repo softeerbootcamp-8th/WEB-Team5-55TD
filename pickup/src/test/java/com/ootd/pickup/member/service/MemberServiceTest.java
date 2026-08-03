@@ -8,9 +8,6 @@ import static org.mockito.Mockito.*;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.global.exception.PickUpException;
-import com.ootd.pickup.images.domain.ImagePurpose;
-import com.ootd.pickup.images.service.ImageService;
-import com.ootd.pickup.images.service.ImageService.FinalizedImage;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.dto.MemberRequest;
@@ -24,7 +21,6 @@ import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
 import java.lang.reflect.Field;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,8 +37,6 @@ class MemberServiceTest {
   @Mock private MemberManageService memberManageService;
 
   @Mock private PointRepository pointRepository;
-
-  @Mock private ImageService imageService;
 
   @Mock private ImageUrlResolver imageUrlResolver;
 
@@ -139,7 +133,7 @@ class MemberServiceTest {
     given(memberRepository.existsByNickname("라이츄회원")).willReturn(false);
 
     // when
-    MyProfileResponse response = memberService.updateMyProfile(1L, request);
+    MyProfileResponse response = memberService.updateMyProfile(1L, request, null).response();
 
     // then
     assertThat(response.nickname()).isEqualTo("라이츄회원");
@@ -157,7 +151,7 @@ class MemberServiceTest {
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when
-    memberService.updateMyProfile(1L, request);
+    memberService.updateMyProfile(1L, request, null);
 
     // then
     assertThat(readPasswordHash(member)).isNotEqualTo(request.password());
@@ -178,7 +172,7 @@ class MemberServiceTest {
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when & then
-    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request))
+    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request, null))
         .isInstanceOf(PickUpException.class)
         .hasMessage("비밀번호가 일치하지 않습니다.");
     assertThat(readPasswordHash(member)).isEqualTo(passwordHash);
@@ -194,7 +188,7 @@ class MemberServiceTest {
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when & then
-    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request))
+    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request, null))
         .isInstanceOf(PickUpException.class)
         .hasMessage("비밀번호가 일치하지 않습니다.");
     assertThat(member.getNickname()).isEqualTo("픽업회원");
@@ -215,12 +209,10 @@ class MemberServiceTest {
             null,
             new ProfileImageUpdateRequest(ProfileImageAction.SET, temporaryObjectKey));
     given(memberManageService.getMemberById(1L)).willReturn(member);
-    given(imageService.finalizeImages(1L, ImagePurpose.PROFILE, List.of(temporaryObjectKey)))
-        .willReturn(List.of(new FinalizedImage(temporaryObjectKey, objectKey)));
     given(imageUrlResolver.resolve(objectKey)).willReturn("https://images.test/" + objectKey);
 
     // when
-    MyProfileResponse response = memberService.updateMyProfile(1L, request);
+    MyProfileResponse response = memberService.updateMyProfile(1L, request, objectKey).response();
 
     // then
     assertThat(response.profileImageUrl()).isEqualTo("https://images.test/" + objectKey);
@@ -239,12 +231,13 @@ class MemberServiceTest {
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when
-    MyProfileResponse response = memberService.updateMyProfile(1L, request);
+    MemberService.ProfileUpdateResult result = memberService.updateMyProfile(1L, request, null);
+    MyProfileResponse response = result.response();
 
     // then
     assertThat(response.profileImageUrl()).isNull();
     assertThat(member.getProfileImageObjectKey()).isNull();
-    then(imageService).should().deleteAfterCommit(List.of(previousObjectKey));
+    assertThat(result.previousObjectKey()).isEqualTo(previousObjectKey);
   }
 
   @Test
@@ -256,7 +249,7 @@ class MemberServiceTest {
     given(memberRepository.existsByNickname("라이츄회원")).willReturn(true);
 
     // when & then
-    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request))
+    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request, null))
         .isInstanceOf(PickUpException.class)
         .hasMessage("이미 사용 중인 닉네임입니다.");
   }

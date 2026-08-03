@@ -7,16 +7,12 @@ import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.global.exception.PickUpException;
-import com.ootd.pickup.images.domain.ImagePurpose;
-import com.ootd.pickup.images.service.ImageService;
-import com.ootd.pickup.images.service.ImageService.FinalizedImage;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.dto.*;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -31,7 +27,6 @@ public class MemberService {
   private final MemberRepository memberRepository;
   private final MemberManageService memberManageService;
   private final PointRepository pointRepository;
-  private final ImageService imageService;
   private final ImageUrlResolver imageUrlResolver;
 
   public MemberResponse createMember(MemberRequest memberRequest) {
@@ -64,8 +59,10 @@ public class MemberService {
     return toMyProfileResponse(member);
   }
 
-  public MyProfileResponse updateMyProfile(
-      Long memberId, UpdateMyProfileRequest updateMyProfileRequest) {
+  public ProfileUpdateResult updateMyProfile(
+      Long memberId,
+      UpdateMyProfileRequest updateMyProfileRequest,
+      String finalizedProfileObjectKey) {
     Member member = memberManageService.getMemberById(memberId);
     String nickname = updateMyProfileRequest.nickname();
 
@@ -85,8 +82,9 @@ public class MemberService {
             ? null
             : hashPassword(updateMyProfileRequest.password());
     member.updateProfile(nickname, passwordHash);
-    updateProfileImage(memberId, member, updateMyProfileRequest);
-    return toMyProfileResponse(member);
+    String previousObjectKey = member.getProfileImageObjectKey();
+    updateProfileImage(member, updateMyProfileRequest, finalizedProfileObjectKey);
+    return new ProfileUpdateResult(toMyProfileResponse(member), previousObjectKey);
   }
 
   @Transactional(readOnly = true)
@@ -103,29 +101,17 @@ public class MemberService {
   }
 
   private void updateProfileImage(
-      Long memberId, Member member, UpdateMyProfileRequest updateMyProfileRequest) {
+      Member member,
+      UpdateMyProfileRequest updateMyProfileRequest,
+      String finalizedProfileObjectKey) {
     ProfileImageUpdateRequest profileImageUpdate = updateMyProfileRequest.profileImageUpdate();
     if (profileImageUpdate == null) {
       return;
     }
 
-    String previousObjectKey = member.getProfileImageObjectKey();
     switch (profileImageUpdate.action()) {
-      case SET -> {
-        FinalizedImage finalizedImage =
-            imageService
-                .finalizeImages(
-                    memberId,
-                    ImagePurpose.PROFILE,
-                    List.of(profileImageUpdate.temporaryObjectKey()))
-                .getFirst();
-        member.updateProfileImage(finalizedImage.objectKey());
-      }
+      case SET -> member.updateProfileImage(finalizedProfileObjectKey);
       case REMOVE -> member.removeProfileImage();
-    }
-
-    if (previousObjectKey != null && !previousObjectKey.equals(member.getProfileImageObjectKey())) {
-      imageService.deleteAfterCommit(List.of(previousObjectKey));
     }
   }
 
@@ -133,4 +119,6 @@ public class MemberService {
     return MyProfileResponse.from(
         member, imageUrlResolver.resolve(member.getProfileImageObjectKey()));
   }
+
+  public record ProfileUpdateResult(MyProfileResponse response, String previousObjectKey) {}
 }

@@ -1,10 +1,12 @@
 package com.ootd.pickup.images.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 import com.ootd.pickup.global.exception.ExceptionCode;
@@ -16,19 +18,16 @@ import com.ootd.pickup.images.domain.ImagePurpose;
 import com.ootd.pickup.images.dto.CreateImageUploadRequest;
 import com.ootd.pickup.images.dto.CreateImageUploadResponse;
 import com.ootd.pickup.images.service.ImageService.FinalizedImage;
-import com.ootd.pickup.member.service.MemberManageService;
+import com.ootd.pickup.member.repository.MemberRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
@@ -43,7 +42,7 @@ class ImageServiceTest {
   private static final String WEBP_TEMPORARY_KEY =
       "uploads/1/consignments/00000000-0000-0000-0000-000000000004.webp";
 
-  @Mock private MemberManageService memberManageService;
+  @Mock private MemberRepository memberRepository;
 
   @Mock private ImageStorage imageStorage;
 
@@ -51,14 +50,8 @@ class ImageServiceTest {
 
   @BeforeEach
   void setUp() {
-    imageService = new ImageService(memberManageService, imageStorage);
-  }
-
-  @AfterEach
-  void clearSynchronization() {
-    if (TransactionSynchronizationManager.isSynchronizationActive()) {
-      TransactionSynchronizationManager.clearSynchronization();
-    }
+    org.mockito.Mockito.lenient().when(memberRepository.existsById(1L)).thenReturn(true);
+    imageService = new ImageService(memberRepository, imageStorage);
   }
 
   @Test
@@ -80,6 +73,18 @@ class ImageServiceTest {
     assertThat(response.uploadUrl()).isEqualTo("https://s3.example.com/upload");
     assertThat(response.requiredHeaders()).containsEntry("Content-Type", "image/jpeg");
     assertThat(response.expiresAt()).isEqualTo(expiresAt);
+  }
+
+  @Test
+  void 존재하지_않는_회원이면_업로드_URL을_발급하지_않는다() {
+    assertThatThrownBy(
+            () ->
+                imageService.createUpload(
+                    2L, new CreateImageUploadRequest(ImagePurpose.CONSIGNMENT, "image/jpeg", 1024)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.MEMBER_NOT_FOUND.getMessage());
+
+    then(imageStorage).shouldHaveNoInteractions();
   }
 
   @Test
@@ -375,45 +380,44 @@ class ImageServiceTest {
   }
 
   @Test
-  void 트랜잭션이_커밋되면_임시_객체를_삭제한다() {
-    TransactionSynchronizationManager.initSynchronization();
-    given(imageStorage.getObject(FIRST_TEMPORARY_KEY))
-        .willReturn(new StoredObject(1024, "image/jpeg", "etag"));
-    given(imageStorage.readHeader(FIRST_TEMPORARY_KEY, 11))
-        .willReturn(new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff});
-
+  void DB_저장에_성공하면_임시_객체를_삭제할_수_있다() {
     FinalizedImage finalizedImage =
-        imageService
-            .finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY))
-            .getFirst();
-    for (TransactionSynchronization synchronization :
-        TransactionSynchronizationManager.getSynchronizations()) {
-      synchronization.afterCommit();
-      synchronization.afterCompletion(TransactionSynchronization.STATUS_COMMITTED);
-    }
+        new FinalizedImage(FIRST_TEMPORARY_KEY, "media/consignments/1/final.jpg");
+
+    imageService.deleteTemporaryImages(List.of(finalizedImage));
 
     then(imageStorage).should().deleteObject(FIRST_TEMPORARY_KEY);
     then(imageStorage).should(never()).deleteObject(finalizedImage.objectKey());
   }
 
   @Test
-  void 트랜잭션이_롤백되면_새_최종_객체를_삭제한다() {
-    TransactionSynchronizationManager.initSynchronization();
-    given(imageStorage.getObject(FIRST_TEMPORARY_KEY))
-        .willReturn(new StoredObject(1024, "image/jpeg", "etag"));
-    given(imageStorage.readHeader(FIRST_TEMPORARY_KEY, 11))
-        .willReturn(new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff});
-
+  void DB_저장에_실패하면_새_최종_객체를_보상_삭제할_수_있다() {
     FinalizedImage finalizedImage =
-        imageService
-            .finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(FIRST_TEMPORARY_KEY))
-            .getFirst();
-    for (TransactionSynchronization synchronization :
-        TransactionSynchronizationManager.getSynchronizations()) {
-      synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
-    }
+        new FinalizedImage(FIRST_TEMPORARY_KEY, "media/consignments/1/final.jpg");
+
+    imageService.deleteFinalImages(List.of(finalizedImage));
 
     then(imageStorage).should().deleteObject(finalizedImage.objectKey());
     then(imageStorage).should(never()).deleteObject(FIRST_TEMPORARY_KEY);
+  }
+
+  @Test
+  void DB_변경에_성공하면_더는_참조하지_않는_기존_객체를_삭제할_수_있다() {
+    String previousObjectKey = "media/consignments/1/previous.jpg";
+
+    imageService.deleteObjects(List.of(previousObjectKey));
+
+    then(imageStorage).should().deleteObject(previousObjectKey);
+  }
+
+  @Test
+  void DB_결과가_확정된_뒤의_S3_정리_실패는_호출자에게_전파하지_않는다() {
+    String obsoleteObjectKey = "media/consignments/1/obsolete.jpg";
+    willThrow(new PickUpException(ExceptionCode.IMAGE_STORAGE_UNAVAILABLE))
+        .given(imageStorage)
+        .deleteObject(obsoleteObjectKey);
+
+    assertThatCode(() -> imageService.deleteObjects(List.of(obsoleteObjectKey)))
+        .doesNotThrowAnyException();
   }
 }

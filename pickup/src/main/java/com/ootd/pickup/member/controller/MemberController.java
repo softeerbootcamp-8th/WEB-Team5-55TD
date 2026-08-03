@@ -9,6 +9,7 @@ import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.service.MemberService;
+import com.ootd.pickup.member.service.ProfileApplicationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController implements MemberApi {
 
   private final MemberService memberService;
+  private final ProfileApplicationService profileApplicationService;
 
   @PostMapping
   @Override
@@ -45,7 +47,7 @@ public class MemberController implements MemberApi {
   @RequireAuthentication
   public ResponseEntity<MyProfileResponse> updateMyProfile(
       @MemberId Long memberId, @Valid @RequestBody UpdateMyProfileRequest request) {
-    return ResponseEntity.ok(memberService.updateMyProfile(memberId, request));
+    return ResponseEntity.ok(profileApplicationService.updateMyProfile(memberId, request));
   }
 
   @GetMapping("/me/points")

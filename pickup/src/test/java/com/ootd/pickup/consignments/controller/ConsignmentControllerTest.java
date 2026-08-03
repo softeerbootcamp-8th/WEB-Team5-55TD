@@ -17,6 +17,7 @@ import com.ootd.pickup.consignments.dto.response.CertificateResponse;
 import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
+import com.ootd.pickup.consignments.service.ConsignmentApplicationService;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.auth.Authentication;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
@@ -40,6 +41,8 @@ class ConsignmentControllerTest {
   @Autowired private ObjectMapper objectMapper;
 
   @MockitoBean private ConsignmentService consignmentService;
+
+  @MockitoBean private ConsignmentApplicationService consignmentApplicationService;
 
   @MockitoBean private SlackErrorNotifier slackErrorNotifier;
 
@@ -68,7 +71,9 @@ class ConsignmentControllerTest {
                 "10",
                 "GEM_MINT",
                 LocalDate.of(2026, 6, 30)));
-    given(consignmentService.registerConsignment(eq(1L), any(RegisterConsignmentRequest.class)))
+    given(
+            consignmentApplicationService.registerConsignment(
+                eq(1L), any(RegisterConsignmentRequest.class)))
         .willReturn(response);
 
     // when & then
@@ -168,7 +173,9 @@ class ConsignmentControllerTest {
   void 존재하지_않는_카드ID로_등록하면_404를_반환한다() throws Exception {
     // given
     RegisterConsignmentRequest request = createRequest();
-    given(consignmentService.registerConsignment(eq(1L), any(RegisterConsignmentRequest.class)))
+    given(
+            consignmentApplicationService.registerConsignment(
+                eq(1L), any(RegisterConsignmentRequest.class)))
         .willThrow(new PickUpException(CARD_NOT_FOUND));
 
     // when & then
@@ -273,7 +280,7 @@ class ConsignmentControllerTest {
                 new ConsignmentImageResponse(4L, 2, "https://image.example.com/back.png")),
             false);
     given(
-            consignmentService.modifyConsignment(
+            consignmentApplicationService.modifyConsignment(
                 eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
         .willReturn(response);
 
@@ -335,7 +342,7 @@ class ConsignmentControllerTest {
     Long consignmentId = 100L;
     ModifyConsignmentRequest request = createModifyRequest();
     given(
-            consignmentService.modifyConsignment(
+            consignmentApplicationService.modifyConsignment(
                 eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
         .willThrow(new PickUpException(CONSIGNMENT_MODIFY_OWNER_MISMATCH));
 
@@ -356,7 +363,7 @@ class ConsignmentControllerTest {
     Long notExistConsignmentId = 999L;
     ModifyConsignmentRequest request = createModifyRequest();
     given(
-            consignmentService.modifyConsignment(
+            consignmentApplicationService.modifyConsignment(
                 eq(notExistConsignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
         .willThrow(new PickUpException(CONSIGNMENT_NOT_FOUND));
 
@@ -377,7 +384,7 @@ class ConsignmentControllerTest {
     Long consignmentId = 100L;
     ModifyConsignmentRequest request = createModifyRequest();
     given(
-            consignmentService.modifyConsignment(
+            consignmentApplicationService.modifyConsignment(
                 eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
         .willThrow(new PickUpException(CONSIGNMENT_NOT_MODIFIABLE));
 
@@ -404,7 +411,7 @@ class ConsignmentControllerTest {
                 .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
         .andExpect(status().isNoContent());
 
-    then(consignmentService).should().deleteConsignment(consignmentId, 1L);
+    then(consignmentApplicationService).should().deleteConsignment(consignmentId, 1L);
   }
 
   @Test
@@ -425,7 +432,7 @@ class ConsignmentControllerTest {
     // given
     Long consignmentId = 100L;
     willThrow(new PickUpException(CONSIGNMENT_DELETE_OWNER_MISMATCH))
-        .given(consignmentService)
+        .given(consignmentApplicationService)
         .deleteConsignment(consignmentId, 1L);
 
     // when & then
@@ -442,7 +449,7 @@ class ConsignmentControllerTest {
     // given
     Long notExistConsignmentId = 999L;
     willThrow(new PickUpException(CONSIGNMENT_NOT_FOUND))
-        .given(consignmentService)
+        .given(consignmentApplicationService)
         .deleteConsignment(notExistConsignmentId, 1L);
 
     // when & then
@@ -459,7 +466,7 @@ class ConsignmentControllerTest {
     // given
     Long consignmentId = 100L;
     willThrow(new PickUpException(CONSIGNMENT_NOT_DELETABLE))
-        .given(consignmentService)
+        .given(consignmentApplicationService)
         .deleteConsignment(consignmentId, 1L);
 
     // when & then
