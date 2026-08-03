@@ -1,5 +1,7 @@
 package com.ootd.pickup.member.service;
 
+import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
+import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -7,6 +9,23 @@ import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.*;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
+import com.ootd.pickup.auction.domain.Auction;
+import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.bid.domain.Bid;
+import com.ootd.pickup.bid.domain.BidStatus;
+import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
+import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
+import com.ootd.pickup.bid.repository.BidRepository;
+import com.ootd.pickup.cards.domain.Card;
+import com.ootd.pickup.cards.domain.Language;
+import com.ootd.pickup.cards.domain.Rarity;
+import com.ootd.pickup.consignments.domain.Certificate;
+import com.ootd.pickup.consignments.domain.CertificationBody;
+import com.ootd.pickup.consignments.domain.Consignment;
+import com.ootd.pickup.consignments.domain.ConsignmentStatus;
+import com.ootd.pickup.consignments.domain.Grade;
+import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.dto.MemberRequest;
@@ -18,6 +37,10 @@ import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
 import java.lang.reflect.Field;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +48,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
@@ -34,6 +58,10 @@ class MemberServiceTest {
   @Mock private MemberManageService memberManageService;
 
   @Mock private PointRepository pointRepository;
+
+  @Mock private BidRepository bidRepository;
+
+  @Mock private CertificateRepository certificateRepository;
 
   @InjectMocks private MemberService memberService;
 
@@ -253,6 +281,182 @@ class MemberServiceTest {
     assertThatThrownBy(() -> memberService.getMyProfile(1L))
         .isInstanceOf(PickUpException.class)
         .hasMessage("회원을 찾을 수 없습니다.");
+  }
+
+  @Test
+  void 내_입찰_내역을_조회하면_경매_정보와_현재가가_포함된_응답을_반환한다() {
+    // given
+    Member member = createMember(1L);
+    Card card = createCard();
+    Consignment consignment = createConsignment(2L, card);
+    Auction auction = createAuction(10L, consignment, AuctionStatus.ONGOING, 10_000L);
+    Bid lastBid = createBid(auction, member, 11_000L, BidStatus.HIGHEST, 100L);
+    Certificate certificate = createCertificate(consignment, Grade.MINT, CertificationBody.PSA);
+
+    given(bidRepository.findLastBidsByMemberId(1L, null, 21)).willReturn(List.of(lastBid));
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
+        .willReturn(Map.of(10L, 11_000L));
+    given(certificateRepository.findAllByConsignmentIds(List.of(2L)))
+        .willReturn(List.of(certificate));
+
+    // when
+    CursorPageResponse<MyBidListItemResponse, String> response =
+        memberService.getMyBids(1L, new GetMyBidsRequest(null, 20));
+
+    // then
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.cursor()).isNull();
+    assertThat(response.items()).hasSize(1);
+
+    MyBidListItemResponse item = response.items().get(0);
+    assertThat(item.auctionId()).isEqualTo(10L);
+    assertThat(item.card().cardId()).isEqualTo(card.getCardId());
+    assertThat(item.grade()).isEqualTo("PSA 9");
+    assertThat(item.myBidPrice()).isEqualTo(11_000L);
+    assertThat(item.currentPrice()).isEqualTo(11_000L);
+    assertThat(item.status()).isEqualTo(BidStatus.HIGHEST);
+    assertThat(item.auctionStatus()).isEqualTo(AuctionStatus.ONGOING);
+  }
+
+  @Test
+  void 다른_입찰에_추월당하면_현재가가_내_입찰가보다_높게_반환된다() {
+    // given
+    Member member = createMember(1L);
+    Card card = createCard();
+    Consignment consignment = createConsignment(2L, card);
+    Auction auction = createAuction(10L, consignment, AuctionStatus.ONGOING, 10_000L);
+    Bid lastBid = createBid(auction, member, 11_000L, BidStatus.OUTBID, 100L);
+
+    given(bidRepository.findLastBidsByMemberId(1L, null, 21)).willReturn(List.of(lastBid));
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
+        .willReturn(Map.of(10L, 12_000L));
+    given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
+
+    // when
+    CursorPageResponse<MyBidListItemResponse, String> response =
+        memberService.getMyBids(1L, new GetMyBidsRequest(null, 20));
+
+    // then
+    MyBidListItemResponse item = response.items().get(0);
+    assertThat(item.myBidPrice()).isEqualTo(11_000L);
+    assertThat(item.currentPrice()).isEqualTo(12_000L);
+    assertThat(item.status()).isEqualTo(BidStatus.OUTBID);
+    assertThat(item.grade()).isNull();
+  }
+
+  @Test
+  void 결과가_size보다_많으면_hasNext가_true이고_커서가_마지막_입찰ID다() {
+    // given
+    Member member = createMember(1L);
+    Consignment consignmentA = createConsignment(2L, createCard());
+    Consignment consignmentB = createConsignment(3L, createCard());
+    Auction auctionA = createAuction(10L, consignmentA, AuctionStatus.ONGOING, 10_000L);
+    Auction auctionB = createAuction(11L, consignmentB, AuctionStatus.ONGOING, 20_000L);
+    Bid bidA = createBid(auctionA, member, 11_000L, BidStatus.HIGHEST, 101L);
+    Bid bidB = createBid(auctionB, member, 21_000L, BidStatus.HIGHEST, 100L);
+
+    given(bidRepository.findLastBidsByMemberId(1L, null, 2)).willReturn(List.of(bidA, bidB));
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
+        .willReturn(Map.of(10L, 11_000L));
+    given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
+
+    // when
+    CursorPageResponse<MyBidListItemResponse, String> response =
+        memberService.getMyBids(1L, new GetMyBidsRequest(null, 1));
+
+    // then
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.cursor()).isEqualTo("101");
+    assertThat(response.items()).extracting(MyBidListItemResponse::auctionId).containsExactly(10L);
+  }
+
+  @Test
+  void 유효하지_않은_커서값이면_예외가_발생한다() {
+    // when & then
+    assertThatThrownBy(() -> memberService.getMyBids(1L, new GetMyBidsRequest("not-a-number", 20)))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            exception ->
+                assertThat(((PickUpException) exception).getExceptionCodeName())
+                    .isEqualTo(INVALID_CURSOR.getClientExceptionCode().name()));
+    then(bidRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void size가_1보다_작으면_예외가_발생한다() {
+    // when & then
+    assertThatThrownBy(() -> memberService.getMyBids(1L, new GetMyBidsRequest(null, 0)))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            exception ->
+                assertThat(((PickUpException) exception).getExceptionCodeName())
+                    .isEqualTo(ILLEGAL_ARGUMENT.getClientExceptionCode().name()));
+    then(bidRepository).shouldHaveNoInteractions();
+  }
+
+  private Member createMember(Long memberId) {
+    Member member = Member.create("loginId" + memberId, "password-hash", "닉네임" + memberId);
+    ReflectionTestUtils.setField(member, "memberId", memberId);
+    return member;
+  }
+
+  private Card createCard() {
+    return Card.builder()
+        .cardName("리자몽 1st Edition Holo")
+        .cardNumber("4/102")
+        .setName("Base Set")
+        .language(Language.JAPANESE)
+        .rarity(Rarity.MINT)
+        .imageUrl("https://example.com/card.png")
+        .build();
+  }
+
+  private Consignment createConsignment(Long consignmentId, Card card) {
+    Consignment consignment =
+        Consignment.builder()
+            .card(card)
+            .sellerMember(createMember(999L))
+            .status(ConsignmentStatus.AUCTION_ONGOING)
+            .build();
+    ReflectionTestUtils.setField(consignment, "consignmentId", consignmentId);
+    return consignment;
+  }
+
+  private Auction createAuction(
+      Long auctionId, Consignment consignment, AuctionStatus status, Long startingPrice) {
+    Auction auction =
+        Auction.builder()
+            .consignment(consignment)
+            .startedAt(LocalDateTime.now().minusHours(1))
+            .endedAt(LocalDateTime.now().plusHours(1))
+            .auctionStatus(status)
+            .startingPrice(startingPrice)
+            .reservePrice(startingPrice + 5_000L)
+            .bidIncrement(500L)
+            .build();
+    ReflectionTestUtils.setField(auction, "auctionId", auctionId);
+    return auction;
+  }
+
+  private Bid createBid(
+      Auction auction, Member member, Long bidPrice, BidStatus bidStatus, Long bidId) {
+    Bid bid = Bid.create(auction, member, bidPrice);
+    if (bidStatus == BidStatus.OUTBID) {
+      bid.outbid();
+    }
+    ReflectionTestUtils.setField(bid, "bidId", bidId);
+    return bid;
+  }
+
+  private Certificate createCertificate(
+      Consignment consignment, Grade grade, CertificationBody certificationBody) {
+    return Certificate.builder()
+        .consignment(consignment)
+        .grade(grade)
+        .certificationBody(certificationBody)
+        .serialNumber("SN-" + consignment.getConsignmentId())
+        .inspectedAt(LocalDate.now())
+        .build();
   }
 
   private String readPasswordHash(Member member) {

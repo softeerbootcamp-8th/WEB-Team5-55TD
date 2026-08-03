@@ -1,14 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
 import { SectionHeader } from "@/components/domain/section-header";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getMyConsignments } from "@/api/consignments";
 import { products, sales } from "@/lib/mock/data";
 import { ProductStatus } from "@/lib/types";
-import { PRODUCT_STATUS_META } from "@/lib/status";
 import { formatWon } from "@/lib/format";
 
 export const Route = createFileRoute("/seller/")({
@@ -27,21 +27,28 @@ function SellerHome() {
     { label: "판매 완료", value: count(ProductStatus.SOLD) },
   ];
 
-  const liveProducts = products.filter(
-    (p) => p.status === ProductStatus.AUCTION_LIVE,
-  );
+  const {
+    data: liveProducts,
+    isPending: isLiveLoading,
+    isError: isLiveError,
+  } = useQuery({
+    queryKey: ["consignments", "my", "AUCTION_ONGOING"],
+    queryFn: () =>
+      getMyConsignments({ status: "AUCTION_ONGOING" }).then((r) => r.items),
+  });
+
   const recentSold = sales.filter((s) => s.status === ProductStatus.SOLD);
 
   return (
     <PageContainer className="flex flex-col gap-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold">셀러 홈</h1>
           <p className="text-sm text-[var(--color-text-sub)]">
             내 상품과 경매 현황을 한눈에 확인하세요.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="self-start">
           <Link to="/seller/register">
             <Plus /> 카드 등록
           </Link>
@@ -65,35 +72,55 @@ function SellerHome() {
 
       {/* 진행 중 경매 */}
       <section className="flex flex-col gap-4">
-        <SectionHeader title="진행 중인 경매" />
-        {liveProducts.length ? (
+        <SectionHeader
+          title="진행 중인 경매"
+          action={
+            <Link
+              to="/seller/products"
+              search={{ tab: "ongoing" }}
+              className="text-sm text-[var(--color-text-sub)] hover:text-primary"
+            >
+              더보기 ›
+            </Link>
+          }
+        />
+        {isLiveLoading ? null : isLiveError ? (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            진행 중인 경매를 불러오지 못했습니다.
+          </p>
+        ) : liveProducts && liveProducts.length > 0 ? (
           <ul className="flex flex-col gap-3">
-            {liveProducts.map((p) => (
+            {liveProducts.slice(0, 3).map((p) => (
               <li
                 key={p.id}
                 className="flex items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4"
               >
                 <CardThumb
                   cardName={p.cardName}
+                  imageUrl={p.thumbnailUrl}
                   aspect="aspect-square"
                   className="w-14"
                 />
                 <div className="flex flex-1 flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <GradeBadge grade={p.grade} />
-                    <Badge variant={PRODUCT_STATUS_META[p.status].variant}>
-                      {PRODUCT_STATUS_META[p.status].label}
-                    </Badge>
-                  </div>
+                  <GradeBadge grade={p.grade} />
                   <span className="text-sm font-semibold">{p.cardName}</span>
                 </div>
                 <Button size="sm" variant="secondary" asChild>
-                  <Link
-                    to="/seller/auctions/$auctionId"
-                    params={{ auctionId: p.id }}
-                  >
-                    모니터링
-                  </Link>
+                  {p.auctionId ? (
+                    <Link
+                      to="/seller/auctions/$auctionId"
+                      params={{ auctionId: p.auctionId }}
+                    >
+                      모니터링
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/seller/products/$productId"
+                      params={{ productId: p.id }}
+                    >
+                      상품 보기
+                    </Link>
+                  )}
                 </Button>
               </li>
             ))}

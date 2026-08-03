@@ -226,6 +226,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExceptionResponse"
+  /members/me/bids:
+    get:
+      tags: [Member]
+      operationId: getMyBids
+      summary: 내 입찰 내역 조회
+      description: >
+        회원이 입찰한 경매 목록을 최근 입찰 순으로 조회합니다. 경매당
+        마지막(최신) 입찰만 반환합니다. 다음 페이지 조회 시 이전 응답의
+        cursor 를 전달합니다.
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: size
+          in: query
+          schema:
+            type: integer
+            format: int32
+            default: 20
+      responses:
+        "200":
+          description: 내 입찰 내역 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyBidsPageResponse"
+        "400":
+          description: 유효하지 않은 커서 값
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+  /members/me/wins:
+    get:
+      tags: [Member]
+      operationId: getMyWins
+      summary: 내 낙찰 내역 조회
+      description: >
+        회원이 낙찰받은 경매 목록을 최근 입찰 순으로 조회합니다. 경매당
+        마지막(최신) 입찰이 낙찰(WON)인 것만 반환합니다. 다음 페이지 조회 시
+        이전 응답의 cursor 를 전달합니다.
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: size
+          in: query
+          schema:
+            type: integer
+            format: int32
+            default: 20
+      responses:
+        "200":
+          description: 내 낙찰 내역 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyBidsPageResponse"
+        "400":
+          description: 유효하지 않은 커서 값
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
   /cards:
     get:
       tags: [Card]
@@ -567,6 +645,44 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SearchCardsResponse"
+    MyBidItemResponse:
+      type: object
+      properties:
+        auctionId:
+          type: integer
+          format: int64
+        card:
+          $ref: "#/components/schemas/SearchCardsResponse"
+        grade:
+          type: string
+          nullable: true
+        myBidPrice:
+          type: integer
+          format: int64
+        currentPrice:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [HIGHEST, OUTBID, WON]
+        auctionStatus:
+          type: string
+          enum: [SCHEDULED, ONGOING, WON, PASSED]
+    MyBidsPageResponse:
+      type: object
+      properties:
+        hasNext:
+          type: boolean
+        cursor:
+          type: string
+          nullable: true
+        size:
+          type: integer
+          format: int32
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyBidItemResponse"
     CertificateRequest:
       type: object
       required: [serialNumber, certificationBody, grade, inspectedAt]
