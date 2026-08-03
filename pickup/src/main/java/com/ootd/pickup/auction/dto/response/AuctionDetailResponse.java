@@ -38,10 +38,9 @@ public record AuctionDetailResponse(
       Certificate certificate,
       List<ConsignmentImage> images,
       long watchCount,
-      boolean watched) {
+      boolean watched,
+      Long currentPrice) {
     Consignment consignment = auction.getConsignment();
-    // TODO: Bid 도메인 도입 후 현재 최고 입찰가로 교체
-    Long currentPrice = null;
 
     return new AuctionDetailResponse(
         auction.getAuctionId(),
