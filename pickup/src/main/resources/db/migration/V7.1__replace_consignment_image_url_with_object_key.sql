@@ -23,20 +23,3 @@ SET @sql = IF(
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
-
-SET @has_object_key_unique = (
-    SELECT COUNT(*)
-    FROM information_schema.table_constraints
-    WHERE table_schema = DATABASE()
-      AND table_name = 'consignment_image'
-      AND constraint_name = 'uk_consignment_image_object_key'
-);
-
-SET @sql = IF(
-    @has_object_key_unique = 0,
-    'ALTER TABLE consignment_image ADD CONSTRAINT uk_consignment_image_object_key UNIQUE (object_key)',
-    'SELECT 1'
-);
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;

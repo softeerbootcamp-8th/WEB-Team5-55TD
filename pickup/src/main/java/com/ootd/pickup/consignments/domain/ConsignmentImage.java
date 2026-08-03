@@ -30,7 +30,7 @@ public class ConsignmentImage {
   @Column(name = "image_order", nullable = false)
   private int imageOrder;
 
-  @Column(name = "object_key", nullable = false, unique = true, length = 512)
+  @Column(name = "object_key", nullable = false, length = 512)
   private String objectKey;
 
   @Builder

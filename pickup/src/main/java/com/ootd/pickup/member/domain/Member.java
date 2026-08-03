@@ -35,7 +35,7 @@ public class Member {
   @Column(nullable = true)
   private LocalDateTime updatedAt;
 
-  @Column(name = "profile_image_object_key", unique = true, length = 512)
+  @Column(name = "profile_image_object_key", length = 512)
   private String profileImageObjectKey;
 
   public static Member create(String loginId, String password, String nickname) {
