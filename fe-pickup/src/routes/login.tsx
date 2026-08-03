@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+  useRouter,
+} from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
@@ -10,6 +15,9 @@ import type { ExceptionResponse, LoginRequest } from "@/api/generated/model";
 import { setAuthenticated, setNickname } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+  }),
   component: LoginPage,
 });
 
@@ -18,6 +26,8 @@ const DEFAULT_ERROR_MESSAGE = "아이디 또는 비밀번호를 확인해 주세
 /** DESIGN.md · login.html — 아이디·비밀번호 각 4자 이상 시 활성 */
 function LoginPage() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const { redirect: redirectTo } = Route.useSearch();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -29,7 +39,12 @@ function LoginPage() {
     onSuccess: (data) => {
       setAuthenticated(true);
       if (data.nickname) setNickname(data.nickname);
-      navigate({ to: "/home" });
+      // 보호된 페이지에서 넘어온 경우 원래 경로로 복귀 (임의 경로라 타입 라우팅 대신 history 사용)
+      if (redirectTo) {
+        router.history.push(redirectTo);
+      } else {
+        navigate({ to: "/home" });
+      }
     },
     onError: (error: AxiosError<ExceptionResponse>) => {
       setErrorMessage(error.response?.data?.message ?? DEFAULT_ERROR_MESSAGE);
@@ -86,9 +101,7 @@ function LoginPage() {
             aria-invalid={errorMessage !== null}
           />
           {errorMessage && (
-            <p className="text-xs text-[var(--color-danger)]">
-              {errorMessage}
-            </p>
+            <p className="text-xs text-[var(--color-danger)]">{errorMessage}</p>
           )}
         </div>
 

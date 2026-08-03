@@ -1,11 +1,17 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { PageContainer } from "@/components/layout/page";
 import { AuctionCard } from "@/components/domain/auction-card";
 import { EmptyState } from "@/components/domain/section-header";
 import { Button } from "@/components/ui/button";
 import { watchlist } from "@/lib/mock/data";
+import { isAuthenticated } from "@/lib/auth";
 
 export const Route = createFileRoute("/_buyer/watchlist")({
+  beforeLoad: ({ location }) => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: "/login", search: { redirect: location.href } });
+    }
+  },
   component: WatchlistPage,
 });
 

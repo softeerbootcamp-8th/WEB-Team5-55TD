@@ -43,6 +43,11 @@ export function useIsAuthenticated() {
   return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
+/** beforeLoad 등 훅을 쓸 수 없는 라우트 가드에서 로그인 여부를 확인할 때 사용. */
+export function isAuthenticated() {
+  return getSnapshot();
+}
+
 export function useNickname() {
   return useSyncExternalStore(subscribe, getNicknameSnapshot, () => null);
 }

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
@@ -10,8 +10,14 @@ import { myBids, myWins } from "@/lib/mock/data";
 import type { MyBidItem } from "@/lib/types";
 import { MyBidStatus } from "@/lib/types";
 import { formatWon } from "@/lib/format";
+import { isAuthenticated } from "@/lib/auth";
 
 export const Route = createFileRoute("/_buyer/bids")({
+  beforeLoad: ({ location }) => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: "/login", search: { redirect: location.href } });
+    }
+  },
   component: BidHistoryPage,
 });
 
