@@ -13,6 +13,7 @@ import com.ootd.pickup.auction.repository.auction.AuctionCursor;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.auction.AuctionSort;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
@@ -46,6 +47,7 @@ public class AuctionService {
   private final ConsignmentImageRepository consignmentImageRepository;
   private final WatchRepository watchRepository;
   private final ImageUrlResolver imageUrlResolver;
+  private final BidRepository bidRepository;
 
   @Transactional
   public CreateAuctionResponse registerAuction(Long memberId, CreateAuctionRequest request) {
@@ -125,9 +127,12 @@ public class AuctionService {
         watchRepository.countByAuctionIds(List.of(auctionId)).getOrDefault(auctionId, 0L);
     boolean watched =
         !watchRepository.findWatchedAuctionIds(viewerMemberId, List.of(auctionId)).isEmpty();
+    Long currentPrice =
+        resolveCurrentPrice(
+            auction, bidRepository.findCurrentPricesByAuctionIds(List.of(auctionId)));
 
     return AuctionDetailResponse.of(
-        auction, certificate, images, watchCount, watched, imageUrlResolver);
+        auction, certificate, images, watchCount, watched, currentPrice, imageUrlResolver);
   }
 
   private Consignment getConsignment(Long consignmentId) {
@@ -157,6 +162,7 @@ public class AuctionService {
 
     Map<Long, Long> watchCounts = watchRepository.countByAuctionIds(auctionIds);
     Set<Long> watchedIds = watchRepository.findWatchedAuctionIds(viewerMemberId, auctionIds);
+    Map<Long, Long> currentPrices = bidRepository.findCurrentPricesByAuctionIds(auctionIds);
 
     Map<Long, Certificate> certificatesByConsignmentId =
         certificateManageService.getCertificatesByConsignmentId(consignmentIds);
@@ -172,10 +178,19 @@ public class AuctionService {
                         certificatesByConsignmentId.get(a.getConsignment().getConsignmentId()),
                         thumbnailsByConsignmentId.get(a.getConsignment().getConsignmentId()),
                         watchCounts.getOrDefault(a.getAuctionId(), 0L),
-                        watchedIds.contains(a.getAuctionId())))
+                        watchedIds.contains(a.getAuctionId()),
+                        resolveCurrentPrice(a, currentPrices)))
             .toList();
 
     return new Assembled(items, watchCounts);
+  }
+
+  /** 경매 시작 전에는 현재가 개념이 없으므로 null, 그 외에는 최고 입찰가(없으면 시작가)를 반환한다. */
+  private Long resolveCurrentPrice(Auction auction, Map<Long, Long> currentPrices) {
+    if (auction.getAuctionStatus() == AuctionStatus.SCHEDULED) {
+      return null;
+    }
+    return currentPrices.getOrDefault(auction.getAuctionId(), auction.getStartingPrice());
   }
 
   private Map<Long, String> resolveThumbnails(List<Long> consignmentIds) {

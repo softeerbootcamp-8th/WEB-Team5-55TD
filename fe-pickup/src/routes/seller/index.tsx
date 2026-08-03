@@ -5,10 +5,11 @@ import { PageContainer } from "@/components/layout/page";
 import { SectionHeader } from "@/components/domain/section-header";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getMyConsignments } from "@/api/consignments";
-import { products, sales } from "@/lib/mock/data";
-import { ProductStatus } from "@/lib/types";
+import { getMySalesHistory } from "@/api/sales";
+import { getMySellerStats } from "@/api/seller-stats";
 import { formatWon } from "@/lib/format";
 
 export const Route = createFileRoute("/seller/")({
@@ -17,14 +18,16 @@ export const Route = createFileRoute("/seller/")({
 
 /** DESIGN.md · seller home.html — 요약 통계 + 진행 중 경매 + 최근 낙찰 */
 function SellerHome() {
-  const count = (s: ProductStatus) =>
-    products.filter((p) => p.status === s).length;
+  const { data: sellerStats } = useQuery({
+    queryKey: ["sellers", "me", "stats"],
+    queryFn: getMySellerStats,
+  });
 
   const stats = [
-    { label: "등록 상품", value: products.length },
-    { label: "경매 예정", value: count(ProductStatus.AUCTION_UPCOMING) },
-    { label: "진행 중", value: count(ProductStatus.AUCTION_LIVE) },
-    { label: "판매 완료", value: count(ProductStatus.SOLD) },
+    { label: "등록 상품", value: sellerStats?.registered },
+    { label: "경매 예정", value: sellerStats?.scheduled },
+    { label: "진행 중", value: sellerStats?.ongoing },
+    { label: "판매 완료", value: sellerStats?.sold },
   ];
 
   const {
@@ -37,7 +40,14 @@ function SellerHome() {
       getMyConsignments({ status: "AUCTION_ONGOING" }).then((r) => r.items),
   });
 
-  const recentSold = sales.filter((s) => s.status === ProductStatus.SOLD);
+  const {
+    data: recentSales,
+    isPending: isSalesLoading,
+    isError: isSalesError,
+  } = useQuery({
+    queryKey: ["sales", "my", "recent"],
+    queryFn: () => getMySalesHistory({ size: 3 }).then((r) => r.items),
+  });
 
   return (
     <PageContainer className="flex flex-col gap-10">
@@ -65,7 +75,9 @@ function SellerHome() {
             <span className="text-xs text-[var(--color-text-muted)]">
               {s.label}
             </span>
-            <span className="tabular text-2xl font-bold">{s.value}</span>
+            <span className="tabular text-2xl font-bold">
+              {s.value ?? "-"}
+            </span>
           </div>
         ))}
       </div>
@@ -145,27 +157,53 @@ function SellerHome() {
             </Link>
           }
         />
-        <ul className="flex flex-col gap-3">
-          {recentSold.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4"
-            >
-              <CardThumb
-                cardName={s.cardName}
-                aspect="aspect-square"
-                className="w-14"
-              />
-              <div className="flex flex-1 flex-col gap-1">
-                <GradeBadge grade={s.grade} />
-                <span className="text-sm font-semibold">{s.cardName}</span>
-              </div>
-              <span className="tabular text-sm font-semibold text-[var(--color-price)]">
-                {formatWon(s.finalPrice)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {isSalesLoading ? null : isSalesError ? (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            최근 낙찰 상품을 불러오지 못했습니다.
+          </p>
+        ) : recentSales && recentSales.length > 0 ? (
+          <ul className="flex flex-col gap-3">
+            {recentSales.map((s) => {
+              const won = s.resultType === "WON";
+              return (
+                <li
+                  key={s.auctionId}
+                  className="flex items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4"
+                >
+                  <CardThumb
+                    cardName={s.cardName}
+                    imageUrl={s.thumbnailUrl}
+                    aspect="aspect-square"
+                    className="w-14"
+                  />
+                  <div className="flex flex-1 flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <GradeBadge grade={s.grade} />
+                      <Badge variant={won ? "success" : "muted"}>
+                        {won ? "낙찰" : "유찰"}
+                      </Badge>
+                    </div>
+                    <span className="text-sm font-semibold">{s.cardName}</span>
+                  </div>
+                  <span
+                    className={
+                      "tabular text-sm font-semibold " +
+                      (won
+                        ? "text-[var(--color-price)]"
+                        : "text-[var(--color-text-muted)]")
+                    }
+                  >
+                    {won ? formatWon(s.finalPrice) : "유찰"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            최근 낙찰 상품이 없습니다.
+          </p>
+        )}
       </section>
     </PageContainer>
   );
