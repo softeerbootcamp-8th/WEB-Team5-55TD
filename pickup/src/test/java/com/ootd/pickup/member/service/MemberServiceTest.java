@@ -11,6 +11,10 @@ import static org.mockito.Mockito.*;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.auction.domain.Watch;
+import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
+import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
+import com.ootd.pickup.auction.repository.watch.WatchRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
@@ -26,6 +30,7 @@ import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
+import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
@@ -63,6 +68,10 @@ class MemberServiceTest {
   @Mock private BidRepository bidRepository;
 
   @Mock private CertificateRepository certificateRepository;
+
+  @Mock private WatchRepository watchRepository;
+
+  @Mock private ConsignmentImageRepository consignmentImageRepository;
 
   @InjectMocks private MemberService memberService;
 
@@ -450,6 +459,106 @@ class MemberServiceTest {
     assertThat(response.hasNext()).isTrue();
     assertThat(response.cursor()).isEqualTo("101");
     assertThat(response.items()).extracting(MyBidListItemResponse::auctionId).containsExactly(10L);
+  }
+
+  @Test
+  void 내_관심_목록을_조회하면_예정_경매_정보가_포함된_응답을_반환한다() {
+    // given
+    Member member = createMember(1L);
+    Card card = createCard();
+    Consignment consignment = createConsignment(2L, card);
+    Auction auction = createAuction(10L, consignment, AuctionStatus.SCHEDULED, 10_000L);
+    Watch watch = createWatch(500L, member, auction);
+    Certificate certificate = createCertificate(consignment, Grade.MINT, CertificationBody.PSA);
+
+    given(watchRepository.findAllScheduledByMemberId(1L, null, 21)).willReturn(List.of(watch));
+    given(watchRepository.countByAuctionIds(List.of(10L))).willReturn(Map.of(10L, 3L));
+    given(certificateRepository.findAllByConsignmentIds(List.of(2L)))
+        .willReturn(List.of(certificate));
+    given(
+            consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+                List.of(2L)))
+        .willReturn(List.of());
+
+    // when
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        memberService.getMyWatches(1L, new GetMyWatchesRequest(null, 20));
+
+    // then
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.cursor()).isNull();
+    assertThat(response.items()).hasSize(1);
+
+    AuctionListItemResponse item = response.items().get(0);
+    assertThat(item.auctionId()).isEqualTo(10L);
+    assertThat(item.auctionStatus()).isEqualTo(AuctionStatus.SCHEDULED);
+    assertThat(item.grade()).isEqualTo("PSA 9");
+    assertThat(item.currentPrice()).isNull();
+    assertThat(item.watchCount()).isEqualTo(3L);
+    assertThat(item.watched()).isTrue();
+  }
+
+  @Test
+  void 관심목록_결과가_size보다_많으면_hasNext가_true이고_커서가_마지막_관심ID다() {
+    // given
+    Member member = createMember(1L);
+    Consignment consignmentA = createConsignment(2L, createCard());
+    Consignment consignmentB = createConsignment(3L, createCard());
+    Auction auctionA = createAuction(10L, consignmentA, AuctionStatus.SCHEDULED, 10_000L);
+    Auction auctionB = createAuction(11L, consignmentB, AuctionStatus.SCHEDULED, 20_000L);
+    Watch watchA = createWatch(101L, member, auctionA);
+    Watch watchB = createWatch(100L, member, auctionB);
+
+    given(watchRepository.findAllScheduledByMemberId(1L, null, 2))
+        .willReturn(List.of(watchA, watchB));
+    given(watchRepository.countByAuctionIds(List.of(10L))).willReturn(Map.of());
+    given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
+    given(
+            consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+                List.of(2L)))
+        .willReturn(List.of());
+
+    // when
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        memberService.getMyWatches(1L, new GetMyWatchesRequest(null, 1));
+
+    // then
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.cursor()).isEqualTo("101");
+    assertThat(response.items())
+        .extracting(AuctionListItemResponse::auctionId)
+        .containsExactly(10L);
+  }
+
+  @Test
+  void 관심목록_커서값이_유효하지_않으면_예외가_발생한다() {
+    // when & then
+    assertThatThrownBy(
+            () -> memberService.getMyWatches(1L, new GetMyWatchesRequest("not-a-number", 20)))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            exception ->
+                assertThat(((PickUpException) exception).getExceptionCodeName())
+                    .isEqualTo(INVALID_CURSOR.getClientExceptionCode().name()));
+    then(watchRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 관심목록_size가_1보다_작으면_예외가_발생한다() {
+    // when & then
+    assertThatThrownBy(() -> memberService.getMyWatches(1L, new GetMyWatchesRequest(null, 0)))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            exception ->
+                assertThat(((PickUpException) exception).getExceptionCodeName())
+                    .isEqualTo(ILLEGAL_ARGUMENT.getClientExceptionCode().name()));
+    then(watchRepository).shouldHaveNoInteractions();
+  }
+
+  private Watch createWatch(Long watchId, Member member, Auction auction) {
+    Watch watch = Watch.builder().member(member).auction(auction).build();
+    ReflectionTestUtils.setField(watch, "watchId", watchId);
+    return watch;
   }
 
   private Member createMember(Long memberId) {

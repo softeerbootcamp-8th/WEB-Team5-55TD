@@ -8,13 +8,20 @@ import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NICKNAME_ALR
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
+import com.ootd.pickup.auction.domain.Auction;
+import com.ootd.pickup.auction.domain.Watch;
+import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
+import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
+import com.ootd.pickup.auction.repository.watch.WatchRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
 import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
+import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
+import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
@@ -48,6 +55,8 @@ public class MemberService {
   private final PointRepository pointRepository;
   private final BidRepository bidRepository;
   private final CertificateRepository certificateRepository;
+  private final WatchRepository watchRepository;
+  private final ConsignmentImageRepository consignmentImageRepository;
 
   public MemberResponse createMember(MemberRequest memberRequest) {
     if (memberRepository.existsByLoginId(memberRequest.loginId())) {
@@ -144,6 +153,67 @@ public class MemberService {
 
     String nextCursor = hasNext ? String.valueOf(page.getLast().getBidId()) : null;
     return CursorPageResponse.from(items, hasNext, nextCursor);
+  }
+
+  @Transactional(readOnly = true)
+  public CursorPageResponse<AuctionListItemResponse, String> getMyWatches(
+      Long memberId, GetMyWatchesRequest request) {
+    int size = resolveSize(request.size());
+    Long cursorWatchId = decodeCursor(request.cursor());
+
+    List<Watch> fetched =
+        watchRepository.findAllScheduledByMemberId(memberId, cursorWatchId, size + 1);
+    boolean hasNext = fetched.size() > size;
+    List<Watch> page = hasNext ? fetched.subList(0, size) : fetched;
+
+    List<AuctionListItemResponse> items = assembleMyWatches(page);
+
+    String nextCursor = hasNext ? String.valueOf(page.getLast().getWatchId()) : null;
+    return CursorPageResponse.from(items, hasNext, nextCursor);
+  }
+
+  private List<AuctionListItemResponse> assembleMyWatches(List<Watch> myWatches) {
+    List<Auction> auctions = myWatches.stream().map(Watch::getAuction).toList();
+    List<Long> auctionIds = auctions.stream().map(Auction::getAuctionId).toList();
+    List<Long> consignmentIds =
+        auctions.stream().map(a -> a.getConsignment().getConsignmentId()).toList();
+
+    Map<Long, Long> watchCounts = watchRepository.countByAuctionIds(auctionIds);
+    Map<Long, Certificate> certificatesByConsignmentId =
+        certificateRepository.findAllByConsignmentIds(consignmentIds).stream()
+            .collect(Collectors.toMap(c -> c.getConsignment().getConsignmentId(), c -> c));
+    Map<Long, String> thumbnailsByConsignmentId = resolveThumbnails(consignmentIds);
+
+    return auctions.stream()
+        .map(
+            auction -> {
+              Long consignmentId = auction.getConsignment().getConsignmentId();
+              return AuctionListItemResponse.of(
+                  auction,
+                  certificatesByConsignmentId.get(consignmentId),
+                  thumbnailsByConsignmentId.get(consignmentId),
+                  watchCounts.getOrDefault(auction.getAuctionId(), 0L),
+                  true,
+                  null);
+            })
+        .toList();
+  }
+
+  private Map<Long, String> resolveThumbnails(List<Long> consignmentIds) {
+    if (consignmentIds.isEmpty()) {
+      return Map.of();
+    }
+
+    List<ConsignmentImage> images =
+        consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+            consignmentIds);
+
+    return images.stream()
+        .collect(
+            Collectors.toMap(
+                image -> image.getConsignment().getConsignmentId(),
+                ConsignmentImage::getImageUrl,
+                (first, second) -> first));
   }
 
   private List<MyBidListItemResponse> assembleMyBids(List<Bid> myLastBids) {
