@@ -16,6 +16,6 @@ auth:
 image:
   storage:
     bucket: ${IMAGE_STORAGE_BUCKET:}
-    region: ${IMAGE_STORAGE_REGION:ap-northeast-2}
+    region: ${IMAGE_STORAGE_REGION:}
     media-base-url: ${IMAGE_MEDIA_BASE_URL:}
     upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}
