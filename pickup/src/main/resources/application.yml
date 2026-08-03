@@ -10,6 +10,11 @@ spring:
     username: ${DB_USERNAME:pickup}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      # dd-java-agent 의 JMXFetch 가 커넥션 풀 지표를 읽어가려면 MBean 등록이 필요하다.
+      # 풀 이름은 JMX ObjectName 에 그대로 들어가 Datadog 의 pool 태그가 된다.
+      pool-name: pickup-pool
+      register-mbeans: true
   jpa:
     open-in-view: false
     hibernate:
@@ -24,6 +29,8 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:1s}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
 auth:
   token:
     issuer: ${JWT_ISSUER:pickup}

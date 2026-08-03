@@ -47,6 +47,13 @@ public class AuctionController implements AuctionApi {
     return ResponseEntity.ok(auctionService.searchAuctions(memberId, searchAuctionsRequest));
   }
 
+  @GetMapping("/featured")
+  @Override
+  public ResponseEntity<AuctionListItemResponse> getFeaturedAuction(
+      @OptionalMemberId Long memberId) {
+    return ResponseEntity.ok(auctionService.getFeaturedAuction(memberId));
+  }
+
   @GetMapping("/{auctionId}")
   @Override
   public ResponseEntity<AuctionDetailResponse> getAuctionDetail(
