@@ -9,7 +9,7 @@ import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
 import { Button } from "@/components/ui/button";
-import { searchAuctions } from "@/api/auctions";
+import { getFeaturedAuction, searchAuctions } from "@/api/auctions";
 
 export const Route = createFileRoute("/_buyer/home")({
   component: HomePage,
@@ -17,6 +17,10 @@ export const Route = createFileRoute("/_buyer/home")({
 
 /** DESIGN.md · home.html — 대표 경매 + 진행 중(≤3) + 곧 시작(≤4) */
 function HomePage() {
+  const featuredQuery = useQuery({
+    queryKey: ["auctions", "featured"],
+    queryFn: () => getFeaturedAuction(),
+  });
   const liveQuery = useQuery({
     queryKey: ["auctions", "home-live"],
     queryFn: () =>
@@ -30,7 +34,11 @@ function HomePage() {
 
   const live = liveQuery.data?.items ?? [];
   const upcoming = upcomingQuery.data?.items ?? [];
-  const featured = live[0] ?? upcoming[0];
+  // 대표 경매 API가 우선이며(진행 중 + 관심 최다), 진행 중인 경매가 없어 404면
+  // 목록에서 가져온 진행 중/예정 경매로 대체한다.
+  const featured = featuredQuery.isPending
+    ? undefined
+    : (featuredQuery.data ?? live[0] ?? upcoming[0]);
 
   return (
     <PageContainer className="flex flex-col gap-12">

@@ -3,9 +3,13 @@ package com.ootd.pickup.auth.repository;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.ootd.pickup.global.exception.ExceptionCode;
+import com.ootd.pickup.global.exception.PickUpException;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.QueryTimeoutException;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -53,5 +57,62 @@ class RefreshTokenRedisRepositoryTest {
     refreshTokenRepository.delete("token-hash");
 
     verify(redisTemplate).delete("auth:refresh:token-hash");
+  }
+
+  @Test
+  void 레디스_장애로_저장에_실패해도_예외를_전파하지_않는다() {
+    // given
+    Duration ttl = Duration.ofDays(14);
+    doThrow(new RedisConnectionFailureException("Redis connection failed"))
+        .when(valueOperations)
+        .set("auth:refresh:token-hash", "1", ttl);
+
+    // when & then
+    assertThatCode(() -> refreshTokenRepository.save("token-hash", 1L, ttl))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void 레디스_장애로_삭제에_실패해도_예외를_전파하지_않는다() {
+    // given
+    when(redisTemplate.delete("auth:refresh:token-hash"))
+        .thenThrow(new RedisConnectionFailureException("Redis connection failed"));
+
+    // when & then
+    assertThatCode(() -> refreshTokenRepository.delete("token-hash")).doesNotThrowAnyException();
+  }
+
+  @Test
+  void 레디스_연결에_실패하면_저장소_장애_예외가_발생한다() {
+    // given
+    when(valueOperations.getAndDelete("auth:refresh:token-hash"))
+        .thenThrow(new RedisConnectionFailureException("Redis connection failed"));
+
+    // when & then
+    assertThatThrownBy(() -> refreshTokenRepository.consume("token-hash"))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE.getMessage());
+  }
+
+  @Test
+  void 레디스_커맨드가_시간_초과되면_저장소_장애_예외가_발생한다() {
+    // given
+    when(valueOperations.getAndDelete("auth:refresh:token-hash"))
+        .thenThrow(new QueryTimeoutException("Redis command timed out"));
+
+    // when & then
+    assertThatThrownBy(() -> refreshTokenRepository.consume("token-hash"))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE.getMessage());
+  }
+
+  @Test
+  void 저장된_값이_숫자가_아니면_예외를_전파한다() {
+    // given
+    when(valueOperations.getAndDelete("auth:refresh:token-hash")).thenReturn("not-a-number");
+
+    // when & then
+    assertThatThrownBy(() -> refreshTokenRepository.consume("token-hash"))
+        .isInstanceOf(NumberFormatException.class);
   }
 }
