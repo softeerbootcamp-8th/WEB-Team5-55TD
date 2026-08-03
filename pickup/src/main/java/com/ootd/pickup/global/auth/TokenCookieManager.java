@@ -32,10 +32,16 @@ public class TokenCookieManager {
   }
 
   public HttpHeaders createExpiredTokenCookieHeaders() {
-    HttpHeaders headers = new HttpHeaders();
-    addCookie(headers, AuthenticationAttributes.COOKIE_NAME, "", "/", Duration.ZERO);
+    HttpHeaders headers = createExpiredAccessTokenCookieHeaders();
     addCookie(
         headers, AuthenticationAttributes.REFRESH_TOKEN_COOKIE_NAME, "", "/auth", Duration.ZERO);
+    return headers;
+  }
+
+  /** 액세스 토큰 쿠키만 만료시킨다. 리프레시 토큰 쿠키는 유지해야 액세스 토큰 만료 시 갱신 흐름이 이어진다. */
+  public HttpHeaders createExpiredAccessTokenCookieHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    addCookie(headers, AuthenticationAttributes.COOKIE_NAME, "", "/", Duration.ZERO);
     return headers;
   }
 
