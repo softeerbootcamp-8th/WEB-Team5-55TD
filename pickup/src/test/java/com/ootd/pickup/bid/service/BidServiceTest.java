@@ -24,6 +24,7 @@ import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
 import com.ootd.pickup.bid.dto.response.AuctionBidListItemResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
+import com.ootd.pickup.bid.repository.BidPriceCacheRepository;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
@@ -51,11 +52,14 @@ class BidServiceTest {
 
   @Mock private MemberRepository memberRepository;
 
+  @Mock private BidPriceCacheRepository bidPriceCacheRepository;
+
   private BidService bidService;
 
   @BeforeEach
   void setUp() {
-    bidService = new BidService(auctionRepository, bidRepository, memberRepository);
+    bidService =
+        new BidService(auctionRepository, bidRepository, memberRepository, bidPriceCacheRepository);
   }
 
   @Test
@@ -86,6 +90,7 @@ class BidServiceTest {
     assertThat(response.memberId()).isEqualTo(2L);
     assertThat(response.bidPrice()).isEqualTo(10_500L);
     assertThat(response.bidStatus()).isEqualTo(BidStatus.HIGHEST);
+    then(bidPriceCacheRepository).should().saveCurrentPrice(1L, 10_500L);
   }
 
   @Test
@@ -167,6 +172,7 @@ class BidServiceTest {
     assertExceptionCode(
         () -> bidService.placeBid(1L, 2L, new PlaceBidRequest(10_500L)), OUTBID_EXISTS);
     then(bidRepository).should(never()).save(any(Bid.class));
+    then(bidPriceCacheRepository).should().saveCurrentPrice(1L, 11_000L);
   }
 
   @Test
@@ -187,6 +193,49 @@ class BidServiceTest {
     assertExceptionCode(
         () -> bidService.placeBid(1L, 2L, new PlaceBidRequest(10_600L)), BELOW_MIN_INCREMENT);
     then(bidRepository).should(never()).save(any(Bid.class));
+  }
+
+  @Test
+  void 캐시된_현재가_이하로_입찰하면_DB조회_없이_추월_예외가_발생한다() {
+    // given
+    given(bidPriceCacheRepository.findCurrentPrice(1L)).willReturn(Optional.of(10_500L));
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.placeBid(1L, 2L, new PlaceBidRequest(10_500L)), OUTBID_EXISTS);
+    then(auctionRepository).shouldHaveNoInteractions();
+    then(memberRepository).shouldHaveNoInteractions();
+    then(bidRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 캐시된_현재가보다_높은_입찰이면_평소처럼_DB_검증까지_진행된다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    ReflectionTestUtils.setField(auction, "currentPrice", 10_500L);
+    Member bidder = createMember(2L);
+    given(bidPriceCacheRepository.findCurrentPrice(1L)).willReturn(Optional.of(10_500L));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(auctionRepository.updateCurrentPriceIfHigher(1L, 11_000L)).willReturn(1);
+    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
+        .willReturn(Optional.empty());
+    given(bidRepository.save(any(Bid.class)))
+        .willAnswer(
+            invocation -> {
+              Bid bid = invocation.getArgument(0);
+              ReflectionTestUtils.setField(bid, "bidId", 12L);
+              return bid;
+            });
+
+    // when
+    PlaceBidResponse response = bidService.placeBid(1L, 2L, new PlaceBidRequest(11_000L));
+
+    // then
+    assertThat(response.bidId()).isEqualTo(12L);
+    then(auctionRepository).should().updateCurrentPriceIfHigher(1L, 11_000L);
+    then(bidPriceCacheRepository).should().saveCurrentPrice(1L, 11_000L);
   }
 
   @Test

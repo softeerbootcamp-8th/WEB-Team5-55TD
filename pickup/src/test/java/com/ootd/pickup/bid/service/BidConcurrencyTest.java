@@ -30,6 +30,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
@@ -48,6 +49,10 @@ class BidConcurrencyTest {
 
   @Autowired private CardJpaRepository cardJpaRepository;
 
+  @Autowired private StringRedisTemplate redisTemplate;
+
+  private Long createdAuctionId;
+
   @AfterEach
   void tearDown() {
     bidJpaRepository.deleteAll();
@@ -55,6 +60,11 @@ class BidConcurrencyTest {
     consignmentJpaRepository.deleteAll();
     cardJpaRepository.deleteAll();
     memberJpaRepository.deleteAll();
+    // H2는 create-drop으로 매 실행마다 auction_id가 1부터 재사용되는데, 현재가 캐시는
+    // Redis에 TTL(24h)만큼 남아있어 다음 실행에서 같은 ID로 재사용될 때 충돌한다.
+    if (createdAuctionId != null) {
+      redisTemplate.delete("auction:current-price:" + createdAuctionId);
+    }
   }
 
   @Test
@@ -91,6 +101,8 @@ class BidConcurrencyTest {
                 .reservePrice(15_000L)
                 .bidIncrement(500L)
                 .build());
+    createdAuctionId = auction.getAuctionId();
+    redisTemplate.delete("auction:current-price:" + createdAuctionId);
     CountDownLatch ready = new CountDownLatch(2);
     CountDownLatch start = new CountDownLatch(1);
 

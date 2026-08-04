@@ -20,6 +20,7 @@ import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
 import com.ootd.pickup.bid.dto.response.AuctionBidListItemResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
+import com.ootd.pickup.bid.repository.BidPriceCacheRepository;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
@@ -43,9 +44,16 @@ public class BidService {
   private final AuctionRepository auctionRepository;
   private final BidRepository bidRepository;
   private final MemberRepository memberRepository;
+  private final BidPriceCacheRepository bidPriceCacheRepository;
 
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
+    // DB 커넥션을 잡기 전에 캐시로 먼저 거른다. 캐시가 없거나(미스) 통과해도 최종 판정은
+    // 아래 updateCurrentPriceIfHigher가 그대로 수행하므로, 캐시가 오래되어도 정합성은 깨지지 않는다.
+    bidPriceCacheRepository
+        .findCurrentPrice(auctionId)
+        .ifPresent(cachedCurrentPrice -> rejectIfNotHigher(request.bidPrice(), cachedCurrentPrice));
+
     Auction auction =
         auctionRepository
             .findById(auctionId)
@@ -65,9 +73,12 @@ public class BidService {
           auctionRepository
               .findById(auctionId)
               .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+      bidPriceCacheRepository.saveCurrentPrice(auctionId, latest.getCurrentPrice());
       validateBidPrice(request.bidPrice(), latest.getCurrentPrice(), latest.getBidIncrement());
       throw new PickUpException(OUTBID_EXISTS);
     }
+
+    bidPriceCacheRepository.saveCurrentPrice(auctionId, request.bidPrice());
 
     bidRepository
         .findFirstByAuctionIdAndBidStatus(auctionId, HIGHEST)
@@ -79,6 +90,12 @@ public class BidService {
 
     Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
     return PlaceBidResponse.from(savedBid);
+  }
+
+  private void rejectIfNotHigher(Long bidPrice, Long cachedCurrentPrice) {
+    if (bidPrice <= cachedCurrentPrice) {
+      throw new PickUpException(OUTBID_EXISTS);
+    }
   }
 
   private void validateAuction(Auction auction, Long memberId) {
