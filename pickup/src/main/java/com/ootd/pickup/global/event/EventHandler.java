@@ -11,9 +11,9 @@ package com.ootd.pickup.global.event;
  * <p>하나의 이벤트에 여러 핸들러를 붙일 수 있고, 핸들러끼리는 서로를 알지 못한다. 다만 실패했을 때 벌어지는 일은 계열마다 다르다.
  *
  * <ul>
- *   <li>{@link UnicastEvent} — 예외를 던지면 메시지가 삭제되지 않고 다시 전달된다. 이미 성공한 핸들러도 함께 다시 실행되므로 여러 번 실행돼도 결과가
- *       같아야 한다. {@link DomainEvent#eventId()}로 중복을 걸러낸다.
- *   <li>{@link BroadcastEvent} — 예외가 격리되어 다른 핸들러는 계속 실행된다. 재전달은 없다.
+ *   <li>{@link MessageQueueEvent} — 예외를 던지면 메시지가 삭제되지 않고 다시 전달된다. 이미 성공한 핸들러도 함께 다시 실행되므로 여러 번 실행돼도
+ *       결과가 같아야 한다. {@link DomainEvent#eventId()}로 중복을 걸러낸다.
+ *   <li>{@link NotificationEvent} — 예외가 격리되어 다른 핸들러는 계속 실행된다. 재전달은 없다.
  * </ul>
  *
  * @param <E> 이 핸들러가 처리하는 이벤트 타입
