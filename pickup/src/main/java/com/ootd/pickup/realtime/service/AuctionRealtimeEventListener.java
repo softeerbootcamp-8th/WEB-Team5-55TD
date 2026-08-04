@@ -11,7 +11,6 @@ import com.ootd.pickup.realtime.dto.AuctionStartedMessage;
 import com.ootd.pickup.realtime.dto.BidPlacedMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -92,7 +91,7 @@ public class AuctionRealtimeEventListener {
   private void send(Long auctionId, AuctionRealtimeMessageType eventType, Object message) {
     try {
       messagingTemplate.convertAndSend(AUCTION_TOPIC_PREFIX + auctionId, message);
-    } catch (MessagingException e) {
+    } catch (RuntimeException e) {
       log.warn("실시간 경매 이벤트 전송에 실패했습니다. auctionId={}, eventType={}", auctionId, eventType, e);
     }
   }
