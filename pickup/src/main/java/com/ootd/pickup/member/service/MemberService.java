@@ -194,7 +194,7 @@ public class MemberService {
                   thumbnailsByConsignmentId.get(consignmentId),
                   watchCounts.getOrDefault(auction.getAuctionId(), 0L),
                   true,
-                  null);
+                  auction.getCurrentPrice());
             })
         .toList();
   }

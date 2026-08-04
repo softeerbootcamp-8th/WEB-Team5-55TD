@@ -499,6 +499,57 @@ class MemberServiceTest {
   }
 
   @Test
+  void 진행중인_관심_경매는_현재_최고_입찰가를_currentPrice로_반환한다() {
+    // given
+    Member member = createMember(1L);
+    Consignment consignment = createConsignment(2L, createCard());
+    Auction auction = createAuction(10L, consignment, AuctionStatus.ONGOING, 10_000L);
+    auction.updateWinningBid(200L, 12_000L);
+    Watch watch = createWatch(500L, member, auction);
+
+    given(watchRepository.findAllActiveByMemberId(1L, null, 21)).willReturn(List.of(watch));
+    given(watchRepository.countByAuctionIds(List.of(10L))).willReturn(Map.of());
+    given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
+    given(
+            consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+                List.of(2L)))
+        .willReturn(List.of());
+
+    // when
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        memberService.getMyWatches(1L, new GetMyWatchesRequest(null, 20));
+
+    // then
+    AuctionListItemResponse item = response.items().get(0);
+    assertThat(item.currentPrice()).isEqualTo(12_000L);
+  }
+
+  @Test
+  void 입찰이_없는_진행중_관심_경매는_시작가를_currentPrice로_반환한다() {
+    // given
+    Member member = createMember(1L);
+    Consignment consignment = createConsignment(2L, createCard());
+    Auction auction = createAuction(10L, consignment, AuctionStatus.ONGOING, 10_000L);
+    Watch watch = createWatch(500L, member, auction);
+
+    given(watchRepository.findAllActiveByMemberId(1L, null, 21)).willReturn(List.of(watch));
+    given(watchRepository.countByAuctionIds(List.of(10L))).willReturn(Map.of());
+    given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
+    given(
+            consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+                List.of(2L)))
+        .willReturn(List.of());
+
+    // when
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        memberService.getMyWatches(1L, new GetMyWatchesRequest(null, 20));
+
+    // then
+    AuctionListItemResponse item = response.items().get(0);
+    assertThat(item.currentPrice()).isEqualTo(10_000L);
+  }
+
+  @Test
   void 관심목록_결과가_size보다_많으면_hasNext가_true이고_커서가_마지막_관심ID다() {
     // given
     Member member = createMember(1L);
@@ -509,8 +560,7 @@ class MemberServiceTest {
     Watch watchA = createWatch(101L, member, auctionA);
     Watch watchB = createWatch(100L, member, auctionB);
 
-    given(watchRepository.findAllActiveByMemberId(1L, null, 2))
-        .willReturn(List.of(watchA, watchB));
+    given(watchRepository.findAllActiveByMemberId(1L, null, 2)).willReturn(List.of(watchA, watchB));
     given(watchRepository.countByAuctionIds(List.of(10L))).willReturn(Map.of());
     given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
     given(
