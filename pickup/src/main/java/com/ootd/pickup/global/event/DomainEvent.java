@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  *   <li>{@code id VARCHAR(36)} — {@link #eventId()}
  *   <li>{@code aggregate_type} — {@link #aggregateType()}
  *   <li>{@code aggregate_id BIGINT} — {@link #aggregateId()}
- *   <li>{@code event_type VARCHAR(50)} — {@link #eventName()}
+ *   <li>{@code event_type VARCHAR(50)} — {@link #eventType()}
  *   <li>{@code created_at DATETIME} — {@link #occurredAt()}
  *   <li>{@code payload JSON} — 구현 record 전체를 직렬화한 값
  * </ul>
@@ -73,7 +73,7 @@ public sealed interface DomainEvent permits MessageQueueEvent, NotificationEvent
    *
    * <p>컬럼이 {@code VARCHAR(50)}이므로 50자를 넘는 이름을 쓰면 저장이 실패한다.
    */
-  default String eventName() {
+  default String eventType() {
     return getClass().getSimpleName();
   }
 

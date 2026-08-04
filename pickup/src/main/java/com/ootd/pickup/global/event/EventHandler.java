@@ -3,7 +3,7 @@ package com.ootd.pickup.global.event;
 /**
  * 도메인 이벤트 소비 계약. 비즈니스 처리를 담당한다.
  *
- * <p>처리할 이벤트 타입을 {@link #eventType()}으로 선언한다. 큐·채널에서 메시지를 꺼내오는 쪽(SQS 컨슈머, Redis 서브스크라이버)이 이 값을 보고
+ * <p>처리할 이벤트 타입을 {@link #eventClass()}으로 선언한다. 큐·채널에서 메시지를 꺼내오는 쪽(SQS 컨슈머, Redis 서브스크라이버)이 이 값을 보고
  * 맞는 핸들러에게만 넘긴다. 핸들러는 자신이 다루는 타입만 보므로 {@code instanceof} 분기와 캐스팅이 필요 없다.
  *
  * <p>이벤트가 SQS로 왔는지 Redis로 왔는지는 알 필요가 없어 양쪽 계열이 이 계약을 공용으로 쓴다.
@@ -20,7 +20,12 @@ package com.ootd.pickup.global.event;
  */
 public interface EventHandler<E extends DomainEvent> {
 
-  Class<E> eventType();
+  /**
+   * 이 핸들러가 처리하는 이벤트의 자바 클래스.
+   *
+   * <p>{@link DomainEvent#eventType()}과 구분된다. 그쪽은 직렬화에 쓰는 문자열 키이고, 이것은 역직렬화된 객체의 타입이다.
+   */
+  Class<E> eventClass();
 
   void handle(E event);
 }
