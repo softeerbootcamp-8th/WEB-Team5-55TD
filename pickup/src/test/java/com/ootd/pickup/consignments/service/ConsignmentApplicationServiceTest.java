@@ -45,6 +45,7 @@ class ConsignmentApplicationServiceTest {
 
   @Test
   void 상품_등록은_S3_최종화_DB_저장_임시_객체_삭제_순서로_처리한다() {
+    // given
     RegisterConsignmentRequest request = registerRequest();
     FinalizedImage finalizedImage = new FinalizedImage(TEMPORARY_OBJECT_KEY, FINAL_OBJECT_KEY);
     RegisterConsignmentResponse response = mock(RegisterConsignmentResponse.class);
@@ -53,8 +54,10 @@ class ConsignmentApplicationServiceTest {
     given(consignmentService.registerConsignment(1L, request, List.of(finalizedImage)))
         .willReturn(response);
 
+    // when
     RegisterConsignmentResponse result = applicationService.registerConsignment(1L, request);
 
+    // then
     assertThat(result).isSameAs(response);
     InOrder order = inOrder(imageService, consignmentService);
     order
@@ -67,6 +70,7 @@ class ConsignmentApplicationServiceTest {
 
   @Test
   void S3_최종화_후_DB_저장에_실패하면_신규_최종_객체를_보상_삭제한다() {
+    // given
     RegisterConsignmentRequest request = registerRequest();
     FinalizedImage finalizedImage = new FinalizedImage(TEMPORARY_OBJECT_KEY, FINAL_OBJECT_KEY);
     RuntimeException databaseException = new RuntimeException("database unavailable");
@@ -75,6 +79,7 @@ class ConsignmentApplicationServiceTest {
     given(consignmentService.registerConsignment(1L, request, List.of(finalizedImage)))
         .willThrow(databaseException);
 
+    // when & then
     assertThatThrownBy(() -> applicationService.registerConsignment(1L, request))
         .isSameAs(databaseException);
 
@@ -84,6 +89,7 @@ class ConsignmentApplicationServiceTest {
 
   @Test
   void 상품_수정_DB_저장에_성공하면_임시_객체와_제거된_기존_객체를_삭제한다() {
+    // given
     ModifyConsignmentRequest request = modifyRequest();
     FinalizedImage finalizedImage = new FinalizedImage(TEMPORARY_OBJECT_KEY, FINAL_OBJECT_KEY);
     GetConsignmentDetailResponse response = mock(GetConsignmentDetailResponse.class);
@@ -95,20 +101,43 @@ class ConsignmentApplicationServiceTest {
             new ConsignmentService.ConsignmentModificationResult(
                 response, List.of(removedObjectKey)));
 
+    // when
     GetConsignmentDetailResponse result = applicationService.modifyConsignment(10L, 1L, request);
 
+    // then
     assertThat(result).isSameAs(response);
     then(imageService).should().deleteTemporaryImages(List.of(finalizedImage));
     then(imageService).should().deleteObjects(List.of(removedObjectKey));
   }
 
   @Test
+  void 상품_수정_DB_저장에_실패하면_신규_최종_객체를_보상_삭제한다() {
+    // given
+    ModifyConsignmentRequest request = modifyRequest();
+    FinalizedImage finalizedImage = new FinalizedImage(TEMPORARY_OBJECT_KEY, FINAL_OBJECT_KEY);
+    RuntimeException databaseException = new RuntimeException("database unavailable");
+    given(imageService.finalizeImages(1L, ImagePurpose.CONSIGNMENT, List.of(TEMPORARY_OBJECT_KEY)))
+        .willReturn(List.of(finalizedImage));
+    given(consignmentService.modifyConsignment(10L, 1L, request, List.of(finalizedImage)))
+        .willThrow(databaseException);
+
+    // when & then
+    assertThatThrownBy(() -> applicationService.modifyConsignment(10L, 1L, request))
+        .isSameAs(databaseException);
+    then(imageService).should().deleteFinalImages(List.of(finalizedImage));
+    then(imageService).should(never()).deleteTemporaryImages(List.of(finalizedImage));
+  }
+
+  @Test
   void 상품_삭제는_DB_삭제가_끝난_뒤_이미지_객체를_삭제한다() {
+    // given
     List<String> deletedObjectKeys = List.of("media/consignments/1/deleted.jpg");
     given(consignmentService.deleteConsignment(10L, 1L)).willReturn(deletedObjectKeys);
 
+    // when
     applicationService.deleteConsignment(10L, 1L);
 
+    // then
     InOrder order = inOrder(consignmentService, imageService);
     order.verify(consignmentService).deleteConsignment(10L, 1L);
     order.verify(imageService).deleteObjects(deletedObjectKeys);

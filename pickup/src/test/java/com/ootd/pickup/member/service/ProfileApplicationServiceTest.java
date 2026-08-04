@@ -2,6 +2,9 @@ package com.ootd.pickup.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.inOrder;
@@ -45,6 +48,7 @@ class ProfileApplicationServiceTest {
 
   @Test
   void 프로필_이미지_교체는_S3_최종화_DB_저장_불필요한_객체_삭제_순서로_처리한다() {
+    // given
     UpdateMyProfileRequest request = setProfileImageRequest();
     FinalizedImage finalizedImage = new FinalizedImage(TEMPORARY_OBJECT_KEY, FINAL_OBJECT_KEY);
     MyProfileResponse response = mock(MyProfileResponse.class);
@@ -53,8 +57,10 @@ class ProfileApplicationServiceTest {
     given(memberService.updateMyProfile(1L, request, FINAL_OBJECT_KEY))
         .willReturn(new MemberService.ProfileUpdateResult(response, PREVIOUS_OBJECT_KEY));
 
+    // when
     MyProfileResponse result = applicationService.updateMyProfile(1L, request);
 
+    // then
     assertThat(result).isSameAs(response);
     InOrder order = inOrder(imageService, memberService);
     order
@@ -67,6 +73,7 @@ class ProfileApplicationServiceTest {
 
   @Test
   void S3_최종화_후_프로필_DB_저장에_실패하면_신규_최종_객체를_보상_삭제한다() {
+    // given
     UpdateMyProfileRequest request = setProfileImageRequest();
     FinalizedImage finalizedImage = new FinalizedImage(TEMPORARY_OBJECT_KEY, FINAL_OBJECT_KEY);
     RuntimeException databaseException = new RuntimeException("database unavailable");
@@ -75,6 +82,7 @@ class ProfileApplicationServiceTest {
     given(memberService.updateMyProfile(1L, request, FINAL_OBJECT_KEY))
         .willThrow(databaseException);
 
+    // when & then
     assertThatThrownBy(() -> applicationService.updateMyProfile(1L, request))
         .isSameAs(databaseException);
 
@@ -85,6 +93,7 @@ class ProfileApplicationServiceTest {
 
   @Test
   void 프로필_이미지_삭제는_DB에서_참조를_제거한_뒤_기존_객체를_삭제한다() {
+    // given
     UpdateMyProfileRequest request =
         new UpdateMyProfileRequest(
             null, null, null, new ProfileImageUpdateRequest(ProfileImageAction.REMOVE, null));
@@ -92,13 +101,17 @@ class ProfileApplicationServiceTest {
     given(memberService.updateMyProfile(1L, request, null))
         .willReturn(new MemberService.ProfileUpdateResult(response, PREVIOUS_OBJECT_KEY));
 
+    // when
     MyProfileResponse result = applicationService.updateMyProfile(1L, request);
 
+    // then
     assertThat(result).isSameAs(response);
     InOrder order = inOrder(memberService, imageService);
     order.verify(memberService).updateMyProfile(1L, request, null);
     order.verify(imageService).deleteObjects(List.of(PREVIOUS_OBJECT_KEY));
-    then(imageService).should(never()).finalizeImages(1L, ImagePurpose.PROFILE, List.of());
+    then(imageService)
+        .should(never())
+        .finalizeImages(anyLong(), any(ImagePurpose.class), anyList());
   }
 
   private UpdateMyProfileRequest setProfileImageRequest() {
