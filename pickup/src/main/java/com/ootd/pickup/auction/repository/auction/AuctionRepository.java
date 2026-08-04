@@ -12,8 +12,6 @@ public interface AuctionRepository {
 
   Optional<Auction> findById(Long auctionId);
 
-  Optional<Auction> findByIdForUpdate(Long auctionId);
-
   List<Auction> searchAuctions(
       String q, List<AuctionStatus> statuses, AuctionSort sort, AuctionCursor cursor, int limit);
 

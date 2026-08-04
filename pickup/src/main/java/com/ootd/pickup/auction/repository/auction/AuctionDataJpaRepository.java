@@ -185,11 +185,6 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   }
 
   @Override
-  public Optional<Auction> findByIdForUpdate(Long auctionId) {
-    return auctionJpaRepository.findByIdForUpdate(auctionId);
-  }
-
-  @Override
   public Map<Long, Long> findAuctionIdsByConsignmentIn(List<Consignment> consignments) {
     if (consignments.isEmpty()) {
       return Map.of();

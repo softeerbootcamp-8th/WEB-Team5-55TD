@@ -23,6 +23,7 @@ import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.global.lock.DistributedLock;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import java.time.LocalDateTime;
@@ -45,11 +46,12 @@ public class BidService {
   private final BidRepository bidRepository;
   private final MemberRepository memberRepository;
 
+  @DistributedLock(key = "'auction:' + #auctionId")
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
     Auction auction =
         auctionRepository
-            .findByIdForUpdate(auctionId)
+            .findById(auctionId)
             .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
 
     validateAuction(auction, memberId);
