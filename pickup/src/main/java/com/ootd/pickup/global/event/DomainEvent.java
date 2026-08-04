@@ -8,6 +8,21 @@ import java.time.LocalDateTime;
  * <p>모든 이벤트는 {@link MessageQueueEvent}(한 소비자만 처리)와 {@link NotificationEvent}(구독한 전부가 처리) 중 하나를 골라야
  * 한다. 이 인터페이스를 직접 구현할 수 없도록 {@code sealed}로 막아, 이벤트를 정의할 때 처리 다중도를 반드시 결정하게 한다.
  *
+ * <p>메서드는 {@code outbox_event} 테이블 컬럼에 대응한다.
+ *
+ * <ul>
+ *   <li>{@code id VARCHAR(36)} — {@link #eventId()}
+ *   <li>{@code aggregate_id BIGINT} — {@link #aggregateId()}
+ *   <li>{@code event_type VARCHAR(50)} — {@link #eventName()}
+ *   <li>{@code created_at DATETIME} — {@link #occurredAt()}
+ *   <li>{@code payload JSON} — 구현 record 전체를 직렬화한 값
+ * </ul>
+ *
+ * <p>{@code published} 컬럼은 릴레이의 전송 상태이지 사건의 성질이 아니므로 이 계약에 두지 않는다.
+ *
+ * <p>테이블에 저장되는 것은 {@link MessageQueueEvent}뿐이다. {@link NotificationEvent}는 Outbox를 거치지 않고 같은 값을 채널
+ * 이름과 메시지 구성에 쓴다.
+ *
  * <p>구현체는 {@code record}로 작성한다. 소비자는 다른 프로세스에서, 트랜잭션 밖에서 실행되므로 엔티티를 담으면 지연 로딩이 실패한다. 식별자와 원시값만 담는다.
  *
  * <p>{@link #eventId()}와 {@link #occurredAt()}은 호출마다 새 값이 생기면 안 되므로 default로 둘 수 없다. record 컴포넌트로
@@ -16,35 +31,40 @@ import java.time.LocalDateTime;
 public sealed interface DomainEvent permits MessageQueueEvent, NotificationEvent {
 
   /**
-   * 이벤트 고유 식별자.
+   * 이벤트 고유 식별자. {@code outbox_event.id}에 저장된다.
+   *
+   * <p>{@code UUID.randomUUID().toString()}이 하이픈 포함 36자라 {@code VARCHAR(36)}과 정확히 맞는다. 다른 형식을 쓰면 컬럼
+   * 길이를 함께 조정해야 한다.
    *
    * <p>{@link MessageQueueEvent}는 처리에 실패한 메시지가 다시 전달되므로 같은 핸들러가 같은 이벤트를 두 번 받을 수 있다. 소비자가 이 값으로 중복을
    * 걸러낸다.
    */
   String eventId();
 
-  /** 사건이 발생한 시각. 처리 시각과 구분된다. */
-  LocalDateTime occurredAt();
+  /**
+   * 사건이 속한 애그리거트 식별자. {@code outbox_event.aggregate_id}에 저장된다. 경매에서 일어난 사건이면 {@code auctionId}다.
+   *
+   * <p>순서를 지켜야 하는 단위이기도 하다. 계열마다 쓰이는 곳이 다르다.
+   *
+   * <ul>
+   *   <li>{@link MessageQueueEvent} — SQS FIFO 큐의 {@code MessageGroupId}. 같은 애그리거트 안에서만 순서가 보장된다.
+   *   <li>{@link NotificationEvent} — Redis Pub/Sub 채널 이름 구성 요소. 인스턴스가 필요한 애그리거트만 골라 구독할 수 있다.
+   * </ul>
+   */
+  Long aggregateId();
 
   /**
-   * 직렬화 타입 키. 수신 측이 어떤 타입으로 역직렬화할지 판단하는 근거다.
+   * 직렬화 타입 키. {@code outbox_event.event_type}에 저장되고, 수신 측이 어떤 타입으로 역직렬화할지 판단하는 근거가 된다.
    *
    * <p>기본값은 구현 타입의 단순 이름이다. 클래스명을 바꾸면 큐에 남아 있던 이벤트나 아직 배포되지 않은 소비자가 이름을 찾지 못하므로, 이름을 변경할 때는 이 메서드를
    * 재정의해 기존 값을 고정한다.
+   *
+   * <p>컬럼이 {@code VARCHAR(50)}이므로 50자를 넘는 이름을 쓰면 저장이 실패한다.
    */
   default String eventName() {
     return getClass().getSimpleName();
   }
 
-  /**
-   * 전달 경로를 가르는 키. 순서를 지켜야 하는 단위(예: {@code auctionId})를 반환한다.
-   *
-   * <p>계열마다 쓰이는 곳이 다르다.
-   *
-   * <ul>
-   *   <li>{@link MessageQueueEvent} — SQS FIFO 큐의 {@code MessageGroupId}. 같은 그룹 안에서만 순서가 보장된다.
-   *   <li>{@link NotificationEvent} — Redis Pub/Sub 채널 이름 구성 요소. 인스턴스가 필요한 경매만 골라 구독할 수 있다.
-   * </ul>
-   */
-  String routingKey();
+  /** 사건이 발생한 시각. {@code outbox_event.created_at}에 저장된다. 처리 시각과 구분된다. */
+  LocalDateTime occurredAt();
 }
