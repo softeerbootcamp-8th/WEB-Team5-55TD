@@ -7,6 +7,7 @@ import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -39,7 +40,8 @@ public record AuctionDetailResponse(
       List<ConsignmentImage> images,
       long watchCount,
       boolean watched,
-      Long currentPrice) {
+      Long currentPrice,
+      ImageUrlResolver imageUrlResolver) {
     Consignment consignment = auction.getConsignment();
 
     return new AuctionDetailResponse(
@@ -55,10 +57,12 @@ public record AuctionDetailResponse(
         auction.getRemainingSeconds(),
         watchCount,
         watched,
-        resolveThumbnailUrl(images),
+        resolveThumbnailUrl(images, imageUrlResolver),
         consignment.getSellerMember().getNickname(),
         CertificateResponse.from(certificate),
-        images.stream().map(ConsignmentImageResponse::from).toList(),
+        images.stream()
+            .map(image -> ConsignmentImageResponse.from(image, imageUrlResolver))
+            .toList(),
         certificate.getGrade().getDisplayName(),
         consignment.getMajorDefect(),
         auction.getBidIncrement(),
@@ -67,8 +71,9 @@ public record AuctionDetailResponse(
         null);
   }
 
-  private static String resolveThumbnailUrl(List<ConsignmentImage> images) {
-    return images.isEmpty() ? null : images.getFirst().getImageUrl();
+  private static String resolveThumbnailUrl(
+      List<ConsignmentImage> images, ImageUrlResolver imageUrlResolver) {
+    return images.isEmpty() ? null : imageUrlResolver.resolve(images.getFirst().getObjectKey());
   }
 
   private static Long nextMinBid(Auction auction, Long currentPrice) {
