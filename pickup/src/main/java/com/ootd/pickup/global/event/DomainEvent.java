@@ -32,9 +32,6 @@ public interface DomainEvent {
     return getClass().getSimpleName();
   }
 
-  /**
-   * 브로커 파티션·스트림 키. 같은 키의 이벤트는 발행 순서대로 전달된다.
-   * 브로커의 이벤트 전달 순서 보장을 위한 키를 반환한다.
-   */
+  /** 브로커 파티션·스트림 키. 같은 키의 이벤트는 발행 순서대로 전달된다. 브로커의 이벤트 전달 순서 보장을 위한 키를 반환한다. */
   String routingKey();
 }
