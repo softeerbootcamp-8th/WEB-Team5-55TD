@@ -24,10 +24,12 @@ import com.ootd.pickup.bid.repository.BidPriceCacheRepository;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.global.lock.DistributedLock;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +48,79 @@ public class BidService {
   private final MemberRepository memberRepository;
   private final BidPriceCacheRepository bidPriceCacheRepository;
 
+  /** OOTD-278: Redisson 분산 락 + Bid 테이블 기반 현재가 조회로 동시성을 제어한다. */
+  @DistributedLock(key = "'auction:' + #auctionId")
+  @Transactional
+  public PlaceBidResponse placeBidWithDistributedLock(
+      Long auctionId, Long memberId, PlaceBidRequest request) {
+    Auction auction =
+        auctionRepository
+            .findById(auctionId)
+            .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+
+    validateAuction(auction, memberId);
+
+    Member member =
+        memberRepository
+            .findById(memberId)
+            .orElseThrow(() -> new PickUpException(MEMBER_NOT_FOUND));
+    Optional<Bid> currentHighestBid =
+        bidRepository.findFirstByAuctionIdAndBidStatus(auctionId, HIGHEST);
+    Long currentPrice =
+        currentHighestBid.map(Bid::getBidPrice).orElseGet(auction::getStartingPrice);
+
+    validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
+
+    currentHighestBid.ifPresent(
+        bid -> {
+          bid.outbid();
+          bidRepository.save(bid);
+        });
+
+    Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
+    return PlaceBidResponse.from(savedBid);
+  }
+
+  /** OOTD-279: 조건부 UPDATE(WHERE절)의 영향 row 수만으로 동시성을 제어한다. 캐시는 사용하지 않는다. */
+  @Transactional
+  public PlaceBidResponse placeBidWithConditionalUpdate(
+      Long auctionId, Long memberId, PlaceBidRequest request) {
+    Auction auction =
+        auctionRepository
+            .findById(auctionId)
+            .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+
+    validateAuction(auction, memberId);
+    validateBidPrice(request.bidPrice(), auction.getCurrentPrice(), auction.getBidIncrement());
+
+    Member member =
+        memberRepository
+            .findById(memberId)
+            .orElseThrow(() -> new PickUpException(MEMBER_NOT_FOUND));
+
+    int updated = auctionRepository.updateCurrentPriceIfHigher(auctionId, request.bidPrice());
+    if (updated == 0) {
+      Auction latest =
+          auctionRepository
+              .findById(auctionId)
+              .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+      validateBidPrice(request.bidPrice(), latest.getCurrentPrice(), latest.getBidIncrement());
+      throw new PickUpException(OUTBID_EXISTS);
+    }
+
+    bidRepository
+        .findFirstByAuctionIdAndBidStatus(auctionId, HIGHEST)
+        .ifPresent(
+            bid -> {
+              bid.outbid();
+              bidRepository.save(bid);
+            });
+
+    Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
+    return PlaceBidResponse.from(savedBid);
+  }
+
+  /** OOTD-292: OOTD-279의 조건부 UPDATE에 Redis 현재가 캐시 사전 검사를 더해 DB 커넥션 소모를 줄인다. */
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
     // DB 커넥션을 잡기 전에 캐시로 먼저 거른다. 캐시가 없거나(미스) 통과해도 최종 판정은

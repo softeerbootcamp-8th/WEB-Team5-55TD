@@ -40,6 +40,28 @@ public class BidController implements BidApi {
         .body(bidService.placeBid(auctionId, memberId, placeBidRequest));
   }
 
+  @PostMapping("/distributed-lock")
+  @RequireAuthentication
+  @Override
+  public ResponseEntity<PlaceBidResponse> placeBidWithDistributedLock(
+      @PathVariable Long auctionId,
+      @MemberId Long memberId,
+      @Valid @RequestBody PlaceBidRequest placeBidRequest) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(bidService.placeBidWithDistributedLock(auctionId, memberId, placeBidRequest));
+  }
+
+  @PostMapping("/conditional-update")
+  @RequireAuthentication
+  @Override
+  public ResponseEntity<PlaceBidResponse> placeBidWithConditionalUpdate(
+      @PathVariable Long auctionId,
+      @MemberId Long memberId,
+      @Valid @RequestBody PlaceBidRequest placeBidRequest) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(bidService.placeBidWithConditionalUpdate(auctionId, memberId, placeBidRequest));
+  }
+
   @GetMapping
   @Override
   public ResponseEntity<CursorPageResponse<AuctionBidListItemResponse, String>> getAuctionBids(

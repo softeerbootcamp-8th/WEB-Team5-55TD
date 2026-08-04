@@ -91,7 +91,11 @@ public enum ExceptionCode {
   INVALID_CONSIGNMENT_STATUS(
       HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CONSIGNMENT_STATUS, "유효하지 않은 상품 상태입니다."),
   INVALID_PAGE_SIZE(
-      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다.");
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다."),
+  BID_LOCK_ACQUISITION_FAILED(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.BID_LOCK_ACQUISITION_FAILED,
+      "입찰이 몰려 처리할 수 없습니다. 잠시 후 다시 시도해주세요.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

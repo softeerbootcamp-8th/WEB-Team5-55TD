@@ -91,6 +91,44 @@ public interface BidApi {
       Long auctionId, Long memberId, PlaceBidRequest placeBidRequest);
 
   @Operation(
+      summary = "입찰 (분산 락 방식, 실험용)",
+      description =
+          """
+          OOTD-278: Redisson 분산 락 + Bid 테이블 기반 현재가 조회로 동시성을 제어하는 실험용 엔드포인트입니다.
+          요청/응답 형식은 기본 입찰 API와 동일합니다. 락 획득에 실패하면 409(BID_LOCK_ACQUISITION_FAILED)를 반환합니다.
+          """,
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(responseCode = "201", description = "입찰 성공"),
+        @ApiResponse(
+            responseCode = "409",
+            description =
+                "입찰 불가 (AUCTION_NOT_STARTED, AUCTION_ENDED, OUTBID_EXISTS, BELOW_MIN_INCREMENT, BID_LOCK_ACQUISITION_FAILED)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<PlaceBidResponse> placeBidWithDistributedLock(
+      Long auctionId, Long memberId, PlaceBidRequest placeBidRequest);
+
+  @Operation(
+      summary = "입찰 (조건부 UPDATE 방식, 실험용)",
+      description =
+          """
+          OOTD-279: 조건부 UPDATE(WHERE절)의 영향 row 수만으로 동시성을 제어하는 실험용 엔드포인트입니다.
+          캐시는 사용하지 않습니다. 요청/응답 형식은 기본 입찰 API와 동일합니다.
+          """,
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(responseCode = "201", description = "입찰 성공"),
+        @ApiResponse(
+            responseCode = "409",
+            description =
+                "입찰 불가 (AUCTION_NOT_STARTED, AUCTION_ENDED, OUTBID_EXISTS, BELOW_MIN_INCREMENT)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<PlaceBidResponse> placeBidWithConditionalUpdate(
+      Long auctionId, Long memberId, PlaceBidRequest placeBidRequest);
+
+  @Operation(
       summary = "경매 입찰 내역 조회",
       description =
           """

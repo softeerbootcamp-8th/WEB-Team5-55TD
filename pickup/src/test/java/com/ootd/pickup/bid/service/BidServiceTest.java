@@ -63,6 +63,103 @@ class BidServiceTest {
   }
 
   @Test
+  void 분산락_방식_첫_입찰가가_시작가와_최소단위의_합이면_최고입찰로_저장된다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Member bidder = createMember(2L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
+        .willReturn(Optional.empty());
+    given(bidRepository.save(any(Bid.class)))
+        .willAnswer(
+            invocation -> {
+              Bid bid = invocation.getArgument(0);
+              ReflectionTestUtils.setField(bid, "bidId", 10L);
+              return bid;
+            });
+
+    // when
+    PlaceBidResponse response =
+        bidService.placeBidWithDistributedLock(1L, 2L, new PlaceBidRequest(10_500L));
+
+    // then
+    assertThat(response.bidId()).isEqualTo(10L);
+    assertThat(response.bidStatus()).isEqualTo(BidStatus.HIGHEST);
+    then(bidPriceCacheRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 분산락_방식_현재가_이하로_입찰하면_추월_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Bid previousHighestBid = Bid.create(auction, createMember(3L), 10_500L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(createMember(2L)));
+    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
+        .willReturn(Optional.of(previousHighestBid));
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.placeBidWithDistributedLock(1L, 2L, new PlaceBidRequest(10_500L)),
+        OUTBID_EXISTS);
+    then(bidRepository).should(never()).save(any(Bid.class));
+  }
+
+  @Test
+  void 조건부UPDATE_방식_첫_입찰가가_시작가와_최소단위의_합이면_최고입찰로_저장된다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Member bidder = createMember(2L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(auctionRepository.updateCurrentPriceIfHigher(1L, 10_500L)).willReturn(1);
+    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
+        .willReturn(Optional.empty());
+    given(bidRepository.save(any(Bid.class)))
+        .willAnswer(
+            invocation -> {
+              Bid bid = invocation.getArgument(0);
+              ReflectionTestUtils.setField(bid, "bidId", 10L);
+              return bid;
+            });
+
+    // when
+    PlaceBidResponse response =
+        bidService.placeBidWithConditionalUpdate(1L, 2L, new PlaceBidRequest(10_500L));
+
+    // then
+    assertThat(response.bidId()).isEqualTo(10L);
+    assertThat(response.bidStatus()).isEqualTo(BidStatus.HIGHEST);
+    then(bidPriceCacheRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 조건부UPDATE_방식_동시_입찰로_현재가가_이미_갱신되었으면_추월_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Auction latestAuction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    ReflectionTestUtils.setField(latestAuction, "currentPrice", 11_000L);
+    Member bidder = createMember(2L);
+    given(auctionRepository.findById(1L))
+        .willReturn(Optional.of(auction), Optional.of(latestAuction));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(auctionRepository.updateCurrentPriceIfHigher(1L, 10_500L)).willReturn(0);
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.placeBidWithConditionalUpdate(1L, 2L, new PlaceBidRequest(10_500L)),
+        OUTBID_EXISTS);
+    then(bidRepository).should(never()).save(any(Bid.class));
+    then(bidPriceCacheRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 첫_입찰가가_시작가와_최소단위의_합이면_최고입찰로_저장된다() {
     // given
     Auction auction =

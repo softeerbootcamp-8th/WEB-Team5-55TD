@@ -64,6 +64,50 @@ class BidControllerTest {
   }
 
   @Test
+  void 분산락_방식_엔드포인트로_요청하면_해당_서비스_메서드를_호출한다() throws Exception {
+    // given
+    PlaceBidRequest request = new PlaceBidRequest(10_500L);
+    PlaceBidResponse response =
+        new PlaceBidResponse(
+            10L, 1L, 2L, 10_500L, BidStatus.HIGHEST, LocalDateTime.of(2026, 7, 30, 12, 0));
+    given(bidService.placeBidWithDistributedLock(eq(1L), eq(2L), any(PlaceBidRequest.class)))
+        .willReturn(response);
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions/1/bids/distributed-lock")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(2L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.bidId").value(10L));
+    then(bidService).should().placeBidWithDistributedLock(eq(1L), eq(2L), any());
+  }
+
+  @Test
+  void 조건부UPDATE_방식_엔드포인트로_요청하면_해당_서비스_메서드를_호출한다() throws Exception {
+    // given
+    PlaceBidRequest request = new PlaceBidRequest(10_500L);
+    PlaceBidResponse response =
+        new PlaceBidResponse(
+            10L, 1L, 2L, 10_500L, BidStatus.HIGHEST, LocalDateTime.of(2026, 7, 30, 12, 0));
+    given(bidService.placeBidWithConditionalUpdate(eq(1L), eq(2L), any(PlaceBidRequest.class)))
+        .willReturn(response);
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions/1/bids/conditional-update")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(2L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.bidId").value(10L));
+    then(bidService).should().placeBidWithConditionalUpdate(eq(1L), eq(2L), any());
+  }
+
+  @Test
   void 인증정보가_없으면_401을_반환한다() throws Exception {
     // given
     PlaceBidRequest request = new PlaceBidRequest(10_500L);
