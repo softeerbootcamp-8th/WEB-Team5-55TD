@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
  *
  * <ul>
  *   <li>{@code id VARCHAR(36)} — {@link #eventId()}
+ *   <li>{@code aggregate_type} — {@link #aggregateType()}
  *   <li>{@code aggregate_id BIGINT} — {@link #aggregateId()}
  *   <li>{@code event_type VARCHAR(50)} — {@link #eventName()}
  *   <li>{@code created_at DATETIME} — {@link #occurredAt()}
@@ -42,12 +43,23 @@ public sealed interface DomainEvent permits MessageQueueEvent, NotificationEvent
   String eventId();
 
   /**
+   * 사건이 속한 애그리거트 종류. {@link #aggregateId()}와 짝을 이룬다.
+   *
+   * <p>{@code aggregateId}만으로는 1번이 경매인지 회원인지 알 수 없다. 두 값을 함께 써야 사건의 대상이 특정된다.
+   *
+   * <p>애그리거트는 이벤트 이름과 다를 수 있다. 순서와 일관성을 지켜야 하는 경계를 가리키기 때문이다. 예를 들어 입찰로 발생하는 이벤트도 현재가 순서를 경매 단위로
+   * 지켜야 하므로 {@link AggregateType#AUCTION}과 경매 식별자를 반환한다.
+   */
+  AggregateType aggregateType();
+
+  /**
    * 사건이 속한 애그리거트 식별자. {@code outbox_event.aggregate_id}에 저장된다. 경매에서 일어난 사건이면 {@code auctionId}다.
    *
-   * <p>순서를 지켜야 하는 단위이기도 하다. 계열마다 쓰이는 곳이 다르다.
+   * <p>{@link #aggregateType()}과 함께 순서를 지켜야 하는 단위를 정한다. 계열마다 쓰이는 곳이 다르다.
    *
    * <ul>
-   *   <li>{@link MessageQueueEvent} — SQS FIFO 큐의 {@code MessageGroupId}. 같은 애그리거트 안에서만 순서가 보장된다.
+   *   <li>{@link MessageQueueEvent} — SQS FIFO 큐의 {@code MessageGroupId}를 {@code AUCTION:1024}처럼 두
+   *       값을 묶어 만든다. 같은 애그리거트 안에서만 순서가 보장되므로, 경매 시작과 종료가 같은 그룹에 들어가야 한다.
    *   <li>{@link NotificationEvent} — Redis Pub/Sub 채널 이름 구성 요소. 인스턴스가 필요한 애그리거트만 골라 구독할 수 있다.
    * </ul>
    */
