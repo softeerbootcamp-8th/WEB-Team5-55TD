@@ -6,6 +6,7 @@ import com.ootd.pickup.auction.event.AuctionStartedEvent;
 import com.ootd.pickup.bid.event.BidPlacedEvent;
 import com.ootd.pickup.realtime.dto.AuctionEndedMessage;
 import com.ootd.pickup.realtime.dto.AuctionExtendedMessage;
+import com.ootd.pickup.realtime.dto.AuctionRealtimeMessageType;
 import com.ootd.pickup.realtime.dto.AuctionStartedMessage;
 import com.ootd.pickup.realtime.dto.BidPlacedMessage;
 import lombok.RequiredArgsConstructor;
@@ -27,12 +28,13 @@ public class AuctionRealtimeEventListener {
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handle(AuctionStartedEvent event) {
+    AuctionRealtimeMessageType type = AuctionRealtimeMessageType.AUCTION_STARTED;
     send(
         event.auctionId(),
-        "AUCTION_STARTED",
+        type,
         new AuctionStartedMessage(
             event.eventId(),
-            "AUCTION_STARTED",
+            type,
             event.auctionId(),
             event.occurredAt(),
             event.startedAt(),
@@ -41,12 +43,13 @@ public class AuctionRealtimeEventListener {
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handle(BidPlacedEvent event) {
+    AuctionRealtimeMessageType type = AuctionRealtimeMessageType.BID_PLACED;
     send(
         event.auctionId(),
-        "BID_PLACED",
+        type,
         new BidPlacedMessage(
             event.eventId(),
-            "BID_PLACED",
+            type,
             event.auctionId(),
             event.occurredAt(),
             event.bidId(),
@@ -57,12 +60,13 @@ public class AuctionRealtimeEventListener {
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handle(AuctionExtendedEvent event) {
+    AuctionRealtimeMessageType type = AuctionRealtimeMessageType.AUCTION_EXTENDED;
     send(
         event.auctionId(),
-        "AUCTION_EXTENDED",
+        type,
         new AuctionExtendedMessage(
             event.eventId(),
-            "AUCTION_EXTENDED",
+            type,
             event.auctionId(),
             event.occurredAt(),
             event.previousEndedAt(),
@@ -71,12 +75,13 @@ public class AuctionRealtimeEventListener {
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handle(AuctionEndedEvent event) {
+    AuctionRealtimeMessageType type = AuctionRealtimeMessageType.AUCTION_ENDED;
     send(
         event.auctionId(),
-        "AUCTION_ENDED",
+        type,
         new AuctionEndedMessage(
             event.eventId(),
-            "AUCTION_ENDED",
+            type,
             event.auctionId(),
             event.occurredAt(),
             event.status().name(),
@@ -84,7 +89,7 @@ public class AuctionRealtimeEventListener {
             event.endedAt()));
   }
 
-  private void send(Long auctionId, String eventType, Object message) {
+  private void send(Long auctionId, AuctionRealtimeMessageType eventType, Object message) {
     try {
       messagingTemplate.convertAndSend(AUCTION_TOPIC_PREFIX + auctionId, message);
     } catch (MessagingException e) {

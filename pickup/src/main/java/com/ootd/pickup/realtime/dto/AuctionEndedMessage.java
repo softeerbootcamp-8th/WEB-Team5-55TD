@@ -5,7 +5,7 @@ import java.util.UUID;
 
 public record AuctionEndedMessage(
     UUID eventId,
-    String type,
+    AuctionRealtimeMessageType type,
     Long auctionId,
     LocalDateTime occurredAt,
     String status,
