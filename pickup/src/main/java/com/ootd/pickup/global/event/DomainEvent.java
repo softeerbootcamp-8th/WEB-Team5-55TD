@@ -9,8 +9,6 @@ import java.time.LocalDateTime;
  *
  * <p>{@link #eventId()}와 {@link #occurredAt()}은 호출마다 새 값이 생기면 안 되므로 default로 둘 수 없다. record 컴포넌트로
  * 선언하고 정적 팩토리에서 채운다.
- *
- * <p>설계 배경은 {@code .docs/pickup-domain-event-structure.md} 참고.
  */
 public interface DomainEvent {
 
