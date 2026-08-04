@@ -85,6 +85,9 @@ class BidServiceTest {
     assertThat(response.memberId()).isEqualTo(2L);
     assertThat(response.bidPrice()).isEqualTo(10_500L);
     assertThat(response.bidStatus()).isEqualTo(BidStatus.HIGHEST);
+    assertThat(auction.getWinningBidId()).isEqualTo(10L);
+    assertThat(auction.getWinningPrice()).isEqualTo(10_500L);
+    then(auctionRepository).should().save(auction);
   }
 
   @Test
@@ -117,6 +120,9 @@ class BidServiceTest {
     assertThat(previousHighestBid.getBidStatus()).isEqualTo(BidStatus.OUTBID);
     assertThat(response.bidId()).isEqualTo(11L);
     assertThat(response.bidStatus()).isEqualTo(BidStatus.HIGHEST);
+    assertThat(auction.getWinningBidId()).isEqualTo(11L);
+    assertThat(auction.getWinningPrice()).isEqualTo(11_000L);
+    then(auctionRepository).should().save(auction);
   }
 
   @Test
