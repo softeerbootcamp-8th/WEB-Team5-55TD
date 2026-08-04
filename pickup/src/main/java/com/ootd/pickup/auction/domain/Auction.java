@@ -1,6 +1,9 @@
 package com.ootd.pickup.auction.domain;
 
+import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_CANCELLABLE;
+
 import com.ootd.pickup.consignments.domain.Consignment;
+import com.ootd.pickup.global.exception.PickUpException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -85,5 +88,12 @@ public class Auction {
       return null;
     }
     return Math.max(Duration.between(LocalDateTime.now(), endedAt).getSeconds(), 0);
+  }
+
+  public void cancel() {
+    if (auctionStatus != AuctionStatus.SCHEDULED && auctionStatus != AuctionStatus.ONGOING) {
+      throw new PickUpException(AUCTION_NOT_CANCELLABLE);
+    }
+    auctionStatus = AuctionStatus.CANCELLED;
   }
 }

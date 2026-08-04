@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -237,5 +240,43 @@ public class AuctionDataJpaRepository implements AuctionRepository {
         .endedAt
         .lt(endedAt)
         .or(auction.endedAt.eq(endedAt).and(auction.auctionId.lt(cursor.auctionId())));
+  }
+
+  @Override
+  public Page<Auction> searchAuctionsForAdmin(
+      String q, List<AuctionStatus> statuses, Long sellerMemberId, Pageable pageable) {
+    List<Auction> content =
+        queryFactory
+            .selectFrom(auction)
+            .join(auction.consignment, consignment)
+            .fetchJoin()
+            .join(consignment.card, card)
+            .fetchJoin()
+            .join(consignment.sellerMember, member)
+            .fetchJoin()
+            .where(keywordMatches(q), statusIn(statuses), sellerEq(sellerMemberId))
+            .orderBy(auction.createdAt.desc(), auction.auctionId.desc())
+            .offset(pageable.getOffset())
+            .limit(pageable.getPageSize())
+            .fetch();
+
+    Long total =
+        queryFactory
+            .select(auction.count())
+            .from(auction)
+            .join(auction.consignment, consignment)
+            .join(consignment.card, card)
+            .where(keywordMatches(q), statusIn(statuses), sellerEq(sellerMemberId))
+            .fetchOne();
+
+    return new PageImpl<>(content, pageable, total == null ? 0 : total);
+  }
+
+  private BooleanExpression sellerEq(Long sellerMemberId) {
+    if (sellerMemberId == null) {
+      return null;
+    }
+
+    return consignment.sellerMember.memberId.eq(sellerMemberId);
   }
 }

@@ -72,4 +72,25 @@ public class Consignment {
     }
     this.status = AUCTION_SCHEDULED;
   }
+
+  public void markAuctionCancelled() {
+    if (this.status != AUCTION_SCHEDULED && this.status != AUCTION_ONGOING) {
+      throw new PickUpException(AUCTION_NOT_CANCELLABLE);
+    }
+    this.status = PASSED;
+  }
+
+  public void block() {
+    if (this.status != REGISTERABLE && this.status != PASSED) {
+      throw new PickUpException(CONSIGNMENT_NOT_BLOCKABLE);
+    }
+    this.status = BLOCKED;
+  }
+
+  public void unblock() {
+    if (this.status != BLOCKED) {
+      throw new PickUpException(CONSIGNMENT_NOT_UNBLOCKABLE);
+    }
+    this.status = REGISTERABLE;
+  }
 }

@@ -1,5 +1,8 @@
 package com.ootd.pickup.point.domain;
 
+import static com.ootd.pickup.global.exception.ExceptionCode.POINT_BALANCE_INSUFFICIENT;
+
+import com.ootd.pickup.global.exception.PickUpException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -31,5 +34,13 @@ public class Point {
     point.memberId = memberId;
     point.balance = 0;
     return point;
+  }
+
+  public void adjustBalance(long amount) {
+    long adjustedBalance = balance + amount;
+    if (adjustedBalance < 0) {
+      throw new PickUpException(POINT_BALANCE_INSUFFICIENT);
+    }
+    balance = adjustedBalance;
   }
 }

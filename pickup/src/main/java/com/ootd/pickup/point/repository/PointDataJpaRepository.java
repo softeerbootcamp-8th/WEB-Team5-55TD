@@ -1,6 +1,7 @@
 package com.ootd.pickup.point.repository;
 
 import com.ootd.pickup.point.domain.Point;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -14,6 +15,11 @@ public class PointDataJpaRepository implements PointRepository {
   @Override
   public Optional<Point> findByMemberId(Long memberId) {
     return pointJpaRepository.findByMemberId(memberId);
+  }
+
+  @Override
+  public List<Point> findAllByMemberIdIn(List<Long> memberIds) {
+    return pointJpaRepository.findAllByMemberIdIn(memberIds);
   }
 
   @Override

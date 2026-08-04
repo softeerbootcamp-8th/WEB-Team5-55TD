@@ -2,6 +2,10 @@ package com.ootd.pickup.auction.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
 
+import com.ootd.pickup.admin.dto.request.AdminCancelAuctionRequest;
+import com.ootd.pickup.admin.dto.request.AdminSearchAuctionsRequest;
+import com.ootd.pickup.admin.dto.response.AdminAuctionDetailResponse;
+import com.ootd.pickup.admin.dto.response.AdminAuctionListItemResponse;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.dto.request.CreateAuctionRequest;
@@ -22,6 +26,7 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.dto.response.PageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
 import java.util.List;
@@ -29,9 +34,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -131,6 +140,44 @@ public class AuctionService {
 
     return AuctionDetailResponse.of(
         auction, certificate, images, watchCount, watched, currentPrice);
+  }
+
+  public PageResponse<AdminAuctionListItemResponse> searchAuctionsForAdmin(
+      AdminSearchAuctionsRequest request, Pageable pageable) {
+    List<AuctionStatus> statuses =
+        request.status() == null
+            ? List.of()
+            : request.status().stream().map(AuctionStatus::from).toList();
+
+    Page<Auction> auctions =
+        auctionRepository.searchAuctionsForAdmin(
+            request.q(), statuses, request.sellerMemberId(), pageable);
+
+    return PageResponse.from(auctions, AdminAuctionListItemResponse::fromEntity);
+  }
+
+  public AdminAuctionDetailResponse getAuctionDetailForAdmin(Long auctionId) {
+    Auction auction = getAuction(auctionId);
+    Certificate certificate = getCertificate(auction.getConsignment());
+    return AdminAuctionDetailResponse.of(auction, certificate);
+  }
+
+  @Transactional
+  public AdminAuctionDetailResponse cancelAuction(
+      Long adminId, Long auctionId, AdminCancelAuctionRequest request) {
+    Auction auction =
+        auctionRepository
+            .findByIdForUpdate(auctionId)
+            .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+
+    auction.cancel();
+    auction.getConsignment().markAuctionCancelled();
+
+    log.info(
+        "경매 강제 취소 - adminId={}, auctionId={}, reason={}", adminId, auctionId, request.reason());
+
+    Certificate certificate = getCertificate(auction.getConsignment());
+    return AdminAuctionDetailResponse.of(auction, certificate);
   }
 
   private Consignment getConsignment(Long consignmentId) {

@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.ootd.pickup.auth.token.InvalidAccessTokenException;
+import com.ootd.pickup.auth.token.InvalidAdminAccessTokenException;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
+import com.ootd.pickup.global.auth.AdminTokenCookieManager;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import com.ootd.pickup.global.auth.TokenCookieProperties;
 import jakarta.servlet.FilterChain;
@@ -25,8 +27,10 @@ class ExceptionHandlingFilterTest {
       new TokenCookieManager(
           new JwtTokenProperties("pickup", "secret", Duration.ofMinutes(30), Duration.ofDays(14)),
           new TokenCookieProperties(true, "None"));
+  private final AdminTokenCookieManager adminTokenCookieManager =
+      new AdminTokenCookieManager(new TokenCookieProperties(true, "None"));
   private final ExceptionHandlingFilter exceptionHandlingFilter =
-      new ExceptionHandlingFilter(objectMapper, tokenCookieManager);
+      new ExceptionHandlingFilter(objectMapper, tokenCookieManager, adminTokenCookieManager);
 
   @Test
   void 액세스_토큰이_유효하지_않으면_401_응답을_반환한다() throws Exception {
@@ -82,6 +86,28 @@ class ExceptionHandlingFilterTest {
 
     // then
     assertThat(response.getCookie("refresh-token")).isNull();
+  }
+
+  @Test
+  void 관리자_액세스_토큰이_유효하지_않으면_401_응답을_반환하고_관리자_토큰_쿠키를_만료시킨다() throws Exception {
+    // given
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/admin/members");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    FilterChain filterChain = mock(FilterChain.class);
+    doThrow(new InvalidAdminAccessTokenException()).when(filterChain).doFilter(request, response);
+
+    // when
+    exceptionHandlingFilter.doFilter(request, response, filterChain);
+
+    // then
+    JsonNode body = objectMapper.readTree(response.getContentAsByteArray());
+    assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+    assertThat(body.get("error").asText()).isEqualTo("INVALID_ADMIN_ACCESS_TOKEN");
+
+    Cookie adminAccessTokenCookie = response.getCookie("admin-access-token");
+    assertThat(adminAccessTokenCookie).isNotNull();
+    assertThat(adminAccessTokenCookie.getValue()).isEmpty();
+    assertThat(adminAccessTokenCookie.getMaxAge()).isZero();
   }
 
   @Test

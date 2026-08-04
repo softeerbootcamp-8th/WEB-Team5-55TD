@@ -1,6 +1,7 @@
 package com.ootd.pickup.global.config;
 
 import com.ootd.pickup.auth.token.AccessTokenVerifier;
+import com.ootd.pickup.global.auth.AdminTokenCookieManager;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import com.ootd.pickup.global.filter.ExceptionHandlingFilter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -15,9 +16,11 @@ public class FilterConfig {
   @Bean
   @ConditionalOnBean(AccessTokenVerifier.class)
   public FilterRegistrationBean<ExceptionHandlingFilter> exceptionHandlingFilterRegistration(
-      ObjectMapper objectMapper, TokenCookieManager tokenCookieManager) {
+      ObjectMapper objectMapper,
+      TokenCookieManager tokenCookieManager,
+      AdminTokenCookieManager adminTokenCookieManager) {
     ExceptionHandlingFilter exceptionHandlingFilter =
-        new ExceptionHandlingFilter(objectMapper, tokenCookieManager);
+        new ExceptionHandlingFilter(objectMapper, tokenCookieManager, adminTokenCookieManager);
     FilterRegistrationBean<ExceptionHandlingFilter> filterRegistrationBean =
         new FilterRegistrationBean<>(exceptionHandlingFilter);
     filterRegistrationBean.addUrlPatterns("/*");

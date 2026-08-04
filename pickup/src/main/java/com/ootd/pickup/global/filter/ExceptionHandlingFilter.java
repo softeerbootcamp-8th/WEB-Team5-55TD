@@ -1,6 +1,8 @@
 package com.ootd.pickup.global.filter;
 
 import com.ootd.pickup.auth.token.InvalidAccessTokenException;
+import com.ootd.pickup.auth.token.InvalidAdminAccessTokenException;
+import com.ootd.pickup.global.auth.AdminTokenCookieManager;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.ExceptionResponseFactory;
@@ -12,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
@@ -21,6 +24,7 @@ public class ExceptionHandlingFilter extends OncePerRequestFilter {
 
   private final ObjectMapper objectMapper;
   private final TokenCookieManager tokenCookieManager;
+  private final AdminTokenCookieManager adminTokenCookieManager;
 
   @Override
   protected void doFilterInternal(
@@ -29,26 +33,33 @@ public class ExceptionHandlingFilter extends OncePerRequestFilter {
     try {
       filterChain.doFilter(request, response);
     } catch (InvalidAccessTokenException exception) {
-      writeInvalidAccessTokenResponse(request, response);
+      writeExceptionResponse(
+          request,
+          response,
+          ExceptionCode.INVALID_ACCESS_TOKEN,
+          tokenCookieManager.createExpiredAccessTokenCookieHeaders());
+    } catch (InvalidAdminAccessTokenException exception) {
+      writeExceptionResponse(
+          request,
+          response,
+          ExceptionCode.INVALID_ADMIN_ACCESS_TOKEN,
+          adminTokenCookieManager.createExpiredTokenCookieHeaders());
     }
   }
 
-  private void writeInvalidAccessTokenResponse(
-      HttpServletRequest request, HttpServletResponse response) throws IOException {
-    ExceptionCode exceptionCode = ExceptionCode.INVALID_ACCESS_TOKEN;
+  private void writeExceptionResponse(
+      HttpServletRequest request,
+      HttpServletResponse response,
+      ExceptionCode exceptionCode,
+      HttpHeaders expiredCookieHeaders)
+      throws IOException {
     ExceptionResponse body = ExceptionResponseFactory.from(exceptionCode, request.getRequestURI());
 
-    expireAccessTokenCookie(response);
+    expiredCookieHeaders.forEach(
+        (name, values) -> values.forEach(value -> response.addHeader(name, value)));
     response.setStatus(exceptionCode.getHttpStatus().value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding(StandardCharsets.UTF_8.name());
     objectMapper.writeValue(response.getOutputStream(), body);
-  }
-
-  /** 유효하지 않은 액세스 토큰 쿠키를 만료시킨다. 쿠키를 남겨두면 로그인 요청까지 인증 필터에 막혀 사용자가 스스로 복구할 수 없다. */
-  private void expireAccessTokenCookie(HttpServletResponse response) {
-    tokenCookieManager
-        .createExpiredAccessTokenCookieHeaders()
-        .forEach((name, values) -> values.forEach(value -> response.addHeader(name, value)));
   }
 }

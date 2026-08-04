@@ -2,6 +2,10 @@ package com.ootd.pickup.consignments.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
 
+import com.ootd.pickup.admin.dto.request.AdminBlockConsignmentRequest;
+import com.ootd.pickup.admin.dto.request.AdminSearchConsignmentsRequest;
+import com.ootd.pickup.admin.dto.response.AdminConsignmentDetailResponse;
+import com.ootd.pickup.admin.dto.response.AdminConsignmentListItemResponse;
 import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.service.CardManageService;
@@ -21,6 +25,7 @@ import com.ootd.pickup.consignments.repository.certificate.CertificateRepository
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.dto.response.PageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
@@ -29,10 +34,14 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -198,5 +207,66 @@ public class ConsignmentService {
     return certificateRepository
         .findCertificateByConsignment(consignment)
         .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
+  }
+
+  public PageResponse<AdminConsignmentListItemResponse> searchConsignmentsForAdmin(
+      AdminSearchConsignmentsRequest request, Pageable pageable) {
+    List<ConsignmentStatus> statuses =
+        request.status() == null
+            ? List.of()
+            : request.status().stream().map(ConsignmentStatus::from).toList();
+
+    Page<Consignment> consignments =
+        consignmentRepository.searchConsignmentsForAdmin(
+            request.q(), statuses, request.sellerMemberId(), pageable);
+
+    return PageResponse.from(consignments, AdminConsignmentListItemResponse::fromEntity);
+  }
+
+  public AdminConsignmentDetailResponse getConsignmentDetailForAdmin(Long consignmentId) {
+    Consignment consignment = getConsignmentEntity(consignmentId);
+    Certificate certificate = getCertificate(consignment);
+    return AdminConsignmentDetailResponse.of(consignment, certificate);
+  }
+
+  @Transactional
+  public AdminConsignmentDetailResponse blockConsignment(
+      Long adminId, Long consignmentId, AdminBlockConsignmentRequest request) {
+    Consignment consignment =
+        consignmentRepository
+            .findByIdForUpdate(consignmentId)
+            .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+    consignment.block();
+
+    log.info(
+        "상품 강제 차단 - adminId={}, consignmentId={}, reason={}",
+        adminId,
+        consignmentId,
+        request.reason());
+
+    Certificate certificate = getCertificate(consignment);
+    return AdminConsignmentDetailResponse.of(consignment, certificate);
+  }
+
+  @Transactional
+  public AdminConsignmentDetailResponse unblockConsignment(Long adminId, Long consignmentId) {
+    Consignment consignment =
+        consignmentRepository
+            .findByIdForUpdate(consignmentId)
+            .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+    consignment.unblock();
+
+    log.info("상품 차단 해제 - adminId={}, consignmentId={}", adminId, consignmentId);
+
+    Certificate certificate = getCertificate(consignment);
+    return AdminConsignmentDetailResponse.of(consignment, certificate);
+  }
+
+  private Consignment getConsignmentEntity(Long consignmentId) {
+    return consignmentRepository
+        .findConsignmentById(consignmentId)
+        .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
   }
 }

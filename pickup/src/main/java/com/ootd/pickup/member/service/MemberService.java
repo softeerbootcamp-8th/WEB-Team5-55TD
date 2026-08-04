@@ -8,6 +8,8 @@ import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NICKNAME_ALR
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
+import com.ootd.pickup.admin.dto.response.AdminMemberDetailResponse;
+import com.ootd.pickup.admin.dto.response.AdminMemberListItemResponse;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
 import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
@@ -16,6 +18,7 @@ import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.dto.response.PageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.dto.MemberRequest;
@@ -31,6 +34,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -188,6 +193,32 @@ public class MemberService {
       throw new PickUpException(ILLEGAL_ARGUMENT);
     }
     return Math.min(size, MAX_SIZE);
+  }
+
+  @Transactional(readOnly = true)
+  public PageResponse<AdminMemberListItemResponse> searchMembersForAdmin(
+      String q, Pageable pageable) {
+    Page<Member> members = memberRepository.searchMembers(q, pageable);
+    Map<Long, Long> balancesByMemberId = balancesByMemberId(members.getContent());
+
+    return PageResponse.from(
+        members,
+        member ->
+            AdminMemberListItemResponse.of(
+                member, balancesByMemberId.getOrDefault(member.getMemberId(), 0L)));
+  }
+
+  @Transactional(readOnly = true)
+  public AdminMemberDetailResponse getMemberDetailForAdmin(Long memberId) {
+    Member member = memberManageService.getMemberById(memberId);
+    long balance = pointRepository.findByMemberId(memberId).map(Point::getBalance).orElse(0L);
+    return AdminMemberDetailResponse.of(member, balance);
+  }
+
+  private Map<Long, Long> balancesByMemberId(List<Member> members) {
+    List<Long> memberIds = members.stream().map(Member::getMemberId).toList();
+    return pointRepository.findAllByMemberIdIn(memberIds).stream()
+        .collect(Collectors.toMap(Point::getMemberId, Point::getBalance));
   }
 
   private String hashPassword(String rawPassword) {

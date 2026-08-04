@@ -14,7 +14,9 @@ public enum AuctionStatus {
   // 낙찰되어 종료
   WON,
   // 유찰되어 종료
-  PASSED;
+  PASSED,
+  // 관리자에 의해 강제 취소되어 종료
+  CANCELLED;
 
   private static final List<AuctionStatus> TERMINAL_STATUSES = List.of(WON, PASSED);
 

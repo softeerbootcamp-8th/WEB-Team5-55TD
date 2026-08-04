@@ -91,7 +91,37 @@ public enum ExceptionCode {
   INVALID_CONSIGNMENT_STATUS(
       HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CONSIGNMENT_STATUS, "유효하지 않은 상품 상태입니다."),
   INVALID_PAGE_SIZE(
-      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다.");
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다."),
+  ADMIN_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.ADMIN_NOT_FOUND, "관리자를 찾을 수 없습니다."),
+  ADMIN_LOGIN_FAILED(
+      HttpStatus.UNAUTHORIZED, ClientExceptionCode.ADMIN_LOGIN_FAILED, "아이디 또는 비밀번호가 일치하지 않습니다."),
+  ADMIN_AUTHENTICATION_REQUIRED(
+      HttpStatus.UNAUTHORIZED, ClientExceptionCode.ADMIN_AUTHENTICATION_REQUIRED, "관리자 인증이 필요합니다."),
+  INVALID_ADMIN_ACCESS_TOKEN(
+      HttpStatus.UNAUTHORIZED,
+      ClientExceptionCode.INVALID_ADMIN_ACCESS_TOKEN,
+      "유효하지 않은 관리자 액세스 토큰입니다."),
+  INVALID_POINT_GRANT_AMOUNT(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.INVALID_POINT_GRANT_AMOUNT,
+      "발급/조정 금액은 0이 될 수 없습니다."),
+  POINT_BALANCE_INSUFFICIENT(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.POINT_BALANCE_INSUFFICIENT,
+      "조정 후 잔액이 0보다 작을 수 없습니다."),
+  POINT_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.POINT_NOT_FOUND, "포인트 계좌를 찾을 수 없습니다."),
+  AUCTION_NOT_CANCELLABLE(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.AUCTION_NOT_CANCELLABLE,
+      "예정 또는 진행 중인 경매만 취소할 수 있습니다."),
+  CONSIGNMENT_NOT_BLOCKABLE(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CONSIGNMENT_NOT_BLOCKABLE,
+      "경매 등록 가능 또는 유찰 상태의 상품만 차단할 수 있습니다."),
+  CONSIGNMENT_NOT_UNBLOCKABLE(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.CONSIGNMENT_NOT_UNBLOCKABLE,
+      "차단된 상품만 차단 해제할 수 있습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

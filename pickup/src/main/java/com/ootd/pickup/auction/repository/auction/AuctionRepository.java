@@ -6,6 +6,8 @@ import com.ootd.pickup.consignments.domain.Consignment;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface AuctionRepository {
   Auction save(Auction auction);
@@ -23,4 +25,7 @@ public interface AuctionRepository {
       Long sellerMemberId, List<AuctionStatus> statuses, SalesCursor cursor, int limit);
 
   Map<Long, Long> findAuctionIdsByConsignmentIn(List<Consignment> consignments);
+
+  Page<Auction> searchAuctionsForAdmin(
+      String q, List<AuctionStatus> statuses, Long sellerMemberId, Pageable pageable);
 }

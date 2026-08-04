@@ -37,6 +37,8 @@ auth:
     secret: ${JWT_SECRET:}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
     refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:14d}
+  admin-token:
+    access-token-ttl: ${JWT_ADMIN_ACCESS_TOKEN_TTL:12h}
 
 slack:
   enabled: ${SLACK_ENABLED:false}

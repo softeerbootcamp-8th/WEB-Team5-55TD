@@ -2,6 +2,7 @@ package com.ootd.pickup.consignments.repository.consignment;
 
 import static com.ootd.pickup.cards.domain.QCard.*;
 import static com.ootd.pickup.consignments.domain.QConsignment.*;
+import static com.ootd.pickup.member.domain.QMember.member;
 
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
@@ -10,7 +11,11 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 @Repository
 @RequiredArgsConstructor
@@ -69,5 +74,56 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
     }
 
     return consignment.consignmentId.lt(cursor);
+  }
+
+  @Override
+  public Page<Consignment> searchConsignmentsForAdmin(
+      String q, List<ConsignmentStatus> statuses, Long sellerMemberId, Pageable pageable) {
+    List<Consignment> content =
+        queryFactory
+            .selectFrom(consignment)
+            .join(consignment.card, card)
+            .fetchJoin()
+            .join(consignment.sellerMember, member)
+            .fetchJoin()
+            .where(keywordMatches(q), statusIn(statuses), sellerEq(sellerMemberId))
+            .orderBy(consignment.consignmentId.desc())
+            .offset(pageable.getOffset())
+            .limit(pageable.getPageSize())
+            .fetch();
+
+    Long total =
+        queryFactory
+            .select(consignment.count())
+            .from(consignment)
+            .join(consignment.card, card)
+            .where(keywordMatches(q), statusIn(statuses), sellerEq(sellerMemberId))
+            .fetchOne();
+
+    return new PageImpl<>(content, pageable, total == null ? 0 : total);
+  }
+
+  private BooleanExpression keywordMatches(String q) {
+    if (!StringUtils.hasText(q)) {
+      return null;
+    }
+
+    return card.cardName.containsIgnoreCase(q).or(card.setName.containsIgnoreCase(q));
+  }
+
+  private BooleanExpression statusIn(List<ConsignmentStatus> statuses) {
+    if (statuses == null || statuses.isEmpty()) {
+      return null;
+    }
+
+    return consignment.status.in(statuses);
+  }
+
+  private BooleanExpression sellerEq(Long sellerMemberId) {
+    if (sellerMemberId == null) {
+      return null;
+    }
+
+    return consignment.sellerMember.memberId.eq(sellerMemberId);
   }
 }
