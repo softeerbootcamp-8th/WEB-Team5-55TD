@@ -1,0 +1,17 @@
+## 설치 경로: /etc/datadog-agent/conf.d/mysql.d/conf.yaml
+## DB_HOST와 DB_PASSWORD는 datadog-agent.service 환경변수로 제공한다.
+init_config:
+
+instances:
+  - host: "%%env_DB_HOST%%"
+    port: 3306
+    username: datadog
+    password: "%%env_DB_PASSWORD%%"
+    dbm: true
+    query_activity:
+      enabled: true
+      collect_blocking_queries: true
+    extra_innodb_metrics: true
+    tags:
+      - env:production
+      - service:pickup-mysql
