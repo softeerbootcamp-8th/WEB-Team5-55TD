@@ -42,3 +42,8 @@ slack:
   enabled: ${SLACK_ENABLED:false}
   bot-token: ${SLACK_BOT_TOKEN:}
   channel: ${SLACK_CHANNEL:}
+realtime:
+  websocket:
+    allowed-origins:
+      - http://localhost:5173
+      - https://d38qqh1zkovln3.cloudfront.net
