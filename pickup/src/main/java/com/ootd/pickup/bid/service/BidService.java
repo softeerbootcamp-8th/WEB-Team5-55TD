@@ -27,7 +27,6 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,27 +48,34 @@ public class BidService {
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
     Auction auction =
         auctionRepository
-            .findByIdForUpdate(auctionId)
+            .findById(auctionId)
             .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
 
     validateAuction(auction, memberId);
+    validateBidPrice(request.bidPrice(), auction.getCurrentPrice(), auction.getBidIncrement());
 
     Member member =
         memberRepository
             .findById(memberId)
             .orElseThrow(() -> new PickUpException(MEMBER_NOT_FOUND));
-    Optional<Bid> currentHighestBid =
-        bidRepository.findFirstByAuctionIdAndBidStatus(auctionId, HIGHEST);
-    Long currentPrice =
-        currentHighestBid.map(Bid::getBidPrice).orElseGet(auction::getStartingPrice);
 
-    validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
+    int updated = auctionRepository.updateCurrentPriceIfHigher(auctionId, request.bidPrice());
+    if (updated == 0) {
+      Auction latest =
+          auctionRepository
+              .findById(auctionId)
+              .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+      validateBidPrice(request.bidPrice(), latest.getCurrentPrice(), latest.getBidIncrement());
+      throw new PickUpException(OUTBID_EXISTS);
+    }
 
-    currentHighestBid.ifPresent(
-        bid -> {
-          bid.outbid();
-          bidRepository.save(bid);
-        });
+    bidRepository
+        .findFirstByAuctionIdAndBidStatus(auctionId, HIGHEST)
+        .ifPresent(
+            bid -> {
+              bid.outbid();
+              bidRepository.save(bid);
+            });
 
     Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
     return PlaceBidResponse.from(savedBid);

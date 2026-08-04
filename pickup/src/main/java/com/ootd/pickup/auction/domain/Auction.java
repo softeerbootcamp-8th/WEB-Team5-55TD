@@ -49,6 +49,9 @@ public class Auction {
   @Column(name = "starting_price", nullable = false)
   private Long startingPrice;
 
+  @Column(name = "current_price", nullable = false)
+  private Long currentPrice;
+
   @Column(name = "reserve_price", nullable = false)
   private Long reservePrice;
 
@@ -75,6 +78,7 @@ public class Auction {
     this.endedAt = endedAt;
     this.auctionStatus = auctionStatus;
     this.startingPrice = startingPrice;
+    this.currentPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
     this.createdAt = LocalDateTime.now();

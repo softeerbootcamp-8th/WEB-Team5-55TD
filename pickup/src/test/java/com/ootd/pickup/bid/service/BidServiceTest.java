@@ -64,8 +64,9 @@ class BidServiceTest {
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
     Member bidder = createMember(2L);
-    given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(auctionRepository.updateCurrentPriceIfHigher(1L, 10_500L)).willReturn(1);
     given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
         .willReturn(Optional.empty());
     given(bidRepository.save(any(Bid.class)))
@@ -92,12 +93,14 @@ class BidServiceTest {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    ReflectionTestUtils.setField(auction, "currentPrice", 10_500L);
     Member previousBidder = createMember(2L);
     Member newBidder = createMember(3L);
     Bid previousHighestBid = Bid.create(auction, previousBidder, 10_500L);
     ReflectionTestUtils.setField(previousHighestBid, "bidId", 10L);
-    given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(3L)).willReturn(Optional.of(newBidder));
+    given(auctionRepository.updateCurrentPriceIfHigher(1L, 11_000L)).willReturn(1);
     given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
         .willReturn(Optional.of(previousHighestBid));
     given(bidRepository.save(any(Bid.class)))
@@ -124,12 +127,8 @@ class BidServiceTest {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
-    Member bidder = createMember(2L);
-    Bid previousHighestBid = Bid.create(auction, createMember(3L), 10_500L);
-    given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
-    given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.of(previousHighestBid));
+    ReflectionTestUtils.setField(auction, "currentPrice", 10_500L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
 
     // when & then
     assertExceptionCode(
@@ -142,12 +141,8 @@ class BidServiceTest {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
-    Member bidder = createMember(2L);
-    Bid previousHighestBid = Bid.create(auction, createMember(3L), 10_500L);
-    given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
-    given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.of(previousHighestBid));
+    ReflectionTestUtils.setField(auction, "currentPrice", 10_500L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
 
     // when & then
     assertExceptionCode(
@@ -155,11 +150,51 @@ class BidServiceTest {
   }
 
   @Test
+  void 동시_입찰로_현재가가_이미_갱신되었으면_추월_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Auction latestAuction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    ReflectionTestUtils.setField(latestAuction, "currentPrice", 11_000L);
+    Member bidder = createMember(2L);
+    given(auctionRepository.findById(1L))
+        .willReturn(Optional.of(auction), Optional.of(latestAuction));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(auctionRepository.updateCurrentPriceIfHigher(1L, 10_500L)).willReturn(0);
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.placeBid(1L, 2L, new PlaceBidRequest(10_500L)), OUTBID_EXISTS);
+    then(bidRepository).should(never()).save(any(Bid.class));
+  }
+
+  @Test
+  void 동시_입찰로_최소단위_조건을_충족하지_못하면_최소단위_미만_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Auction latestAuction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    ReflectionTestUtils.setField(latestAuction, "currentPrice", 10_500L);
+    Member bidder = createMember(2L);
+    given(auctionRepository.findById(1L))
+        .willReturn(Optional.of(auction), Optional.of(latestAuction));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(auctionRepository.updateCurrentPriceIfHigher(1L, 10_600L)).willReturn(0);
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.placeBid(1L, 2L, new PlaceBidRequest(10_600L)), BELOW_MIN_INCREMENT);
+    then(bidRepository).should(never()).save(any(Bid.class));
+  }
+
+  @Test
   void 시작되지_않은_경매에_입찰하면_예외가_발생한다() {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.SCHEDULED, LocalDateTime.now().plusHours(1));
-    given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
 
     // when & then
     assertExceptionCode(
@@ -171,7 +206,7 @@ class BidServiceTest {
   void 종료된_상태의_경매에_입찰하면_예외가_발생한다() {
     // given
     Auction auction = createAuction(1L, 1L, AuctionStatus.WON, LocalDateTime.now().minusMinutes(1));
-    given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
 
     // when & then
     assertExceptionCode(
@@ -183,7 +218,7 @@ class BidServiceTest {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().minusMinutes(1));
-    given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
 
     // when & then
     assertExceptionCode(
@@ -195,7 +230,7 @@ class BidServiceTest {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
-    given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
 
     // when & then
     assertExceptionCode(
@@ -207,7 +242,7 @@ class BidServiceTest {
   @Test
   void 존재하지_않는_경매에_입찰하면_예외가_발생한다() {
     // given
-    given(auctionRepository.findByIdForUpdate(999L)).willReturn(Optional.empty());
+    given(auctionRepository.findById(999L)).willReturn(Optional.empty());
 
     // when & then
     assertExceptionCode(

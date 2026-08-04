@@ -185,8 +185,8 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   }
 
   @Override
-  public Optional<Auction> findByIdForUpdate(Long auctionId) {
-    return auctionJpaRepository.findByIdForUpdate(auctionId);
+  public int updateCurrentPriceIfHigher(Long auctionId, Long newPrice) {
+    return auctionJpaRepository.updateCurrentPriceIfHigher(auctionId, newPrice);
   }
 
   @Override
