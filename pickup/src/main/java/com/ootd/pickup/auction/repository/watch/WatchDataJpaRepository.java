@@ -75,7 +75,7 @@ public class WatchDataJpaRepository implements WatchRepository {
   }
 
   @Override
-  public List<Watch> findAllScheduledByMemberId(Long memberId, Long cursorWatchId, int limit) {
+  public List<Watch> findAllActiveByMemberId(Long memberId, Long cursorWatchId, int limit) {
     return queryFactory
         .selectFrom(watch)
         .join(watch.auction, auction)
@@ -86,7 +86,7 @@ public class WatchDataJpaRepository implements WatchRepository {
         .fetchJoin()
         .where(
             watch.member.memberId.eq(memberId),
-            auction.auctionStatus.eq(AuctionStatus.SCHEDULED),
+            auction.auctionStatus.in(AuctionStatus.SCHEDULED, AuctionStatus.ONGOING),
             keysetPredicate(cursorWatchId))
         .orderBy(watch.watchId.desc())
         .limit(limit)

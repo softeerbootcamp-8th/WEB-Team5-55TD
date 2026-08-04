@@ -16,5 +16,5 @@ public interface WatchRepository {
 
   Set<Long> findWatchedAuctionIds(Long memberId, List<Long> auctionIds);
 
-  List<Watch> findAllScheduledByMemberId(Long memberId, Long cursorWatchId, int limit);
+  List<Watch> findAllActiveByMemberId(Long memberId, Long cursorWatchId, int limit);
 }

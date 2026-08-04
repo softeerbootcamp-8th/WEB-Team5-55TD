@@ -162,7 +162,7 @@ public class MemberService {
     Long cursorWatchId = decodeCursor(request.cursor());
 
     List<Watch> fetched =
-        watchRepository.findAllScheduledByMemberId(memberId, cursorWatchId, size + 1);
+        watchRepository.findAllActiveByMemberId(memberId, cursorWatchId, size + 1);
     boolean hasNext = fetched.size() > size;
     List<Watch> page = hasNext ? fetched.subList(0, size) : fetched;
 

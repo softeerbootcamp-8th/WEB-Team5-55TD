@@ -471,7 +471,7 @@ class MemberServiceTest {
     Watch watch = createWatch(500L, member, auction);
     Certificate certificate = createCertificate(consignment, Grade.MINT, CertificationBody.PSA);
 
-    given(watchRepository.findAllScheduledByMemberId(1L, null, 21)).willReturn(List.of(watch));
+    given(watchRepository.findAllActiveByMemberId(1L, null, 21)).willReturn(List.of(watch));
     given(watchRepository.countByAuctionIds(List.of(10L))).willReturn(Map.of(10L, 3L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L)))
         .willReturn(List.of(certificate));
@@ -509,7 +509,7 @@ class MemberServiceTest {
     Watch watchA = createWatch(101L, member, auctionA);
     Watch watchB = createWatch(100L, member, auctionB);
 
-    given(watchRepository.findAllScheduledByMemberId(1L, null, 2))
+    given(watchRepository.findAllActiveByMemberId(1L, null, 2))
         .willReturn(List.of(watchA, watchB));
     given(watchRepository.countByAuctionIds(List.of(10L))).willReturn(Map.of());
     given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
