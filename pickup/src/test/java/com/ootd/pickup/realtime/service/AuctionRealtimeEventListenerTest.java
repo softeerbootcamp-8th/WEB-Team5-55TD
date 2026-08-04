@@ -35,8 +35,7 @@ class AuctionRealtimeEventListenerTest {
     LocalDateTime occurredAt = LocalDateTime.of(2026, 8, 4, 15, 30, 0, 123_456_789);
     LocalDateTime createdAt = LocalDateTime.of(2026, 8, 4, 15, 29, 59, 987_654_321);
     BidPlacedEvent event =
-        new BidPlacedEvent(
-            eventId, 42L, 100L, "입찰자**", 50_000L, occurredAt, createdAt);
+        new BidPlacedEvent(eventId, 42L, 100L, "입찰자**", 50_000L, occurredAt, createdAt);
     ArgumentCaptor<BidPlacedMessage> messageCaptor =
         ArgumentCaptor.forClass(BidPlacedMessage.class);
 
@@ -44,8 +43,7 @@ class AuctionRealtimeEventListenerTest {
     listener.handle(event);
 
     // then
-    verify(messagingTemplate)
-        .convertAndSend(eq("/topic/auctions/42"), messageCaptor.capture());
+    verify(messagingTemplate).convertAndSend(eq("/topic/auctions/42"), messageCaptor.capture());
     assertThat(messageCaptor.getValue())
         .isEqualTo(
             new BidPlacedMessage(
