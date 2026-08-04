@@ -35,7 +35,7 @@ class AuctionRealtimeEventListenerTest {
     LocalDateTime occurredAt = LocalDateTime.of(2026, 8, 4, 15, 30, 0, 123_456_789);
     LocalDateTime createdAt = LocalDateTime.of(2026, 8, 4, 15, 29, 59, 987_654_321);
     BidPlacedEvent event =
-        new BidPlacedEvent(eventId, 42L, 100L, "입찰자**", 50_000L, occurredAt, createdAt);
+        new BidPlacedEvent(eventId, 42L, 100L, "입찰자**", 50_000L, createdAt, occurredAt);
     ArgumentCaptor<BidPlacedMessage> messageCaptor =
         ArgumentCaptor.forClass(BidPlacedMessage.class);
 
@@ -67,8 +67,8 @@ class AuctionRealtimeEventListenerTest {
             100L,
             "입찰자**",
             50_000L,
-            LocalDateTime.of(2026, 8, 4, 15, 30),
-            LocalDateTime.of(2026, 8, 4, 15, 29));
+            LocalDateTime.of(2026, 8, 4, 15, 29),
+            LocalDateTime.of(2026, 8, 4, 15, 30));
     doThrow(new MessagingException("broker failure"))
         .when(messagingTemplate)
         .convertAndSend(eq("/topic/auctions/42"), any(BidPlacedMessage.class));
