@@ -32,4 +32,12 @@ public class Point {
     point.balance = 0;
     return point;
   }
+
+  public void increaseBalance(long amount) {
+    this.balance += amount;
+  }
+
+  public void decreaseBalance(long amount) {
+    this.balance -= amount;
+  }
 }
