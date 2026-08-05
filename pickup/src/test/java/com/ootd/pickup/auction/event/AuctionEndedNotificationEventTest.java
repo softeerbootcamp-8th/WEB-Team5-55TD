@@ -14,64 +14,58 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class AuctionEndedEventTest {
+class AuctionEndedNotificationEventTest {
 
   @Test
-  void 낙찰된_경매로부터_생성하면_낙찰_입찰과_낙찰가와_낙찰자_판매자_id가_함께_옮겨진다() {
+  void 낙찰된_경매로부터_생성하면_낙찰_입찰_정보가_중첩되어_옮겨진다() {
     // given
-    Member seller = createMember(3L);
-    Auction auction = createAuction(1L, AuctionStatus.WON, seller);
+    Auction auction = createAuction(1L, AuctionStatus.WON);
     auction.updateWinningBid(10L, 10_500L);
-    Member winner = createMember(2L);
+    Member winner = createMember(2L, "닉네임");
     Bid winningBid = createBid(auction, winner, 10L, 10_500L);
 
     // when
-    AuctionEndedEvent event = AuctionEndedEvent.fromEntity(auction, winningBid);
+    AuctionEndedNotificationEvent event =
+        AuctionEndedNotificationEvent.fromEntity(auction, winningBid);
 
     // then
     assertThat(event.auctionId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.winningBidId()).isEqualTo(10L);
     assertThat(event.winningPrice()).isEqualTo(10_500L);
     assertThat(event.auctionStatus()).isEqualTo(AuctionStatus.WON);
-    assertThat(event.winnerMemberId()).isEqualTo(2L);
-    assertThat(event.sellerMemberId()).isEqualTo(3L);
+    assertThat(event.winningBid().bidId()).isEqualTo(10L);
+    assertThat(event.winningBid().memberId()).isEqualTo(2L);
+    assertThat(event.winningBid().memberNickname()).isEqualTo("닉네임");
   }
 
   @Test
-  void 유찰된_경매로부터_생성하면_낙찰자_id가_없다() {
+  void 유찰된_경매로부터_생성하면_낙찰_입찰_정보가_없다() {
     // given
-    Member seller = createMember(3L);
-    Auction auction = createAuction(1L, AuctionStatus.PASSED, seller);
+    Auction auction = createAuction(1L, AuctionStatus.PASSED);
 
     // when
-    AuctionEndedEvent event = AuctionEndedEvent.fromEntity(auction, null);
+    AuctionEndedNotificationEvent event = AuctionEndedNotificationEvent.fromEntity(auction, null);
 
     // then
-    assertThat(event.winnerMemberId()).isNull();
-    assertThat(event.sellerMemberId()).isEqualTo(3L);
+    assertThat(event.winningBid()).isNull();
   }
 
   @Test
   void 경매_애그리거트와_이벤트타입이_고정값으로_반환된다() {
     // given
-    Member seller = createMember(3L);
-    Auction auction = createAuction(1L, AuctionStatus.PASSED, seller);
+    Auction auction = createAuction(1L, AuctionStatus.PASSED);
 
     // when
-    AuctionEndedEvent event = AuctionEndedEvent.fromEntity(auction, null);
+    AuctionEndedNotificationEvent event = AuctionEndedNotificationEvent.fromEntity(auction, null);
 
     // then
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(event.aggregateId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_ENDED);
+    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_ENDED_NOTIFICATION);
   }
 
-  private Auction createAuction(Long auctionId, AuctionStatus status, Member seller) {
+  private Auction createAuction(Long auctionId, AuctionStatus status) {
     Consignment consignment =
-        Consignment.builder()
-            .sellerMember(seller)
-            .status(ConsignmentStatus.AUCTION_SCHEDULED)
-            .build();
+        Consignment.builder().status(ConsignmentStatus.AUCTION_SCHEDULED).build();
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
         Auction.builder()
@@ -87,8 +81,8 @@ class AuctionEndedEventTest {
     return auction;
   }
 
-  private Member createMember(Long memberId) {
-    Member member = Member.create("loginId" + memberId, "password", "닉네임" + memberId);
+  private Member createMember(Long memberId, String nickname) {
+    Member member = Member.create("loginId" + memberId, "password", nickname);
     ReflectionTestUtils.setField(member, "memberId", memberId);
     return member;
   }

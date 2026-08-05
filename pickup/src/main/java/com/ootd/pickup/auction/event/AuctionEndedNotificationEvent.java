@@ -5,51 +5,48 @@ import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.global.event.AggregateType;
 import com.ootd.pickup.global.event.EventType;
-import com.ootd.pickup.global.event.MessageQueueEvent;
+import com.ootd.pickup.global.event.NotificationEvent;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 경매 종료(ONGOING → WON/PASSED) 사건.
+ * 경매 종료(ONGOING → WON/PASSED) 사건 — 실시간 알림용.
  *
- * <p>후속 처리(정산 등)가 정확히 한 번만 실행돼야 하므로 {@link MessageQueueEvent}로 분류한다. Outbox에 먼저 저장되고 별도 Relay가 SQS
- * FIFO 큐로 옮긴다.
+ * <p>구독 중인 모든 App 서버가 각자 WebSocket 세션에 전달해야 하므로 {@link NotificationEvent}로 분류한다. 유실이 허용되며 Outbox를
+ * 거치지 않고 Redis Pub/Sub으로 즉시 발행된다.
  *
- * <p>정산 컨슈머는 다른 프로세스에서 트랜잭션 밖에 실행되므로 낙찰자·판매자를 다시 조회할 수 없다. 그래서 마감 스케줄러가 이미 로드해 둔 {@code
- * winningBid}/{@code auction.getConsignment().getSellerMember()}에서 memberId를 미리 꺼내 담는다.
+ * <p>같은 사건을 정산 컨슈머에게 정확히 한 번 전달하는 용도로는 {@link AuctionEndedMessageQueueEvent}를 쓴다. 이 이벤트는 "화면에 경매가
+ * 끝났다고 알린다"는 목적만 가지므로, 정산에만 필요한 {@code winnerMemberId}/{@code sellerMemberId}는 담지 않고 {@link
+ * AuctionBidUpdatedEvent}와 같은 모양(스냅샷 + {@link WinningBidSnapshot})을 유지한다.
  */
-public record AuctionEndedEvent(
+public record AuctionEndedNotificationEvent(
     String eventId,
     Long auctionId,
     Long consignmentId,
-    Long sellerMemberId,
     Long startingPrice,
     Long reservePrice,
-    Long winningBidId,
-    Long winnerMemberId,
     Long winningPrice,
     AuctionStatus auctionStatus,
     LocalDateTime startedAt,
     LocalDateTime endedAt,
     LocalDateTime createdAt,
+    WinningBidSnapshot winningBid,
     LocalDateTime occurredAt)
-    implements MessageQueueEvent {
+    implements NotificationEvent {
 
-  public static AuctionEndedEvent fromEntity(Auction auction, Bid winningBid) {
-    return new AuctionEndedEvent(
+  public static AuctionEndedNotificationEvent fromEntity(Auction auction, Bid winningBid) {
+    return new AuctionEndedNotificationEvent(
         UUID.randomUUID().toString(),
         auction.getAuctionId(),
         auction.getConsignment().getConsignmentId(),
-        auction.getConsignment().getSellerMember().getMemberId(),
         auction.getStartingPrice(),
         auction.getReservePrice(),
-        auction.getWinningBidId(),
-        winningBid != null ? winningBid.getMember().getMemberId() : null,
         auction.getWinningPrice(),
         auction.getAuctionStatus(),
         auction.getStartedAt(),
         auction.getEndedAt(),
         auction.getCreatedAt(),
+        winningBid != null ? WinningBidSnapshot.fromEntity(winningBid) : null,
         LocalDateTime.now());
   }
 
@@ -65,6 +62,6 @@ public record AuctionEndedEvent(
 
   @Override
   public EventType eventType() {
-    return EventType.AUCTION_ENDED;
+    return EventType.AUCTION_ENDED_NOTIFICATION;
   }
 }

@@ -10,6 +10,7 @@ package com.ootd.pickup.global.event;
  */
 public enum EventType {
   AUCTION_STARTED,
-  AUCTION_ENDED,
+  AUCTION_ENDED_MESSAGE_QUEUE,
+  AUCTION_ENDED_NOTIFICATION,
   AUCTION_BID_UPDATED
 }
