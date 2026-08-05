@@ -66,7 +66,7 @@ scheduler:
     enabled: ${SCHEDULER_AUCTION_ENABLED:true}
     fixed-delay: ${SCHEDULER_AUCTION_FIXED_DELAY:1s}
   outbox:
-    # 기본값이 false 다. SQSEventProducer 가 빈 구현인 상태로 켜면, 전송이 성공한 것처럼 보여
+    # 기본값이 false 다. SQSMessageQueueSender 가 빈 구현인 상태로 켜면, 전송이 성공한 것처럼 보여
     # 릴레이가 published=true 로 표시하고 유실이 허용되지 않는 이벤트가 조용히 사라진다.
     # 실제 전송이 구현된 뒤 true 로 켠다. 그때까지 이벤트는 테이블에 쌓인 채 남는다.
     enabled: ${SCHEDULER_OUTBOX_ENABLED:false}

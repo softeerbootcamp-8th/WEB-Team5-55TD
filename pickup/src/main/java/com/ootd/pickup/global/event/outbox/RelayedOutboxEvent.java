@@ -33,7 +33,7 @@ public record RelayedOutboxEvent(
    *
    * <p>{@code createdAt}을 {@code occurredAt}으로 옮기는 것은 컬럼이 사건 발생 시각을 담고 있기 때문이다. 적재 시각이 아니다.
    *
-   * <p>package-private으로 좁혀 감싸는 경로를 하나로 둔다. 타입 자체는 {@code SQSEventProducer}가 "payload가 이미 직렬화된
+   * <p>package-private으로 좁혀 감싸는 경로를 하나로 둔다. 타입 자체는 {@code SQSMessageQueueSender}가 "payload가 이미 직렬화된
    * 이벤트"임을 알아보려면 보여야 하므로 public이다.
    *
    * @param outboxEvent 발행할 Outbox 행

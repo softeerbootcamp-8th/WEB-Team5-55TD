@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-public class SqsMessageQueueSender implements MessageQueueSender {
+public class SQSMessageQueueSender implements MessageQueueSender {
 
   @Override
   public void send(MessageQueueEvent event) {}
