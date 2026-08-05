@@ -35,10 +35,7 @@ public class SchedulerConfig {
   static final String DEFAULT_LOCK_AT_MOST_FOR = "PT30S";
 
   /**
-   * JDBC 기반 잠금 저장소.
-   *
-   * <p>Redis 대신 DB를 고른 이유는 잠금과 Outbox 적재가 같은 저장소에 놓여 신뢰 경계가 하나로 묶이기 때문이다. Redis 장애 시 잠금이 풀려 중복
-   * 실행되면, 하필 중복이 가장 치명적인 낙찰 처리가 두 번 돈다.
+   * JDBC 기반 잠금 저장소. Redis 대신 DB를 써서 잠금과 Outbox 적재를 같은 저장소에 둔다.
    *
    * <p>{@code usingDbTime()}은 잠금 만료 판정을 DB 시각으로 하게 한다. 인스턴스마다 시계가 조금씩 어긋나도 만료 시점 해석이 갈라지지 않는다.
    *

@@ -23,9 +23,8 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * 발행을 기다리는 {@link MessageQueueEvent}의 영속 형태.
  *
- * <p>도메인 트랜잭션과 같은 커밋에 적재되어, 커밋 직후 프로세스가 죽어도 이벤트가 사라지지 않게 한다. {@code
- * com.ootd.pickup.global.scheduler.OutboxEventScheduler}가 {@code published=false}인 행을 읽어 SQS FIFO
- * 큐로 발행한다.
+ * <p>도메인 트랜잭션과 같은 커밋에 적재되어, 커밋 직후 프로세스가 죽어도 이벤트가 사라지지 않게 한다. {@link OutboxEventScheduler}가 {@code
+ * published=false}인 행을 읽어 큐로 발행한다.
  *
  * <p>컬럼은 {@link DomainEvent}의 메서드에 1:1로 대응한다. {@link #published}만 예외로, 사건의 성질이 아니라 릴레이의 전송 상태다.
  */
@@ -52,13 +51,13 @@ public class OutboxEventEntity implements Persistable<String> {
   @Column(name = "aggregate_id", nullable = false)
   private Long aggregateId;
 
-  /** {@code aggregate_type}과 같은 형태로 이름을 그대로 저장한다. 수신 측이 이 값으로 되돌릴 타입을 정한다. */
+  /** 이름을 그대로 저장한다. 수신 측이 이 값으로 되돌릴 타입을 정한다. */
   @Enumerated(EnumType.STRING)
   @Column(name = "event_type", length = 50, nullable = false)
   private EventType eventType;
 
   /**
-   * 이벤트 record 전체를 직렬화한 JSON. 릴레이가 {@link #eventType}을 보고 어떤 타입으로 역직렬화할지 판단한다.
+   * 이벤트 record 전체를 직렬화한 JSON.
    *
    * <p>{@code columnDefinition = "json"}이 아니라 {@link SqlTypes#JSON}을 쓰는 이유는 dialect별 처리를 Hibernate에
    * 맡기기 위해서다. 문자열을 그대로 바인딩하면 H2가 JSON 문자열 스칼라로 이중 인코딩해 왕복이 깨진다.
@@ -86,13 +85,13 @@ public class OutboxEventEntity implements Persistable<String> {
   }
 
   /**
-   * 이벤트를 적재 대상 행으로 만든다. 적재는 {@link OutboxEventProducer}를 통해서만 일어난다.
+   * 이벤트를 적재 대상 행으로 만든다.
    *
    * <p>직렬화 결과가 아니라 {@link ObjectMapper}를 받는 이유는 {@code event}와 payload가 서로 맞는지 보장하기 위해서다. 문자열을 받으면
-   * 다른 이벤트의 payload를 넘겨도 컴파일된다. 여기서 직접 직렬화하면 불일치가 불가능해진다.
+   * 다른 이벤트의 payload를 넘겨도 컴파일된다.
    *
-   * <p>package-private으로 좁힌 이유는 매퍼 선택을 이 패키지 안에 묶어두기 위해서다. payload는 릴레이가 같은 설정으로 역직렬화해야 하므로, 호출자가
-   * 임의의 매퍼를 넘길 수 있으면 조용히 어긋난다. 매퍼를 고르는 곳은 {@link OutboxEventProducer} 하나다.
+   * <p>package-private이라 매퍼를 고르는 곳은 {@link OutboxEventProducer} 하나다. payload는 릴레이가 같은 설정으로 역직렬화해야
+   * 하므로 호출자마다 다른 매퍼를 넘길 수 있으면 조용히 어긋난다.
    *
    * @param event 적재할 메시지 큐 이벤트
    * @param objectMapper payload 직렬화에 쓸 매퍼
@@ -106,11 +105,7 @@ public class OutboxEventEntity implements Persistable<String> {
    * 이 행을 큐로 보낼 수 있는 형태로 바꾼다.
    *
    * <p>이 클래스가 {@link MessageQueueEvent}를 직접 구현하지 않는 이유는 사건과 사건의 기록이 다른 것이기 때문이다. 이 행에는 {@link
-   * #published}처럼 사건의 성질이 아닌 값이 있고, bulk update로 그 값이 바뀐다. 반면 이벤트는 일어난 사실이라 불변이다. 엔티티가 계약을 구현하면 영속성
-   * 컨텍스트에 묶인 가변 객체가 메시징 계층까지 넘어간다.
-   *
-   * <p>반환형을 {@link MessageQueueEvent}로 두어 어떤 구현으로 감싸는지는 이 패키지 안에 남긴다. 호출자는 전송할 수 있는 이벤트를 받았다는 것만 알면
-   * 된다.
+   * #published}처럼 사건의 성질이 아닌 값이 있고 bulk update로 바뀐다. 반면 이벤트는 일어난 사실이라 불변이다.
    *
    * @return payload 원문을 그대로 실은 전송 대상
    */

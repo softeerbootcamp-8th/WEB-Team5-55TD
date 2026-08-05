@@ -17,12 +17,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Outbox에 쌓인 메시지 큐 이벤트를 실제 큐로 옮기는 릴레이.
  *
- * <p>Outbox 패턴의 뒤쪽 절반이다. 도메인 트랜잭션은 이벤트를 테이블에 적재하는 데까지만 책임지고 외부 전송은 별도 주기로 분리한다. 그래야 큐가 잠시 죽어도 도메인
- * 트랜잭션이 실패하지 않고, 이미 커밋된 이벤트는 큐가 살아난 뒤 그대로 전달된다.
+ * <p>Outbox 패턴의 뒤쪽 절반이다. 도메인 트랜잭션은 적재까지만 책임지고 외부 전송을 별도 주기로 분리한다. 그래야 큐가 잠시 죽어도 도메인 트랜잭션이 실패하지 않고,
+ * 이미 커밋된 이벤트는 큐가 살아난 뒤 그대로 전달된다.
  *
- * <p>기본값이 꺼져 있다. {@link MessageQueueSender} 구현체가 아직 빈 구현이라, 켜면 전송이 성공한 것처럼 보여 행을 발행 완료로 표시하고 유실이
- * 허용되지 않는 이벤트가 조용히 사라진다. 실제 전송이 구현된 뒤 {@code scheduler.outbox.enabled=true}로 켠다. 그때까지 이벤트는 사라지지 않고
- * 테이블에 쌓인다.
+ * <p><b>기본값이 꺼져 있다.</b> {@link MessageQueueSender} 구현체가 아직 빈 구현이라 켜면 전송이 성공한 것처럼 보여 행을 발행 완료로 표시하고,
+ * 유실이 허용되지 않는 이벤트가 조용히 사라진다. 실제 전송이 구현된 뒤 {@code scheduler.outbox.enabled=true}로 켠다.
  */
 @Slf4j
 @Component
@@ -40,21 +39,15 @@ public class OutboxEventScheduler {
   /**
    * 발행 대기 중인 이벤트를 큐로 보내고 발행 완료로 표시한다.
    *
-   * <p>전송이 먼저, 표시가 나중이다. 순서를 뒤집으면 표시한 뒤 전송이 실패했을 때 그 이벤트가 영구히 사라진다. 이 순서에서는 전송 후 커밋이 실패하면 다음 주기가 같은
-   * 이벤트를 다시 보내므로 유실 대신 중복이 생긴다. 중복은 소비자가 {@link MessageQueueEvent#eventId()}로 걸러낼 수 있지만 유실은 되돌릴 수
-   * 없다.
+   * <p>전송이 먼저, 표시가 나중이다. 순서를 뒤집으면 표시한 뒤 전송이 실패했을 때 그 이벤트가 영구히 사라진다. 이 순서에서는 전송 후 커밋이 실패해도 유실 대신 중복이
+   * 생기고, 중복은 소비자가 {@link MessageQueueEvent#eventId()}로 걸러낼 수 있다.
    *
-   * <p>이 메서드에는 트랜잭션을 걸지 않는다. 큐 전송은 외부 통신이라 응답이 늦을 수 있고, 한 주기에 최대 {@code BATCH_LIMIT}건을 보낸다. 전송을
-   * 트랜잭션 안에서 하면 그 시간 내내 DB 커넥션과 영속성 컨텍스트를 붙잡아 요청 처리 쪽 커넥션이 고갈된다. 그래서 <b>짧은 읽기 → 트랜잭션 밖 전송 → 짧은
-   * 갱신</b> 세 단계로 나눈다.
-   *
-   * <p>읽기 트랜잭션 안에서 이벤트로 바꿔 내보내는 이유는 그 뒤로 엔티티를 만지지 않기 위해서다. 트랜잭션이 닫힌 뒤 엔티티를 들고 있으면 준영속 상태 접근이 섞인다.
+   * <p>트랜잭션을 걸지 않고 <b>짧은 읽기 → 트랜잭션 밖 전송 → 짧은 갱신</b>으로 나눈다. 큐 전송은 외부 통신이라 응답이 늦을 수 있고 한 주기에 최대
+   * {@code BATCH_LIMIT}건을 보내므로, 트랜잭션 안에서 보내면 그 시간 내내 DB 커넥션을 붙잡아 요청 처리 쪽 커넥션이 고갈된다.
    *
    * <p>건별로 예외를 격리하되, 실패한 애그리거트의 뒤 이벤트는 이번 주기에 보내지 않는다. 계속 보내면 뒤 이벤트가 큐에 먼저 들어가고 다음 주기가 앞 이벤트를 재시도해
-   * 같은 애그리거트 안에서 순서가 역전된다. FIFO 큐는 같은 그룹 안에서만 순서를 보장하므로, 그 순서가 깨지면 소비자가 경매 종료를 시작보다 먼저 볼 수 있다. 건너뛴
-   * 이벤트는 {@code published=false}로 남아 다음 주기에 앞 이벤트와 함께 순서대로 다시 시도된다.
-   *
-   * <p>다른 애그리거트는 서로 다른 그룹이라 영향을 주지 않으므로 계속 발행한다.
+   * 같은 그룹 안에서 순서가 역전된다. 건너뛴 이벤트는 {@code published=false}로 남아 다음 주기에 순서대로 다시 시도된다. 다른 애그리거트는 그룹이 달라
+   * 계속 발행한다.
    */
   @Scheduled(fixedDelayString = "${scheduler.outbox.fixed-delay:1s}")
   @SchedulerLock(name = "outbox-event-relay", lockAtMostFor = "PT30S", lockAtLeastFor = "PT0.5S")
@@ -112,10 +105,10 @@ public class OutboxEventScheduler {
   }
 
   /**
-   * 순서를 함께 지켜야 하는 단위. FIFO 큐의 {@code MessageGroupId} 와 같은 기준으로 묶어야 한다.
+   * 순서를 함께 지켜야 하는 단위.
    *
-   * <p>{@code MessageQueueSender} 구현체가 {@code aggregateType} 과 {@code aggregateId} 로 {@code
-   * MessageGroupId} 를 만들므로 여기서도 같은 두 값으로 묶는다. 문자열 형식은 달라도 되지만 묶는 기준이 달라지면 차단이 헛돈다.
+   * <p>{@link MessageQueueSender} 구현체가 {@code aggregateType}과 {@code aggregateId}로 FIFO 큐의 {@code
+   * MessageGroupId}를 만들므로 여기서도 같은 두 값으로 묶는다. 문자열 형식은 달라도 되지만 묶는 기준이 달라지면 차단이 헛돈다.
    */
   private String messageGroupOf(MessageQueueEvent event) {
     return event.aggregateType() + ":" + event.aggregateId();
