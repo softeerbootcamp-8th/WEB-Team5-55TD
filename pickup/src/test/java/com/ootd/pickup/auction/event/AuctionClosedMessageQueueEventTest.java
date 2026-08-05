@@ -8,12 +8,13 @@ import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.global.event.AggregateType;
+import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.member.domain.Member;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class AuctionEndedEventTest {
+class AuctionClosedMessageQueueEventTest {
 
   @Test
   void 낙찰된_경매로부터_생성하면_낙찰_입찰과_낙찰가와_낙찰자_판매자_id가_함께_옮겨진다() {
@@ -25,7 +26,8 @@ class AuctionEndedEventTest {
     Bid winningBid = createBid(auction, winner, 10L, 10_500L);
 
     // when
-    AuctionEndedEvent event = AuctionEndedEvent.fromEntity(auction, winningBid);
+    AuctionClosedMessageQueueEvent event =
+        AuctionClosedMessageQueueEvent.fromEntity(auction, winningBid);
 
     // then
     assertThat(event.auctionId()).isEqualTo(auction.getAuctionId());
@@ -43,7 +45,7 @@ class AuctionEndedEventTest {
     Auction auction = createAuction(1L, AuctionStatus.PASSED, seller);
 
     // when
-    AuctionEndedEvent event = AuctionEndedEvent.fromEntity(auction, null);
+    AuctionClosedMessageQueueEvent event = AuctionClosedMessageQueueEvent.fromEntity(auction, null);
 
     // then
     assertThat(event.winnerMemberId()).isNull();
@@ -57,12 +59,12 @@ class AuctionEndedEventTest {
     Auction auction = createAuction(1L, AuctionStatus.PASSED, seller);
 
     // when
-    AuctionEndedEvent event = AuctionEndedEvent.fromEntity(auction, null);
+    AuctionClosedMessageQueueEvent event = AuctionClosedMessageQueueEvent.fromEntity(auction, null);
 
     // then
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(event.aggregateId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.eventType()).isEqualTo("AUCTION_ENDED");
+    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_CLOSED);
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status, Member seller) {

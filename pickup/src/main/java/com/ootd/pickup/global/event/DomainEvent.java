@@ -68,14 +68,14 @@ public sealed interface DomainEvent permits MessageQueueEvent, NotificationEvent
   /**
    * 직렬화 타입 키. {@code outbox_event.event_type}에 저장되고, 수신 측이 어떤 타입으로 역직렬화할지 판단하는 근거가 된다.
    *
-   * <p>기본값은 구현 타입의 단순 이름이다. 클래스명을 바꾸면 큐에 남아 있던 이벤트나 아직 배포되지 않은 소비자가 이름을 찾지 못하므로, 이름을 변경할 때는 이 메서드를
-   * 재정의해 기존 값을 고정한다.
+   * <p>문자열이 아니라 enum인 이유는 {@link AggregateType}과 같다. 오타나 표기 차이가 컴파일 단계에서 걸러지고, 수신 측이 되돌릴 타입을 {@link
+   * EventType#eventClass()}로 바로 얻는다. 문자열이면 "그 값이 어떤 타입인지" 아는 표를 따로 유지해야 하고, 새 이벤트를 추가할 때 그 표에 등록하는
+   * 것을 잊으면 조용히 발행되지 않는다.
    *
-   * <p>컬럼이 {@code VARCHAR(50)}이므로 50자를 넘는 이름을 쓰면 저장이 실패한다.
+   * <p>기본 구현을 두지 않는다. 저장되는 값이 구현 타입의 이름에서 도출되면 클래스명을 바꾸는 순간 큐에 남아 있던 이벤트와 아직 배포되지 않은 소비자가 그 값을 찾지
+   * 못한다. {@link EventType} 상수를 고르게 하면 클래스명과 저장 값이 분리되어 리팩터링이 데이터를 깨뜨리지 않는다.
    */
-  default String eventType() {
-    return getClass().getSimpleName();
-  }
+  EventType eventType();
 
   /** 사건이 발생한 시각. {@code outbox_event.created_at}에 저장된다. 처리 시각과 구분된다. */
   LocalDateTime occurredAt();
