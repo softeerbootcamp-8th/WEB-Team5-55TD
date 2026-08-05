@@ -3,7 +3,7 @@
 # EC2 에서 실행되는 배포 스크립트.
 # GitHub Actions 러너가 SSM Run Command 로 이 스크립트를 내려받아 실행한다.
 #
-#   사용법: deploy.sh s3://<bucket>/pickup/<sha>/app.jar <image-runtime-config-base64>
+#   사용법: deploy.sh s3://<bucket>/pickup/<sha>/app.jar
 #
 # 흐름: 백업 → 다운로드 → 교체 → 재시작 → 헬스체크 → (실패 시) 롤백
 #
@@ -16,10 +16,6 @@ HEALTH_URL="${HEALTH_URL:-http://localhost:8080/healthcheck}"
 ATTEMPTS="${ATTEMPTS:-30}"
 INTERVAL="${INTERVAL:-3}"
 LOCK="${LOCK:-/var/lock/pickup-deploy.lock}"
-RUNTIME_ENV_DIR="${RUNTIME_ENV_DIR:-/etc/pickup}"
-RUNTIME_ENV_FILE="${RUNTIME_ENV_FILE:-${RUNTIME_ENV_DIR}/image-storage.env}"
-SYSTEMD_DROPIN_DIR="${SYSTEMD_DROPIN_DIR:-/etc/systemd/system/${SERVICE}.service.d}"
-SYSTEMD_DROPIN_FILE="${SYSTEMD_DROPIN_FILE:-${SYSTEMD_DROPIN_DIR}/20-image-storage.conf}"
 
 JAR="${APP_DIR}/app.jar"
 PREV="${APP_DIR}/app.jar.prev"
@@ -45,10 +41,7 @@ die() {
 # ---------------------------------------------------------------- 사전 점검
 
 S3_URI="${1:-}"
-IMAGE_RUNTIME_CONFIG_BASE64="${2:-}"
-[ -n "${S3_URI}" ] \
-  || die "S3 경로 인자가 없습니다. 사용법: $0 s3://bucket/key <image-runtime-config-base64>"
-[ -n "${IMAGE_RUNTIME_CONFIG_BASE64}" ] || die "이미지 런타임 설정이 없습니다."
+[ -n "${S3_URI}" ] || die "S3 경로 인자가 없습니다. 사용법: $0 s3://bucket/key"
 case "${S3_URI}" in
   s3://*) ;;
   *) die "s3:// 로 시작하는 경로가 필요합니다: ${S3_URI}" ;;
@@ -72,61 +65,6 @@ flock -n 9 || die "다른 배포가 진행 중입니다."
 mkdir -p "${APP_DIR}"
 
 # ---------------------------------------------------------------- 함수
-
-validate_runtime_config() {
-  local line_count
-  line_count=$(wc -l < "${IMAGE_ENV_TMP}" | tr -d ' ')
-  [ "${line_count}" -eq 4 ] || return 1
-
-  grep -qxE 'IMAGE_STORAGE_BUCKET=[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]' "${IMAGE_ENV_TMP}" \
-    || return 1
-  grep -qx 'IMAGE_STORAGE_REGION=ap-northeast-2' "${IMAGE_ENV_TMP}" || return 1
-  grep -qxE 'IMAGE_MEDIA_BASE_URL=https://[A-Za-z0-9.-]+' "${IMAGE_ENV_TMP}" || return 1
-  grep -qxE 'IMAGE_UPLOAD_URL_TTL=[1-9][0-9]*[smhd]' "${IMAGE_ENV_TMP}" || return 1
-}
-
-backup_runtime_config() {
-  if [ -f "${RUNTIME_ENV_FILE}" ]; then
-    cp -p "${RUNTIME_ENV_FILE}" "${RUNTIME_ENV_BACKUP}" || return 1
-    HAVE_RUNTIME_ENV=1
-  fi
-  if [ -f "${SYSTEMD_DROPIN_FILE}" ]; then
-    cp -p "${SYSTEMD_DROPIN_FILE}" "${SYSTEMD_DROPIN_BACKUP}" || return 1
-    HAVE_SYSTEMD_DROPIN=1
-  fi
-  RUNTIME_CONFIG_BACKED_UP=1
-}
-
-install_runtime_config() {
-  install -d -o root -g root -m 0755 "${RUNTIME_ENV_DIR}" "${SYSTEMD_DROPIN_DIR}" || return 1
-  install -o root -g root -m 0644 "${IMAGE_ENV_TMP}" "${RUNTIME_ENV_FILE}.new" || return 1
-  mv "${RUNTIME_ENV_FILE}.new" "${RUNTIME_ENV_FILE}" || return 1
-
-  printf '[Service]\nEnvironmentFile=%s\n' "${RUNTIME_ENV_FILE}" > "${SYSTEMD_DROPIN_TMP}" \
-    || return 1
-  install -o root -g root -m 0644 "${SYSTEMD_DROPIN_TMP}" \
-    "${SYSTEMD_DROPIN_FILE}.new" || return 1
-  mv "${SYSTEMD_DROPIN_FILE}.new" "${SYSTEMD_DROPIN_FILE}" || return 1
-  systemctl daemon-reload || return 1
-}
-
-restore_runtime_config() {
-  [ "${RUNTIME_CONFIG_BACKED_UP}" -eq 1 ] || return 0
-
-  if [ "${HAVE_RUNTIME_ENV}" -eq 1 ]; then
-    install -o root -g root -m 0644 "${RUNTIME_ENV_BACKUP}" "${RUNTIME_ENV_FILE}" || return 1
-  else
-    rm -f "${RUNTIME_ENV_FILE}" || return 1
-  fi
-
-  if [ "${HAVE_SYSTEMD_DROPIN}" -eq 1 ]; then
-    install -o root -g root -m 0644 "${SYSTEMD_DROPIN_BACKUP}" \
-      "${SYSTEMD_DROPIN_FILE}" || return 1
-  else
-    rm -f "${SYSTEMD_DROPIN_FILE}" || return 1
-  fi
-  systemctl daemon-reload || return 1
-}
 
 wait_healthy() {
   local i
@@ -161,12 +99,6 @@ rollback() {
   # 워크플로가 파싱해 Slack 실패 사유로 쓴다.
   log "FAILED_APP_LOG=$(extract_failure_reason)"
 
-  local config_restore_ok=1
-  if ! restore_runtime_config; then
-    log "이전 이미지 런타임 설정 복구 실패"
-    config_restore_ok=0
-  fi
-
   echo "───── 실패한 버전의 로그 (에러 관련) ─────"
   printf '%s\n' "${FAILED_LOG}" \
     | grep -iE 'error|exception|caused by|failed|flyway|migrat' | tail -25 || true
@@ -181,7 +113,6 @@ rollback() {
     chown "${OWNER}" "${JAR}"
     chmod "${MODE}" "${JAR}"
     local restart_ok=1
-    [ "${config_restore_ok}" -eq 1 ] || restart_ok=0
     systemctl restart "${SERVICE}" || restart_ok=0
 
     if wait_healthy; then
@@ -212,22 +143,6 @@ rollback() {
 
 # ---------------------------------------------------------------- 배포
 
-JAR_TMP=$(mktemp /tmp/app.jar.XXXXXX)
-IMAGE_ENV_TMP=$(mktemp /tmp/pickup-image-env.XXXXXX)
-SYSTEMD_DROPIN_TMP=$(mktemp /tmp/pickup-systemd-dropin.XXXXXX)
-RUNTIME_ENV_BACKUP=$(mktemp /tmp/pickup-image-env-backup.XXXXXX)
-SYSTEMD_DROPIN_BACKUP=$(mktemp /tmp/pickup-systemd-dropin-backup.XXXXXX)
-trap 'rm -f "${JAR_TMP}" "${IMAGE_ENV_TMP}" "${SYSTEMD_DROPIN_TMP}" "${RUNTIME_ENV_BACKUP}" "${SYSTEMD_DROPIN_BACKUP}"' EXIT
-
-HAVE_RUNTIME_ENV=0
-HAVE_SYSTEMD_DROPIN=0
-RUNTIME_CONFIG_BACKED_UP=0
-
-printf '%s' "${IMAGE_RUNTIME_CONFIG_BASE64}" | base64 --decode > "${IMAGE_ENV_TMP}" \
-  || die "이미지 런타임 설정을 디코딩하지 못했습니다."
-validate_runtime_config || die "이미지 런타임 설정의 형식이 올바르지 않습니다."
-log "이미지 런타임 설정 검증 완료"
-
 log "대상 리비전: ${S3_URI}"
 
 # 교체 전 소유권·권한을 기록해 그대로 복원한다.
@@ -246,22 +161,15 @@ else
 fi
 
 # 대상 경로에 직접 받으면 다운로드 실패 시 깨진 파일이 남는다.
-"${AWS}" s3 cp "${S3_URI}" "${JAR_TMP}" --quiet || die "S3 다운로드 실패: ${S3_URI}"
-[ -s "${JAR_TMP}" ] || die "다운로드한 파일이 비어 있습니다."
+TMP=$(mktemp /tmp/app.jar.XXXXXX)
+trap 'rm -f "${TMP}"' EXIT
 
-backup_runtime_config || die "기존 이미지 런타임 설정을 백업하지 못했습니다."
-if ! install_runtime_config; then
-  restore_runtime_config || true
-  die "이미지 런타임 설정을 설치하지 못했습니다."
-fi
-log "이미지 런타임 설정 적용 완료"
+"${AWS}" s3 cp "${S3_URI}" "${TMP}" --quiet || die "S3 다운로드 실패: ${S3_URI}"
+[ -s "${TMP}" ] || die "다운로드한 파일이 비어 있습니다."
 
-if ! mv "${JAR_TMP}" "${JAR}" \
-  || ! chown "${OWNER}" "${JAR}" \
-  || ! chmod "${MODE}" "${JAR}"; then
-  log "jar 교체 또는 권한 설정 실패"
-  rollback
-fi
+mv "${TMP}" "${JAR}"
+chown "${OWNER}" "${JAR}"
+chmod "${MODE}" "${JAR}"
 log "jar 교체 완료 ($(stat -c '%s' "${JAR}") bytes)"
 
 systemctl restart "${SERVICE}" || {

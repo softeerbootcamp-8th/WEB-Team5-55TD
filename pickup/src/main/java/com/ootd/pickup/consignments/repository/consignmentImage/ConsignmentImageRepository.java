@@ -12,7 +12,5 @@ public interface ConsignmentImageRepository {
   List<ConsignmentImage> findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
       List<Long> consignmentIds);
 
-  void deleteAll(List<ConsignmentImage> consignmentImages);
-
   void deleteAllByConsignment(Consignment consignment);
 }

@@ -12,7 +12,6 @@ import com.ootd.pickup.auth.token.RefreshToken;
 import com.ootd.pickup.auth.token.RefreshTokenGenerator;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.exception.PickUpException;
-import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,6 @@ public class AuthService {
   private final RefreshTokenGenerator refreshTokenGenerator;
   private final RefreshTokenRepository refreshTokenRepository;
   private final JwtTokenProperties jwtTokenProperties;
-  private final ImageUrlResolver imageUrlResolver;
 
   public LoginResponse login(LoginRequest loginRequest) {
     Member member =
@@ -50,7 +48,7 @@ public class AuthService {
             member.getMemberId(),
             member.getLoginId(),
             member.getNickname(),
-            imageUrlResolver.resolve(member.getProfileImageObjectKey()));
+            member.getProfileImageUrl());
 
     return new LoginResponse(body, accessToken, refreshToken.value());
   }

@@ -33,12 +33,6 @@ public class ConsignmentImageDataJpaRepository implements ConsignmentImageReposi
             consignmentIds);
   }
 
-  @Override
-  public void deleteAll(List<ConsignmentImage> consignmentImages) {
-    consignmentImageJpaRepository.deleteAll(consignmentImages);
-  }
-
-  @Override
   public void deleteAllByConsignment(Consignment consignment) {
     consignmentImageJpaRepository.deleteAllByConsignment(consignment);
   }

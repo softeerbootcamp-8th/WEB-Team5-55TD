@@ -27,11 +27,6 @@ public class MemberDataJpaRepository implements MemberRepository {
   }
 
   @Override
-  public boolean existsById(Long memberId) {
-    return memberJpaRepository.existsById(memberId);
-  }
-
-  @Override
   public Optional<Member> findById(Long memberId) {
     return memberJpaRepository.findById(memberId);
   }

@@ -13,7 +13,6 @@ import com.ootd.pickup.auth.token.RefreshToken;
 import com.ootd.pickup.auth.token.RefreshTokenGenerator;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.exception.PickUpException;
-import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import java.lang.reflect.Field;
@@ -38,8 +37,6 @@ class AuthServiceTest {
   @Mock private RefreshTokenRepository refreshTokenRepository;
 
   @Mock private JwtTokenProperties jwtTokenProperties;
-
-  @Mock private ImageUrlResolver imageUrlResolver;
 
   @InjectMocks private AuthService authService;
 

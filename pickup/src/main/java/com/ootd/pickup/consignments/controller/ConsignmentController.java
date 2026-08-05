@@ -7,7 +7,6 @@ import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
 import com.ootd.pickup.consignments.dto.response.GetMyConsignmentsResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
-import com.ootd.pickup.consignments.service.ConsignmentApplicationService;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.auth.annotation.MemberId;
 import com.ootd.pickup.global.auth.annotation.RequireAuthentication;
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.*;
 public class ConsignmentController implements ConsignmentApi {
 
   private final ConsignmentService consignmentService;
-  private final ConsignmentApplicationService consignmentApplicationService;
 
   @PostMapping
   @Override
@@ -33,9 +31,7 @@ public class ConsignmentController implements ConsignmentApi {
       @MemberId Long sellerMemberId,
       @Valid @RequestBody RegisterConsignmentRequest registerConsignmentRequest) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(
-            consignmentApplicationService.registerConsignment(
-                sellerMemberId, registerConsignmentRequest));
+        .body(consignmentService.registerConsignment(sellerMemberId, registerConsignmentRequest));
   }
 
   @GetMapping
@@ -63,7 +59,7 @@ public class ConsignmentController implements ConsignmentApi {
       @MemberId Long sellerMemberId,
       @Valid @RequestBody ModifyConsignmentRequest modifyConsignmentRequest) {
     return ResponseEntity.ok(
-        consignmentApplicationService.modifyConsignment(
+        consignmentService.modifyConsignment(
             consignmentId, sellerMemberId, modifyConsignmentRequest));
   }
 
@@ -72,7 +68,7 @@ public class ConsignmentController implements ConsignmentApi {
   @RequireAuthentication
   public ResponseEntity<Void> deleteConsignment(
       @PathVariable Long consignmentId, @MemberId Long sellerMemberId) {
-    consignmentApplicationService.deleteConsignment(consignmentId, sellerMemberId);
+    consignmentService.deleteConsignment(consignmentId, sellerMemberId);
     return ResponseEntity.noContent().build();
   }
 }

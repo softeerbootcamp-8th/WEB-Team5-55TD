@@ -30,17 +30,13 @@ public class ConsignmentImage {
   @Column(name = "image_order", nullable = false)
   private int imageOrder;
 
-  @Column(name = "object_key", nullable = false, length = 512)
-  private String objectKey;
+  @Column(name = "image_url", nullable = false)
+  private String imageUrl;
 
   @Builder
-  public ConsignmentImage(Consignment consignment, int imageOrder, String objectKey) {
+  public ConsignmentImage(Consignment consignment, int imageOrder, String imageUrl) {
     this.consignment = consignment;
     this.imageOrder = imageOrder;
-    this.objectKey = objectKey;
-  }
-
-  public void updateImageOrder(int imageOrder) {
-    this.imageOrder = imageOrder;
+    this.imageUrl = imageUrl;
   }
 }
