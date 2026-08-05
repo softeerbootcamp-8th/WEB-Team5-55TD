@@ -10,7 +10,6 @@ import static org.mockito.Mockito.times;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
@@ -54,20 +53,13 @@ class SettlementServiceTest {
   }
 
   @Test
-  void eventClass는_AuctionEndedMessageQueueEvent를_반환한다() {
-    // when & then
-    assertThat(settlementService.eventClass()).isEqualTo(AuctionEndedMessageQueueEvent.class);
-  }
-
-  @Test
-  void 낙찰된_경매_이벤트를_처리하면_낙찰자와_판매자의_정산과_포인트가_갱신된다() {
+  void 낙찰된_경매를_정산하면_낙찰자와_판매자의_정산과_포인트가_갱신된다() {
     // given
     Auction auction = createAuction(1L);
     Member winner = createMember(2L);
     Member seller = createMember(3L);
     Point winnerPoint = createPoint(2L, 20_000L);
     Point sellerPoint = createPoint(3L, 5_000L);
-    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
 
     given(
             settlementRepository.existsByAuctionIdAndMemberIdAndSettlementType(
@@ -84,7 +76,7 @@ class SettlementServiceTest {
     given(pointRepository.findByMemberIdForUpdate(3L)).willReturn(Optional.of(sellerPoint));
 
     // when
-    settlementService.handle(event);
+    settlementService.settleAuction(1L, 2L, 3L, 10_500L);
 
     // then
     then(settlementRepository).should(times(2)).save(settlementCaptor.capture());
@@ -104,7 +96,6 @@ class SettlementServiceTest {
     Member seller = createMember(2L);
     Point winnerPoint = createPoint(5L, 20_000L);
     Point sellerPoint = createPoint(2L, 5_000L);
-    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 5L, 2L, 10_500L);
 
     given(auctionManageService.getAuctionById(1L)).willReturn(auction);
     given(memberManageService.getMemberById(5L)).willReturn(winner);
@@ -113,7 +104,7 @@ class SettlementServiceTest {
     given(pointRepository.findByMemberIdForUpdate(2L)).willReturn(Optional.of(sellerPoint));
 
     // when
-    settlementService.handle(event);
+    settlementService.settleAuction(1L, 5L, 2L, 10_500L);
 
     // then: memberId가 더 작은 판매자(2L)의 포인트 락을 먼저 획득해야 한다
     InOrder inOrder = inOrder(pointRepository);
@@ -122,12 +113,9 @@ class SettlementServiceTest {
   }
 
   @Test
-  void 유찰된_경매_이벤트를_처리하면_아무것도_하지_않는다() {
-    // given
-    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, null, 3L, null);
-
+  void 유찰된_경매를_정산하면_아무것도_하지_않는다() {
     // when
-    settlementService.handle(event);
+    settlementService.settleAuction(1L, null, 3L, null);
 
     // then
     then(settlementRepository).should(never()).save(any(Settlement.class));
@@ -137,7 +125,6 @@ class SettlementServiceTest {
   @Test
   void 이미_처리된_정산이면_다시_처리하지_않는다() {
     // given
-    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
     given(
             settlementRepository.existsByAuctionIdAndMemberIdAndSettlementType(
                 1L, 2L, SettlementType.WINNER_PAYMENT))
@@ -148,31 +135,12 @@ class SettlementServiceTest {
         .willReturn(true);
 
     // when
-    settlementService.handle(event);
+    settlementService.settleAuction(1L, 2L, 3L, 10_500L);
 
     // then
     then(settlementRepository).should(never()).save(any(Settlement.class));
     then(pointRepository).should(never()).save(any(Point.class));
     then(auctionManageService).should(never()).getAuctionById(any());
-  }
-
-  private AuctionEndedMessageQueueEvent createEndedEvent(
-      Long auctionId, Long winnerMemberId, Long sellerMemberId, Long winningPrice) {
-    return new AuctionEndedMessageQueueEvent(
-        "event-id",
-        auctionId,
-        100L,
-        sellerMemberId,
-        10_000L,
-        10_000L,
-        winnerMemberId == null ? null : 10L,
-        winnerMemberId,
-        winningPrice,
-        winnerMemberId == null ? AuctionStatus.PASSED : AuctionStatus.WON,
-        LocalDateTime.now().minusHours(1),
-        LocalDateTime.now(),
-        LocalDateTime.now().minusHours(1),
-        LocalDateTime.now());
   }
 
   private Auction createAuction(Long auctionId) {

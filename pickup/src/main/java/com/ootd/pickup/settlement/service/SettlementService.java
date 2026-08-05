@@ -3,9 +3,7 @@ package com.ootd.pickup.settlement.service;
 import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 
 import com.ootd.pickup.auction.domain.Auction;
-import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.auction.service.AuctionManageService;
-import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
@@ -20,11 +18,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 경매 마감 정산 핸들러.
+ * 경매 마감 정산 서비스.
  *
- * <p>{@link AuctionEndedMessageQueueEvent}는 재전달될 수 있으므로, 낙찰자/판매자 정산을 각각 독립적으로 멱등하게 처리한다({@code
- * settlement}의 (auctionId, memberId, settlementType) 유니크 제약). 이미 처리된 쪽은 {@code Settlement} 저장과 포인트
- * 갱신을 함께 건너뛴다.
+ * <p>이벤트 수신은 {@code settlement.handler.SettlementEventHandler}가 담당하고, 이 클래스는 순수 비즈니스 로직만 다룬다({@code
+ * DomainEvent}/{@code EventHandler}를 모른다). 호출하는 쪽이 SQS 컨슈머든 나중에 생길 수동 재정산 API든 상관없이 같은 메서드를 쓸 수 있다.
+ *
+ * <p>같은 사건이 재전달될 수 있으므로, 낙찰자/판매자 정산을 각각 독립적으로 멱등하게 처리한다({@code settlement}의 (auctionId, memberId,
+ * settlementType) 유니크 제약). 이미 처리된 쪽은 {@code Settlement} 저장과 포인트 갱신을 함께 건너뛴다.
  *
  * <p>포인트 잔액 갱신은 {@link PointRepository#findByMemberIdForUpdate}로 행 락을 잡는다. 서로 다른 경매의 정산이 동시에 처리되며
  * 같은 회원의 포인트를 건드릴 수 있어, 락 없이는 동시 갱신 하나가 유실될 수 있다(lost update). 또한 두 회원의 락을 잡는 순서가 경매마다 "낙찰자 먼저"로
@@ -34,45 +34,28 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 @Slf4j
-public class SettlementService implements EventHandler<AuctionEndedMessageQueueEvent> {
+public class SettlementService {
 
   private final AuctionManageService auctionManageService;
   private final MemberManageService memberManageService;
   private final PointRepository pointRepository;
   private final SettlementRepository settlementRepository;
 
-  @Override
-  public Class<AuctionEndedMessageQueueEvent> eventClass() {
-    return AuctionEndedMessageQueueEvent.class;
-  }
-
-  @Override
   @Transactional
-  public void handle(AuctionEndedMessageQueueEvent event) {
-    if (event.winnerMemberId() == null) {
-      log.info("유찰된 경매라 정산을 건너뜀 - auctionId={}", event.auctionId());
+  public void settleAuction(
+      Long auctionId, Long winnerMemberId, Long sellerMemberId, Long winningPrice) {
+    if (winnerMemberId == null) {
+      log.info("유찰된 경매라 정산을 건너뜀 - auctionId={}", auctionId);
       return;
     }
 
     boolean winnerSettled =
-        trySettle(
-            event.auctionId(),
-            event.winnerMemberId(),
-            SettlementType.WINNER_PAYMENT,
-            event.winningPrice());
+        trySettle(auctionId, winnerMemberId, SettlementType.WINNER_PAYMENT, winningPrice);
     boolean sellerSettled =
-        trySettle(
-            event.auctionId(),
-            event.sellerMemberId(),
-            SettlementType.SELLER_PAYOUT,
-            event.winningPrice());
+        trySettle(auctionId, sellerMemberId, SettlementType.SELLER_PAYOUT, winningPrice);
 
     adjustBalancesInLockOrder(
-        event.winnerMemberId(),
-        winnerSettled,
-        event.sellerMemberId(),
-        sellerSettled,
-        event.winningPrice());
+        winnerMemberId, winnerSettled, sellerMemberId, sellerSettled, winningPrice);
   }
 
   private boolean trySettle(
