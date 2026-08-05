@@ -10,20 +10,29 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 경매 마감 후 낙찰자/판매자/플랫폼에게 귀속되는 정산 원장 한 줄.
+ * 경매 마감 후 낙찰자/판매자에게 귀속되는 정산 원장 한 줄.
  *
- * <p>{@code member}는 플랫폼 수수료({@link SettlementType#PLATFORM_FEE}) 행에서는 NULL이다. 소비자는 다른 프로세스에서 트랜잭션
- * 밖에 실행되므로, 이 엔티티는 정산 컨슈머가 SQS 메시지 페이로드로 이미 계산해 둔 값을 그대로 저장하는 용도로만 쓴다.
+ * <p>소비자는 다른 프로세스에서 트랜잭션 밖에 실행되므로, 이 엔티티는 정산 컨슈머가 SQS 메시지 페이로드로 이미 계산해 둔 값을 그대로 저장하는 용도로만 쓴다.
  */
 @Entity
+@Table(
+    name = "settlement",
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "uk_settlement_auction_member_type",
+            columnNames = {"auction_id", "member_id", "settlement_type"}),
+    indexes = @Index(name = "idx_settlement_member_id", columnList = "member_id"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Settlement {
@@ -38,7 +47,7 @@ public class Settlement {
   private Auction auction;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "member_id")
+  @JoinColumn(name = "member_id", nullable = false)
   private Member member;
 
   @Enumerated(EnumType.STRING)

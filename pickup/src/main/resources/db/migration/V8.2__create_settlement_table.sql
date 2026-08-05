@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS settlement (
     settlement_id      BIGINT       AUTO_INCREMENT,
     auction_id         BIGINT       NOT NULL,
-    member_id          BIGINT,
+    member_id          BIGINT       NOT NULL,
     settlement_type    VARCHAR(255) NOT NULL,
     amount             BIGINT       NOT NULL,
     settlement_status  VARCHAR(255) NOT NULL,
