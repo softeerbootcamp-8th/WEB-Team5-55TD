@@ -35,5 +35,7 @@ import org.springframework.stereotype.Component;
 public class SQSMessageQueueSender implements MessageQueueSender {
 
   @Override
-  public void send(MessageQueueEvent event) {}
+  public void send(MessageQueueEvent event) {
+    // TODO: SQS FIFO 큐로 전송한다. 채울 값은 위 목록 참고
+  }
 }
