@@ -138,16 +138,12 @@ class BidServiceTest {
   }
 
   @Test
-  void 조건부UPDATE_방식_동시_입찰로_현재가가_이미_갱신되었으면_추월_예외가_발생한다() {
+  void 조건부UPDATE_방식_동시_입찰로_현재가가_이미_갱신되었으면_추월_예외가_발생하고_경매를_다시_조회하지_않는다() {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
-    Auction latestAuction =
-        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
-    ReflectionTestUtils.setField(latestAuction, "currentPrice", 11_000L);
     Member bidder = createMember(2L);
-    given(auctionRepository.findById(1L))
-        .willReturn(Optional.of(auction), Optional.of(latestAuction));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
     given(auctionRepository.updateCurrentPriceIfHigher(1L, 10_500L)).willReturn(0);
 
@@ -157,6 +153,7 @@ class BidServiceTest {
         OUTBID_EXISTS);
     then(bidRepository).should(never()).save(any(Bid.class));
     then(bidPriceCacheRepository).shouldHaveNoInteractions();
+    then(auctionRepository).should().findById(1L);
   }
 
   @Test

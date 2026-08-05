@@ -100,11 +100,9 @@ public class BidService {
 
     int updated = auctionRepository.updateCurrentPriceIfHigher(auctionId, request.bidPrice());
     if (updated == 0) {
-      Auction latest =
-          auctionRepository
-              .findById(auctionId)
-              .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
-      validateBidPrice(request.bidPrice(), latest.getCurrentPrice(), latest.getBidIncrement());
+      // 같은 트랜잭션에서 Auction을 다시 조회해도 1차 캐시(영속성 컨텍스트)에 걸려 방금 읽은 stale한
+      // 값을 그대로 돌려주므로(벌크 UPDATE는 이를 갈아엎지 않음), 실패 사유를 다시 판별하지 않고
+      // 그대로 추월 처리한다. 최종 정합성은 위 UPDATE의 영향 row 수가 이미 보장했다.
       throw new PickUpException(OUTBID_EXISTS);
     }
 
