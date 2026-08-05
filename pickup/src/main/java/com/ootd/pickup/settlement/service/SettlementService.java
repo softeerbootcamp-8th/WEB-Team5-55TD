@@ -3,7 +3,7 @@ package com.ootd.pickup.settlement.service;
 import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 
 import com.ootd.pickup.auction.domain.Auction;
-import com.ootd.pickup.auction.event.AuctionEndedEvent;
+import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.exception.PickUpException;
@@ -22,8 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 경매 마감 정산 핸들러.
  *
- * <p>{@link AuctionEndedEvent}는 재전달될 수 있으므로, 낙찰자/판매자 정산을 각각 독립적으로 멱등하게 처리한다({@code settlement}의
- * (auctionId, memberId, settlementType) 유니크 제약). 이미 처리된 쪽은 {@code Settlement} 저장과 포인트 갱신을 함께 건너뛴다.
+ * <p>{@link AuctionEndedMessageQueueEvent}는 재전달될 수 있으므로, 낙찰자/판매자 정산을 각각 독립적으로 멱등하게 처리한다({@code
+ * settlement}의 (auctionId, memberId, settlementType) 유니크 제약). 이미 처리된 쪽은 {@code Settlement} 저장과 포인트
+ * 갱신을 함께 건너뛴다.
  *
  * <p>포인트 잔액 갱신은 {@link PointRepository#findByMemberIdForUpdate}로 행 락을 잡는다. 서로 다른 경매의 정산이 동시에 처리되며
  * 같은 회원의 포인트를 건드릴 수 있어, 락 없이는 동시 갱신 하나가 유실될 수 있다(lost update). 또한 두 회원의 락을 잡는 순서가 경매마다 "낙찰자 먼저"로
@@ -33,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 @Slf4j
-public class SettlementService implements EventHandler<AuctionEndedEvent> {
+public class SettlementService implements EventHandler<AuctionEndedMessageQueueEvent> {
 
   private final AuctionManageService auctionManageService;
   private final MemberManageService memberManageService;
@@ -41,13 +42,13 @@ public class SettlementService implements EventHandler<AuctionEndedEvent> {
   private final SettlementRepository settlementRepository;
 
   @Override
-  public Class<AuctionEndedEvent> eventClass() {
-    return AuctionEndedEvent.class;
+  public Class<AuctionEndedMessageQueueEvent> eventClass() {
+    return AuctionEndedMessageQueueEvent.class;
   }
 
   @Override
   @Transactional
-  public void handle(AuctionEndedEvent event) {
+  public void handle(AuctionEndedMessageQueueEvent event) {
     if (event.winnerMemberId() == null) {
       log.info("유찰된 경매라 정산을 건너뜀 - auctionId={}", event.auctionId());
       return;

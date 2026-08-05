@@ -10,7 +10,7 @@ import static org.mockito.Mockito.times;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionEndedEvent;
+import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
@@ -54,9 +54,9 @@ class SettlementServiceTest {
   }
 
   @Test
-  void eventClass는_AuctionEndedEvent를_반환한다() {
+  void eventClass는_AuctionEndedMessageQueueEvent를_반환한다() {
     // when & then
-    assertThat(settlementService.eventClass()).isEqualTo(AuctionEndedEvent.class);
+    assertThat(settlementService.eventClass()).isEqualTo(AuctionEndedMessageQueueEvent.class);
   }
 
   @Test
@@ -67,7 +67,7 @@ class SettlementServiceTest {
     Member seller = createMember(3L);
     Point winnerPoint = createPoint(2L, 20_000L);
     Point sellerPoint = createPoint(3L, 5_000L);
-    AuctionEndedEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
+    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
 
     given(
             settlementRepository.existsByAuctionIdAndMemberIdAndSettlementType(
@@ -104,7 +104,7 @@ class SettlementServiceTest {
     Member seller = createMember(2L);
     Point winnerPoint = createPoint(5L, 20_000L);
     Point sellerPoint = createPoint(2L, 5_000L);
-    AuctionEndedEvent event = createEndedEvent(1L, 5L, 2L, 10_500L);
+    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 5L, 2L, 10_500L);
 
     given(auctionManageService.getAuctionById(1L)).willReturn(auction);
     given(memberManageService.getMemberById(5L)).willReturn(winner);
@@ -124,7 +124,7 @@ class SettlementServiceTest {
   @Test
   void 유찰된_경매_이벤트를_처리하면_아무것도_하지_않는다() {
     // given
-    AuctionEndedEvent event = createEndedEvent(1L, null, 3L, null);
+    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, null, 3L, null);
 
     // when
     settlementService.handle(event);
@@ -137,7 +137,7 @@ class SettlementServiceTest {
   @Test
   void 이미_처리된_정산이면_다시_처리하지_않는다() {
     // given
-    AuctionEndedEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
+    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
     given(
             settlementRepository.existsByAuctionIdAndMemberIdAndSettlementType(
                 1L, 2L, SettlementType.WINNER_PAYMENT))
@@ -156,9 +156,9 @@ class SettlementServiceTest {
     then(auctionManageService).should(never()).getAuctionById(any());
   }
 
-  private AuctionEndedEvent createEndedEvent(
+  private AuctionEndedMessageQueueEvent createEndedEvent(
       Long auctionId, Long winnerMemberId, Long sellerMemberId, Long winningPrice) {
-    return new AuctionEndedEvent(
+    return new AuctionEndedMessageQueueEvent(
         "event-id",
         auctionId,
         100L,
