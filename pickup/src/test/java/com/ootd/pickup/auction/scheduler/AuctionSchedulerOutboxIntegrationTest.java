@@ -182,9 +182,12 @@ class AuctionSchedulerOutboxIntegrationTest {
    * 이 테스트가 만든 경매의 적재분만 고른다.
    *
    * <p>H2 가 JVM 안에서 공유되고 다른 테스트가 경매를 커밋하므로, 전역 건수를 단언하면 실행 순서에 따라 결과가 달라진다.
+   *
+   * <p>애그리거트는 종류와 식별자가 짝을 이뤄야 특정된다. 식별자만 보면 다른 종류의 애그리거트가 같은 숫자를 가질 때 이 테스트의 행으로 섞여 들어온다.
    */
   private List<OutboxEventEntity> appendedRows() {
     return outboxEventJpaRepository.findAll().stream()
+        .filter(row -> row.getAggregateType() == AggregateType.AUCTION)
         .filter(row -> createdAuctionIds.contains(row.getAggregateId()))
         .toList();
   }
