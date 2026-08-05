@@ -23,6 +23,7 @@ import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
 import com.ootd.pickup.bid.dto.response.AuctionBidListItemResponse;
+import com.ootd.pickup.bid.dto.response.PlaceBidAcceptedResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
 import com.ootd.pickup.bid.repository.BidPriceCacheRepository;
 import com.ootd.pickup.bid.repository.BidRepository;
@@ -54,12 +55,19 @@ class BidServiceTest {
 
   @Mock private BidPriceCacheRepository bidPriceCacheRepository;
 
+  @Mock private AsyncBidRecorder asyncBidRecorder;
+
   private BidService bidService;
 
   @BeforeEach
   void setUp() {
     bidService =
-        new BidService(auctionRepository, bidRepository, memberRepository, bidPriceCacheRepository);
+        new BidService(
+            auctionRepository,
+            bidRepository,
+            memberRepository,
+            bidPriceCacheRepository,
+            asyncBidRecorder);
   }
 
   @Test
@@ -330,6 +338,59 @@ class BidServiceTest {
     assertThat(response.bidId()).isEqualTo(12L);
     then(auctionRepository).should().updateCurrentPriceIfHigher(1L, 11_000L);
     then(bidPriceCacheRepository).should().saveCurrentPrice(1L, 11_000L);
+  }
+
+  @Test
+  void 짧은트랜잭션_방식_입찰에_성공하면_캐시를_갱신하고_입찰기록은_비동기로_넘긴다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    given(bidPriceCacheRepository.findCurrentPrice(1L)).willReturn(Optional.empty());
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(auctionRepository.updateCurrentPriceIfHigher(1L, 10_500L)).willReturn(1);
+
+    // when
+    PlaceBidAcceptedResponse response =
+        bidService.placeBidWithShortTransaction(1L, 2L, new PlaceBidRequest(10_500L));
+
+    // then
+    assertThat(response.auctionId()).isEqualTo(1L);
+    assertThat(response.memberId()).isEqualTo(2L);
+    assertThat(response.bidPrice()).isEqualTo(10_500L);
+    then(bidPriceCacheRepository).should().saveCurrentPrice(1L, 10_500L);
+    then(asyncBidRecorder).should().recordBid(1L, 2L, 10_500L);
+    then(memberRepository).shouldHaveNoInteractions();
+    then(bidRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 짧은트랜잭션_방식_캐시된_현재가_이하로_입찰하면_DB조회_없이_추월_예외가_발생한다() {
+    // given
+    given(bidPriceCacheRepository.findCurrentPrice(1L)).willReturn(Optional.of(10_500L));
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.placeBidWithShortTransaction(1L, 2L, new PlaceBidRequest(10_500L)),
+        OUTBID_EXISTS);
+    then(auctionRepository).shouldHaveNoInteractions();
+    then(asyncBidRecorder).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 짧은트랜잭션_방식_동시_입찰로_현재가가_이미_갱신되었으면_추월_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    given(bidPriceCacheRepository.findCurrentPrice(1L)).willReturn(Optional.empty());
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(auctionRepository.updateCurrentPriceIfHigher(1L, 10_500L)).willReturn(0);
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.placeBidWithShortTransaction(1L, 2L, new PlaceBidRequest(10_500L)),
+        OUTBID_EXISTS);
+    then(bidPriceCacheRepository).should(never()).saveCurrentPrice(any(), any());
+    then(asyncBidRecorder).shouldHaveNoInteractions();
   }
 
   @Test

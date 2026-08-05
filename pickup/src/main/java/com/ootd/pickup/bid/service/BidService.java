@@ -19,6 +19,7 @@ import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
 import com.ootd.pickup.bid.dto.response.AuctionBidListItemResponse;
+import com.ootd.pickup.bid.dto.response.PlaceBidAcceptedResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
 import com.ootd.pickup.bid.repository.BidPriceCacheRepository;
 import com.ootd.pickup.bid.repository.BidRepository;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -47,6 +49,7 @@ public class BidService {
   private final BidRepository bidRepository;
   private final MemberRepository memberRepository;
   private final BidPriceCacheRepository bidPriceCacheRepository;
+  private final AsyncBidRecorder asyncBidRecorder;
 
   /** OOTD-278: Redisson 분산 락 + Bid 테이블 기반 현재가 조회로 동시성을 제어한다. */
   @DistributedLock(key = "'auction:' + #auctionId")
@@ -163,6 +166,50 @@ public class BidService {
 
     Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
     return PlaceBidResponse.from(savedBid);
+  }
+
+  /**
+   * OOTD-292 개선안: 트랜잭션을 auction.currentPrice 갱신 한 줄로 최소화한다.
+   *
+   * <p>이 메서드 자체는 트랜잭션을 열지 않는다({@code Propagation.NOT_SUPPORTED}로 클래스 레벨의 readOnly 트랜잭션을 명시적으로
+   * 걷어낸다). 그래서 각 리포지토리 호출은 Spring Data JPA가 자동으로 부여하는 자신만의 짧은 트랜잭션 안에서 실행되고, 커밋 즉시 auction row 락이
+   * 풀린다.
+   *
+   * <ul>
+   *   <li>Redis 사전 검사는 DB 트랜잭션을 열기 전에 수행한다 — Redis 통신 문제가 생겨도 DB 커넥션을 붙잡고 있지 않는다.
+   *   <li>Redis 캐시 갱신은 현재가 갱신 트랜잭션이 끝난 뒤 동기로 수행한다. Redis 쓰기는 충분히 빨라 응답 지연은 미미하고, 이미 DB 커넥션을 반납한 뒤라
+   *       커넥션 점유 문제와는 무관하다. 비동기로 돌리면 지연은 더 줄지만 갱신 순서가 흐트러질 수 있어 동기를 선택했다.
+   *   <li>Bid 기록(추월 처리 + 저장)은 응답과 무관하게 완전히 비동기로 수행한다 — auction row 락과 전혀 겹치지 않아 이 작업이 늦어져도 다른 입찰을
+   *       막지 않는다.
+   * </ul>
+   */
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  public PlaceBidAcceptedResponse placeBidWithShortTransaction(
+      Long auctionId, Long memberId, PlaceBidRequest request) {
+    // DB 커넥션을 잡기 전에 캐시로 먼저 거른다 — 조회조차 하지 않아야 커넥션 풀 보호 효과가 있다.
+    bidPriceCacheRepository
+        .findCurrentPrice(auctionId)
+        .ifPresent(cachedCurrentPrice -> rejectIfNotHigher(request.bidPrice(), cachedCurrentPrice));
+
+    Auction auction =
+        auctionRepository
+            .findByIdWithConsignmentAndCard(auctionId)
+            .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+
+    validateAuction(auction, memberId);
+    validateBidPrice(request.bidPrice(), auction.getCurrentPrice(), auction.getBidIncrement());
+
+    int updated = auctionRepository.updateCurrentPriceIfHigher(auctionId, request.bidPrice());
+    if (updated == 0) {
+      throw new PickUpException(OUTBID_EXISTS);
+    }
+
+    bidPriceCacheRepository.saveCurrentPrice(auctionId, request.bidPrice());
+
+    asyncBidRecorder.recordBid(auctionId, memberId, request.bidPrice());
+
+    return new PlaceBidAcceptedResponse(
+        auctionId, memberId, request.bidPrice(), LocalDateTime.now());
   }
 
   private void rejectIfNotHigher(Long bidPrice, Long cachedCurrentPrice) {

@@ -3,6 +3,7 @@ package com.ootd.pickup.bid.api;
 import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
 import com.ootd.pickup.bid.dto.response.AuctionBidListItemResponse;
+import com.ootd.pickup.bid.dto.response.PlaceBidAcceptedResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
 import com.ootd.pickup.global.config.SwaggerConfig;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
@@ -126,6 +127,27 @@ public interface BidApi {
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<PlaceBidResponse> placeBidWithConditionalUpdate(
+      Long auctionId, Long memberId, PlaceBidRequest placeBidRequest);
+
+  @Operation(
+      summary = "입찰 (짧은 트랜잭션 방식, 실험용)",
+      description =
+          """
+          OOTD-292 개선안: 트랜잭션을 auction.currentPrice 갱신 한 줄로 최소화한 실험용 엔드포인트입니다.
+          Redis 사전 검사는 DB 트랜잭션을 열기 전에, 캐시 갱신은 트랜잭션이 끝난 뒤 동기로, Bid 기록(추월
+          처리 + 저장)은 완전히 비동기로 수행합니다. 응답 시점에는 아직 Bid row가 없을 수 있어 bidId를
+          포함하지 않고 202(Accepted)를 반환합니다.
+          """,
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(responseCode = "202", description = "입찰 접수(현재가 갱신 확정, Bid 기록은 비동기 처리)"),
+        @ApiResponse(
+            responseCode = "409",
+            description =
+                "입찰 불가 (AUCTION_NOT_STARTED, AUCTION_ENDED, OUTBID_EXISTS, BELOW_MIN_INCREMENT)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<PlaceBidAcceptedResponse> placeBidWithShortTransaction(
       Long auctionId, Long memberId, PlaceBidRequest placeBidRequest);
 
   @Operation(

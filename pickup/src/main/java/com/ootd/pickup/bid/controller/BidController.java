@@ -4,6 +4,7 @@ import com.ootd.pickup.bid.api.BidApi;
 import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
 import com.ootd.pickup.bid.dto.response.AuctionBidListItemResponse;
+import com.ootd.pickup.bid.dto.response.PlaceBidAcceptedResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
 import com.ootd.pickup.bid.service.BidService;
 import com.ootd.pickup.global.auth.annotation.MemberId;
@@ -60,6 +61,17 @@ public class BidController implements BidApi {
       @Valid @RequestBody PlaceBidRequest placeBidRequest) {
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(bidService.placeBidWithConditionalUpdate(auctionId, memberId, placeBidRequest));
+  }
+
+  @PostMapping("/short-transaction")
+  @RequireAuthentication
+  @Override
+  public ResponseEntity<PlaceBidAcceptedResponse> placeBidWithShortTransaction(
+      @PathVariable Long auctionId,
+      @MemberId Long memberId,
+      @Valid @RequestBody PlaceBidRequest placeBidRequest) {
+    return ResponseEntity.status(HttpStatus.ACCEPTED)
+        .body(bidService.placeBidWithShortTransaction(auctionId, memberId, placeBidRequest));
   }
 
   @GetMapping

@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
+import com.ootd.pickup.bid.dto.response.PlaceBidAcceptedResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
 import com.ootd.pickup.bid.service.BidService;
 import com.ootd.pickup.global.auth.Authentication;
@@ -105,6 +106,29 @@ class BidControllerTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.bidId").value(10L));
     then(bidService).should().placeBidWithConditionalUpdate(eq(1L), eq(2L), any());
+  }
+
+  @Test
+  void 짧은트랜잭션_방식_엔드포인트로_요청하면_202와_접수_정보를_반환한다() throws Exception {
+    // given
+    PlaceBidRequest request = new PlaceBidRequest(10_500L);
+    PlaceBidAcceptedResponse response =
+        new PlaceBidAcceptedResponse(1L, 2L, 10_500L, LocalDateTime.of(2026, 7, 30, 12, 0));
+    given(bidService.placeBidWithShortTransaction(eq(1L), eq(2L), any(PlaceBidRequest.class)))
+        .willReturn(response);
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions/1/bids/short-transaction")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(2L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.auctionId").value(1L))
+        .andExpect(jsonPath("$.memberId").value(2L))
+        .andExpect(jsonPath("$.bidPrice").value(10_500L));
+    then(bidService).should().placeBidWithShortTransaction(eq(1L), eq(2L), any());
   }
 
   @Test
