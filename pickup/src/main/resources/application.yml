@@ -15,6 +15,12 @@ spring:
       # 풀 이름은 JMX ObjectName 에 그대로 들어가 Datadog 의 pool 태그가 된다.
       pool-name: pickup-pool
       register-mbeans: true
+      # Outbox 배치 적재가 여러 행 INSERT 한 문장으로 합쳐지게 한다. 이 옵션이 없으면 JDBC 배치가
+      # 여전히 INSERT 를 한 건씩 보내 배치 이점이 거의 없다.
+      # URL 이 아니라 여기 두는 이유는 배포 환경이 DB_URL 을 덮어써도 그대로 적용되기 때문이다.
+      # HikariCP 의 DriverDataSource 가 이 값을 driver.connect(url, props) 로 넘긴다.
+      data-source-properties:
+        rewriteBatchedStatements: true
   jpa:
     open-in-view: false
     hibernate:
@@ -22,6 +28,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        jdbc:
+          # Outbox 적재를 JDBC 배치로 묶는다. 다른 엔티티는 IDENTITY 로 PK 를 생성해 Hibernate 가
+          # 배치할 수 없으므로(생성 키를 즉시 받아야 한다) 실질적으로 outbox_event 에만 적용된다.
+          batch_size: 100
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -31,6 +41,12 @@ spring:
       port: ${REDIS_PORT:6379}
       timeout: ${REDIS_TIMEOUT:1s}
       connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
+  task:
+    scheduling:
+      pool:
+        # 기본값이 1 이라 한 작업이 지연되면 다른 작업의 주기도 함께 밀린다.
+        # Outbox 릴레이가 추가되면 두 작업이 서로 영향을 주지 않아야 한다.
+        size: 2
 auth:
   token:
     issuer: ${JWT_ISSUER:pickup}
@@ -42,3 +58,16 @@ slack:
   enabled: ${SLACK_ENABLED:false}
   bot-token: ${SLACK_BOT_TOKEN:}
   channel: ${SLACK_CHANNEL:}
+
+scheduler:
+  # false 면 SchedulerConfig 가 만들어지지 않아 모든 주기 작업과 ShedLock 이 함께 꺼진다.
+  enabled: ${SCHEDULER_ENABLED:true}
+  auction:
+    enabled: ${SCHEDULER_AUCTION_ENABLED:true}
+    fixed-delay: ${SCHEDULER_AUCTION_FIXED_DELAY:1s}
+  outbox:
+    # 기본값이 false 다. SQSEventProducer 가 빈 구현인 상태로 켜면, 전송이 성공한 것처럼 보여
+    # 릴레이가 published=true 로 표시하고 유실이 허용되지 않는 이벤트가 조용히 사라진다.
+    # 실제 전송이 구현된 뒤 true 로 켠다. 그때까지 이벤트는 테이블에 쌓인 채 남는다.
+    enabled: ${SCHEDULER_OUTBOX_ENABLED:false}
+    fixed-delay: ${SCHEDULER_OUTBOX_FIXED_DELAY:1s}
