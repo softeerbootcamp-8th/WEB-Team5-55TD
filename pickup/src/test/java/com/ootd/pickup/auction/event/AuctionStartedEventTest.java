@@ -7,6 +7,7 @@ import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.global.event.AggregateType;
+import com.ootd.pickup.global.event.EventType;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -47,7 +48,7 @@ class AuctionStartedEventTest {
     // then
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(event.aggregateId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.eventType()).isEqualTo("AUCTION_STARTED");
+    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_STARTED);
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status) {

@@ -4,6 +4,7 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.global.event.AggregateType;
+import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.MessageQueueEvent;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -63,7 +64,7 @@ public record AuctionEndedEvent(
   }
 
   @Override
-  public String eventType() {
-    return "AUCTION_ENDED";
+  public EventType eventType() {
+    return EventType.AUCTION_ENDED;
   }
 }

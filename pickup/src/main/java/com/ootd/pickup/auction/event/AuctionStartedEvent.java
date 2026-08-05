@@ -3,6 +3,7 @@ package com.ootd.pickup.auction.event;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.global.event.AggregateType;
+import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.NotificationEvent;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -55,7 +56,7 @@ public record AuctionStartedEvent(
   }
 
   @Override
-  public String eventType() {
-    return "AUCTION_STARTED";
+  public EventType eventType() {
+    return EventType.AUCTION_STARTED;
   }
 }
