@@ -10,7 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.Limit;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Outbox에 쌓인 메시지 큐 이벤트를 실제 큐로 옮기는 릴레이.
@@ -33,6 +33,7 @@ public class OutboxEventScheduler {
 
   private final OutboxEventJpaRepository outboxEventJpaRepository;
   private final MessageQueueSender messageQueueSender;
+  private final TransactionTemplate transactionTemplate;
 
   /**
    * 발행 대기 중인 이벤트를 큐로 보내고 발행 완료로 표시한다.
@@ -41,15 +42,19 @@ public class OutboxEventScheduler {
    * 이벤트를 다시 보내므로 유실 대신 중복이 생긴다. 중복은 소비자가 {@link MessageQueueEvent#eventId()}로 걸러낼 수 있지만 유실은 되돌릴 수
    * 없다.
    *
+   * <p>이 메서드에는 트랜잭션을 걸지 않는다. 큐 전송은 외부 통신이라 응답이 늦을 수 있고, 한 주기에 최대 {@code BATCH_LIMIT}건을 보낸다. 전송을
+   * 트랜잭션 안에서 하면 그 시간 내내 DB 커넥션과 영속성 컨텍스트를 붙잡아 요청 처리 쪽 커넥션이 고갈된다. 그래서 <b>짧은 읽기 → 트랜잭션 밖 전송 → 짧은
+   * 갱신</b> 세 단계로 나눈다.
+   *
+   * <p>읽기 트랜잭션 안에서 이벤트로 바꿔 내보내는 이유는 그 뒤로 엔티티를 만지지 않기 위해서다. 트랜잭션이 닫힌 뒤 엔티티를 들고 있으면 준영속 상태 접근이 섞인다.
+   *
    * <p>건별로 예외를 격리한다. 한 건이 실패해도 나머지는 발행되고, 실패한 행만 {@code published=false}로 남아 다음 주기에 다시 시도된다.
    */
   @Scheduled(fixedDelayString = "${scheduler.outbox.fixed-delay:1s}")
   @SchedulerLock(name = "outbox-event-relay", lockAtMostFor = "PT30S", lockAtLeastFor = "PT0.5S")
-  @Transactional
   public void relayUnpublishedEvents() {
-    List<OutboxEventEntity> unpublished =
-        outboxEventJpaRepository.findAllByPublishedFalseOrderByCreatedAtAsc(BATCH_LIMIT);
-    if (unpublished.isEmpty()) {
+    List<MessageQueueEvent> pending = findPendingEvents();
+    if (pending.isEmpty()) {
       return;
     }
 
@@ -57,12 +62,12 @@ public class OutboxEventScheduler {
     List<String> failedIds = new ArrayList<>();
     RuntimeException firstFailure = null;
 
-    for (OutboxEventEntity outboxEvent : unpublished) {
+    for (MessageQueueEvent event : pending) {
       try {
-        messageQueueSender.send(outboxEvent.toEvent());
-        publishedIds.add(outboxEvent.getId());
+        messageQueueSender.send(event);
+        publishedIds.add(event.eventId());
       } catch (RuntimeException exception) {
-        failedIds.add(outboxEvent.getId());
+        failedIds.add(event.eventId());
         if (firstFailure == null) {
           firstFailure = exception;
         }
@@ -82,7 +87,28 @@ public class OutboxEventScheduler {
       return;
     }
 
-    int marked = outboxEventJpaRepository.updatePublishedByIdIn(publishedIds);
+    int marked = markPublished(publishedIds);
     log.info("Outbox 이벤트를 발행했습니다 - published={}, failed={}", marked, failedIds.size());
+  }
+
+  /** 발행 대기 중인 행을 읽어 전송 대상으로 바꾼다. 이 트랜잭션은 조회에만 쓰이고 바로 닫힌다. */
+  private List<MessageQueueEvent> findPendingEvents() {
+    List<MessageQueueEvent> pending =
+        transactionTemplate.execute(
+            status ->
+                outboxEventJpaRepository
+                    .findAllByPublishedFalseOrderByCreatedAtAsc(BATCH_LIMIT)
+                    .stream()
+                    .map(OutboxEventEntity::toEvent)
+                    .toList());
+    return pending == null ? List.of() : pending;
+  }
+
+  /** 전송에 성공한 행만 발행 완료로 표시한다. 갱신 한 문장만 담는 짧은 트랜잭션이다. */
+  private int markPublished(List<String> publishedIds) {
+    Integer marked =
+        transactionTemplate.execute(
+            status -> outboxEventJpaRepository.updatePublishedByIdIn(publishedIds));
+    return marked == null ? 0 : marked;
   }
 }
