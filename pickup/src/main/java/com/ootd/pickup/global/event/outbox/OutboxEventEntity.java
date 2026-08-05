@@ -86,13 +86,13 @@ public class OutboxEventEntity implements Persistable<String> {
   }
 
   /**
-   * 이벤트를 적재 대상 행으로 만든다. 외부에서는 {@link OutboxEventFactory#create}를 쓴다.
+   * 이벤트를 적재 대상 행으로 만든다. 적재는 {@link OutboxEventProducer}를 통해서만 일어난다.
    *
    * <p>직렬화 결과가 아니라 {@link ObjectMapper}를 받는 이유는 {@code event}와 payload가 서로 맞는지 보장하기 위해서다. 문자열을 받으면
    * 다른 이벤트의 payload를 넘겨도 컴파일된다. 여기서 직접 직렬화하면 불일치가 불가능해진다.
    *
    * <p>package-private으로 좁힌 이유는 매퍼 선택을 이 패키지 안에 묶어두기 위해서다. payload는 릴레이가 같은 설정으로 역직렬화해야 하므로, 호출자가
-   * 임의의 매퍼를 넘길 수 있으면 조용히 어긋난다. 매퍼를 고르는 곳은 {@link OutboxEventFactory} 하나다.
+   * 임의의 매퍼를 넘길 수 있으면 조용히 어긋난다. 매퍼를 고르는 곳은 {@link OutboxEventProducer} 하나다.
    *
    * @param event 적재할 메시지 큐 이벤트
    * @param objectMapper payload 직렬화에 쓸 매퍼

@@ -7,10 +7,9 @@ import com.ootd.pickup.auction.event.AuctionClosedMessageQueueEvent;
 import com.ootd.pickup.auction.event.AuctionClosedNotificationEvent;
 import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
 import com.ootd.pickup.bid.domain.Bid;
+import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.event.NotificationEvent;
-import com.ootd.pickup.global.event.outbox.OutboxEventFactory;
-import com.ootd.pickup.global.event.outbox.OutboxEventJpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -64,8 +63,7 @@ public class AuctionScheduler {
   private static final Limit BATCH_LIMIT = Limit.of(100);
 
   private final AuctionSchedulerJpaRepository auctionSchedulerJpaRepository;
-  private final OutboxEventFactory outboxEventFactory;
-  private final OutboxEventJpaRepository outboxEventJpaRepository;
+  private final EventProducer eventProducer;
   private final EventPublisher eventPublisher;
 
   /**
@@ -248,7 +246,7 @@ public class AuctionScheduler {
                         auction, winningBidOf(auction, winningBidsById)))
             .toList();
 
-    outboxEventJpaRepository.saveAll(outboxEventFactory.createAll(events));
+    events.forEach(eventProducer::produce);
     return events.size();
   }
 

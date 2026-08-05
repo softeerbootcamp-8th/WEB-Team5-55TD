@@ -32,13 +32,13 @@ class OutboxEventSchedulerIntegrationTest {
 
   @Autowired private OutboxEventJpaRepository outboxEventJpaRepository;
 
-  @Autowired private OutboxEventFactory outboxEventFactory;
+  @Autowired private EventProducer eventProducer;
 
   @Autowired private EntityManager entityManager;
 
   @Autowired private ObjectMapper objectMapper;
 
-  @MockitoBean private EventProducer eventProducer;
+  @MockitoBean private MessageQueueSender messageQueueSender;
 
   private record TestEvent(
       String eventId, Long auctionId, Long winningPrice, LocalDateTime occurredAt)
@@ -75,7 +75,7 @@ class OutboxEventSchedulerIntegrationTest {
     outboxEventScheduler.relayUnpublishedEvents();
 
     // then
-    then(eventProducer).should().produce(any(MessageQueueEvent.class));
+    then(messageQueueSender).should().send(any(MessageQueueEvent.class));
     assertThat(findById(appended.getId()).isPublished()).isTrue();
   }
 
@@ -120,7 +120,7 @@ class OutboxEventSchedulerIntegrationTest {
     outboxEventScheduler.relayUnpublishedEvents();
 
     // then
-    then(eventProducer).shouldHaveNoInteractions();
+    then(messageQueueSender).shouldHaveNoInteractions();
   }
 
   @Test
@@ -135,7 +135,7 @@ class OutboxEventSchedulerIntegrationTest {
 
     // then
     ArgumentCaptor<MessageQueueEvent> captor = ArgumentCaptor.forClass(MessageQueueEvent.class);
-    then(eventProducer).should(times(3)).produce(captor.capture());
+    then(messageQueueSender).should(times(3)).send(captor.capture());
     assertThat(captor.getAllValues())
         .extracting(MessageQueueEvent::aggregateId)
         .containsExactly(1L, 2L, 3L);
@@ -145,7 +145,7 @@ class OutboxEventSchedulerIntegrationTest {
   void 전송에_실패한_이벤트는_발행_완료로_표시하지_않는다() {
     // given
     OutboxEventEntity appended = append(testEvent(1L, LocalDateTime.of(2026, 8, 5, 10, 0)));
-    willThrow(new IllegalStateException("큐 장애")).given(eventProducer).produce(any());
+    willThrow(new IllegalStateException("큐 장애")).given(messageQueueSender).send(any());
 
     // when
     outboxEventScheduler.relayUnpublishedEvents();
@@ -161,8 +161,8 @@ class OutboxEventSchedulerIntegrationTest {
     OutboxEventEntity succeeding = append(testEvent(2L, LocalDateTime.of(2026, 8, 5, 10, 0, 2)));
     willThrow(new IllegalStateException("큐 장애"))
         .willDoNothing()
-        .given(eventProducer)
-        .produce(any());
+        .given(messageQueueSender)
+        .send(any());
 
     // when
     outboxEventScheduler.relayUnpublishedEvents();
@@ -180,12 +180,12 @@ class OutboxEventSchedulerIntegrationTest {
     outboxEventScheduler.relayUnpublishedEvents();
 
     // then
-    then(eventProducer).shouldHaveNoInteractions();
+    then(messageQueueSender).shouldHaveNoInteractions();
   }
 
   private RelayedOutboxEvent capturedRelayedEvent() {
     ArgumentCaptor<MessageQueueEvent> captor = ArgumentCaptor.forClass(MessageQueueEvent.class);
-    then(eventProducer).should().produce(captor.capture());
+    then(messageQueueSender).should().send(captor.capture());
     assertThat(captor.getValue()).isInstanceOf(RelayedOutboxEvent.class);
     return (RelayedOutboxEvent) captor.getValue();
   }
@@ -195,9 +195,9 @@ class OutboxEventSchedulerIntegrationTest {
   }
 
   private OutboxEventEntity append(MessageQueueEvent event) {
-    OutboxEventEntity appended = outboxEventJpaRepository.save(outboxEventFactory.create(event));
+    eventProducer.produce(event);
     entityManager.flush();
-    return appended;
+    return outboxEventJpaRepository.findById(event.eventId()).orElseThrow();
   }
 
   private OutboxEventEntity findById(String id) {

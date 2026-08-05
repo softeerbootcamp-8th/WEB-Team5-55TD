@@ -3,6 +3,7 @@ package com.ootd.pickup.global.event.outbox;
 import static org.assertj.core.api.Assertions.*;
 
 import com.ootd.pickup.global.event.AggregateType;
+import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.MessageQueueEvent;
 import jakarta.persistence.EntityManager;
@@ -25,7 +26,7 @@ class OutboxEventJpaRepositoryIntegrationTest {
 
   @Autowired private OutboxEventJpaRepository outboxEventJpaRepository;
 
-  @Autowired private OutboxEventFactory outboxEventFactory;
+  @Autowired private EventProducer eventProducer;
 
   @Autowired private EntityManager entityManager;
 
@@ -61,7 +62,7 @@ class OutboxEventJpaRepositoryIntegrationTest {
     String payload = objectMapper.writeValueAsString(event);
 
     // when
-    outboxEventJpaRepository.save(outboxEventFactory.create(event));
+    eventProducer.produce(event);
     entityManager.flush();
     entityManager.clear();
 
@@ -77,7 +78,7 @@ class OutboxEventJpaRepositoryIntegrationTest {
 
   @Test
   @Transactional
-  void 여러_행을_한번에_적재하면_조회없이_한_문장으로_INSERT된다() {
+  void 여러_이벤트를_적재하면_조회없이_한_문장으로_INSERT된다() {
     // given
     List<TestEvent> events =
         IntStream.rangeClosed(1, 3)
@@ -93,15 +94,16 @@ class OutboxEventJpaRepositoryIntegrationTest {
     statistics.clear();
 
     // when
-    outboxEventJpaRepository.saveAll(outboxEventFactory.createAll(events));
+    events.forEach(eventProducer::produce);
     entityManager.flush();
 
     // then
     assertThat(statistics.getEntityInsertCount()).isEqualTo(3);
     assertThat(statistics.getEntityLoadCount()).isZero();
-    // OutboxEventEntity 가 Persistable 을 구현하지 않으면 save 가 merge 로 가고, 행마다 존재 확인
-    // SELECT 가 붙어 이 값이 4가 된다(측정값). 그 SELECT 는 행을 찾지 못하므로 위의
-    // getEntityLoadCount 로는 잡히지 않는다. 배치 적재가 유지되는지는 이 단언이 지킨다.
+    // produce() 는 한 건씩 받지만 persist 가 영속성 컨텍스트에 쌓이기만 하므로 flush 때
+    // 한 문장으로 합쳐진다. OutboxEventEntity 가 Persistable 을 구현하지 않으면 save 가
+    // merge 로 가고 행마다 존재 확인 SELECT 가 붙어 이 값이 4가 된다(측정값). 그 SELECT 는
+    // 행을 찾지 못하므로 위의 getEntityLoadCount 로는 잡히지 않는다.
     assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
   }
 

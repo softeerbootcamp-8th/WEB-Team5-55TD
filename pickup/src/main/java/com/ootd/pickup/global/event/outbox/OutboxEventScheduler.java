@@ -1,6 +1,5 @@
 package com.ootd.pickup.global.event.outbox;
 
-import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.event.MessageQueueEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,9 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Outbox 패턴의 뒤쪽 절반이다. 도메인 트랜잭션은 이벤트를 테이블에 적재하는 데까지만 책임지고 외부 전송은 별도 주기로 분리한다. 그래야 큐가 잠시 죽어도 도메인
  * 트랜잭션이 실패하지 않고, 이미 커밋된 이벤트는 큐가 살아난 뒤 그대로 전달된다.
  *
- * <p>기본값이 꺼져 있다. {@code SQSEventProducer}가 아직 빈 구현이라, 켜면 전송이 성공한 것처럼 보여 행을 발행 완료로 표시하고 유실이 허용되지 않는
- * 이벤트가 조용히 사라진다. 실제 전송이 구현된 뒤 {@code scheduler.outbox.enabled=true}로 켠다. 그때까지 이벤트는 사라지지 않고 테이블에
- * 쌓인다.
+ * <p>기본값이 꺼져 있다. {@link MessageQueueSender} 구현체가 아직 빈 구현이라, 켜면 전송이 성공한 것처럼 보여 행을 발행 완료로 표시하고 유실이
+ * 허용되지 않는 이벤트가 조용히 사라진다. 실제 전송이 구현된 뒤 {@code scheduler.outbox.enabled=true}로 켠다. 그때까지 이벤트는 사라지지 않고
+ * 테이블에 쌓인다.
  */
 @Slf4j
 @Component
@@ -33,7 +32,7 @@ public class OutboxEventScheduler {
   private static final Limit BATCH_LIMIT = Limit.of(100);
 
   private final OutboxEventJpaRepository outboxEventJpaRepository;
-  private final EventProducer eventProducer;
+  private final MessageQueueSender messageQueueSender;
 
   /**
    * 발행 대기 중인 이벤트를 큐로 보내고 발행 완료로 표시한다.
@@ -60,7 +59,7 @@ public class OutboxEventScheduler {
 
     for (OutboxEventEntity outboxEvent : unpublished) {
       try {
-        eventProducer.produce(outboxEvent.toEvent());
+        messageQueueSender.send(outboxEvent.toEvent());
         publishedIds.add(outboxEvent.getId());
       } catch (RuntimeException exception) {
         failedIds.add(outboxEvent.getId());
