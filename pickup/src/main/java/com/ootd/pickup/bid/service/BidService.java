@@ -81,6 +81,10 @@ public class BidService {
         });
 
     Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
+
+    auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
+    auctionRepository.save(auction);
+
     return PlaceBidResponse.from(savedBid);
   }
 

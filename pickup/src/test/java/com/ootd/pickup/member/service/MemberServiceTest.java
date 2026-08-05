@@ -28,11 +28,14 @@ import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.dto.MemberRequest;
 import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
+import com.ootd.pickup.member.dto.ProfileImageAction;
+import com.ootd.pickup.member.dto.ProfileImageUpdateRequest;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
@@ -59,6 +62,8 @@ class MemberServiceTest {
   @Mock private MemberManageService memberManageService;
 
   @Mock private PointRepository pointRepository;
+
+  @Mock private ImageUrlResolver imageUrlResolver;
 
   @Mock private BidRepository bidRepository;
 
@@ -157,7 +162,7 @@ class MemberServiceTest {
     given(memberRepository.existsByNickname("라이츄회원")).willReturn(false);
 
     // when
-    MyProfileResponse response = memberService.updateMyProfile(1L, request);
+    MyProfileResponse response = memberService.updateMyProfile(1L, request, null).response();
 
     // then
     assertThat(response.nickname()).isEqualTo("라이츄회원");
@@ -175,7 +180,7 @@ class MemberServiceTest {
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when
-    memberService.updateMyProfile(1L, request);
+    memberService.updateMyProfile(1L, request, null);
 
     // then
     assertThat(readPasswordHash(member)).isNotEqualTo(request.password());
@@ -196,7 +201,7 @@ class MemberServiceTest {
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when & then
-    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request))
+    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request, null))
         .isInstanceOf(PickUpException.class)
         .hasMessage("비밀번호가 일치하지 않습니다.");
     assertThat(readPasswordHash(member)).isEqualTo(passwordHash);
@@ -212,7 +217,7 @@ class MemberServiceTest {
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when & then
-    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request))
+    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request, null))
         .isInstanceOf(PickUpException.class)
         .hasMessage("비밀번호가 일치하지 않습니다.");
     assertThat(member.getNickname()).isEqualTo("픽업회원");
@@ -221,18 +226,47 @@ class MemberServiceTest {
   }
 
   @Test
-  void 프로필이미지URL만_수정하면_새_URL을_반환한다() {
+  void 프로필이미지를_수정하면_최종_객체의_URL을_반환한다() {
     // given
     Member member = Member.create("pickup-user", "password-hash", "픽업회원");
+    String temporaryObjectKey = "uploads/1/profiles/00000000-0000-0000-0000-000000000001.jpg";
+    String objectKey = "media/profiles/1/00000000-0000-0000-0000-000000000001.jpg";
     UpdateMyProfileRequest request =
-        new UpdateMyProfileRequest(null, null, null, "https://example.com/profile.png");
+        new UpdateMyProfileRequest(
+            null,
+            null,
+            null,
+            new ProfileImageUpdateRequest(ProfileImageAction.SET, temporaryObjectKey));
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(imageUrlResolver.resolve(objectKey)).willReturn("https://images.test/" + objectKey);
+
+    // when
+    MyProfileResponse response = memberService.updateMyProfile(1L, request, objectKey).response();
+
+    // then
+    assertThat(response.profileImageUrl()).isEqualTo("https://images.test/" + objectKey);
+    assertThat(member.getProfileImageObjectKey()).isEqualTo(objectKey);
+  }
+
+  @Test
+  void 프로필이미지를_삭제하면_DB_연결을_지우고_커밋후_객체를_삭제한다() {
+    // given
+    Member member = Member.create("pickup-user", "password-hash", "픽업회원");
+    String previousObjectKey = "media/profiles/1/00000000-0000-0000-0000-000000000001.jpg";
+    member.updateProfileImage(previousObjectKey);
+    UpdateMyProfileRequest request =
+        new UpdateMyProfileRequest(
+            null, null, null, new ProfileImageUpdateRequest(ProfileImageAction.REMOVE, null));
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when
-    MyProfileResponse response = memberService.updateMyProfile(1L, request);
+    MemberService.ProfileUpdateResult result = memberService.updateMyProfile(1L, request, null);
+    MyProfileResponse response = result.response();
 
     // then
-    assertThat(response.profileImageUrl()).isEqualTo("https://example.com/profile.png");
+    assertThat(response.profileImageUrl()).isNull();
+    assertThat(member.getProfileImageObjectKey()).isNull();
+    assertThat(result.previousObjectKey()).isEqualTo(previousObjectKey);
   }
 
   @Test
@@ -244,7 +278,7 @@ class MemberServiceTest {
     given(memberRepository.existsByNickname("라이츄회원")).willReturn(true);
 
     // when & then
-    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request))
+    assertThatThrownBy(() -> memberService.updateMyProfile(1L, request, null))
         .isInstanceOf(PickUpException.class)
         .hasMessage("이미 사용 중인 닉네임입니다.");
   }
