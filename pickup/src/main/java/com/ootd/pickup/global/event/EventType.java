@@ -1,8 +1,8 @@
 package com.ootd.pickup.global.event;
 
 import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
-import com.ootd.pickup.auction.event.AuctionClosedMessageQueueEvent;
-import com.ootd.pickup.auction.event.AuctionClosedNotificationEvent;
+import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
+import com.ootd.pickup.auction.event.AuctionEndedNotificationEvent;
 import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
 
 /**
@@ -30,7 +30,7 @@ public enum EventType {
   /** 예정된 경매가 시작 시각에 도달해 입찰이 열렸다. 반드시 한 번 처리해야 할 후속이 없어 알림 계열만 둔다. */
   AUCTION_STARTED(null, AuctionStartedNotificationEvent.class),
   /** 경매가 종료 시각에 도달해 낙찰/유찰이 확정됐다. 정산(메시지 큐)과 화면 갱신(알림)이 모두 필요하다. */
-  AUCTION_CLOSED(AuctionClosedMessageQueueEvent.class, AuctionClosedNotificationEvent.class),
+  AUCTION_ENDED(AuctionEndedMessageQueueEvent.class, AuctionEndedNotificationEvent.class),
   /** 입찰로 현재가가 갱신됐다. 화면 갱신만 필요하다. */
   AUCTION_BID_UPDATED(null, AuctionBidUpdatedNotificationEvent.class);
 

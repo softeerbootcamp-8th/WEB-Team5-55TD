@@ -56,7 +56,7 @@ class OutboxEventSchedulerIntegrationTest {
 
     @Override
     public EventType eventType() {
-      return EventType.AUCTION_CLOSED;
+      return EventType.AUCTION_ENDED;
     }
   }
 
@@ -93,7 +93,7 @@ class OutboxEventSchedulerIntegrationTest {
     assertThat(relayed.eventId()).isEqualTo(appended.getId());
     assertThat(relayed.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(relayed.aggregateId()).isEqualTo(1024L);
-    assertThat(relayed.eventType()).isEqualTo(EventType.AUCTION_CLOSED);
+    assertThat(relayed.eventType()).isEqualTo(EventType.AUCTION_ENDED);
     assertThat(relayed.occurredAt()).isEqualTo(event.occurredAt());
   }
 

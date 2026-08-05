@@ -48,7 +48,7 @@ class OutboxEventJpaRepositoryIntegrationTest {
 
     @Override
     public EventType eventType() {
-      return EventType.AUCTION_CLOSED;
+      return EventType.AUCTION_ENDED;
     }
   }
 
@@ -71,7 +71,7 @@ class OutboxEventJpaRepositoryIntegrationTest {
     assertThat(saved.getPayload()).isEqualTo(payload);
     assertThat(saved.getAggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(saved.getAggregateId()).isEqualTo(1024L);
-    assertThat(saved.getEventType()).isEqualTo(EventType.AUCTION_CLOSED);
+    assertThat(saved.getEventType()).isEqualTo(EventType.AUCTION_ENDED);
     assertThat(saved.isPublished()).isFalse();
     assertThat(saved.getCreatedAt()).isEqualTo(event.occurredAt());
   }

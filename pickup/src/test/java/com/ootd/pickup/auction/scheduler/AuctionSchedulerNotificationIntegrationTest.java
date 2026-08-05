@@ -6,7 +6,7 @@ import static org.mockito.BDDMockito.*;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionClosedNotificationEvent;
+import com.ootd.pickup.auction.event.AuctionEndedNotificationEvent;
 import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
 import com.ootd.pickup.cards.domain.Card;
@@ -145,24 +145,23 @@ class AuctionSchedulerNotificationIntegrationTest {
     // then
     List<NotificationEvent> published = publishedFor(closing.getAuctionId());
     assertThat(published).hasSize(1);
-    assertThat(published.getFirst()).isInstanceOf(AuctionClosedNotificationEvent.class);
-    assertThat(((AuctionClosedNotificationEvent) published.getFirst()).auctionStatus())
+    assertThat(published.getFirst()).isInstanceOf(AuctionEndedNotificationEvent.class);
+    assertThat(((AuctionEndedNotificationEvent) published.getFirst()).auctionStatus())
         .isEqualTo(AuctionStatus.PASSED);
   }
 
   @Test
-  void 종료_알림에는_리저브가_담기지_않는다() {
-    // given — 비공개 값이라 구독한 모든 클라이언트로 흘러가면 안 된다
+  void 유찰로_종료되면_낙찰_입찰_없이_알림이_발행된다() {
+    // given — 입찰이 없으면 낙찰 스냅샷이 null 이어야 한다
     Auction closing = createAuction(AuctionStatus.ONGOING, past(2), past(1));
 
     // when
     auctionScheduler.transitionDueAuctions();
 
     // then
-    assertThat(AuctionClosedNotificationEvent.class.getRecordComponents())
-        .extracting(java.lang.reflect.RecordComponent::getName)
-        .doesNotContain("reservePrice");
-    assertThat(publishedFor(closing.getAuctionId())).hasSize(1);
+    List<NotificationEvent> published = publishedFor(closing.getAuctionId());
+    assertThat(published).hasSize(1);
+    assertThat(((AuctionEndedNotificationEvent) published.getFirst()).winningBid()).isNull();
   }
 
   @Test
@@ -177,7 +176,7 @@ class AuctionSchedulerNotificationIntegrationTest {
     assertThat(publishedFor(overdue.getAuctionId()))
         .hasSize(2)
         .hasAtLeastOneElementOfType(AuctionStartedNotificationEvent.class)
-        .hasAtLeastOneElementOfType(AuctionClosedNotificationEvent.class);
+        .hasAtLeastOneElementOfType(AuctionEndedNotificationEvent.class);
   }
 
   @Test

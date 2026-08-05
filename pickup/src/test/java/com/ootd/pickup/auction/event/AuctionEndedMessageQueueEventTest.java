@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class AuctionClosedMessageQueueEventTest {
+class AuctionEndedMessageQueueEventTest {
 
   @Test
   void 낙찰된_경매로부터_생성하면_낙찰_입찰과_낙찰가와_낙찰자_판매자_id가_함께_옮겨진다() {
@@ -26,8 +26,8 @@ class AuctionClosedMessageQueueEventTest {
     Bid winningBid = createBid(auction, winner, 10L, 10_500L);
 
     // when
-    AuctionClosedMessageQueueEvent event =
-        AuctionClosedMessageQueueEvent.fromEntity(auction, winningBid);
+    AuctionEndedMessageQueueEvent event =
+        AuctionEndedMessageQueueEvent.fromEntity(auction, winningBid);
 
     // then
     assertThat(event.auctionId()).isEqualTo(auction.getAuctionId());
@@ -45,7 +45,7 @@ class AuctionClosedMessageQueueEventTest {
     Auction auction = createAuction(1L, AuctionStatus.PASSED, seller);
 
     // when
-    AuctionClosedMessageQueueEvent event = AuctionClosedMessageQueueEvent.fromEntity(auction, null);
+    AuctionEndedMessageQueueEvent event = AuctionEndedMessageQueueEvent.fromEntity(auction, null);
 
     // then
     assertThat(event.winnerMemberId()).isNull();
@@ -59,12 +59,12 @@ class AuctionClosedMessageQueueEventTest {
     Auction auction = createAuction(1L, AuctionStatus.PASSED, seller);
 
     // when
-    AuctionClosedMessageQueueEvent event = AuctionClosedMessageQueueEvent.fromEntity(auction, null);
+    AuctionEndedMessageQueueEvent event = AuctionEndedMessageQueueEvent.fromEntity(auction, null);
 
     // then
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(event.aggregateId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_CLOSED);
+    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_ENDED);
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status, Member seller) {

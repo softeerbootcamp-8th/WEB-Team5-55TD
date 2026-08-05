@@ -3,8 +3,8 @@ package com.ootd.pickup.auction.scheduler;
 import static com.ootd.pickup.auction.domain.AuctionStatus.*;
 
 import com.ootd.pickup.auction.domain.Auction;
-import com.ootd.pickup.auction.event.AuctionClosedMessageQueueEvent;
-import com.ootd.pickup.auction.event.AuctionClosedNotificationEvent;
+import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
+import com.ootd.pickup.auction.event.AuctionEndedNotificationEvent;
 import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.global.event.EventProducer;
@@ -41,7 +41,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * <p>전이 결과는 두 경로로 알린다. 계열이 갈린 이유는 필요한 보장이 다르기 때문이다.
  *
  * <ul>
- *   <li>{@link AuctionClosedMessageQueueEvent} — 정산이 정확히 한 번 돌아야 하므로 상태 전이와 같은 커밋에 Outbox로 적재한다.
+ *   <li>{@link AuctionEndedMessageQueueEvent} — 정산이 정확히 한 번 돌아야 하므로 상태 전이와 같은 커밋에 Outbox로 적재한다.
  *   <li>{@link AuctionStartedNotificationEvent} — 화면 갱신용이라 유실이 허용된다. 커밋 이후 Redis로 즉시 발행한다.
  * </ul>
  */
@@ -191,11 +191,19 @@ public class AuctionScheduler {
       return;
     }
 
+    // 낙찰 입찰은 두 계열이 모두 필요로 한다. 한 번만 조회해 함께 쓴다.
     List<Auction> closedAuctions = findClosedAuctions(auctionIds);
-    int appended = appendClosedEventsToOutbox(closedAuctions);
+    Map<Long, Bid> winningBidsById = findWinningBidsById(closedAuctions);
+
+    int appended = appendClosedEventsToOutbox(closedAuctions, winningBidsById);
     publishAfterCommit(
         "경매 종료 알림",
-        closedAuctions.stream().map(AuctionClosedNotificationEvent::fromEntity).toList());
+        closedAuctions.stream()
+            .map(
+                auction ->
+                    AuctionEndedNotificationEvent.fromEntity(
+                        auction, winningBidOf(auction, winningBidsById)))
+            .toList());
 
     log.info(
         "경매를 종료했습니다 - won={}, passed={}, outboxAppended={}, auctionIds={}",
@@ -230,19 +238,20 @@ public class AuctionScheduler {
    * 종료된 경매의 메시지 큐 이벤트를 Outbox에 배치 적재한다.
    *
    * @param closedAuctions 전이가 끝난 경매 목록
+   * @param winningBidsById 낙찰 입찰을 식별자로 찾을 수 있는 맵. 유찰된 경매는 대상이 없다
    * @return 적재한 이벤트 수
    */
-  private int appendClosedEventsToOutbox(List<Auction> closedAuctions) {
+  private int appendClosedEventsToOutbox(
+      List<Auction> closedAuctions, Map<Long, Bid> winningBidsById) {
     if (closedAuctions.isEmpty()) {
       return 0;
     }
 
-    Map<Long, Bid> winningBidsById = findWinningBidsById(closedAuctions);
-    List<AuctionClosedMessageQueueEvent> events =
+    List<AuctionEndedMessageQueueEvent> events =
         closedAuctions.stream()
             .map(
                 auction ->
-                    AuctionClosedMessageQueueEvent.fromEntity(
+                    AuctionEndedMessageQueueEvent.fromEntity(
                         auction, winningBidOf(auction, winningBidsById)))
             .toList();
 

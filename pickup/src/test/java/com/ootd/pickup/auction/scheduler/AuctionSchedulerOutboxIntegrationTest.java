@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionClosedMessageQueueEvent;
+import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.repository.BidJpaRepository;
@@ -70,7 +70,7 @@ class AuctionSchedulerOutboxIntegrationTest {
     auctionScheduler.transitionDueAuctions();
 
     // then
-    AuctionClosedMessageQueueEvent event = singleAppendedEvent();
+    AuctionEndedMessageQueueEvent event = singleAppendedEvent();
     assertThat(event.auctionId()).isEqualTo(auction.getAuctionId());
     assertThat(event.auctionStatus()).isEqualTo(AuctionStatus.WON);
     assertThat(event.sellerMemberId()).isEqualTo(seller.getMemberId());
@@ -90,7 +90,7 @@ class AuctionSchedulerOutboxIntegrationTest {
     auctionScheduler.transitionDueAuctions();
 
     // then
-    AuctionClosedMessageQueueEvent event = singleAppendedEvent();
+    AuctionEndedMessageQueueEvent event = singleAppendedEvent();
     assertThat(event.auctionStatus()).isEqualTo(AuctionStatus.PASSED);
     assertThat(event.sellerMemberId()).isEqualTo(seller.getMemberId());
     assertThat(event.winnerMemberId()).isNull();
@@ -108,7 +108,7 @@ class AuctionSchedulerOutboxIntegrationTest {
 
     // then
     OutboxEventEntity appended = singleAppendedRow();
-    assertThat(appended.getEventType()).isEqualTo(EventType.AUCTION_CLOSED);
+    assertThat(appended.getEventType()).isEqualTo(EventType.AUCTION_ENDED);
     assertThat(appended.getAggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(appended.isPublished()).isFalse();
     assertThat(appended.getId()).hasSize(36);
@@ -169,12 +169,12 @@ class AuctionSchedulerOutboxIntegrationTest {
     List<AuctionStatus> statuses =
         appendedRows().stream()
             .map(this::deserialize)
-            .map(AuctionClosedMessageQueueEvent::auctionStatus)
+            .map(AuctionEndedMessageQueueEvent::auctionStatus)
             .toList();
     assertThat(statuses).containsExactlyInAnyOrder(AuctionStatus.WON, AuctionStatus.PASSED);
   }
 
-  private AuctionClosedMessageQueueEvent singleAppendedEvent() {
+  private AuctionEndedMessageQueueEvent singleAppendedEvent() {
     return deserialize(singleAppendedRow());
   }
 
@@ -195,8 +195,8 @@ class AuctionSchedulerOutboxIntegrationTest {
     return appended.getFirst();
   }
 
-  private AuctionClosedMessageQueueEvent deserialize(OutboxEventEntity row) {
-    return objectMapper.readValue(row.getPayload(), AuctionClosedMessageQueueEvent.class);
+  private AuctionEndedMessageQueueEvent deserialize(OutboxEventEntity row) {
+    return objectMapper.readValue(row.getPayload(), AuctionEndedMessageQueueEvent.class);
   }
 
   private LocalDateTime past(int hours) {

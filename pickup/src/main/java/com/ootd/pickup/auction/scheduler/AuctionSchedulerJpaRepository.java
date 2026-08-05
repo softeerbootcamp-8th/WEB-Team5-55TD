@@ -138,7 +138,7 @@ public interface AuctionSchedulerJpaRepository extends Repository<Auction, Long>
   /**
    * 이벤트 조립에 필요한 연관까지 함께 경매를 조회한다.
    *
-   * <p>{@link com.ootd.pickup.auction.event.AuctionClosedMessageQueueEvent}가 판매자 식별자를 담아야 하는데, 정산
+   * <p>{@link com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent}가 판매자 식별자를 담아야 하는데, 정산
    * 소비자는 다른 프로세스에서 트랜잭션 밖에 실행되므로 지연 로딩이 실패한다. 그래서 발행하는 쪽에서 미리 채워 보내야 하고, 여기서 fetch join으로 함께 읽는다.
    *
    * <p>상태 전이 뒤에 호출해야 한다. 같은 트랜잭션이므로 갱신된 상태가 보이고, 이벤트에 실리는 {@code auctionStatus}가 낙찰/유찰로 확정된 값이 된다.
