@@ -2,7 +2,9 @@ package com.ootd.pickup.global.event.outbox;
 
 import com.ootd.pickup.global.event.MessageQueueEvent;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -48,7 +50,11 @@ public class OutboxEventScheduler {
    *
    * <p>읽기 트랜잭션 안에서 이벤트로 바꿔 내보내는 이유는 그 뒤로 엔티티를 만지지 않기 위해서다. 트랜잭션이 닫힌 뒤 엔티티를 들고 있으면 준영속 상태 접근이 섞인다.
    *
-   * <p>건별로 예외를 격리한다. 한 건이 실패해도 나머지는 발행되고, 실패한 행만 {@code published=false}로 남아 다음 주기에 다시 시도된다.
+   * <p>건별로 예외를 격리하되, 실패한 애그리거트의 뒤 이벤트는 이번 주기에 보내지 않는다. 계속 보내면 뒤 이벤트가 큐에 먼저 들어가고 다음 주기가 앞 이벤트를 재시도해
+   * 같은 애그리거트 안에서 순서가 역전된다. FIFO 큐는 같은 그룹 안에서만 순서를 보장하므로, 그 순서가 깨지면 소비자가 경매 종료를 시작보다 먼저 볼 수 있다. 건너뛴
+   * 이벤트는 {@code published=false}로 남아 다음 주기에 앞 이벤트와 함께 순서대로 다시 시도된다.
+   *
+   * <p>다른 애그리거트는 서로 다른 그룹이라 영향을 주지 않으므로 계속 발행한다.
    */
   @Scheduled(fixedDelayString = "${scheduler.outbox.fixed-delay:1s}")
   @SchedulerLock(name = "outbox-event-relay", lockAtMostFor = "PT30S", lockAtLeastFor = "PT0.5S")
@@ -60,13 +66,22 @@ public class OutboxEventScheduler {
 
     List<String> publishedIds = new ArrayList<>();
     List<String> failedIds = new ArrayList<>();
+    Set<String> blockedGroups = new HashSet<>();
+    int skipped = 0;
     RuntimeException firstFailure = null;
 
     for (MessageQueueEvent event : pending) {
+      String group = messageGroupOf(event);
+      if (blockedGroups.contains(group)) {
+        skipped++;
+        continue;
+      }
+
       try {
         messageQueueSender.send(event);
         publishedIds.add(event.eventId());
       } catch (RuntimeException exception) {
+        blockedGroups.add(group);
         failedIds.add(event.eventId());
         if (firstFailure == null) {
           firstFailure = exception;
@@ -77,8 +92,9 @@ public class OutboxEventScheduler {
     // 반복문 안에서 건별로 남기면 같은 실패가 매 주기 쏟아진다. 한 줄로 모아 남긴다.
     if (!failedIds.isEmpty()) {
       log.error(
-          "Outbox 이벤트 발행에 실패했습니다 - count={}, eventIds={}",
+          "Outbox 이벤트 발행에 실패했습니다 - count={}, skipped={}, eventIds={}",
           failedIds.size(),
+          skipped,
           failedIds,
           firstFailure);
     }
@@ -88,7 +104,21 @@ public class OutboxEventScheduler {
     }
 
     int marked = markPublished(publishedIds);
-    log.info("Outbox 이벤트를 발행했습니다 - published={}, failed={}", marked, failedIds.size());
+    log.info(
+        "Outbox 이벤트를 발행했습니다 - published={}, failed={}, skipped={}",
+        marked,
+        failedIds.size(),
+        skipped);
+  }
+
+  /**
+   * 순서를 함께 지켜야 하는 단위. FIFO 큐의 {@code MessageGroupId} 와 같은 기준으로 묶어야 한다.
+   *
+   * <p>{@code MessageQueueSender} 구현체가 {@code aggregateType} 과 {@code aggregateId} 로 {@code
+   * MessageGroupId} 를 만들므로 여기서도 같은 두 값으로 묶는다. 문자열 형식은 달라도 되지만 묶는 기준이 달라지면 차단이 헛돈다.
+   */
+  private String messageGroupOf(MessageQueueEvent event) {
+    return event.aggregateType() + ":" + event.aggregateId();
   }
 
   /** 발행 대기 중인 행을 읽어 전송 대상으로 바꾼다. 이 트랜잭션은 조회에만 쓰이고 바로 닫힌다. */

@@ -155,8 +155,8 @@ class OutboxEventSchedulerIntegrationTest {
   }
 
   @Test
-  void 한_건이_실패해도_나머지는_발행된다() {
-    // given
+  void 다른_애그리거트의_실패는_영향을_주지_않는다() {
+    // given — 경매가 다르면 FIFO 그룹도 달라 순서를 함께 지킬 필요가 없다
     OutboxEventEntity failing = append(testEvent(1L, LocalDateTime.of(2026, 8, 5, 10, 0, 1)));
     OutboxEventEntity succeeding = append(testEvent(2L, LocalDateTime.of(2026, 8, 5, 10, 0, 2)));
     willThrow(new IllegalStateException("큐 장애"))
@@ -170,6 +170,40 @@ class OutboxEventSchedulerIntegrationTest {
     // then
     assertThat(findById(failing.getId()).isPublished()).isFalse();
     assertThat(findById(succeeding.getId()).isPublished()).isTrue();
+  }
+
+  @Test
+  void 같은_애그리거트의_앞선_이벤트가_실패하면_뒤_이벤트를_보내지_않는다() {
+    // given — 계속 보내면 뒤 이벤트가 큐에 먼저 들어가고, 다음 주기가 앞 이벤트를 재시도해
+    // 같은 FIFO 그룹 안에서 순서가 역전된다
+    OutboxEventEntity first = append(testEvent(1L, LocalDateTime.of(2026, 8, 5, 10, 0, 1)));
+    OutboxEventEntity second = append(testEvent(1L, LocalDateTime.of(2026, 8, 5, 10, 0, 2)));
+    OutboxEventEntity otherAggregate =
+        append(testEvent(2L, LocalDateTime.of(2026, 8, 5, 10, 0, 3)));
+    willAnswer(
+            invocation -> {
+              MessageQueueEvent event = invocation.getArgument(0);
+              if (first.getId().equals(event.eventId())) {
+                throw new IllegalStateException("큐 장애");
+              }
+              return null;
+            })
+        .given(messageQueueSender)
+        .send(any());
+
+    // when
+    outboxEventScheduler.relayUnpublishedEvents();
+
+    // then
+    ArgumentCaptor<MessageQueueEvent> captor = ArgumentCaptor.forClass(MessageQueueEvent.class);
+    then(messageQueueSender).should(atLeast(0)).send(captor.capture());
+    assertThat(captor.getAllValues())
+        .extracting(MessageQueueEvent::eventId)
+        .doesNotContain(second.getId());
+
+    assertThat(findById(first.getId()).isPublished()).isFalse();
+    assertThat(findById(second.getId()).isPublished()).isFalse();
+    assertThat(findById(otherAggregate.getId()).isPublished()).isTrue();
   }
 
   @Test
