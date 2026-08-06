@@ -21,6 +21,7 @@ import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.service.MemberService;
+import com.ootd.pickup.member.service.ProfileApplicationService;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,8 @@ class MemberControllerTest {
   @Autowired private ObjectMapper objectMapper;
 
   @MockitoBean private MemberService memberService;
+
+  @MockitoBean private ProfileApplicationService profileApplicationService;
 
   @MockitoBean private SlackErrorNotifier slackErrorNotifier;
 
@@ -87,7 +90,7 @@ class MemberControllerTest {
     // given
     UpdateMyProfileRequest request = new UpdateMyProfileRequest("라이츄회원", null, null, null);
     MyProfileResponse response = new MyProfileResponse(1L, "pickup-user", "라이츄회원", null);
-    given(memberService.updateMyProfile(1L, request)).willReturn(response);
+    given(profileApplicationService.updateMyProfile(1L, request)).willReturn(response);
 
     // when & then
     mockMvc
@@ -100,7 +103,7 @@ class MemberControllerTest {
         .andExpect(jsonPath("$.nickname").value("라이츄회원"))
         .andExpect(jsonPath("$.joinedAt").doesNotExist());
 
-    then(memberService).should().updateMyProfile(1L, request);
+    then(profileApplicationService).should().updateMyProfile(1L, request);
   }
 
   @Test

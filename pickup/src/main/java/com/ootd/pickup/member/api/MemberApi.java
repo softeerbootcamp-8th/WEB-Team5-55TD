@@ -62,7 +62,8 @@ public interface MemberApi {
 
   @Operation(
       summary = "내 정보 수정",
-      description = "전달된 닉네임, 비밀번호, 프로필 이미지 URL만 수정합니다. 비밀번호 변경 시 현재 비밀번호가 필요합니다.",
+      description =
+          "전달된 닉네임, 비밀번호, 프로필 이미지만 수정합니다. 프로필 이미지는 SET 또는 REMOVE로 변경하며 비밀번호 변경 시 현재 비밀번호가 필요합니다.",
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {
         @ApiResponse(
