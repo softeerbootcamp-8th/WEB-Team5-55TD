@@ -35,6 +35,7 @@ auth:
   token:
     issuer: ${JWT_ISSUER:pickup}
     secret: ${JWT_SECRET:}
+
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
     refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:14d}
 
@@ -42,3 +43,9 @@ slack:
   enabled: ${SLACK_ENABLED:false}
   bot-token: ${SLACK_BOT_TOKEN:}
   channel: ${SLACK_CHANNEL:}
+image:
+  storage:
+    bucket: ${IMAGE_STORAGE_BUCKET:}
+    region: ${IMAGE_STORAGE_REGION:}
+    media-base-url: ${IMAGE_MEDIA_BASE_URL:}
+    upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}
