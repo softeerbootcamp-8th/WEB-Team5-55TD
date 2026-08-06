@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
 import com.ootd.pickup.global.event.AggregateType;
+import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.NotificationEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ class RedisEventPublisherTest {
 
   @Test
   void 알림_이벤트를_애그리거트별_Redis_채널에_발행한다() {
-    given(event.eventType()).willReturn("AUCTION_BID_UPDATED");
+    given(event.eventType()).willReturn(EventType.AUCTION_BID_UPDATED);
     given(event.aggregateType()).willReturn(AggregateType.AUCTION);
     given(event.aggregateId()).willReturn(42L);
     given(objectMapper.valueToTree(event)).willReturn(payload);
@@ -49,7 +50,7 @@ class RedisEventPublisherTest {
     ArgumentCaptor<NotificationEnvelope> envelopeCaptor =
         ArgumentCaptor.forClass(NotificationEnvelope.class);
     then(objectMapper).should().writeValueAsString(envelopeCaptor.capture());
-    assertThat(envelopeCaptor.getValue().eventType()).isEqualTo("AUCTION_BID_UPDATED");
+    assertThat(envelopeCaptor.getValue().eventType()).isEqualTo(EventType.AUCTION_BID_UPDATED);
     assertThat(envelopeCaptor.getValue().payload()).isSameAs(payload);
     then(redisTemplate)
         .should()

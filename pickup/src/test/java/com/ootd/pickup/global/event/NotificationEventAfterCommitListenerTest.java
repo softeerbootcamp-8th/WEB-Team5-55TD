@@ -86,8 +86,8 @@ class NotificationEventAfterCommitListenerTest {
     }
 
     @Override
-    public String eventType() {
-      return "TEST_NOTIFICATION";
+    public EventType eventType() {
+      return EventType.AUCTION_BID_UPDATED;
     }
   }
 }

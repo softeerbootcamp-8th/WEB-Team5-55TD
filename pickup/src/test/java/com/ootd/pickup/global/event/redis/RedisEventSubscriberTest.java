@@ -68,9 +68,11 @@ class RedisEventSubscriberTest {
 
   @Test
   void 지원하지_않는_이벤트는_처리기에_전달하지_않는다() {
-    NotificationEnvelope envelope =
-        new NotificationEnvelope("UNKNOWN_EVENT", objectMapper.createObjectNode());
-    givenMessage("pickup:notification:AUCTION:42", envelope);
+    given(message.getBody())
+        .willReturn(
+            "{\"eventType\":\"UNKNOWN_EVENT\",\"payload\":{}}".getBytes(StandardCharsets.UTF_8));
+    given(message.getChannel())
+        .willReturn("pickup:notification:AUCTION:42".getBytes(StandardCharsets.UTF_8));
 
     subscriber.onMessage(message, null);
 

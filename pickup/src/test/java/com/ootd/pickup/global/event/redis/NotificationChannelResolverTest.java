@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import com.ootd.pickup.global.event.AggregateType;
+import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.NotificationEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +42,7 @@ class NotificationChannelResolverTest {
   @Test
   void aggregateId가_없으면_null_채널_대신_예외를_던진다() {
     given(event.aggregateId()).willReturn(null);
-    given(event.eventType()).willReturn("AUCTION_BID_UPDATED");
+    given(event.eventType()).willReturn(EventType.AUCTION_BID_UPDATED);
 
     assertThatThrownBy(() -> channelResolver.resolve(event))
         .isInstanceOf(IllegalStateException.class)

@@ -18,7 +18,7 @@ public record AuctionBidUpdatedMessage(
   public static AuctionBidUpdatedMessage fromEvent(AuctionBidUpdatedEvent event) {
     return new AuctionBidUpdatedMessage(
         event.eventId(),
-        event.eventType(),
+        event.eventType().name(),
         event.auctionId(),
         event.auctionStatus(),
         event.winningPrice(),

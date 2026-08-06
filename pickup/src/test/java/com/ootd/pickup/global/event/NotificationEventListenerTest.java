@@ -34,9 +34,10 @@ class NotificationEventListenerTest {
 
   @Test
   void executor가_작업을_거부해도_호출자에게_예외를_전파하지_않는다() {
-    Executor rejectingExecutor = command -> {
-      throw new RejectedExecutionException("queue full");
-    };
+    Executor rejectingExecutor =
+        command -> {
+          throw new RejectedExecutionException("queue full");
+        };
     NotificationEventListener rejectingListener =
         new NotificationEventListener(eventPublisher, rejectingExecutor);
 
@@ -72,8 +73,8 @@ class NotificationEventListenerTest {
     }
 
     @Override
-    public String eventType() {
-      return "TEST_NOTIFICATION";
+    public EventType eventType() {
+      return EventType.AUCTION_BID_UPDATED;
     }
   }
 }

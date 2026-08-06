@@ -8,6 +8,7 @@ import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.global.event.AggregateType;
+import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.member.domain.Member;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ class AuctionBidUpdatedEventTest {
     assertThat(event.winningBid().bidPrice()).isEqualTo(10_500L);
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(event.aggregateId()).isEqualTo(1L);
-    assertThat(event.eventType()).isEqualTo("AUCTION_BID_UPDATED");
+    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_BID_UPDATED);
   }
 
   private Auction createAuction(Long auctionId) {

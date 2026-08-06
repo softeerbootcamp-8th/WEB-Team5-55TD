@@ -23,7 +23,7 @@ public interface EventHandler<E extends DomainEvent> {
   /**
    * 이 핸들러가 처리하는 이벤트의 자바 클래스.
    *
-   * <p>{@link DomainEvent#eventType()}과 구분된다. 그쪽은 직렬화에 쓰는 문자열 키이고, 이것은 역직렬화된 객체의 타입이다.
+   * <p>{@link DomainEvent#eventType()}과 구분된다. 그쪽은 직렬화에 쓰는 타입 키이고, 이것은 역직렬화된 객체의 타입이다.
    */
   Class<E> eventClass();
 
