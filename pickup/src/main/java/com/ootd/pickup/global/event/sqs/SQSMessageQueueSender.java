@@ -1,7 +1,6 @@
 package com.ootd.pickup.global.event.sqs;
 
 import com.ootd.pickup.global.event.EventType;
-import com.ootd.pickup.global.event.MessageQueueEvent;
 import com.ootd.pickup.global.event.outbox.MessageQueueSender;
 import com.ootd.pickup.global.event.outbox.RelayedOutboxEvent;
 import org.springframework.stereotype.Component;
@@ -35,7 +34,7 @@ import org.springframework.stereotype.Component;
 public class SQSMessageQueueSender implements MessageQueueSender {
 
   @Override
-  public void send(MessageQueueEvent event) {
+  public void send(RelayedOutboxEvent event) {
     // TODO: SQS FIFO 큐로 전송한다. 채울 값은 위 목록 참고
   }
 }
