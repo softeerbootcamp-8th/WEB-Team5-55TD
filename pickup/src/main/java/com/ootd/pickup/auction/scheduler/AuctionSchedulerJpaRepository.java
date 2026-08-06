@@ -3,7 +3,6 @@ package com.ootd.pickup.auction.scheduler;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.bid.domain.Bid;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.Modifying;
@@ -27,8 +26,10 @@ public interface AuctionSchedulerJpaRepository extends Repository<Auction, Long>
    *
    * <p>엔티티가 아니라 식별자만 읽는다. 엔티티를 영속성 컨텍스트에 올리면 뒤이은 bulk update와 상태가 어긋난다.
    *
+   * <p>기준 시각을 파라미터로 받지 않고 {@code local datetime}으로 DB에서 읽는다. 인스턴스마다 시계가 어긋나면 어느 인스턴스가 이 작업을 잡았는지에
+   * 따라 전이 대상이 갈라진다. DB가 시각의 <b>단일 진실원천</b>이다.
+   *
    * @param auctionStatus 전이 전 상태
-   * @param baseTime 이 시각까지 시작된 경매를 대상으로 한다
    * @param limit 한 번에 처리할 최대 건수
    * @return 오래된 경매부터 정렬된 식별자 목록. 대상이 없으면 빈 목록
    */
@@ -37,21 +38,20 @@ public interface AuctionSchedulerJpaRepository extends Repository<Auction, Long>
       select auction.auctionId
       from Auction auction
       where auction.auctionStatus = :auctionStatus
-        and auction.startedAt <= :baseTime
+        and auction.startedAt <= local datetime
       order by auction.auctionId asc
       """)
-  List<Long> findAllIdsByAuctionStatusAndStartedAtLessThanEqual(
-      @Param("auctionStatus") AuctionStatus auctionStatus,
-      @Param("baseTime") LocalDateTime baseTime,
-      Limit limit);
+  List<Long> findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+      @Param("auctionStatus") AuctionStatus auctionStatus, Limit limit);
 
   /**
    * 종료 시각에 도달한 경매의 식별자를 조회한다.
    *
    * <p>{@code endedAt}이 null인 경매는 비교식이 참이 되지 않아 자연히 제외된다.
    *
+   * <p>기준 시각은 {@link #findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow}와 같은 이유로 DB에서 읽는다.
+   *
    * @param auctionStatus 전이 전 상태
-   * @param baseTime 이 시각까지 종료된 경매를 대상으로 한다
    * @param limit 한 번에 처리할 최대 건수
    * @return 오래된 경매부터 정렬된 식별자 목록. 대상이 없으면 빈 목록
    */
@@ -60,13 +60,11 @@ public interface AuctionSchedulerJpaRepository extends Repository<Auction, Long>
       select auction.auctionId
       from Auction auction
       where auction.auctionStatus = :auctionStatus
-        and auction.endedAt <= :baseTime
+        and auction.endedAt <= local datetime
       order by auction.auctionId asc
       """)
-  List<Long> findAllIdsByAuctionStatusAndEndedAtLessThanEqual(
-      @Param("auctionStatus") AuctionStatus auctionStatus,
-      @Param("baseTime") LocalDateTime baseTime,
-      Limit limit);
+  List<Long> findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+      @Param("auctionStatus") AuctionStatus auctionStatus, Limit limit);
 
   /**
    * 예정 상태인 경매를 진행 중으로 전이시킨다.

@@ -28,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class AuctionSchedulerJpaRepositoryIntegrationTest {
 
-  private static final LocalDateTime BASE_TIME = LocalDateTime.of(2026, 8, 5, 12, 0, 0);
   private static final long RESERVE_PRICE = 15000L;
 
   @Autowired private AuctionSchedulerJpaRepository auctionSchedulerJpaRepository;
@@ -44,36 +43,32 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
   @Test
   void 시작_시각이_지난_예정_경매만_조회된다() {
     // given
-    Auction due = createAuction(AuctionStatus.SCHEDULED, BASE_TIME.minusSeconds(1), null);
-    Auction exactlyNow = createAuction(AuctionStatus.SCHEDULED, BASE_TIME, null);
-    Auction notYet = createAuction(AuctionStatus.SCHEDULED, BASE_TIME.plusSeconds(1), null);
-    Auction alreadyOngoing = createAuction(AuctionStatus.ONGOING, BASE_TIME.minusHours(1), null);
+    Auction due = createAuction(AuctionStatus.SCHEDULED, past(1), null);
+    Auction notYet = createAuction(AuctionStatus.SCHEDULED, future(1), null);
+    Auction alreadyOngoing = createAuction(AuctionStatus.ONGOING, past(60), null);
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqual(
-            AuctionStatus.SCHEDULED, BASE_TIME, Limit.of(100));
+        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+            AuctionStatus.SCHEDULED, Limit.of(100));
 
     // then
     assertThat(auctionIds)
-        .containsExactly(due.getAuctionId(), exactlyNow.getAuctionId())
+        .containsExactly(due.getAuctionId())
         .doesNotContain(notYet.getAuctionId(), alreadyOngoing.getAuctionId());
   }
 
   @Test
   void 종료_시각이_지난_진행_경매만_조회된다() {
     // given
-    Auction due =
-        createAuction(AuctionStatus.ONGOING, BASE_TIME.minusHours(2), BASE_TIME.minusSeconds(1));
-    Auction notYet =
-        createAuction(AuctionStatus.ONGOING, BASE_TIME.minusHours(2), BASE_TIME.plusSeconds(1));
-    Auction alreadyWon =
-        createAuction(AuctionStatus.WON, BASE_TIME.minusHours(2), BASE_TIME.minusHours(1));
+    Auction due = createAuction(AuctionStatus.ONGOING, past(120), past(1));
+    Auction notYet = createAuction(AuctionStatus.ONGOING, past(120), future(1));
+    Auction alreadyWon = createAuction(AuctionStatus.WON, past(120), past(60));
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqual(
-            AuctionStatus.ONGOING, BASE_TIME, Limit.of(100));
+        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+            AuctionStatus.ONGOING, Limit.of(100));
 
     // then
     assertThat(auctionIds)
@@ -84,12 +79,12 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
   @Test
   void 종료_시각이_없는_경매는_종료_대상에서_제외된다() {
     // given
-    Auction noEndedAt = createAuction(AuctionStatus.ONGOING, BASE_TIME.minusHours(2), null);
+    Auction noEndedAt = createAuction(AuctionStatus.ONGOING, past(120), null);
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqual(
-            AuctionStatus.ONGOING, BASE_TIME, Limit.of(100));
+        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+            AuctionStatus.ONGOING, Limit.of(100));
 
     // then
     assertThat(auctionIds).doesNotContain(noEndedAt.getAuctionId());
@@ -98,14 +93,14 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
   @Test
   void 조회_건수는_주어진_상한을_넘지_않는다() {
     // given
-    createAuction(AuctionStatus.SCHEDULED, BASE_TIME.minusHours(3), null);
-    createAuction(AuctionStatus.SCHEDULED, BASE_TIME.minusHours(2), null);
-    createAuction(AuctionStatus.SCHEDULED, BASE_TIME.minusHours(1), null);
+    createAuction(AuctionStatus.SCHEDULED, past(180), null);
+    createAuction(AuctionStatus.SCHEDULED, past(120), null);
+    createAuction(AuctionStatus.SCHEDULED, past(60), null);
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqual(
-            AuctionStatus.SCHEDULED, BASE_TIME, Limit.of(2));
+        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+            AuctionStatus.SCHEDULED, Limit.of(2));
 
     // then
     assertThat(auctionIds).hasSize(2);
@@ -114,8 +109,8 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
   @Test
   void 시작_전이는_예정_상태인_경매만_갱신한다() {
     // given
-    Auction scheduled = createAuction(AuctionStatus.SCHEDULED, BASE_TIME.minusHours(1), null);
-    Auction alreadyOngoing = createAuction(AuctionStatus.ONGOING, BASE_TIME.minusHours(1), null);
+    Auction scheduled = createAuction(AuctionStatus.SCHEDULED, past(60), null);
+    Auction alreadyOngoing = createAuction(AuctionStatus.ONGOING, past(60), null);
 
     // when
     int updated =
@@ -160,7 +155,7 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
   @Test
   void 입찰이_없는_경매는_유찰로_전이된다() {
     // given
-    Auction noBid = createAuction(AuctionStatus.ONGOING, BASE_TIME.minusHours(2), BASE_TIME);
+    Auction noBid = createAuction(AuctionStatus.ONGOING, past(120), past(1));
 
     // when
     int passed =
@@ -177,7 +172,7 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
     // given
     Auction reserveMet = ongoingWithWinningPrice(RESERVE_PRICE);
     Auction reserveNotMet = ongoingWithWinningPrice(RESERVE_PRICE - 1);
-    Auction noBid = createAuction(AuctionStatus.ONGOING, BASE_TIME.minusHours(2), BASE_TIME);
+    Auction noBid = createAuction(AuctionStatus.ONGOING, past(120), past(1));
     List<Long> auctionIds =
         List.of(reserveMet.getAuctionId(), reserveNotMet.getAuctionId(), noBid.getAuctionId());
 
@@ -207,9 +202,18 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
   }
 
   private Auction ongoingWithWinningPrice(long winningPrice) {
-    Auction auction = createAuction(AuctionStatus.ONGOING, BASE_TIME.minusHours(2), BASE_TIME);
+    Auction auction = createAuction(AuctionStatus.ONGOING, past(120), past(1));
     auction.updateWinningBid(777L, winningPrice);
     return auctionJpaRepository.saveAndFlush(auction);
+  }
+
+  // 조회 쿼리가 기준 시각을 DB 에서 읽으므로 고정 시각을 넣을 수 없다. 현재를 기준으로 상대 시각을 심는다.
+  private LocalDateTime past(long minutes) {
+    return LocalDateTime.now().minusMinutes(minutes);
+  }
+
+  private LocalDateTime future(long minutes) {
+    return LocalDateTime.now().plusMinutes(minutes);
   }
 
   private AuctionStatus findStatus(Long auctionId) {

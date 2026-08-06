@@ -1,6 +1,5 @@
 package com.ootd.pickup.auction.scheduler;
 
-import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -33,7 +32,8 @@ public class AuctionScheduler {
    * <p>두 전이는 각각 별개의 트랜잭션에서 돈다. 전이 대상을 처리 이력이 아니라 <b>현재 상태로 조회</b>하므로, 한쪽이 실패해도 다음 주기가 실패한 쪽만 다시
    * 집어간다. 이미 전이된 경매는 조회 조건에 걸리지 않아 중복 처리도 없다.
    *
-   * <p>기준 시각은 한 번만 정해 두 전이에 함께 넘긴다. 각자 시각을 읽으면 그 사이 흐른 시간만큼 판정 기준이 갈라진다.
+   * <p>기준 시각은 각 전이의 조회 쿼리가 DB에서 직접 읽는다. 두 전이가 보는 시각이 수 밀리초 어긋나지만, 대상 판정은 어차피 다음 주기가 이어받으므로 문제가 되지
+   * 않는다. 인스턴스 시계를 쓰지 않는 것이 더 중요하다.
    *
    * <p>시작 전이가 먼저라, 시작 시각과 종료 시각이 모두 지난 경매(예: 장기간 중단 후 재개)는 한 주기에 {@code SCHEDULED → ONGOING →
    * WON/PASSED}까지 간다.
@@ -46,8 +46,7 @@ public class AuctionScheduler {
       // 정상 주기가 잠금에 막혀 건너뛰지 않는다.
       lockAtLeastFor = "PT0.5S")
   public void transitionDueAuctions() {
-    LocalDateTime baseTime = LocalDateTime.now();
-    auctionStatusTransitionService.startDueAuctions(baseTime);
-    auctionStatusTransitionService.endDueAuctions(baseTime);
+    auctionStatusTransitionService.startDueAuctions();
+    auctionStatusTransitionService.endDueAuctions();
   }
 }

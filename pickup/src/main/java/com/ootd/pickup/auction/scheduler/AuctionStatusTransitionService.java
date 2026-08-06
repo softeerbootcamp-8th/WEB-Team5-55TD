@@ -10,7 +10,6 @@ import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.event.NotificationEvent;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -53,16 +52,12 @@ public class AuctionStatusTransitionService {
   private final EventProducer eventProducer;
   private final EventPublisher eventPublisher;
 
-  /**
-   * 시작 시각에 도달한 예정 경매를 진행 중으로 전이시킨다.
-   *
-   * @param baseTime 이 시각까지 시작된 경매를 대상으로 한다
-   */
+  /** 시작 시각에 도달한 예정 경매를 진행 중으로 전이시킨다. 대상 판정 기준 시각은 DB에서 읽는다. */
   @Transactional
-  public void startDueAuctions(LocalDateTime baseTime) {
+  public void startDueAuctions() {
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqual(
-            SCHEDULED, baseTime, BATCH_LIMIT);
+        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+            SCHEDULED, BATCH_LIMIT);
     if (auctionIds.isEmpty()) {
       return;
     }
@@ -133,13 +128,13 @@ public class AuctionStatusTransitionService {
    *
    * <p>적재가 전이와 같은 트랜잭션에 들어가는 것이 Outbox 패턴의 전부다. 커밋 직후 프로세스가 죽어도 "상태는 종료됐는데 정산 이벤트는 없는" 상태가 생기지 않는다.
    *
-   * @param baseTime 이 시각까지 종료된 경매를 대상으로 한다
+   * <p>대상 판정 기준 시각은 DB에서 읽는다.
    */
   @Transactional
-  public void endDueAuctions(LocalDateTime baseTime) {
+  public void endDueAuctions() {
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqual(
-            ONGOING, baseTime, BATCH_LIMIT);
+        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+            ONGOING, BATCH_LIMIT);
     if (auctionIds.isEmpty()) {
       return;
     }
