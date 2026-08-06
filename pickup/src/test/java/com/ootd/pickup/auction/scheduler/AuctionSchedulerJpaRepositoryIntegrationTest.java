@@ -107,6 +107,42 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
   }
 
   @Test
+  void 종료_대상은_가장_오래_밀린_경매부터_조회된다() {
+    // given — 등록 순서(식별자)와 마감 순서가 어긋나게 심는다
+    Auction recentlyDue = createAuction(AuctionStatus.ONGOING, past(120), past(1));
+    Auction longOverdue = createAuction(AuctionStatus.ONGOING, past(120), past(3));
+    Auction middle = createAuction(AuctionStatus.ONGOING, past(120), past(2));
+
+    // when
+    List<Long> auctionIds =
+        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+            AuctionStatus.ONGOING, Limit.of(100));
+
+    // then
+    assertThat(auctionIds)
+        .containsExactly(
+            longOverdue.getAuctionId(), middle.getAuctionId(), recentlyDue.getAuctionId());
+  }
+
+  @Test
+  void 시작_대상은_시작_시각이_이른_경매부터_조회된다() {
+    // given — 등록 순서(식별자)와 시작 순서가 어긋나게 심는다
+    Auction lateStarted = createAuction(AuctionStatus.SCHEDULED, past(1), null);
+    Auction earlyStarted = createAuction(AuctionStatus.SCHEDULED, past(3), null);
+    Auction middle = createAuction(AuctionStatus.SCHEDULED, past(2), null);
+
+    // when
+    List<Long> auctionIds =
+        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+            AuctionStatus.SCHEDULED, Limit.of(100));
+
+    // then
+    assertThat(auctionIds)
+        .containsExactly(
+            earlyStarted.getAuctionId(), middle.getAuctionId(), lateStarted.getAuctionId());
+  }
+
+  @Test
   void 시작_전이는_예정_상태인_경매만_갱신한다() {
     // given
     Auction scheduled = createAuction(AuctionStatus.SCHEDULED, past(60), null);
