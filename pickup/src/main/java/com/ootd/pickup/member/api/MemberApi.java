@@ -153,8 +153,7 @@ public interface MemberApi {
 
   @Operation(
       summary = "관심 목록 조회",
-      description =
-          "관심 등록한 예정(SCHEDULED) 및 진행 중(ONGOING) 경매를 최신순으로 조회합니다. 낙찰되면 관심 목록에서 노출되지 않습니다.",
+      description = "관심 등록한 예정(SCHEDULED) 및 진행 중(ONGOING) 경매를 최신순으로 조회합니다. 낙찰되면 관심 목록에서 노출되지 않습니다.",
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {
         @ApiResponse(
