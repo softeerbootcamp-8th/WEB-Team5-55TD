@@ -26,7 +26,7 @@ class SettlementEventHandlerTest {
   }
 
   @Test
-  void eventClass는_AuctionEndedMessageQueueEvent를_반환한다() {
+  void eventClass를_호출하면_AuctionEndedMessageQueueEvent를_반환한다() {
     // when & then
     assertThat(settlementEventHandler.eventClass()).isEqualTo(AuctionEndedMessageQueueEvent.class);
   }
