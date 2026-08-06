@@ -216,7 +216,8 @@ class ConsignmentControllerTest {
                 CertificationBody.PSA,
                 "10",
                 "GEM_MINT",
-                LocalDate.of(2026, 6, 30)));
+                LocalDate.of(2026, 6, 30)),
+            "https://image.example.com/consignment-thumbnail.png");
     CursorPageResponse<GetMyConsignmentsResponse, Long> response =
         new CursorPageResponse<>(true, 100L, 1, List.of(item));
     given(consignmentService.getMyConsignments(eq(1L), any(GetMyConsignmentsRequest.class)))
