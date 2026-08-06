@@ -1,8 +1,12 @@
 package com.ootd.pickup.global.event;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willAnswer;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.Executor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +25,20 @@ class NotificationEventAfterCommitListenerTest {
 
   @MockitoBean private EventPublisher eventPublisher;
 
+  @MockitoBean(name = "notificationEventExecutor")
+  private Executor notificationEventExecutor;
+
+  @BeforeEach
+  void setUp() {
+    willAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(0).run();
+              return null;
+            })
+        .given(notificationEventExecutor)
+        .execute(any(Runnable.class));
+  }
+
   @Test
   void 트랜잭션이_커밋된_뒤에_알림을_발행한다() {
     TestNotificationEvent event = testEvent();
@@ -29,8 +47,10 @@ class NotificationEventAfterCommitListenerTest {
         status -> {
           applicationEventPublisher.publishEvent(event);
           then(eventPublisher).shouldHaveNoInteractions();
+          then(notificationEventExecutor).shouldHaveNoInteractions();
         });
 
+    then(notificationEventExecutor).should().execute(any(Runnable.class));
     then(eventPublisher).should().publish(event);
   }
 
@@ -44,6 +64,7 @@ class NotificationEventAfterCommitListenerTest {
           status.setRollbackOnly();
         });
 
+    then(notificationEventExecutor).shouldHaveNoInteractions();
     then(eventPublisher).shouldHaveNoInteractions();
   }
 

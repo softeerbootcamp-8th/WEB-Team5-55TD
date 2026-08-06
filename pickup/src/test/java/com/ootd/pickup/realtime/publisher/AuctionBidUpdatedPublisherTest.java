@@ -1,4 +1,4 @@
-package com.ootd.pickup.realtime.service;
+package com.ootd.pickup.realtime.publisher;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -19,11 +19,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 @ExtendWith(MockitoExtension.class)
-class AuctionBidUpdatedEventHandlerTest {
+class AuctionBidUpdatedPublisherTest {
 
   @Mock private SimpMessagingTemplate messagingTemplate;
 
-  @InjectMocks private AuctionBidUpdatedEventHandler handler;
+  @InjectMocks private AuctionBidUpdatedPublisher publisher;
 
   @Test
   void 입찰_갱신_이벤트를_공개_메시지로_바꿔_경매_topic에_전송한다() {
@@ -43,7 +43,7 @@ class AuctionBidUpdatedEventHandlerTest {
             new WinningBidSnapshot(7L, 9L, "피카츄마스터", 20_000L, BidStatus.HIGHEST, now),
             now);
 
-    handler.handle(event);
+    publisher.publish(event);
 
     ArgumentCaptor<AuctionBidUpdatedMessage> messageCaptor =
         ArgumentCaptor.forClass(AuctionBidUpdatedMessage.class);
