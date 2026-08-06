@@ -18,6 +18,7 @@ import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.exception.AbortedException;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
@@ -115,6 +116,9 @@ public class SQSEventConsumer implements SmartLifecycle {
    *
    * <p>대기 중인 {@code ReceiveMessage} 호출을 끊기 위해 인터럽트를 건다. 이때 SDK는 {@link AbortedException}을 던지고, 폴링
    * 루프는 이를 정상 종료로 다룬다.
+   *
+   * <p>{@link Thread#join(long)}은 대기 시간이 지나도 예외를 던지지 않는다. 끝난 것과 아직 도는 것을 구분하려면 {@link
+   * Thread#isAlive()}를 따로 봐야 한다. 구분하지 않으면 스레드가 남아 닫히는 중인 자원을 건드리는데도 로그에는 정상 종료로 보인다.
    */
   @Override
   public void stop() {
@@ -130,6 +134,11 @@ public class SQSEventConsumer implements SmartLifecycle {
       Thread.currentThread().interrupt();
     }
     pollingThread = null;
+
+    if (thread.isAlive()) {
+      log.warn("SQS 이벤트 소비 스레드가 제한 시간 안에 끝나지 않았습니다 - timeout={}s", STOP_TIMEOUT.toSeconds());
+      return;
+    }
     log.info("SQS 이벤트 소비를 종료했습니다");
   }
 
@@ -138,19 +147,35 @@ public class SQSEventConsumer implements SmartLifecycle {
     return running;
   }
 
+  /**
+   * 멈추라는 지시가 있을 때까지 큐를 계속 비운다.
+   *
+   * <p>{@code @Scheduled}는 반복 작업의 예외를 삼키고 다음 주기를 계속 돌려주지만, 직접 만든 스레드는 예외가 밖으로 나가면 <b>그대로 죽고 소비가 영구히
+   * 멈춘다.</b> 그래서 {@link Error}까지 잡는다. 복구하려는 것이 아니라 죽었다는 사실을 남기기 위해서다.
+   *
+   * <p>어떻게 끝나든 {@link #running}을 내린다. 이 값이 {@link #isRunning()}의 답이라, 스레드가 죽었는데 켜져 있으면 스프링과 사람 모두
+   * 소비가 도는 줄로 안다.
+   */
   private void pollUntilStopped() {
-    while (running) {
-      try {
-        consumeOnce();
-      } catch (AbortedException exception) {
-        // stop() 의 인터럽트로 대기 중이던 호출이 끊긴 것이다. 종료 절차의 일부라 남기지 않는다.
-        break;
-      } catch (RuntimeException exception) {
-        log.error("SQS 이벤트 수신에 실패했습니다 - queueUrl={}", sqsProperties.queueUrl(), exception);
-        if (!sleepBeforeRetry()) {
+    try {
+      while (running) {
+        try {
+          consumeOnce();
+        } catch (AbortedException exception) {
+          // stop() 의 인터럽트로 대기 중이던 호출이 끊긴 것이다. 종료 절차의 일부라 남기지 않는다.
           break;
+        } catch (RuntimeException exception) {
+          log.error("SQS 이벤트 수신에 실패했습니다 - queueUrl={}", sqsProperties.queueUrl(), exception);
+          if (!sleepBeforeRetry()) {
+            break;
+          }
         }
       }
+    } catch (Error error) {
+      log.error("SQS 이벤트 소비 스레드가 중단되었습니다 - queueUrl={}", sqsProperties.queueUrl(), error);
+      throw error;
+    } finally {
+      running = false;
     }
   }
 
@@ -281,11 +306,18 @@ public class SQSEventConsumer implements SmartLifecycle {
                 .build());
 
     if (response.hasFailed() && !response.failed().isEmpty()) {
+      // id 만 남기면 권한 문제와 만료된 receiptHandle 을 구분할 수 없다. senderFault 가 true 면
+      // 우리 요청이 잘못된 것이고, false 면 큐 쪽 문제라 다시 시도할 여지가 있다.
       log.error(
-          "SQS 이벤트 삭제에 실패했습니다 - count={}, messageIds={}",
+          "SQS 이벤트 삭제에 실패했습니다 - count={}, failures={}",
           response.failed().size(),
-          response.failed().stream().map(failed -> failed.id()).toList());
+          response.failed().stream().map(SQSEventConsumer::describeFailure).toList());
     }
+  }
+
+  private static String describeFailure(BatchResultErrorEntry failed) {
+    return "%s(code=%s, senderFault=%s, message=%s)"
+        .formatted(failed.id(), failed.code(), failed.senderFault(), failed.message());
   }
 
   /** 재시도 전 잠시 쉰다. 인터럽트되면 {@code false}를 돌려 폴링 루프를 끝낸다. */
