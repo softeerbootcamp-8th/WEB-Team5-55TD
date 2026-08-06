@@ -4,11 +4,7 @@ import { ProductStatus } from "@/lib/types";
 import { axiosInstance } from "@/api/mutator/custom-instance";
 
 export type ApiConsignmentStatus =
-  | "REGISTERABLE"
-  | "AUCTION_SCHEDULED"
-  | "AUCTION_ONGOING"
-  | "WON"
-  | "PASSED";
+  "REGISTERABLE" | "AUCTION_SCHEDULED" | "AUCTION_ONGOING" | "WON" | "PASSED";
 
 interface ConsignmentCardResponse {
   cardId: number;
@@ -61,25 +57,19 @@ export interface ConsignmentDetail extends ConsignmentSummary {
   language: string;
   rarity: string;
   majorDefect?: string;
-  images: string[];
+  images: ConsignmentImage[];
   auctionRegistered: boolean;
   gradeCode: string;
   inspectedAt: string;
 }
 
-export interface ModifyConsignmentPayload {
-  majorDefect?: string;
-  certificate: {
-    serialNumber: string;
-    certificationBody: string;
-    grade: string;
-    inspectedAt: string;
-  };
-  images: { imageUrl: string }[];
+export interface ConsignmentImage {
+  consignmentImageId: number;
+  imageUrl: string;
 }
 
 interface ConsignmentImageResponse {
-  productImageId: number;
+  consignmentImageId: number;
   imageOrder: number;
   imageUrl: string;
 }
@@ -147,7 +137,10 @@ function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
     images: item.images
       .slice()
       .sort((a, b) => a.imageOrder - b.imageOrder)
-      .map((img) => img.imageUrl),
+      .map((image) => ({
+        consignmentImageId: image.consignmentImageId,
+        imageUrl: image.imageUrl,
+      })),
     auctionRegistered: item.auctionRegistered,
     gradeCode: item.certificate.gradeCode,
     inspectedAt: item.certificate.inspectedAt ?? "",
@@ -174,7 +167,11 @@ export async function getMyConsignments(params: {
   status: ApiConsignmentStatus;
   cursor?: number;
   size?: number;
-}): Promise<{ items: ConsignmentSummary[]; hasNext: boolean; cursor?: number }> {
+}): Promise<{
+  items: ConsignmentSummary[];
+  hasNext: boolean;
+  cursor?: number;
+}> {
   const data = await fetchConsignmentPage(params.status, params);
 
   return {
@@ -198,17 +195,6 @@ export async function getMyConsignmentDetail(
     }
     throw error;
   }
-}
-
-export async function modifyMyConsignment(
-  id: string,
-  payload: ModifyConsignmentPayload,
-): Promise<ConsignmentDetail> {
-  const { data } = await axiosInstance.patch<ConsignmentDetailResponse>(
-    `/consignments/${id}`,
-    payload,
-  );
-  return toDetail(data);
 }
 
 export async function deleteMyConsignment(id: string): Promise<void> {
