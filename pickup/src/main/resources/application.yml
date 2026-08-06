@@ -35,7 +35,6 @@ auth:
   token:
     issuer: ${JWT_ISSUER:pickup}
     secret: ${JWT_SECRET:}
-
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
     refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:14d}
 
