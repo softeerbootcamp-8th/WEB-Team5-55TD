@@ -1,11 +1,12 @@
-package com.ootd.pickup.realtime.handler;
+package com.ootd.pickup.websocket.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 
 import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
-import com.ootd.pickup.realtime.publisher.AuctionBidUpdatedPublisher;
+import com.ootd.pickup.bid.websocket.handler.AuctionBidUpdatedPublisher;
+import com.ootd.pickup.bid.websocket.publisher.AuctionBidUpdatedEventHandler;
 import org.junit.jupiter.api.Test;
 
 class AuctionBidUpdatedEventHandlerTest {

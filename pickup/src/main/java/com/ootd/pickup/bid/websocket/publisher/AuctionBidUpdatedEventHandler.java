@@ -1,8 +1,8 @@
-package com.ootd.pickup.realtime.handler;
+package com.ootd.pickup.bid.websocket.publisher;
 
 import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
+import com.ootd.pickup.bid.websocket.handler.AuctionBidUpdatedPublisher;
 import com.ootd.pickup.global.event.EventHandler;
-import com.ootd.pickup.realtime.publisher.AuctionBidUpdatedPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

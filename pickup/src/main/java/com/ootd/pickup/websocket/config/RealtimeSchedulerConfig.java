@@ -1,4 +1,4 @@
-package com.ootd.pickup.realtime.config;
+package com.ootd.pickup.websocket.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

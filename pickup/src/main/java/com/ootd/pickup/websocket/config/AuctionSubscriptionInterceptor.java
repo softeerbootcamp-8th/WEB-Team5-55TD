@@ -1,4 +1,4 @@
-package com.ootd.pickup.realtime.config;
+package com.ootd.pickup.websocket.config;
 
 import java.util.EnumSet;
 import java.util.Set;

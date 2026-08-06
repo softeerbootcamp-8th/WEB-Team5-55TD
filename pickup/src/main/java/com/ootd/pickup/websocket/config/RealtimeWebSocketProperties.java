@@ -1,4 +1,4 @@
-package com.ootd.pickup.realtime.config;
+package com.ootd.pickup.websocket.config;
 
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;

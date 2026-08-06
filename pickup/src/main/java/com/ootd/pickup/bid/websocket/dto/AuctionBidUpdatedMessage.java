@@ -1,4 +1,4 @@
-package com.ootd.pickup.realtime.dto;
+package com.ootd.pickup.bid.websocket.dto;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;

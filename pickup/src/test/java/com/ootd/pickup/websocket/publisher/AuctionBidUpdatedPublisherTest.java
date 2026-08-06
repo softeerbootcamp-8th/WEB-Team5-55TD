@@ -1,4 +1,4 @@
-package com.ootd.pickup.realtime.publisher;
+package com.ootd.pickup.websocket.publisher;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -8,7 +8,8 @@ import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
 import com.ootd.pickup.auction.event.WinningBidSnapshot;
 import com.ootd.pickup.bid.domain.BidStatus;
-import com.ootd.pickup.realtime.dto.AuctionBidUpdatedMessage;
+import com.ootd.pickup.bid.websocket.dto.AuctionBidUpdatedMessage;
+import com.ootd.pickup.bid.websocket.handler.AuctionBidUpdatedPublisher;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
