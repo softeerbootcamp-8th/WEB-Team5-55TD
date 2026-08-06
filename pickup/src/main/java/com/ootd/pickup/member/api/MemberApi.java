@@ -199,7 +199,7 @@ public interface MemberApi {
                             """))),
         @ApiResponse(
             responseCode = "400",
-            description = "유효하지 않은 커서 값",
+            description = "유효하지 않은 커서 값 또는 size 값(1 미만)",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "401",
