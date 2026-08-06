@@ -120,7 +120,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CursorPageResponse"
+                $ref: "#/components/schemas/GetMyConsignmentsPageResponse"
               examples:
                 내 상품 목록 조회 결과:
                   description: 내 상품 목록 조회 결과
@@ -368,7 +368,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CursorPageResponse"
+                $ref: "#/components/schemas/SearchAuctionsPageResponse"
               examples:
                 경매 목록 조회 결과:
                   description: 경매 목록 조회 결과
@@ -568,7 +568,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CursorPageResponse"
+                $ref: "#/components/schemas/AuctionBidsPageResponse"
         "400":
           description: 유효하지 않은 커서 값
           content:
@@ -962,7 +962,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CursorPageResponse"
+                $ref: "#/components/schemas/SalesHistoryPageResponse"
               examples:
                 판매 내역 조회 결과:
                   description: 판매 내역 조회 결과
@@ -1016,7 +1016,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CursorPageResponse"
+                $ref: "#/components/schemas/MyBidsPageResponse"
         "400":
           description: 유효하지 않은 커서 값
           content:
@@ -1077,7 +1077,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CursorPageResponse"
+                $ref: "#/components/schemas/MyBidsPageResponse"
         "400":
           description: 유효하지 않은 커서 값
           content:
@@ -1777,18 +1777,166 @@ components:
             $ref: "#/components/schemas/ConsignmentImageResponse"
         auctionRegistered:
           type: boolean
-    CursorPageResponse:
+    GetMyConsignmentsResponse:
+      type: object
+      properties:
+        consignmentId:
+          type: integer
+          format: int64
+        auctionId:
+          type: integer
+          format: int64
+        card:
+          $ref: "#/components/schemas/GetCardDetailResponse"
+        sellerMemberId:
+          type: integer
+          format: int64
+        majorDefect:
+          type: string
+        status:
+          type: string
+          enum:
+          - REGISTERABLE
+          - AUCTION_SCHEDULED
+          - AUCTION_ONGOING
+          - WON
+          - PASSED
+        certificate:
+          $ref: "#/components/schemas/CertificateResponse"
+    GetMyConsignmentsPageResponse:
       type: object
       properties:
         hasNext:
           type: boolean
-        cursor: {}
+        cursor:
+          type: integer
+          format: int64
         size:
           type: integer
           format: int32
         items:
           type: array
-          items: {}
+          items:
+            $ref: "#/components/schemas/GetMyConsignmentsResponse"
+    SearchAuctionsPageResponse:
+      type: object
+      properties:
+        hasNext:
+          type: boolean
+        cursor:
+          type: string
+        size:
+          type: integer
+          format: int32
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuctionListItemResponse"
+    AuctionBidListItemResponse:
+      type: object
+      properties:
+        bidId:
+          type: integer
+          format: int64
+        nicknameMasked:
+          type: string
+        bidPrice:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        isMine:
+          type: boolean
+    AuctionBidsPageResponse:
+      type: object
+      properties:
+        hasNext:
+          type: boolean
+        cursor:
+          type: string
+        size:
+          type: integer
+          format: int32
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuctionBidListItemResponse"
+    SaleHistoryItemResponse:
+      type: object
+      properties:
+        auctionId:
+          type: integer
+          format: int64
+        card:
+          $ref: "#/components/schemas/GetCardDetailResponse"
+        grade:
+          type: string
+        winningPrice:
+          type: integer
+          format: int64
+        resultType:
+          type: string
+          enum:
+          - WON
+          - PASSED
+    SalesHistoryPageResponse:
+      type: object
+      properties:
+        hasNext:
+          type: boolean
+        cursor:
+          type: string
+        size:
+          type: integer
+          format: int32
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleHistoryItemResponse"
+    MyBidListItemResponse:
+      type: object
+      properties:
+        auctionId:
+          type: integer
+          format: int64
+        card:
+          $ref: "#/components/schemas/GetCardDetailResponse"
+        grade:
+          type: string
+        myBidPrice:
+          type: integer
+          format: int64
+        currentPrice:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+          - HIGHEST
+          - OUTBID
+          - WON
+        auctionStatus:
+          type: string
+          enum:
+          - SCHEDULED
+          - ONGOING
+          - WON
+          - PASSED
+    MyBidsPageResponse:
+      type: object
+      properties:
+        hasNext:
+          type: boolean
+        cursor:
+          type: string
+        size:
+          type: integer
+          format: int32
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyBidListItemResponse"
     GetSalesHistoryRequest:
       type: object
       properties:
