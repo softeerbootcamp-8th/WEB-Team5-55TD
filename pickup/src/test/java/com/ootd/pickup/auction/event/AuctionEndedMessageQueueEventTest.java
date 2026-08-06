@@ -64,7 +64,7 @@ class AuctionEndedMessageQueueEventTest {
     // then
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(event.aggregateId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_ENDED_MESSAGE_QUEUE);
+    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_ENDED);
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status, Member seller) {

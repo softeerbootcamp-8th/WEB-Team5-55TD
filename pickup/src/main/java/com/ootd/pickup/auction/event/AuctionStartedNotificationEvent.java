@@ -14,7 +14,7 @@ import java.util.UUID;
  * <p>구독 중인 모든 App 서버가 각자 WebSocket 세션에 전달해야 하므로 {@link NotificationEvent}로 분류한다. 유실이 허용되며 Outbox를
  * 거치지 않고 Redis Pub/Sub으로 즉시 발행된다.
  */
-public record AuctionStartedEvent(
+public record AuctionStartedNotificationEvent(
     String eventId,
     Long auctionId,
     Long consignmentId,
@@ -29,8 +29,8 @@ public record AuctionStartedEvent(
     LocalDateTime occurredAt)
     implements NotificationEvent {
 
-  public static AuctionStartedEvent fromEntity(Auction auction) {
-    return new AuctionStartedEvent(
+  public static AuctionStartedNotificationEvent fromEntity(Auction auction) {
+    return new AuctionStartedNotificationEvent(
         UUID.randomUUID().toString(),
         auction.getAuctionId(),
         auction.getConsignment().getConsignmentId(),

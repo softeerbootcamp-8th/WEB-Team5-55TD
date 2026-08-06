@@ -67,6 +67,6 @@ public record AuctionEndedMessageQueueEvent(
 
   @Override
   public EventType eventType() {
-    return EventType.AUCTION_ENDED_MESSAGE_QUEUE;
+    return EventType.AUCTION_ENDED;
   }
 }

@@ -62,6 +62,6 @@ public record AuctionEndedNotificationEvent(
 
   @Override
   public EventType eventType() {
-    return EventType.AUCTION_ENDED_NOTIFICATION;
+    return EventType.AUCTION_ENDED;
   }
 }

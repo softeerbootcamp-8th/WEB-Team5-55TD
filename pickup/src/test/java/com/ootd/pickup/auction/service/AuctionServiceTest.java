@@ -29,6 +29,7 @@ import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -59,6 +60,8 @@ class AuctionServiceTest {
 
   @Mock private WatchRepository watchRepository;
 
+  @Mock private ImageUrlResolver imageUrlResolver;
+
   @Mock private BidRepository bidRepository;
 
   private AuctionService auctionService;
@@ -73,7 +76,11 @@ class AuctionServiceTest {
             certificateManageService,
             consignmentImageRepository,
             watchRepository,
+            imageUrlResolver,
             bidRepository);
+    lenient()
+        .when(imageUrlResolver.resolve(anyString()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
   }
 
   @Test
@@ -755,6 +762,7 @@ class AuctionServiceTest {
             .bidIncrement(500L)
             .build();
     ReflectionTestUtils.setField(auction, "auctionId", auctionId);
+    ReflectionTestUtils.setField(auction, "createdAt", LocalDateTime.of(2026, 7, 1, 12, 0));
     return auction;
   }
 
@@ -763,7 +771,7 @@ class AuctionServiceTest {
     return ConsignmentImage.builder()
         .consignment(consignment)
         .imageOrder(imageOrder)
-        .imageUrl(imageUrl)
+        .objectKey(imageUrl)
         .build();
   }
 

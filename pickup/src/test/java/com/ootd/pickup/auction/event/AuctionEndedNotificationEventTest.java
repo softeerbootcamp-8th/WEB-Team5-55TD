@@ -60,7 +60,7 @@ class AuctionEndedNotificationEventTest {
     // then
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(event.aggregateId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_ENDED_NOTIFICATION);
+    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_ENDED);
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status) {

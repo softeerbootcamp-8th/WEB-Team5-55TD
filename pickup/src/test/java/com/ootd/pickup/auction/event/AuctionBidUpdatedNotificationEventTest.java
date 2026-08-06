@@ -4,51 +4,55 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.global.event.AggregateType;
 import com.ootd.pickup.global.event.EventType;
+import com.ootd.pickup.member.domain.Member;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class AuctionStartedEventTest {
+class AuctionBidUpdatedNotificationEventTest {
 
   @Test
-  void 경매로부터_생성하면_경매_필드가_그대로_옮겨진다() {
+  void 경매와_최고입찰로부터_생성하면_최고입찰_정보가_중첩되어_옮겨진다() {
     // given
     Auction auction = createAuction(1L, AuctionStatus.ONGOING);
+    auction.updateWinningBid(10L, 10_500L);
+    Member bidder = createMember(2L, "닉네임");
+    Bid bid = createBid(auction, bidder, 10L, 10_500L);
 
     // when
-    AuctionStartedEvent event = AuctionStartedEvent.fromEntity(auction);
+    AuctionBidUpdatedNotificationEvent event =
+        AuctionBidUpdatedNotificationEvent.fromEntity(auction, bid);
 
     // then
     assertThat(event.auctionId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.consignmentId()).isEqualTo(auction.getConsignment().getConsignmentId());
-    assertThat(event.startingPrice()).isEqualTo(auction.getStartingPrice());
-    assertThat(event.reservePrice()).isEqualTo(auction.getReservePrice());
-    assertThat(event.winningBidId()).isEqualTo(auction.getWinningBidId());
-    assertThat(event.winningPrice()).isEqualTo(auction.getWinningPrice());
-    assertThat(event.auctionStatus()).isEqualTo(auction.getAuctionStatus());
-    assertThat(event.startedAt()).isEqualTo(auction.getStartedAt());
-    assertThat(event.endedAt()).isEqualTo(auction.getEndedAt());
-    assertThat(event.createdAt()).isEqualTo(auction.getCreatedAt());
-    assertThat(event.eventId()).isNotBlank();
-    assertThat(event.occurredAt()).isNotNull();
+    assertThat(event.winningPrice()).isEqualTo(10_500L);
+    assertThat(event.winningBid().bidId()).isEqualTo(10L);
+    assertThat(event.winningBid().memberId()).isEqualTo(2L);
+    assertThat(event.winningBid().memberNickname()).isEqualTo("닉네임");
+    assertThat(event.winningBid().bidPrice()).isEqualTo(10_500L);
+    assertThat(event.winningBid().bidStatus()).isEqualTo(bid.getBidStatus());
   }
 
   @Test
   void 경매_애그리거트와_이벤트타입이_고정값으로_반환된다() {
     // given
     Auction auction = createAuction(1L, AuctionStatus.ONGOING);
+    Member bidder = createMember(2L, "닉네임");
+    Bid bid = createBid(auction, bidder, 10L, 10_500L);
 
     // when
-    AuctionStartedEvent event = AuctionStartedEvent.fromEntity(auction);
+    AuctionBidUpdatedNotificationEvent event =
+        AuctionBidUpdatedNotificationEvent.fromEntity(auction, bid);
 
     // then
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(event.aggregateId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_STARTED);
+    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_BID_UPDATED);
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status) {
@@ -67,5 +71,17 @@ class AuctionStartedEventTest {
             .build();
     ReflectionTestUtils.setField(auction, "auctionId", auctionId);
     return auction;
+  }
+
+  private Member createMember(Long memberId, String nickname) {
+    Member member = Member.create("loginId" + memberId, "password", nickname);
+    ReflectionTestUtils.setField(member, "memberId", memberId);
+    return member;
+  }
+
+  private Bid createBid(Auction auction, Member member, Long bidId, Long bidPrice) {
+    Bid bid = Bid.create(auction, member, bidPrice);
+    ReflectionTestUtils.setField(bid, "bidId", bidId);
+    return bid;
   }
 }

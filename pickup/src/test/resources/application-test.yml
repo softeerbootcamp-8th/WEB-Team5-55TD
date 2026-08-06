@@ -12,6 +12,12 @@ spring:
     open-in-view: false
 
 
+scheduler:
+  # 테스트에서는 주기 작업을 띄우지 않는다. H2 에는 shedlock 테이블이 없고(엔티티가 아니라
+  # ddl-auto 로 만들어지지 않는다), 1초마다 도는 작업이 다른 테스트의 데이터를 건드린다.
+  # 전이 로직 자체는 AuctionScheduler 빈의 메서드를 직접 호출해 검증한다.
+  enabled: false
+
 auth:
   token:
     issuer: pickup-test
@@ -20,3 +26,10 @@ auth:
   cookie:
     secure: true
     same-site: None
+
+image:
+  storage:
+    bucket: pickup-test
+    region: ap-northeast-2
+    media-base-url: https://images.test
+    upload-url-ttl: 5m
