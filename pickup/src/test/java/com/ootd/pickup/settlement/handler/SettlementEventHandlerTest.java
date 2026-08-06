@@ -1,7 +1,9 @@
 package com.ootd.pickup.settlement.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class SettlementEventHandlerTest {
@@ -41,6 +44,18 @@ class SettlementEventHandlerTest {
 
     // then
     then(settlementService).should().settleAuction(1L, 2L, 3L, 10_500L);
+  }
+
+  @Test
+  void 다른_인스턴스가_동시에_처리해_유니크_제약에_막혀도_예외를_다시_던지지_않는다() {
+    // given: 다른 인스턴스가 먼저 커밋해 이 인스턴스의 정산 트랜잭션은 유니크 제약에 막혀 롤백된 상황을 흉내낸다
+    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
+    willThrow(new DataIntegrityViolationException("uk_settlement_auction_member_type"))
+        .given(settlementService)
+        .settleAuction(1L, 2L, 3L, 10_500L);
+
+    // when & then: 메시지를 정상 소비 처리할 수 있도록 예외가 밖으로 새어 나가지 않아야 한다
+    assertThatCode(() -> settlementEventHandler.handle(event)).doesNotThrowAnyException();
   }
 
   private AuctionEndedMessageQueueEvent createEndedEvent(

@@ -170,7 +170,8 @@ class SettlementConcurrencyTest {
               duplicateDelivery.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
     }
 
-    // then: settlement 유니크 제약에 막혀 한 쪽은 실패해야 중복 정산이 반영되지 않는다
+    // then: 유니크 제약에 막힌 쪽은 트랜잭션 전체가 롤백되어 실패로 끝난다(그 경합을 "이미 처리됨"으로 해석해 정상 소비하는 것은
+    // SettlementEventHandler의 책임이라 여기서는 다루지 않는다). 그래도 정산/포인트는 한 번만 반영돼야 한다.
     assertThat(results).containsExactlyInAnyOrder("SUCCESS", "FAILURE");
     long balanceWinner =
         pointJpaRepository.findByMemberId(winner.getMemberId()).orElseThrow().getBalance();
