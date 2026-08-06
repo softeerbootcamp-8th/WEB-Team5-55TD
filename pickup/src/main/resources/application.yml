@@ -71,3 +71,9 @@ scheduler:
     # 실제 전송이 구현된 뒤 true 로 켠다. 그때까지 이벤트는 테이블에 쌓인 채 남는다.
     enabled: ${SCHEDULER_OUTBOX_ENABLED:false}
     fixed-delay: ${SCHEDULER_OUTBOX_FIXED_DELAY:1s}
+image:
+  storage:
+    bucket: ${IMAGE_STORAGE_BUCKET:}
+    region: ${IMAGE_STORAGE_REGION:}
+    media-base-url: ${IMAGE_MEDIA_BASE_URL:}
+    upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}
