@@ -139,6 +139,10 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
       onSuccess: (updatedProfile) => {
         queryClient.setQueryData(getGetMyProfileQueryKey(), updatedProfile);
         if (updatedProfile.nickname) setNickname(updatedProfile.nickname);
+        setAvatarUrl(updatedProfile.profileImageUrl);
+        setAvatarFile(null);
+        setIsAvatarChanged(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         setCurrentPassword("");
         setNewPassword("");
         setNewPasswordConfirm("");
@@ -176,6 +180,7 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
     setAvatarUrl(undefined);
     setAvatarFile(null);
     setIsAvatarChanged(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const submit = async (event: React.FormEvent) => {

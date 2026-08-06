@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useId, useMemo } from "react";
 import { ImagePlus, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IMAGE_ACCEPT, getImageValidationError } from "@/api/image-upload";
@@ -29,6 +29,8 @@ export function ConsignmentImageFields({
   onError,
   disabled,
 }: ConsignmentImageFieldsProps) {
+  const inputIdPrefix = useId();
+
   const addImages = (files: File[]) => {
     if (images.length + files.length > MAX_IMAGES) {
       onError("상품 이미지는 최대 5장까지 등록할 수 있습니다.");
@@ -95,12 +97,16 @@ export function ConsignmentImageFields({
                   disabled={disabled}
                   asChild
                 >
-                  <label className="cursor-pointer">
+                  <label
+                    htmlFor={`${inputIdPrefix}-replace-${index}`}
+                    className="cursor-pointer"
+                  >
                     <RefreshCw /> 교체
                     <input
+                      id={`${inputIdPrefix}-replace-${index}`}
                       type="file"
                       accept={IMAGE_ACCEPT}
-                      className="hidden"
+                      className="sr-only"
                       disabled={disabled}
                       onChange={(event) => {
                         const file = event.target.files?.[0];
@@ -127,13 +133,14 @@ export function ConsignmentImageFields({
 
       {images.length < MAX_IMAGES && (
         <Button type="button" variant="secondary" disabled={disabled} asChild>
-          <label className="cursor-pointer">
+          <label htmlFor={`${inputIdPrefix}-add`} className="cursor-pointer">
             <ImagePlus /> 이미지 추가
             <input
+              id={`${inputIdPrefix}-add`}
               type="file"
               accept={IMAGE_ACCEPT}
               multiple
-              className="hidden"
+              className="sr-only"
               disabled={disabled}
               onChange={(event) => {
                 addImages(Array.from(event.target.files ?? []));

@@ -189,14 +189,25 @@ function EditForm({
       <Link
         to="/seller/products/$productId"
         params={{ productId }}
-        className="inline-flex items-center gap-1 text-sm text-[var(--color-text-sub)] hover:text-foreground"
+        aria-disabled={isSubmitting}
+        tabIndex={isSubmitting ? -1 : undefined}
+        onClick={(event) => {
+          if (isSubmitting) event.preventDefault();
+        }}
+        className={cn(
+          "inline-flex items-center gap-1 text-sm text-[var(--color-text-sub)] hover:text-foreground",
+          isSubmitting && "pointer-events-none opacity-50",
+        )}
       >
         <ChevronLeft className="size-4" /> 상품 상세
       </Link>
 
       <h1 className="text-2xl font-bold">{product.cardName} 정보 수정</h1>
 
-      <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-6">
+      <fieldset
+        disabled={isSubmitting}
+        className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-6"
+      >
         <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
           카드 자체 정보는 변경할 수 없으며, 감정서와 이미지, 주요 결함만 수정할
           수 있습니다.
@@ -259,14 +270,20 @@ function EditForm({
           onError={(message) => toast.error(message)}
           disabled={isSubmitting}
         />
-      </div>
+      </fieldset>
 
       <div className="flex justify-end gap-3">
-        <Button variant="secondary" asChild>
-          <Link to="/seller/products/$productId" params={{ productId }}>
+        {isSubmitting ? (
+          <Button variant="secondary" disabled>
             취소
-          </Link>
-        </Button>
+          </Button>
+        ) : (
+          <Button variant="secondary" asChild>
+            <Link to="/seller/products/$productId" params={{ productId }}>
+              취소
+            </Link>
+          </Button>
+        )}
         <Button
           onClick={() => submitModify()}
           disabled={!canSubmit || isSubmitting}

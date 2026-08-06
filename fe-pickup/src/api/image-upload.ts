@@ -12,7 +12,10 @@ export function getImageValidationError(file: File) {
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
     return "JPG, PNG, WebP 이미지만 업로드할 수 있습니다.";
   }
-  if (file.size === 0 || file.size > MAX_IMAGE_SIZE) {
+  if (file.size === 0) {
+    return "빈 파일은 업로드할 수 없습니다.";
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
     return "이미지는 10MB 이하의 파일이어야 합니다.";
   }
   return null;
