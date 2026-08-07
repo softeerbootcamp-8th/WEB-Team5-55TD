@@ -10,8 +10,16 @@ on:
       - '.github/workflows/frontend-cd.yml'
       - '.github/workflows/frontend-ci.yml'
   # IAM 역할 신뢰 정책이 main·develop 만 허용하므로, 그 외 브랜치에서 실행하면
-  # OIDC 인증 단계에서 거부된다.
+  # OIDC 인증 단계에서 거부된다. ref 입력은 이를 우회하지 않는다 — 워크플로 파일 자체는
+  # 여전히 main/develop에서 트리거해야 신뢰 정책을 통과하고(트리거 ref가 OIDC sub 조건),
+  # 그렇게 얻은 신뢰된 자격 증명으로 ref 입력이 가리키는 다른 브랜치의 코드를 체크아웃해
+  # 임시로 빌드·배포할 수 있게 해줄 뿐이다.
   workflow_dispatch:
+    inputs:
+      ref:
+        description: '배포할 브랜치/커밋 SHA (비우면 이 워크플로를 실행한 ref 그대로 배포). 기능 브랜치 임시 배포용.'
+        required: false
+        type: string
 
 # 배포가 겹치면 S3 파일 교체 중에 또 교체된다.
 # 진행 중인 배포를 끊으면 index.html 과 자산이 어긋난 상태로 남으므로 취소하지 않는다.
@@ -25,6 +33,7 @@ jobs:
     uses: ./.github/workflows/frontend-ci.yml
     with:
       upload-dist: true
+      ref: ${{ inputs.ref }}
     secrets: inherit
 
   deploy:
@@ -75,6 +84,15 @@ jobs:
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      # inputs.ref로 다른 브랜치를 체크아웃했을 때 github.sha는 여전히 이 워크플로를
+      # 트리거한 ref(main/develop)의 커밋을 가리킨다. Slack 알림이 실제 배포되는
+      # 커밋을 가리키도록, 체크아웃 직후 HEAD에서 실제 SHA를 다시 구한다.
+      - name: Resolve deployed commit
+        id: resolve-commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       # CI 잡이 올린 빌드 산출물. 여기서 다시 빌드하지 않는다 —
       # 검사를 통과한 그 산출물을 그대로 배포해야 한다.
@@ -177,7 +195,7 @@ jobs:
           token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
           payload: |
             channel: pickup-cicd
-            text: "Frontend 배포 성공: ${{ github.repository }}@${{ github.sha }}"
+            text: "Frontend 배포 성공: ${{ github.repository }}@${{ steps.resolve-commit.outputs.sha }}"
             blocks:
               - type: header
                 text:
@@ -189,9 +207,9 @@ jobs:
                   - type: mrkdwn
                     text: "*저장소*\n${{ github.repository }}"
                   - type: mrkdwn
-                    text: "*브랜치*\n${{ github.ref_name }}"
+                    text: "*브랜치*\n${{ inputs.ref || github.ref_name }}"
                   - type: mrkdwn
-                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.resolve-commit.outputs.sha }}|${{ steps.resolve-commit.outputs.sha }}>"
                   - type: mrkdwn
                     text: "*실행자*\n${{ github.actor }}"
                   - type: mrkdwn
@@ -211,7 +229,7 @@ jobs:
           token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
           payload: |
             channel: pickup-cicd
-            text: "Frontend 배포 실패: ${{ github.repository }}@${{ github.sha }}"
+            text: "Frontend 배포 실패: ${{ github.repository }}@${{ steps.resolve-commit.outputs.sha }}"
             blocks:
               - type: header
                 text:
@@ -223,9 +241,9 @@ jobs:
                   - type: mrkdwn
                     text: "*저장소*\n${{ github.repository }}"
                   - type: mrkdwn
-                    text: "*브랜치*\n${{ github.ref_name }}"
+                    text: "*브랜치*\n${{ inputs.ref || github.ref_name }}"
                   - type: mrkdwn
-                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                    text: "*커밋*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.resolve-commit.outputs.sha }}|${{ steps.resolve-commit.outputs.sha }}>"
                   - type: mrkdwn
                     text: "*실행자*\n${{ github.actor }}"
                   - type: mrkdwn

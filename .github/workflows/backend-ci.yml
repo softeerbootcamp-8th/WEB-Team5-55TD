@@ -15,6 +15,10 @@ on:
         description: '빌드된 실행형 jar를 아티팩트로 업로드할지 여부 (CD에서 사용)'
         type: boolean
         default: false
+      ref:
+        description: '체크아웃할 커밋/브랜치. 비우면 이 워크플로를 호출한 컨텍스트의 기본 ref를 쓴다.'
+        type: string
+        required: false
 
 defaults:
   run:
@@ -32,6 +36,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           # merge-base 계산에 전체 이력이 필요하다 (기존 마이그레이션 수정 감지).
           fetch-depth: 0
 
@@ -86,9 +91,22 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
 
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
