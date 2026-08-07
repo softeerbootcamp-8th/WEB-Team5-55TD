@@ -18,6 +18,7 @@ import static org.mockito.Mockito.never;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
@@ -41,8 +42,10 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,15 +56,16 @@ class BidServiceTest {
   @Mock private BidRepository bidRepository;
 
   @Mock private MemberRepository memberRepository;
-
   @Mock private PointRepository pointRepository;
+  @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private BidService bidService;
 
   @BeforeEach
   void setUp() {
     bidService =
-        new BidService(auctionRepository, bidRepository, memberRepository, pointRepository);
+        new BidService(
+            auctionRepository, bidRepository, memberRepository, pointRepository, applicationEventPublisher);
   }
 
   @Test
@@ -95,6 +99,16 @@ class BidServiceTest {
     assertThat(auction.getWinningBidId()).isEqualTo(10L);
     assertThat(auction.getWinningPrice()).isEqualTo(10_500L);
     then(auctionRepository).should().save(auction);
+    ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+    then(applicationEventPublisher).should().publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue())
+        .isInstanceOfSatisfying(
+            AuctionBidUpdatedNotificationEvent.class,
+            event -> {
+              assertThat(event.auctionId()).isEqualTo(1L);
+              assertThat(event.winningBid().bidId()).isEqualTo(10L);
+              assertThat(event.winningPrice()).isEqualTo(10_500L);
+            });
   }
 
   @Test

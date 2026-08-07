@@ -16,6 +16,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 
 import com.ootd.pickup.auction.domain.Auction;
+import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
@@ -32,6 +33,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -48,6 +50,7 @@ public class BidService {
   private final BidRepository bidRepository;
   private final MemberRepository memberRepository;
   private final PointRepository pointRepository;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
@@ -80,6 +83,8 @@ public class BidService {
 
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
     auctionRepository.save(auction);
+    applicationEventPublisher.publishEvent(
+        AuctionBidUpdatedNotificationEvent.fromEntity(auction, savedBid));
 
     return PlaceBidResponse.from(savedBid);
   }
