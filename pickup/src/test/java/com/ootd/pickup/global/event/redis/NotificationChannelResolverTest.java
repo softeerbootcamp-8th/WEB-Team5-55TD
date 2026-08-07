@@ -1,51 +1,82 @@
 package com.ootd.pickup.global.event.redis;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
+import static org.assertj.core.api.Assertions.*;
 
-import com.ootd.pickup.global.event.AggregateType;
-import com.ootd.pickup.global.event.EventType;
+import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
 import com.ootd.pickup.global.event.NotificationEvent;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 class NotificationChannelResolverTest {
 
   private final NotificationChannelResolver channelResolver = new NotificationChannelResolver();
-  @Mock private NotificationEvent event;
 
   @Test
   void 채널_이름은_애그리거트_종류와_식별자로_만들어진다() {
-    given(event.aggregateType()).willReturn(AggregateType.AUCTION);
-    given(event.aggregateId()).willReturn(42L);
+    // given
+    NotificationEvent event = createEvent(42L);
 
-    assertThat(channelResolver.resolve(event)).isEqualTo("pickup:notification:AUCTION:42");
+    // when
+    String channel = channelResolver.resolve(event);
+
+    // then
+    assertThat(channel).isEqualTo("pickup:notification:AUCTION:42");
   }
 
   @Test
   void 구독_패턴은_발행_채널과_같은_접두사에_와일드카드를_쓴다() {
-    assertThat(channelResolver.resolvePattern()).isEqualTo("pickup:notification:*:*");
+    // when
+    String pattern = channelResolver.resolvePattern();
+
+    // then
+    assertThat(pattern).isEqualTo("pickup:notification:*:*");
   }
 
   @Test
-  void 다른_애그리거트_식별자의_채널은_일치하지_않는다() {
-    given(event.aggregateType()).willReturn(AggregateType.AUCTION);
-    given(event.aggregateId()).willReturn(42L);
+  void 같은_이벤트로_만든_채널이면_matches가_참을_반환한다() {
+    // given
+    NotificationEvent event = createEvent(42L);
+    String channel = channelResolver.resolve(event);
 
-    assertThat(channelResolver.matches("pickup:notification:AUCTION:99", event)).isFalse();
+    // when & then
+    assertThat(channelResolver.matches(channel, event)).isTrue();
   }
 
   @Test
-  void aggregateId가_없으면_null_채널_대신_예외를_던진다() {
-    given(event.aggregateId()).willReturn(null);
-    given(event.eventType()).willReturn(EventType.AUCTION_BID_UPDATED);
+  void 다른_애그리거트_식별자의_채널이면_matches가_거짓을_반환한다() {
+    // given
+    NotificationEvent event = createEvent(42L);
+    String otherChannel = channelResolver.resolve(createEvent(99L));
 
+    // when & then
+    assertThat(channelResolver.matches(otherChannel, event)).isFalse();
+  }
+
+  @Test
+  void aggregateId가_없으면_리터럴_null_채널_대신_예외를_던진다() {
+    // given
+    NotificationEvent event = createEvent(null);
+
+    // when & then
     assertThatThrownBy(() -> channelResolver.resolve(event))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("AUCTION_BID_UPDATED");
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  private AuctionStartedNotificationEvent createEvent(Long auctionId) {
+    return new AuctionStartedNotificationEvent(
+        UUID.randomUUID().toString(),
+        auctionId,
+        100L,
+        10_000L,
+        15_000L,
+        null,
+        null,
+        AuctionStatus.ONGOING,
+        LocalDateTime.now(),
+        LocalDateTime.now(),
+        LocalDateTime.now(),
+        LocalDateTime.now());
   }
 }

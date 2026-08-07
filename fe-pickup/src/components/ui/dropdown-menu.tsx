@@ -2,7 +2,17 @@ import * as React from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const DropdownMenu = DropdownMenuPrimitive.Root;
+function DropdownMenu({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+  // Radix Root의 기본값(modal=true)은 열려 있는 동안 body 스크롤을 잠그면서
+  // 스크롤바 너비만큼 보정 패딩을 넣는다. 이 프로젝트는 이미 html에
+  // scrollbar-gutter: stable 을 적용해 두었는데, 두 보정이 겹치면서 스크롤이
+  // 있는 페이지에서 드롭다운을 열 때 레이아웃이 옆으로 밀리는 문제가 있었다.
+  // 이 메뉴들은 풀스크린 모달이 아니라 가벼운 팝오버이므로 스크롤 잠금이
+  // 꼭 필요하지 않아 기본값을 non-modal로 바꾼다(호출부에서 modal prop으로 재정의 가능).
+  return <DropdownMenuPrimitive.Root modal={false} {...props} />;
+}
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 
 function DropdownMenuContent({
