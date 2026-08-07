@@ -33,6 +33,7 @@ interface ConsignmentListItemResponse {
   majorDefect?: string | null;
   status: ApiConsignmentStatus;
   certificate: ConsignmentCertificateResponse;
+  thumbnailUrl?: string | null;
 }
 
 interface CursorPageResponse<T> {
@@ -108,7 +109,7 @@ function toSummary(item: ConsignmentListItemResponse): ConsignmentSummary {
     id: String(item.consignmentId),
     auctionId: item.auctionId != null ? String(item.auctionId) : undefined,
     cardName: item.card.cardName,
-    thumbnailUrl: item.card.imageUrl ?? undefined,
+    thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
     grade: {
       agency: item.certificate.certificationBody as Grade["agency"],
       score: item.certificate.grade,
@@ -119,10 +120,11 @@ function toSummary(item: ConsignmentListItemResponse): ConsignmentSummary {
 }
 
 function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
+  const sortedImages = item.images.slice().sort((a, b) => a.imageOrder - b.imageOrder);
   return {
     id: String(item.consignmentId),
     cardName: item.card.cardName,
-    thumbnailUrl: item.card.imageUrl ?? undefined,
+    thumbnailUrl: sortedImages[0]?.imageUrl ?? item.card.imageUrl ?? undefined,
     grade: {
       agency: item.certificate.certificationBody as Grade["agency"],
       score: item.certificate.grade,
@@ -134,13 +136,10 @@ function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
     language: item.card.language,
     rarity: item.card.rarity,
     majorDefect: item.majorDefect ?? undefined,
-    images: item.images
-      .slice()
-      .sort((a, b) => a.imageOrder - b.imageOrder)
-      .map((image) => ({
-        consignmentImageId: image.consignmentImageId,
-        imageUrl: image.imageUrl,
-      })),
+    images: sortedImages.map((image) => ({
+      consignmentImageId: image.consignmentImageId,
+      imageUrl: image.imageUrl,
+    })),
     auctionRegistered: item.auctionRegistered,
     gradeCode: item.certificate.gradeCode,
     inspectedAt: item.certificate.inspectedAt ?? "",

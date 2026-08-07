@@ -75,7 +75,7 @@ class OutboxEventSchedulerIntegrationTest {
     outboxEventScheduler.relayUnpublishedEvents();
 
     // then
-    then(messageQueueSender).should().send(any(MessageQueueEvent.class));
+    then(messageQueueSender).should().send(any(RelayedOutboxEvent.class));
     assertThat(findById(appended.getId()).isPublished()).isTrue();
   }
 
@@ -134,10 +134,10 @@ class OutboxEventSchedulerIntegrationTest {
     outboxEventScheduler.relayUnpublishedEvents();
 
     // then
-    ArgumentCaptor<MessageQueueEvent> captor = ArgumentCaptor.forClass(MessageQueueEvent.class);
+    ArgumentCaptor<RelayedOutboxEvent> captor = ArgumentCaptor.forClass(RelayedOutboxEvent.class);
     then(messageQueueSender).should(times(3)).send(captor.capture());
     assertThat(captor.getAllValues())
-        .extracting(MessageQueueEvent::aggregateId)
+        .extracting(RelayedOutboxEvent::aggregateId)
         .containsExactly(1L, 2L, 3L);
   }
 
@@ -182,7 +182,7 @@ class OutboxEventSchedulerIntegrationTest {
         append(testEvent(2L, LocalDateTime.of(2026, 8, 5, 10, 0, 3)));
     willAnswer(
             invocation -> {
-              MessageQueueEvent event = invocation.getArgument(0);
+              RelayedOutboxEvent event = invocation.getArgument(0);
               if (first.getId().equals(event.eventId())) {
                 throw new IllegalStateException("큐 장애");
               }
@@ -195,10 +195,10 @@ class OutboxEventSchedulerIntegrationTest {
     outboxEventScheduler.relayUnpublishedEvents();
 
     // then
-    ArgumentCaptor<MessageQueueEvent> captor = ArgumentCaptor.forClass(MessageQueueEvent.class);
+    ArgumentCaptor<RelayedOutboxEvent> captor = ArgumentCaptor.forClass(RelayedOutboxEvent.class);
     then(messageQueueSender).should(atLeast(0)).send(captor.capture());
     assertThat(captor.getAllValues())
-        .extracting(MessageQueueEvent::eventId)
+        .extracting(RelayedOutboxEvent::eventId)
         .doesNotContain(second.getId());
 
     assertThat(findById(first.getId()).isPublished()).isFalse();
@@ -218,10 +218,9 @@ class OutboxEventSchedulerIntegrationTest {
   }
 
   private RelayedOutboxEvent capturedRelayedEvent() {
-    ArgumentCaptor<MessageQueueEvent> captor = ArgumentCaptor.forClass(MessageQueueEvent.class);
+    ArgumentCaptor<RelayedOutboxEvent> captor = ArgumentCaptor.forClass(RelayedOutboxEvent.class);
     then(messageQueueSender).should().send(captor.capture());
-    assertThat(captor.getValue()).isInstanceOf(RelayedOutboxEvent.class);
-    return (RelayedOutboxEvent) captor.getValue();
+    return captor.getValue();
   }
 
   private TestEvent testEvent(Long auctionId, LocalDateTime occurredAt) {
