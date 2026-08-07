@@ -430,7 +430,7 @@ class BidServiceTest {
 
   private Point createPoint(Long memberId, long balance) {
     Point point = Point.create(memberId);
-    point.adjustBalance(balance);
+    point.increaseBalance(balance);
     return point;
   }
 }

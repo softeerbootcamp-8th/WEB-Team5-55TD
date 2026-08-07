@@ -132,7 +132,7 @@ class BidConcurrencyTest {
 
   private Point createPointWithBalance(Long memberId, long balance) {
     Point point = Point.create(memberId);
-    point.adjustBalance(balance);
+    point.increaseBalance(balance);
     return point;
   }
 

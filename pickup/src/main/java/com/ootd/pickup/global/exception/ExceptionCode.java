@@ -124,7 +124,9 @@ public enum ExceptionCode {
       HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CONSIGNMENT_STATUS, "유효하지 않은 상품 상태입니다."),
   INVALID_PAGE_SIZE(
       HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다."),
-  POINT_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.POINT_NOT_FOUND, "포인트 정보를 찾을 수 없습니다.");
+  POINT_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.POINT_NOT_FOUND, "포인트 정보를 찾을 수 없습니다."),
+  INSUFFICIENT_BID_LIMIT(
+      HttpStatus.CONFLICT, ClientExceptionCode.INSUFFICIENT_BID_LIMIT, "보유 포인트가 입찰 금액보다 적습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;
