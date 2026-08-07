@@ -4,11 +4,7 @@ import { ProductStatus } from "@/lib/types";
 import { axiosInstance } from "@/api/mutator/custom-instance";
 
 export type ApiConsignmentStatus =
-  | "REGISTERABLE"
-  | "AUCTION_SCHEDULED"
-  | "AUCTION_ONGOING"
-  | "WON"
-  | "PASSED";
+  "REGISTERABLE" | "AUCTION_SCHEDULED" | "AUCTION_ONGOING" | "WON" | "PASSED";
 
 interface ConsignmentCardResponse {
   cardId: number;
@@ -37,6 +33,7 @@ interface ConsignmentListItemResponse {
   majorDefect?: string | null;
   status: ApiConsignmentStatus;
   certificate: ConsignmentCertificateResponse;
+  thumbnailUrl?: string | null;
 }
 
 interface CursorPageResponse<T> {
@@ -61,25 +58,19 @@ export interface ConsignmentDetail extends ConsignmentSummary {
   language: string;
   rarity: string;
   majorDefect?: string;
-  images: string[];
+  images: ConsignmentImage[];
   auctionRegistered: boolean;
   gradeCode: string;
   inspectedAt: string;
 }
 
-export interface ModifyConsignmentPayload {
-  majorDefect?: string;
-  certificate: {
-    serialNumber: string;
-    certificationBody: string;
-    grade: string;
-    inspectedAt: string;
-  };
-  images: { imageUrl: string }[];
+export interface ConsignmentImage {
+  consignmentImageId: number;
+  imageUrl: string;
 }
 
 interface ConsignmentImageResponse {
-  productImageId: number;
+  consignmentImageId: number;
   imageOrder: number;
   imageUrl: string;
 }
@@ -118,7 +109,7 @@ function toSummary(item: ConsignmentListItemResponse): ConsignmentSummary {
     id: String(item.consignmentId),
     auctionId: item.auctionId != null ? String(item.auctionId) : undefined,
     cardName: item.card.cardName,
-    thumbnailUrl: item.card.imageUrl ?? undefined,
+    thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
     grade: {
       agency: item.certificate.certificationBody as Grade["agency"],
       score: item.certificate.grade,
@@ -129,10 +120,11 @@ function toSummary(item: ConsignmentListItemResponse): ConsignmentSummary {
 }
 
 function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
+  const sortedImages = item.images.slice().sort((a, b) => a.imageOrder - b.imageOrder);
   return {
     id: String(item.consignmentId),
     cardName: item.card.cardName,
-    thumbnailUrl: item.card.imageUrl ?? undefined,
+    thumbnailUrl: sortedImages[0]?.imageUrl ?? item.card.imageUrl ?? undefined,
     grade: {
       agency: item.certificate.certificationBody as Grade["agency"],
       score: item.certificate.grade,
@@ -144,10 +136,10 @@ function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
     language: item.card.language,
     rarity: item.card.rarity,
     majorDefect: item.majorDefect ?? undefined,
-    images: item.images
-      .slice()
-      .sort((a, b) => a.imageOrder - b.imageOrder)
-      .map((img) => img.imageUrl),
+    images: sortedImages.map((image) => ({
+      consignmentImageId: image.consignmentImageId,
+      imageUrl: image.imageUrl,
+    })),
     auctionRegistered: item.auctionRegistered,
     gradeCode: item.certificate.gradeCode,
     inspectedAt: item.certificate.inspectedAt ?? "",
@@ -174,7 +166,11 @@ export async function getMyConsignments(params: {
   status: ApiConsignmentStatus;
   cursor?: number;
   size?: number;
-}): Promise<{ items: ConsignmentSummary[]; hasNext: boolean; cursor?: number }> {
+}): Promise<{
+  items: ConsignmentSummary[];
+  hasNext: boolean;
+  cursor?: number;
+}> {
   const data = await fetchConsignmentPage(params.status, params);
 
   return {
@@ -198,17 +194,6 @@ export async function getMyConsignmentDetail(
     }
     throw error;
   }
-}
-
-export async function modifyMyConsignment(
-  id: string,
-  payload: ModifyConsignmentPayload,
-): Promise<ConsignmentDetail> {
-  const { data } = await axiosInstance.patch<ConsignmentDetailResponse>(
-    `/consignments/${id}`,
-    payload,
-  );
-  return toDetail(data);
 }
 
 export async function deleteMyConsignment(id: string): Promise<void> {

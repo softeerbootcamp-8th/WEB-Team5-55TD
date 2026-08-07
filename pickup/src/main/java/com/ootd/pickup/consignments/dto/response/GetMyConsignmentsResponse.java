@@ -12,9 +12,14 @@ public record GetMyConsignmentsResponse(
     Long sellerMemberId,
     String majorDefect,
     ConsignmentStatus status,
-    CertificateResponse certificate) {
+    CertificateResponse certificate,
+    String thumbnailUrl) {
   public static GetMyConsignmentsResponse fromEntity(
-      Consignment consignment, Long sellerMemberId, Certificate certificate, Long auctionId) {
+      Consignment consignment,
+      Long sellerMemberId,
+      Certificate certificate,
+      Long auctionId,
+      String thumbnailUrl) {
     return new GetMyConsignmentsResponse(
         consignment.getConsignmentId(),
         auctionId,
@@ -22,6 +27,7 @@ public record GetMyConsignmentsResponse(
         sellerMemberId,
         consignment.getMajorDefect(),
         consignment.getStatus(),
-        CertificateResponse.from(certificate));
+        CertificateResponse.from(certificate),
+        thumbnailUrl);
   }
 }

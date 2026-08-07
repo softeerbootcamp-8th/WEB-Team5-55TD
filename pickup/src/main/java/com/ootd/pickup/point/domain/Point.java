@@ -32,4 +32,20 @@ public class Point {
     point.balance = 0;
     return point;
   }
+
+  public void increaseBalance(long amount) {
+    validateAmount(amount);
+    this.balance += amount;
+  }
+
+  public void decreaseBalance(long amount) {
+    validateAmount(amount);
+    this.balance -= amount;
+  }
+
+  private void validateAmount(long amount) {
+    if (amount <= 0) {
+      throw new IllegalArgumentException("포인트 변경 금액은 0보다 커야 합니다 - amount=" + amount);
+    }
+  }
 }
