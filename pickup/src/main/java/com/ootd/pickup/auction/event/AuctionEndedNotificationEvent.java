@@ -9,7 +9,17 @@ import com.ootd.pickup.global.event.NotificationEvent;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record AuctionBidUpdatedEvent(
+/**
+ * 경매 종료(ONGOING → WON/PASSED) 사건 — 실시간 알림용.
+ *
+ * <p>구독 중인 모든 App 서버가 각자 WebSocket 세션에 전달해야 하므로 {@link NotificationEvent}로 분류한다. 유실이 허용되며 Outbox를
+ * 거치지 않고 Redis Pub/Sub으로 즉시 발행된다.
+ *
+ * <p>같은 사건을 정산 컨슈머에게 정확히 한 번 전달하는 용도로는 {@link AuctionEndedMessageQueueEvent}를 쓴다. 이 이벤트는 "화면에 경매가
+ * 끝났다고 알린다"는 목적만 가지므로, 정산에만 필요한 {@code winnerMemberId}/{@code sellerMemberId}는 담지 않고 {@link
+ * AuctionBidUpdatedNotificationEvent}와 같은 모양(스냅샷 + {@link WinningBidSnapshot})을 유지한다.
+ */
+public record AuctionEndedNotificationEvent(
     String eventId,
     Long auctionId,
     Long consignmentId,
@@ -24,8 +34,8 @@ public record AuctionBidUpdatedEvent(
     LocalDateTime occurredAt)
     implements NotificationEvent {
 
-  public static AuctionBidUpdatedEvent fromEntity(Auction auction, Bid winningBid) {
-    return new AuctionBidUpdatedEvent(
+  public static AuctionEndedNotificationEvent fromEntity(Auction auction, Bid winningBid) {
+    return new AuctionEndedNotificationEvent(
         UUID.randomUUID().toString(),
         auction.getAuctionId(),
         auction.getConsignment().getConsignmentId(),
@@ -36,7 +46,7 @@ public record AuctionBidUpdatedEvent(
         auction.getStartedAt(),
         auction.getEndedAt(),
         auction.getCreatedAt(),
-        WinningBidSnapshot.fromEntity(winningBid),
+        winningBid != null ? WinningBidSnapshot.fromEntity(winningBid) : null,
         LocalDateTime.now());
   }
 
@@ -52,6 +62,6 @@ public record AuctionBidUpdatedEvent(
 
   @Override
   public EventType eventType() {
-    return EventType.AUCTION_BID_UPDATED;
+    return EventType.AUCTION_ENDED;
   }
 }

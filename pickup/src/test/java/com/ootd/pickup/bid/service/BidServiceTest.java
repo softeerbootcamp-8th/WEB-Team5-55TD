@@ -17,7 +17,7 @@ import static org.mockito.Mockito.never;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
+import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
@@ -99,7 +99,7 @@ class BidServiceTest {
     then(applicationEventPublisher).should().publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue())
         .isInstanceOfSatisfying(
-            AuctionBidUpdatedEvent.class,
+            AuctionBidUpdatedNotificationEvent.class,
             event -> {
               assertThat(event.auctionId()).isEqualTo(1L);
               assertThat(event.winningBid().bidId()).isEqualTo(10L);

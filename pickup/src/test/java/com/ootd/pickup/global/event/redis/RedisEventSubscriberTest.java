@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.BDDMockito.given;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
+import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.auction.event.WinningBidSnapshot;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.global.event.DomainEvent;
@@ -29,7 +29,7 @@ import tools.jackson.databind.json.JsonMapper;
 class RedisEventSubscriberTest {
 
   private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
-  private final List<AuctionBidUpdatedEvent> receivedEvents = new ArrayList<>();
+  private final List<AuctionBidUpdatedNotificationEvent> receivedEvents = new ArrayList<>();
 
   @Mock private Message message;
 
@@ -42,7 +42,7 @@ class RedisEventSubscriberTest {
 
   @Test
   void Redis_메시지를_알림_이벤트로_역직렬화해_처리기에_전달한다() {
-    AuctionBidUpdatedEvent event = createEvent();
+    AuctionBidUpdatedNotificationEvent event = createEvent();
     givenMessage("pickup:notification:AUCTION:42", envelopeOf(event));
 
     subscriber.onMessage(message, null);
@@ -52,14 +52,14 @@ class RedisEventSubscriberTest {
 
   @Test
   void 한_처리기가_실패해도_다른_처리기는_이벤트를_받는다() {
-    EventHandler<AuctionBidUpdatedEvent> failingHandler =
+    EventHandler<AuctionBidUpdatedNotificationEvent> failingHandler =
         new TestEventHandler(
             event -> {
               throw new IllegalStateException("handler failure");
             });
     subscriber =
         createSubscriber(List.of(failingHandler, new TestEventHandler(receivedEvents::add)));
-    AuctionBidUpdatedEvent event = createEvent();
+    AuctionBidUpdatedNotificationEvent event = createEvent();
     givenMessage("pickup:notification:AUCTION:42", envelopeOf(event));
 
     assertThatCode(() -> subscriber.onMessage(message, null)).doesNotThrowAnyException();
@@ -81,7 +81,7 @@ class RedisEventSubscriberTest {
 
   @Test
   void 채널과_이벤트의_애그리거트가_다르면_처리기에_전달하지_않는다() {
-    AuctionBidUpdatedEvent event = createEvent();
+    AuctionBidUpdatedNotificationEvent event = createEvent();
     givenMessage("pickup:notification:AUCTION:99", envelopeOf(event));
 
     subscriber.onMessage(message, null);
@@ -119,7 +119,7 @@ class RedisEventSubscriberTest {
     return new RedisEventSubscriber(envelopeReader, channelResolver, eventDispatcher);
   }
 
-  private NotificationEnvelope envelopeOf(AuctionBidUpdatedEvent event) {
+  private NotificationEnvelope envelopeOf(AuctionBidUpdatedNotificationEvent event) {
     return new NotificationEnvelope(event.eventType(), objectMapper.valueToTree(event));
   }
 
@@ -128,12 +128,12 @@ class RedisEventSubscriberTest {
     given(message.getChannel()).willReturn(channel.getBytes(StandardCharsets.UTF_8));
   }
 
-  private AuctionBidUpdatedEvent createEvent() {
+  private AuctionBidUpdatedNotificationEvent createEvent() {
     LocalDateTime startedAt = LocalDateTime.of(2026, 8, 5, 10, 0);
     LocalDateTime endedAt = LocalDateTime.of(2026, 8, 5, 11, 0);
     LocalDateTime bidCreatedAt = LocalDateTime.of(2026, 8, 5, 10, 30);
     LocalDateTime occurredAt = LocalDateTime.of(2026, 8, 5, 10, 30, 1);
-    return new AuctionBidUpdatedEvent(
+    return new AuctionBidUpdatedNotificationEvent(
         "event-id",
         42L,
         100L,
@@ -148,16 +148,16 @@ class RedisEventSubscriberTest {
         occurredAt);
   }
 
-  private record TestEventHandler(Consumer<AuctionBidUpdatedEvent> consumer)
-      implements EventHandler<AuctionBidUpdatedEvent> {
+  private record TestEventHandler(Consumer<AuctionBidUpdatedNotificationEvent> consumer)
+      implements EventHandler<AuctionBidUpdatedNotificationEvent> {
 
     @Override
-    public Class<AuctionBidUpdatedEvent> eventClass() {
-      return AuctionBidUpdatedEvent.class;
+    public Class<AuctionBidUpdatedNotificationEvent> eventClass() {
+      return AuctionBidUpdatedNotificationEvent.class;
     }
 
     @Override
-    public void handle(AuctionBidUpdatedEvent event) {
+    public void handle(AuctionBidUpdatedNotificationEvent event) {
       consumer.accept(event);
     }
   }

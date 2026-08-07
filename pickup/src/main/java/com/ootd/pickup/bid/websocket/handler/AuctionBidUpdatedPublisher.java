@@ -1,6 +1,6 @@
 package com.ootd.pickup.bid.websocket.handler;
 
-import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
+import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.bid.websocket.dto.AuctionBidUpdatedMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -14,7 +14,7 @@ public class AuctionBidUpdatedPublisher {
 
   private final SimpMessagingTemplate messagingTemplate;
 
-  public void publish(AuctionBidUpdatedEvent event) {
+  public void publish(AuctionBidUpdatedNotificationEvent event) {
     messagingTemplate.convertAndSend(
         AUCTION_TOPIC_PREFIX + event.auctionId(), AuctionBidUpdatedMessage.fromEvent(event));
   }

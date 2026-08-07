@@ -14,28 +14,48 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class AuctionBidUpdatedEventTest {
+class AuctionBidUpdatedNotificationEventTest {
 
   @Test
-  void 경매와_최고입찰로부터_입찰_알림_이벤트를_생성한다() {
-    Auction auction = createAuction(1L);
+  void 경매와_최고입찰로부터_생성하면_최고입찰_정보가_중첩되어_옮겨진다() {
+    // given
+    Auction auction = createAuction(1L, AuctionStatus.ONGOING);
     auction.updateWinningBid(10L, 10_500L);
-    Member bidder = createMember(2L);
+    Member bidder = createMember(2L, "닉네임");
     Bid bid = createBid(auction, bidder, 10L, 10_500L);
 
-    AuctionBidUpdatedEvent event = AuctionBidUpdatedEvent.fromEntity(auction, bid);
+    // when
+    AuctionBidUpdatedNotificationEvent event =
+        AuctionBidUpdatedNotificationEvent.fromEntity(auction, bid);
 
-    assertThat(event.auctionId()).isEqualTo(1L);
+    // then
+    assertThat(event.auctionId()).isEqualTo(auction.getAuctionId());
     assertThat(event.winningPrice()).isEqualTo(10_500L);
     assertThat(event.winningBid().bidId()).isEqualTo(10L);
     assertThat(event.winningBid().memberId()).isEqualTo(2L);
+    assertThat(event.winningBid().memberNickname()).isEqualTo("닉네임");
     assertThat(event.winningBid().bidPrice()).isEqualTo(10_500L);
+    assertThat(event.winningBid().bidStatus()).isEqualTo(bid.getBidStatus());
+  }
+
+  @Test
+  void 경매_애그리거트와_이벤트타입이_고정값으로_반환된다() {
+    // given
+    Auction auction = createAuction(1L, AuctionStatus.ONGOING);
+    Member bidder = createMember(2L, "닉네임");
+    Bid bid = createBid(auction, bidder, 10L, 10_500L);
+
+    // when
+    AuctionBidUpdatedNotificationEvent event =
+        AuctionBidUpdatedNotificationEvent.fromEntity(auction, bid);
+
+    // then
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
-    assertThat(event.aggregateId()).isEqualTo(1L);
+    assertThat(event.aggregateId()).isEqualTo(auction.getAuctionId());
     assertThat(event.eventType()).isEqualTo(EventType.AUCTION_BID_UPDATED);
   }
 
-  private Auction createAuction(Long auctionId) {
+  private Auction createAuction(Long auctionId, AuctionStatus status) {
     Consignment consignment =
         Consignment.builder().status(ConsignmentStatus.AUCTION_SCHEDULED).build();
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
@@ -44,7 +64,7 @@ class AuctionBidUpdatedEventTest {
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusMinutes(1))
             .endedAt(LocalDateTime.now().plusHours(1))
-            .auctionStatus(AuctionStatus.ONGOING)
+            .auctionStatus(status)
             .startingPrice(10_000L)
             .reservePrice(15_000L)
             .bidIncrement(500L)
@@ -53,8 +73,8 @@ class AuctionBidUpdatedEventTest {
     return auction;
   }
 
-  private Member createMember(Long memberId) {
-    Member member = Member.create("loginId" + memberId, "password", "닉네임" + memberId);
+  private Member createMember(Long memberId, String nickname) {
+    Member member = Member.create("loginId" + memberId, "password", nickname);
     ReflectionTestUtils.setField(member, "memberId", memberId);
     return member;
   }

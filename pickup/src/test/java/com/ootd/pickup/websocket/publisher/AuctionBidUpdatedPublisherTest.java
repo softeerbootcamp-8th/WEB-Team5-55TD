@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
+import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.auction.event.WinningBidSnapshot;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.websocket.dto.AuctionBidUpdatedMessage;
@@ -29,8 +29,8 @@ class AuctionBidUpdatedPublisherTest {
   @Test
   void 입찰_갱신_이벤트를_공개_메시지로_바꿔_경매_topic에_전송한다() {
     LocalDateTime now = LocalDateTime.of(2026, 8, 5, 10, 30);
-    AuctionBidUpdatedEvent event =
-        new AuctionBidUpdatedEvent(
+    AuctionBidUpdatedNotificationEvent event =
+        new AuctionBidUpdatedNotificationEvent(
             "event-id",
             42L,
             100L,

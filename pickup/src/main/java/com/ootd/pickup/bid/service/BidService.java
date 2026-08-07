@@ -14,7 +14,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 
 import com.ootd.pickup.auction.domain.Auction;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
+import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
@@ -78,7 +78,8 @@ public class BidService {
 
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
     auctionRepository.save(auction);
-    applicationEventPublisher.publishEvent(AuctionBidUpdatedEvent.fromEntity(auction, savedBid));
+    applicationEventPublisher.publishEvent(
+        AuctionBidUpdatedNotificationEvent.fromEntity(auction, savedBid));
 
     return PlaceBidResponse.from(savedBid);
   }

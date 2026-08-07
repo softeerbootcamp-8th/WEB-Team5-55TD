@@ -4,6 +4,12 @@ import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
 import java.time.LocalDateTime;
 
+/**
+ * {@link AuctionBidUpdatedNotificationEvent}와 {@link AuctionEndedNotificationEvent}에 담기는 최고(낙찰) 입찰
+ * 스냅샷.
+ *
+ * <p>소비자는 다른 프로세스에서 실행되므로 {@link Bid} 엔티티 대신 식별자와 원시값만 옮긴다.
+ */
 public record WinningBidSnapshot(
     Long bidId,
     Long memberId,

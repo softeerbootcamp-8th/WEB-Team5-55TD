@@ -1,7 +1,7 @@
 package com.ootd.pickup.bid.websocket.dto;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
+import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import java.time.LocalDateTime;
 
 public record AuctionBidUpdatedMessage(
@@ -15,7 +15,7 @@ public record AuctionBidUpdatedMessage(
     PublicWinningBid latestBid,
     LocalDateTime occurredAt) {
 
-  public static AuctionBidUpdatedMessage fromEvent(AuctionBidUpdatedEvent event) {
+  public static AuctionBidUpdatedMessage fromEvent(AuctionBidUpdatedNotificationEvent event) {
     return new AuctionBidUpdatedMessage(
         event.eventId(),
         event.eventType().name(),

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 
-import com.ootd.pickup.auction.event.AuctionBidUpdatedEvent;
+import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.bid.websocket.handler.AuctionBidUpdatedPublisher;
 import com.ootd.pickup.bid.websocket.publisher.AuctionBidUpdatedEventHandler;
 import org.junit.jupiter.api.Test;
@@ -17,7 +17,7 @@ class AuctionBidUpdatedEventHandlerTest {
 
   @Test
   void 입찰_갱신_이벤트를_WebSocket_publisher에_전달한다() {
-    AuctionBidUpdatedEvent event = mock(AuctionBidUpdatedEvent.class);
+    AuctionBidUpdatedNotificationEvent event = mock(AuctionBidUpdatedNotificationEvent.class);
 
     handler.handle(event);
 
@@ -26,6 +26,6 @@ class AuctionBidUpdatedEventHandlerTest {
 
   @Test
   void 처리할_이벤트_타입을_반환한다() {
-    assertThat(handler.eventClass()).isEqualTo(AuctionBidUpdatedEvent.class);
+    assertThat(handler.eventClass()).isEqualTo(AuctionBidUpdatedNotificationEvent.class);
   }
 }

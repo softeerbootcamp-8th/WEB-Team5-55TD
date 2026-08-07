@@ -34,6 +34,9 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    // Spring Boot 4.1 은 Spring Framework 7 을 쓰므로 Spring 6 대상인 ShedLock 6.x 는 호환되지 않는다.
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.7.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0'
     implementation platform('software.amazon.awssdk:bom:2.47.3')
     implementation 'software.amazon.awssdk:s3'
     implementation 'software.amazon.awssdk:url-connection-client'
