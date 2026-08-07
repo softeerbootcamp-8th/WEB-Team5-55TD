@@ -2,6 +2,7 @@ name: Backend CI
 
 on:
   pull_request:
+    types: [opened, reopened, synchronize, edited]
     branches:
       - develop
       - main
@@ -15,6 +16,10 @@ on:
         description: '빌드된 실행형 jar를 아티팩트로 업로드할지 여부 (CD에서 사용)'
         type: boolean
         default: false
+
+concurrency:
+  group: backend-ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
