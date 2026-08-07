@@ -2,6 +2,7 @@ HELP.md
 .gradle
 build/
 application-local.yml
+/docs/realtime-auction/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
