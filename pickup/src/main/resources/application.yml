@@ -82,9 +82,10 @@ event:
     # FIFO 큐여야 한다. 표준 큐를 가리키면 MessageGroupId 가 거부된다.
     queue-url: ${EVENT_SQS_QUEUE_URL:}
     region: ${EVENT_SQS_REGION:ap-northeast-2}
-    # 롱 폴링. 0 이면 빈 응답이 즉시 돌아와 폴링 루프가 쉬지 않고 돈다.
+    # 롱 폴링. 1s~20s 만 허용한다. 1초 미만은 초 단위로 잘려 0 이 되고, 그러면 빈 응답이
+    # 즉시 돌아와 폴링 루프가 쉬지 않고 돌면서 SQS 호출 수와 요금이 함께 늘어난다.
     wait-time: ${EVENT_SQS_WAIT_TIME:20s}
-    # 핸들러 처리 시간보다 길어야 한다. 짧으면 처리 중인 메시지가 다시 전달된다.
+    # 핸들러 처리 시간보다 길어야 한다. 짧으면 처리 중인 메시지가 다시 전달된다. 1s 이상.
     visibility-timeout: ${EVENT_SQS_VISIBILITY_TIMEOUT:30s}
     max-messages: ${EVENT_SQS_MAX_MESSAGES:10}
 

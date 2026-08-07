@@ -199,6 +199,53 @@ class SQSEventConsumerTest {
   }
 
   @Test
+  void eventType_속성이_없는_메시지는_지우지_않는다() {
+    // given — 되돌릴 타입을 알 수 없다. 지우면 이벤트가 사라지므로 DLQ 로 보내야 한다
+    Message noAttribute =
+        Message.builder()
+            .messageId("message-1")
+            .receiptHandle("receipt-1")
+            .body(objectMapper.writeValueAsString(auctionEndedEvent("event-1", 1024L)))
+            .attributes(Map.of(MessageSystemAttributeName.MESSAGE_GROUP_ID, "AUCTION:1024"))
+            .build();
+    givenMessages(noAttribute);
+
+    // when
+    consumerWith(auctionEndedHandler).consumeOnce();
+
+    // then
+    assertThat(auctionEndedHandler.received).isEmpty();
+    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+  }
+
+  @Test
+  void 아는_eventType이_아닌_메시지는_지우지_않는다() {
+    // given — 상수 이름이 바뀌었거나 다른 버전이 보낸 메시지다. 재시도해도 낫지 않으므로 DLQ 로 보낸다
+    Message unknownType =
+        Message.builder()
+            .messageId("message-1")
+            .receiptHandle("receipt-1")
+            .body(objectMapper.writeValueAsString(auctionEndedEvent("event-1", 1024L)))
+            .messageAttributes(
+                Map.of(
+                    "eventType",
+                    MessageAttributeValue.builder()
+                        .dataType("String")
+                        .stringValue("AUCTION_VAPORIZED")
+                        .build()))
+            .attributes(Map.of(MessageSystemAttributeName.MESSAGE_GROUP_ID, "AUCTION:1024"))
+            .build();
+    givenMessages(unknownType);
+
+    // when
+    consumerWith(auctionEndedHandler).consumeOnce();
+
+    // then
+    assertThat(auctionEndedHandler.received).isEmpty();
+    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+  }
+
+  @Test
   void 같은_그룹의_앞선_메시지가_실패하면_뒤_메시지를_처리하지_않는다() {
     // given — 계속 처리하면 앞 이벤트가 재전달돼 다시 처리될 때 순서가 역전된다
     auctionEndedHandler.failingEventId = "event-1";
@@ -226,7 +273,9 @@ class SQSEventConsumerTest {
     consumerWith(auctionEndedHandler).consumeOnce();
 
     // then
-    assertThat(auctionEndedHandler.received).extracting("eventId").containsExactly("event-2");
+    assertThat(auctionEndedHandler.received)
+        .extracting(AuctionEndedMessageQueueEvent::eventId)
+        .containsExactly("event-2");
     assertThat(deletedMessageIds()).containsExactly("message-2");
   }
 

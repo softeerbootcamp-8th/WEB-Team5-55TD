@@ -17,9 +17,10 @@ import org.springframework.validation.annotation.Validated;
  * @param queueUrl 큐 URL. <b>{@code .fifo} 로 끝나야 한다</b> — {@code MessageGroupId} 와 {@code
  *     MessageDeduplicationId} 는 FIFO 큐에만 있는 값이라, 표준 큐를 가리키면 전송이 매번 거부된다
  * @param region 큐가 있는 리전
- * @param waitTime 롱 폴링 대기 시간. 0이면 빈 응답이 즉시 돌아와 폴링 루프가 쉬지 않고 돈다
+ * @param waitTime 롱 폴링 대기 시간. <b>1초 미만은 거부한다</b> — 0이면 빈 응답이 즉시 돌아와 폴링 루프가 쉬지 않고 돌면서 SQS 호출 수와 요금이
+ *     함께 늘어난다
  * @param visibilityTimeout 받아간 메시지가 다른 소비자에게 다시 보이지 않는 시간. <b>핸들러 처리 시간보다 길어야 한다</b> — 짧으면 처리 중인
- *     메시지가 다시 전달되어 같은 이벤트가 동시에 두 번 처리된다
+ *     메시지가 다시 전달되어 같은 이벤트가 동시에 두 번 처리된다. 1초 미만은 거부한다
  * @param maxMessages 한 번에 받아올 최대 메시지 수
  */
 @Validated
@@ -30,6 +31,15 @@ public record SQSProperties(
     @NotNull Duration waitTime,
     @NotNull Duration visibilityTimeout,
     @Min(1) @Max(10) int maxMessages) {
+
+  /**
+   * 두 시간 값의 하한.
+   *
+   * <p>{@code ReceiveMessage} 요청은 두 값을 <b>초 단위 정수</b>로 받는다. {@code SQSEventConsumer} 가 {@code
+   * toSeconds()} 로 잘라 넘기므로 {@code 500ms} 같은 값은 0이 되어, 설정한 사람의 의도와 무관하게 롱 폴링이 꺼지거나 받은 메시지가 즉시 다시 보이게
+   * 된다. 잘려서 0이 되는 값을 여기서 미리 막는다.
+   */
+  private static final Duration MIN_POLLING_DURATION = Duration.ofSeconds(1);
 
   /** {@code ReceiveMessage} 의 {@code WaitTimeSeconds} 상한. */
   private static final Duration MAX_WAIT_TIME = Duration.ofSeconds(20);
@@ -43,14 +53,16 @@ public record SQSProperties(
     if (queueUrl != null && !queueUrl.isBlank() && !queueUrl.endsWith(".fifo")) {
       throw new IllegalArgumentException("event.sqs.queue-url must point to a FIFO queue (.fifo)");
     }
-    if (waitTime != null && (waitTime.isNegative() || waitTime.compareTo(MAX_WAIT_TIME) > 0)) {
-      throw new IllegalArgumentException("event.sqs.wait-time must be between 0s and 20s");
+    if (waitTime != null
+        && (waitTime.compareTo(MIN_POLLING_DURATION) < 0
+            || waitTime.compareTo(MAX_WAIT_TIME) > 0)) {
+      throw new IllegalArgumentException("event.sqs.wait-time must be between 1s and 20s");
     }
     if (visibilityTimeout != null
-        && (visibilityTimeout.isNegative()
+        && (visibilityTimeout.compareTo(MIN_POLLING_DURATION) < 0
             || visibilityTimeout.compareTo(MAX_VISIBILITY_TIMEOUT) > 0)) {
       throw new IllegalArgumentException(
-          "event.sqs.visibility-timeout must be between 0s and 12 hours");
+          "event.sqs.visibility-timeout must be between 1s and 12 hours");
     }
   }
 }
