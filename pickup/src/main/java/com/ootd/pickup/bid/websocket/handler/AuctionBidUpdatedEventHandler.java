@@ -1,7 +1,7 @@
-package com.ootd.pickup.bid.websocket.publisher;
+package com.ootd.pickup.bid.websocket.handler;
 
 import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
-import com.ootd.pickup.bid.websocket.handler.AuctionBidUpdatedPublisher;
+import com.ootd.pickup.bid.websocket.publisher.AuctionBidUpdatedPublisher;
 import com.ootd.pickup.global.event.EventHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

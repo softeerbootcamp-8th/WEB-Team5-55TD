@@ -9,7 +9,7 @@ import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.auction.event.WinningBidSnapshot;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.websocket.dto.AuctionBidUpdatedMessage;
-import com.ootd.pickup.bid.websocket.handler.AuctionBidUpdatedPublisher;
+import com.ootd.pickup.bid.websocket.publisher.AuctionBidUpdatedPublisher;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

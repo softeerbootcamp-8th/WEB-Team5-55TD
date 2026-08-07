@@ -1,4 +1,4 @@
-package com.ootd.pickup.bid.websocket.handler;
+package com.ootd.pickup.bid.websocket.publisher;
 
 import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.bid.websocket.dto.AuctionBidUpdatedMessage;
