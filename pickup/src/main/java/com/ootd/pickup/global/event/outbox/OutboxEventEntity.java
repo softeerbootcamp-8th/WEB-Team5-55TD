@@ -109,7 +109,7 @@ public class OutboxEventEntity implements Persistable<String> {
    *
    * @return payload 원문을 그대로 실은 전송 대상
    */
-  public MessageQueueEvent toEvent() {
+  public RelayedOutboxEvent toEvent() {
     return RelayedOutboxEvent.from(this);
   }
 

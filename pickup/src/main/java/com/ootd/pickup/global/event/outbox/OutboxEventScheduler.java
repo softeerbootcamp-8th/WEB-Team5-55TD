@@ -20,8 +20,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Outbox 패턴의 뒤쪽 절반이다. 도메인 트랜잭션은 적재까지만 책임지고 외부 전송을 별도 주기로 분리한다. 그래야 큐가 잠시 죽어도 도메인 트랜잭션이 실패하지 않고,
  * 이미 커밋된 이벤트는 큐가 살아난 뒤 그대로 전달된다.
  *
- * <p><b>기본값이 꺼져 있다.</b> {@link MessageQueueSender} 구현체가 아직 빈 구현이라 켜면 전송이 성공한 것처럼 보여 행을 발행 완료로 표시하고,
- * 유실이 허용되지 않는 이벤트가 조용히 사라진다. 실제 전송이 구현된 뒤 {@code scheduler.outbox.enabled=true}로 켠다.
+ * <p><b>기본값이 꺼져 있다.</b> 보낼 큐가 아직 없어서다. {@code scheduler.outbox.enabled=true}로 켤 때는 {@code
+ * event.sqs.enabled=true}도 함께 켜야 한다. 한쪽만 켜면 주입받을 {@link MessageQueueSender} 구현체가 없어 기동 단계에서 실패한다.
  */
 @Slf4j
 @Component
@@ -52,7 +52,7 @@ public class OutboxEventScheduler {
   @Scheduled(fixedDelayString = "${scheduler.outbox.fixed-delay:1s}")
   @SchedulerLock(name = "outbox-event-relay", lockAtMostFor = "PT30S", lockAtLeastFor = "PT0.5S")
   public void relayUnpublishedEvents() {
-    List<MessageQueueEvent> pending = findPendingEvents();
+    List<RelayedOutboxEvent> pending = findPendingEvents();
     if (pending.isEmpty()) {
       return;
     }
@@ -63,8 +63,8 @@ public class OutboxEventScheduler {
     int skipped = 0;
     RuntimeException firstFailure = null;
 
-    for (MessageQueueEvent event : pending) {
-      String group = messageGroupOf(event);
+    for (RelayedOutboxEvent event : pending) {
+      String group = event.messageGroupId();
       if (blockedGroups.contains(group)) {
         skipped++;
         continue;
@@ -104,19 +104,9 @@ public class OutboxEventScheduler {
         skipped);
   }
 
-  /**
-   * 순서를 함께 지켜야 하는 단위.
-   *
-   * <p>{@link MessageQueueSender} 구현체가 {@code aggregateType}과 {@code aggregateId}로 FIFO 큐의 {@code
-   * MessageGroupId}를 만들므로 여기서도 같은 두 값으로 묶는다. 문자열 형식은 달라도 되지만 묶는 기준이 달라지면 차단이 헛돈다.
-   */
-  private String messageGroupOf(MessageQueueEvent event) {
-    return event.aggregateType() + ":" + event.aggregateId();
-  }
-
   /** 발행 대기 중인 행을 읽어 전송 대상으로 바꾼다. 이 트랜잭션은 조회에만 쓰이고 바로 닫힌다. */
-  private List<MessageQueueEvent> findPendingEvents() {
-    List<MessageQueueEvent> pending =
+  private List<RelayedOutboxEvent> findPendingEvents() {
+    List<RelayedOutboxEvent> pending =
         transactionTemplate.execute(
             status ->
                 outboxEventJpaRepository
