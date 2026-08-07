@@ -73,3 +73,7 @@ image:
     region: ${IMAGE_STORAGE_REGION:}
     media-base-url: ${IMAGE_MEDIA_BASE_URL:}
     upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}
+
+realtime:
+  websocket:
+    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS}
