@@ -35,7 +35,7 @@ public class Auction {
   @JoinColumn(name = "consignment_id", nullable = false)
   private Consignment consignment;
 
-  // Bid 구현 후 FK/Join 필요
+  // 경매 진행 중에는 "현재 최고 입찰", 종료 후에는 "낙찰 입찰"을 가리킨다.
   @Column(name = "winning_bid_id")
   private Long winningBidId;
 
@@ -95,5 +95,17 @@ public class Auction {
       throw new PickUpException(AUCTION_NOT_CANCELLABLE);
     }
     auctionStatus = AuctionStatus.CANCELLED;
+  }
+
+  public void updateWinningBid(Long winningBidId, Long winningPrice) {
+    this.winningBidId = winningBidId;
+    this.winningPrice = winningPrice;
+  }
+
+  public Long getCurrentPrice() {
+    if (auctionStatus == AuctionStatus.SCHEDULED) {
+      return null;
+    }
+    return winningPrice != null ? winningPrice : startingPrice;
   }
 }

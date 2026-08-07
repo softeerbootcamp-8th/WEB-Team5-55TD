@@ -15,6 +15,12 @@ spring:
       # 풀 이름은 JMX ObjectName 에 그대로 들어가 Datadog 의 pool 태그가 된다.
       pool-name: pickup-pool
       register-mbeans: true
+      # Outbox 배치 적재가 여러 행 INSERT 한 문장으로 합쳐지게 한다. 이 옵션이 없으면 JDBC 배치가
+      # 여전히 INSERT 를 한 건씩 보내 배치 이점이 거의 없다.
+      # URL 이 아니라 여기 두는 이유는 배포 환경이 DB_URL 을 덮어써도 그대로 적용되기 때문이다.
+      # HikariCP 의 DriverDataSource 가 이 값을 driver.connect(url, props) 로 넘긴다.
+      data-source-properties:
+        rewriteBatchedStatements: true
   jpa:
     open-in-view: false
     hibernate:
@@ -22,6 +28,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        jdbc:
+          # Outbox 적재를 JDBC 배치로 묶는다. 다른 엔티티는 IDENTITY 로 PK 를 생성해 Hibernate 가
+          # 배치할 수 없으므로(생성 키를 즉시 받아야 한다) 실질적으로 outbox_event 에만 적용된다.
+          batch_size: 100
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -31,6 +41,12 @@ spring:
       port: ${REDIS_PORT:6379}
       timeout: ${REDIS_TIMEOUT:1s}
       connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
+  task:
+    scheduling:
+      pool:
+        # 기본값이 1 이라 한 작업이 지연되면 다른 작업의 주기도 함께 밀린다.
+        # Outbox 릴레이가 추가되면 두 작업이 서로 영향을 주지 않아야 한다.
+        size: 2
 auth:
   token:
     issuer: ${JWT_ISSUER:pickup}
@@ -44,3 +60,40 @@ slack:
   enabled: ${SLACK_ENABLED:false}
   bot-token: ${SLACK_BOT_TOKEN:}
   channel: ${SLACK_CHANNEL:}
+
+scheduler:
+  # false 면 SchedulerConfig 가 만들어지지 않아 모든 주기 작업과 ShedLock 이 함께 꺼진다.
+  enabled: ${SCHEDULER_ENABLED:true}
+  auction:
+    enabled: ${SCHEDULER_AUCTION_ENABLED:true}
+    fixed-delay: ${SCHEDULER_AUCTION_FIXED_DELAY:1s}
+  outbox:
+    # 기본값이 false 다. 보낼 큐가 아직 없어서다. 켤 때는 event.sqs.enabled 도 함께 켜야 한다.
+    # 한쪽만 켜면 릴레이가 주입받을 MessageQueueSender 빈이 없어 기동에 실패한다.
+    # 꺼져 있는 동안 이벤트는 outbox_event 테이블에 쌓인 채 남는다.
+    enabled: ${SCHEDULER_OUTBOX_ENABLED:false}
+    fixed-delay: ${SCHEDULER_OUTBOX_FIXED_DELAY:1s}
+
+event:
+  sqs:
+    # 기본값이 false 다. 큐가 아직 없어 접속 정보가 비어 있고, 켜면 SQSProperties 검증에 걸려
+    # 기동이 실패한다. 큐를 만든 뒤 아래 환경변수를 채우고 true 로 켠다.
+    # scheduler.outbox.enabled 를 켜려면 이것도 함께 켜야 한다. 한쪽만 켜면 릴레이가 주입받을
+    # MessageQueueSender 빈이 없어 기동에 실패한다.
+    enabled: ${EVENT_SQS_ENABLED:false}
+    # FIFO 큐여야 한다. 표준 큐를 가리키면 MessageGroupId 가 거부된다.
+    queue-url: ${EVENT_SQS_QUEUE_URL:}
+    region: ${EVENT_SQS_REGION:ap-northeast-2}
+    # 롱 폴링. 1s~20s 만 허용한다. 1초 미만은 초 단위로 잘려 0 이 되고, 그러면 빈 응답이
+    # 즉시 돌아와 폴링 루프가 쉬지 않고 돌면서 SQS 호출 수와 요금이 함께 늘어난다.
+    wait-time: ${EVENT_SQS_WAIT_TIME:20s}
+    # 핸들러 처리 시간보다 길어야 한다. 짧으면 처리 중인 메시지가 다시 전달된다. 1s 이상.
+    visibility-timeout: ${EVENT_SQS_VISIBILITY_TIMEOUT:30s}
+    max-messages: ${EVENT_SQS_MAX_MESSAGES:10}
+
+image:
+  storage:
+    bucket: ${IMAGE_STORAGE_BUCKET:}
+    region: ${IMAGE_STORAGE_REGION:}
+    media-base-url: ${IMAGE_MEDIA_BASE_URL:}
+    upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}

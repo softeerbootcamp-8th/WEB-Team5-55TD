@@ -29,6 +29,7 @@ import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.dto.response.PageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,6 +55,7 @@ public class AuctionService {
   private final CertificateManageService certificateManageService;
   private final ConsignmentImageRepository consignmentImageRepository;
   private final WatchRepository watchRepository;
+  private final ImageUrlResolver imageUrlResolver;
   private final BidRepository bidRepository;
 
   @Transactional
@@ -139,7 +141,7 @@ public class AuctionService {
             auction, bidRepository.findCurrentPricesByAuctionIds(List.of(auctionId)));
 
     return AuctionDetailResponse.of(
-        auction, certificate, images, watchCount, watched, currentPrice);
+        auction, certificate, images, watchCount, watched, currentPrice, imageUrlResolver);
   }
 
   public PageResponse<AdminAuctionListItemResponse> searchAuctionsForAdmin(
@@ -251,7 +253,7 @@ public class AuctionService {
         .collect(
             Collectors.toMap(
                 image -> image.getConsignment().getConsignmentId(),
-                ConsignmentImage::getImageUrl,
+                image -> imageUrlResolver.resolve(image.getObjectKey()),
                 (first, second) -> first));
   }
 

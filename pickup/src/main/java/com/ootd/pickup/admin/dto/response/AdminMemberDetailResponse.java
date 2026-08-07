@@ -12,12 +12,13 @@ public record AdminMemberDetailResponse(
     LocalDateTime joinedAt,
     LocalDateTime updatedAt) {
 
-  public static AdminMemberDetailResponse of(Member member, long pointBalance) {
+  public static AdminMemberDetailResponse of(
+      Member member, long pointBalance, String profileImageUrl) {
     return new AdminMemberDetailResponse(
         member.getMemberId(),
         member.getLoginId(),
         member.getNickname(),
-        member.getProfileImageUrl(),
+        profileImageUrl,
         pointBalance,
         member.getJoinedAt(),
         member.getUpdatedAt());

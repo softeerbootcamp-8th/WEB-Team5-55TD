@@ -243,7 +243,7 @@ public interface AuctionApi {
                               },
                               "images": [
                                 {
-                                  "productImageId": 1,
+                                  "consignmentImageId": 1,
                                   "imageOrder": 0,
                                   "imageUrl": "https://example.com/consignments/100-front.png"
                                 }

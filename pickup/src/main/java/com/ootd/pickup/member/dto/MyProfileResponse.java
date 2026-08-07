@@ -5,11 +5,8 @@ import com.ootd.pickup.member.domain.Member;
 public record MyProfileResponse(
     Long memberId, String loginId, String nickname, String profileImageUrl) {
 
-  public static MyProfileResponse from(Member member) {
+  public static MyProfileResponse from(Member member, String profileImageUrl) {
     return new MyProfileResponse(
-        member.getMemberId(),
-        member.getLoginId(),
-        member.getNickname(),
-        member.getProfileImageUrl());
+        member.getMemberId(), member.getLoginId(), member.getNickname(), profileImageUrl);
   }
 }

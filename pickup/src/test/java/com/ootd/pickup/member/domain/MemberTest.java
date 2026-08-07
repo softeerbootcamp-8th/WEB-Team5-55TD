@@ -27,11 +27,11 @@ class MemberTest {
     LocalDateTime previousUpdatedAt = member.getUpdatedAt();
 
     // when
-    member.updateProfile("라이츄회원", null, null);
+    member.updateProfile("라이츄회원", null);
 
     // then
     assertThat(member.getNickname()).isEqualTo("라이츄회원");
-    assertThat(member.getProfileImageUrl()).isNull();
+    assertThat(member.getProfileImageObjectKey()).isNull();
     assertThat(member.getUpdatedAt()).isAfterOrEqualTo(previousUpdatedAt);
   }
 

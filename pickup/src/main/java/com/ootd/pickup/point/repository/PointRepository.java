@@ -10,5 +10,7 @@ public interface PointRepository {
 
   List<Point> findAllByMemberIdIn(List<Long> memberIds);
 
+  Optional<Point> findByMemberIdForUpdate(Long memberId);
+
   Point save(Point point);
 }

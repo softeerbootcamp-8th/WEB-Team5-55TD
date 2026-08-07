@@ -78,21 +78,3 @@ instances:
             MinimumIdle:
               alias: hikaricp.connections.min
               metric_type: gauge
-
-      # 요청 스레드가 DB/Redis I/O 대기로 고갈되는지 확인한다.
-      - include:
-          domain: Tomcat
-          bean_regex:
-            - 'Tomcat:type=ThreadPool,name="(.*)"'
-          tags:
-            connector: $1
-          attribute:
-            currentThreadsBusy:
-              alias: tomcat.threads.busy
-              metric_type: gauge
-            currentThreadCount:
-              alias: tomcat.threads.count
-              metric_type: gauge
-            maxThreads:
-              alias: tomcat.threads.max
-              metric_type: gauge

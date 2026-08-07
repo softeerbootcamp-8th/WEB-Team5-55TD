@@ -1,6 +1,8 @@
 package com.ootd.pickup.consignments.service;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.*;
 
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
@@ -19,15 +21,20 @@ import com.ootd.pickup.consignments.repository.certificate.CertificateJpaReposit
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaRepository;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.domain.ImagePurpose;
+import com.ootd.pickup.images.service.ImageService;
+import com.ootd.pickup.images.service.ImageService.FinalizedImage;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -46,6 +53,25 @@ class ConsignmentModifyIntegrationTest {
   @Autowired private CertificateJpaRepository certificateJpaRepository;
 
   @Autowired private EntityManager entityManager;
+
+  @MockitoBean private ImageService imageService;
+
+  @BeforeEach
+  void setUpImageService() {
+    given(imageService.finalizeImages(anyLong(), eq(ImagePurpose.CONSIGNMENT), anyList()))
+        .willAnswer(
+            invocation ->
+                ((List<String>) invocation.getArgument(2))
+                    .stream()
+                        .map(
+                            key ->
+                                new FinalizedImage(
+                                    key,
+                                    "media/consignments/1/"
+                                        + Integer.toUnsignedString(key.hashCode())
+                                        + ".jpg"))
+                        .toList());
+  }
 
   @Test
   void 기존_인증서와_동일한_일련번호로_수정해도_유니크_제약_위반이_발생하지_않는다() {
@@ -82,8 +108,13 @@ class ConsignmentModifyIntegrationTest {
     assertThatCode(
             () -> {
               GetConsignmentDetailResponse response =
-                  consignmentService.modifyConsignment(
-                      consignment.getConsignmentId(), seller.getMemberId(), request);
+                  consignmentService
+                      .modifyConsignment(
+                          consignment.getConsignmentId(),
+                          seller.getMemberId(),
+                          request,
+                          finalizedImages(request))
+                      .response();
               entityManager.flush();
               assertThat(response.majorDefect()).isEqualTo("동일한 일련번호로 재수정");
               assertThat(response.certificate().serialNumber()).isEqualTo("PSA-84213907");
@@ -145,7 +176,10 @@ class ConsignmentModifyIntegrationTest {
     assertThatThrownBy(
             () -> {
               consignmentService.modifyConsignment(
-                  consignment.getConsignmentId(), seller.getMemberId(), request);
+                  consignment.getConsignmentId(),
+                  seller.getMemberId(),
+                  request,
+                  finalizedImages(request));
               entityManager.flush();
             })
         .isInstanceOf(PickUpException.class)
@@ -161,5 +195,17 @@ class ConsignmentModifyIntegrationTest {
         .rarity(Rarity.MINT)
         .imageUrl("https://image.example.com/card.png")
         .build();
+  }
+
+  private List<FinalizedImage> finalizedImages(ModifyConsignmentRequest request) {
+    return request.images().stream()
+        .filter(image -> image.temporaryObjectKey() != null)
+        .map(image -> image.temporaryObjectKey())
+        .map(
+            key ->
+                new FinalizedImage(
+                    key,
+                    "media/consignments/1/" + Integer.toUnsignedString(key.hashCode()) + ".jpg"))
+        .toList();
   }
 }

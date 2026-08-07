@@ -1,5 +1,7 @@
 package com.ootd.pickup.member.api;
 
+import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
+import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
 import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
@@ -14,6 +16,7 @@ import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -59,7 +62,8 @@ public interface MemberApi {
 
   @Operation(
       summary = "내 정보 수정",
-      description = "전달된 닉네임, 비밀번호, 프로필 이미지 URL만 수정합니다. 비밀번호 변경 시 현재 비밀번호가 필요합니다.",
+      description =
+          "전달된 닉네임, 비밀번호, 프로필 이미지만 수정합니다. 프로필 이미지는 SET 또는 REMOVE로 변경하며 비밀번호 변경 시 현재 비밀번호가 필요합니다.",
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {
         @ApiResponse(
@@ -146,4 +150,62 @@ public interface MemberApi {
       })
   ResponseEntity<CursorPageResponse<MyBidListItemResponse, String>> getMyWins(
       @Parameter(hidden = true) Long memberId, GetMyWinsRequest getMyWinsRequest);
+
+  @Operation(
+      summary = "관심 목록 조회",
+      description = "관심 등록한 예정(SCHEDULED) 및 진행 중(ONGOING) 경매를 최신순으로 조회합니다. 낙찰되면 관심 목록에서 노출되지 않습니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "관심 목록 조회 성공",
+            content =
+                @Content(
+                    schema = @Schema(implementation = CursorPageResponse.class),
+                    examples =
+                        @ExampleObject(
+                            value =
+                                """
+                            {
+                              "hasNext": true,
+                              "cursor": "string",
+                              "size": 20,
+                              "items": [
+                                {
+                                  "auctionId": 0,
+                                  "consignmentId": 0,
+                                  "card": {
+                                    "cardId": 0,
+                                    "cardName": "리자몽 1st Edition Holo",
+                                    "setName": "Base Set",
+                                    "cardNumber": "4/102",
+                                    "language": "일본어",
+                                    "rarity": "홀로 레어",
+                                    "imageUrl": "string"
+                                  },
+                                  "grade": "PSA 10",
+                                  "auctionStatus": "SCHEDULED",
+                                  "startingPrice": 0,
+                                  "currentPrice": null,
+                                  "startedAt": "2026-08-03T12:00:00",
+                                  "endedAt": null,
+                                  "remainingSeconds": null,
+                                  "watchCount": 0,
+                                  "watched": true,
+                                  "thumbnailUrl": "string"
+                                }
+                              ]
+                            }
+                            """))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "유효하지 않은 커서 값 또는 size 값(1 미만)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 필요",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<CursorPageResponse<AuctionListItemResponse, String>> getMyWatches(
+      @Parameter(hidden = true) Long memberId, GetMyWatchesRequest getMyWatchesRequest);
 }

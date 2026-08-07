@@ -5,6 +5,7 @@ import type { AxiosError } from "axios";
 import { Heart } from "lucide-react";
 import { toast } from "sonner";
 import { useDeleteWatch, useRegisterWatch } from "@/api/generated/watch/watch";
+import { getGetMyWatchesQueryKey } from "@/api/generated/member/member";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { useIsAuthenticated } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -108,7 +109,7 @@ export function WatchButton({
   const refreshAuctions = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["auctions"] }),
-      queryClient.invalidateQueries({ queryKey: ["watchlist"] }),
+      queryClient.invalidateQueries({ queryKey: getGetMyWatchesQueryKey() }),
     ]);
     await router.invalidate();
   };

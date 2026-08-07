@@ -36,11 +36,28 @@ public class Point {
     return point;
   }
 
+  /** 관리자가 지급/차감(음수)하는 부호 있는 조정. 결과 잔액이 음수가 되면 안 된다(운영 조치 실패로 보고한다). */
   public void adjustBalance(long amount) {
     long adjustedBalance = balance + amount;
     if (adjustedBalance < 0) {
       throw new PickUpException(POINT_BALANCE_INSUFFICIENT);
     }
     balance = adjustedBalance;
+  }
+
+  public void increaseBalance(long amount) {
+    validateAmount(amount);
+    this.balance += amount;
+  }
+
+  public void decreaseBalance(long amount) {
+    validateAmount(amount);
+    this.balance -= amount;
+  }
+
+  private void validateAmount(long amount) {
+    if (amount <= 0) {
+      throw new IllegalArgumentException("포인트 변경 금액은 0보다 커야 합니다 - amount=" + amount);
+    }
   }
 }

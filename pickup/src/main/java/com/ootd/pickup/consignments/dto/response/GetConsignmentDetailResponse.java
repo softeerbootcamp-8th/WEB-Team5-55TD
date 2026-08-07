@@ -5,6 +5,7 @@ import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 
 public record GetConsignmentDetailResponse(
@@ -20,7 +21,8 @@ public record GetConsignmentDetailResponse(
       Consignment consignment,
       Certificate certificate,
       List<ConsignmentImage> images,
-      String sellerMemberNickname) {
+      String sellerMemberNickname,
+      ImageUrlResolver imageUrlResolver) {
     return new GetConsignmentDetailResponse(
         consignment.getConsignmentId(),
         GetCardDetailResponse.from(consignment.getCard()),
@@ -28,7 +30,9 @@ public record GetConsignmentDetailResponse(
         consignment.getMajorDefect(),
         consignment.getStatus(),
         CertificateResponse.from(certificate),
-        images.stream().map(ConsignmentImageResponse::from).toList(),
+        images.stream()
+            .map(image -> ConsignmentImageResponse.from(image, imageUrlResolver))
+            .toList(),
         consignment.getStatus() != ConsignmentStatus.REGISTERABLE);
   }
 }

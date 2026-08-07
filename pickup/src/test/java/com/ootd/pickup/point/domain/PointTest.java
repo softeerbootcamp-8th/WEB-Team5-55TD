@@ -1,6 +1,7 @@
 package com.ootd.pickup.point.domain;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.ootd.pickup.global.exception.PickUpException;
 import org.junit.jupiter.api.Test;
@@ -51,5 +52,54 @@ class PointTest {
     // when & then
     assertThatThrownBy(() -> point.adjustBalance(-600L)).isInstanceOf(PickUpException.class);
     assertThat(point.getBalance()).isEqualTo(500L);
+  }
+
+  @Test
+  void 양수_금액으로_증가시키면_잔액이_늘어난다() {
+    // given
+    Point point = Point.create(1L);
+
+    // when
+    point.increaseBalance(1_000L);
+
+    // then
+    assertThat(point.getBalance()).isEqualTo(1_000L);
+  }
+
+  @Test
+  void 양수_금액으로_감소시키면_잔액이_줄어든다() {
+    // given
+    Point point = Point.create(1L);
+    point.increaseBalance(1_000L);
+
+    // when
+    point.decreaseBalance(300L);
+
+    // then
+    assertThat(point.getBalance()).isEqualTo(700L);
+  }
+
+  @Test
+  void 양수가_아닌_금액으로_증가시키면_예외가_발생한다() {
+    // given
+    Point point = Point.create(1L);
+
+    // when & then
+    assertThatThrownBy(() -> point.increaseBalance(0L))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> point.increaseBalance(-1L))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void 양수가_아닌_금액으로_감소시키면_예외가_발생한다() {
+    // given
+    Point point = Point.create(1L);
+
+    // when & then
+    assertThatThrownBy(() -> point.decreaseBalance(0L))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> point.decreaseBalance(-1L))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }

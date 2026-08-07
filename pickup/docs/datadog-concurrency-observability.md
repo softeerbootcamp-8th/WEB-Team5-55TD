@@ -4,7 +4,7 @@
 
 ## 설치
 
-1. `deploy/hikaricp-jmx.yaml`을 `/opt/datadog/jmx/hikaricp.yaml`로 복사하고 애플리케이션 실행 사용자가 읽을 수 있게 한다.
+1. `deploy/hikaricp-jmx.yaml`과 `deploy/tomcat-jmx.yaml`을 각각 `/opt/datadog/jmx/hikaricp.yaml`, `/opt/datadog/jmx/tomcat.yaml`로 복사하고 애플리케이션 실행 사용자가 읽을 수 있게 한다.
 2. `deploy/pickup-datadog.conf`를 `/etc/systemd/system/pickup.service.d/datadog.conf`로 복사한다.
 3. `deploy/mysql-dbm.yaml`을 `/etc/datadog-agent/conf.d/mysql.d/conf.yaml`로 복사한다.
 4. Datadog Agent 서비스에 `DB_HOST`, `DB_PASSWORD` 환경변수를 제공한다.
@@ -27,7 +27,9 @@ Datadog에서 다음 항목을 확인한다.
 - DBM Databases에 `pickup-mysql` 인스턴스와 query/activity sample이 나타나는지 확인
 - DBM Activity에서 `dbms:mysql @mysql.blocking_thread_id:>0`로 waiter와 blocker 확인
 - `hikaricp.connections.active`, `pending`, `max`가 `pool:pickup-pool` 태그로 수집되는지 확인
-- `tomcat.threads.busy`, `count`, `max`가 `connector` 태그로 수집되는지 확인
+- `tomcat.threads.busy`, `count`, `max`가 수집되는지 확인
+- `tomcat.connections.current`, `keep_alive`, `max` 중 현재 Tomcat 버전이 노출하는 지표를 확인
+- `tomcat.request_count`, `error_count`, `processing_time`이 수집되는지 확인
 - Continuous Profiler에서 `service:pickup-api env:production` 데이터와 `http-nio-*` 스레드 wall time 확인
 
 ## 부하 테스트 대시보드 쿼리
@@ -35,6 +37,9 @@ Datadog에서 다음 항목을 확인한다.
 - `max:hikaricp.connections.active{env:$env} / max:hikaricp.connections.max{env:$env}`
 - `max:hikaricp.connections.pending{env:$env} by {host,pool}`
 - `max:tomcat.threads.busy{env:$env} / max:tomcat.threads.max{env:$env}`
+- `max:tomcat.connections.current{env:$env} / max:tomcat.connections.max{env:$env}`
+- `sum:tomcat.error_count{env:$env}.as_rate()`
+- `sum:tomcat.request_count{env:$env}.as_rate()`
 - `sum:mysql.innodb.row_lock_waits{env:$env}.as_rate()`
 - `sum:mysql.innodb.row_lock_time{env:$env}`
 - `sum:mysql.innodb.deadlocks{env:$env}.as_count()`

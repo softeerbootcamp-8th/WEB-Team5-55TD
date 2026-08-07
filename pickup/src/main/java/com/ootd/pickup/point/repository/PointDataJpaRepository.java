@@ -23,6 +23,11 @@ public class PointDataJpaRepository implements PointRepository {
   }
 
   @Override
+  public Optional<Point> findByMemberIdForUpdate(Long memberId) {
+    return pointJpaRepository.findByMemberIdForUpdate(memberId);
+  }
+
+  @Override
   public Point save(Point point) {
     return pointJpaRepository.save(point);
   }
