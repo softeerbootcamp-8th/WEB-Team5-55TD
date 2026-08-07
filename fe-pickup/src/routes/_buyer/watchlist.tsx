@@ -1,10 +1,43 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { PageContainer } from "@/components/layout/page";
 import { AuctionCard } from "@/components/domain/auction-card";
 import { EmptyState } from "@/components/domain/section-header";
 import { Button } from "@/components/ui/button";
-import { getWatchlist } from "@/api/auctions";
+import { useGetMyWatches } from "@/api/generated/member/member";
+import type {
+  WatchItemResponse,
+  WatchItemResponseAuctionStatus,
+} from "@/api/generated/model";
+import { AuctionStatus, type AuctionSummary, type Grade } from "@/lib/types";
+
+function toUiStatus(status?: WatchItemResponseAuctionStatus): AuctionStatus {
+  if (status === "ONGOING") return AuctionStatus.LIVE;
+  if (status === "WON" || status === "PASSED") return AuctionStatus.ENDED;
+  return AuctionStatus.UPCOMING;
+}
+
+function parseGrade(value?: string | null): Grade | undefined {
+  if (!value) return undefined;
+  const [agency, ...score] = value.trim().split(/\s+/);
+  if (!agency || score.length === 0) return undefined;
+  return { agency: agency as Grade["agency"], score: score.join(" ") };
+}
+
+function toAuctionSummary(item: WatchItemResponse): AuctionSummary {
+  return {
+    id: String(item.auctionId),
+    cardName: item.card?.cardName ?? "",
+    thumbnailUrl: item.thumbnailUrl ?? item.card?.imageUrl ?? undefined,
+    status: toUiStatus(item.auctionStatus),
+    grade: parseGrade(item.grade),
+    currentPrice: item.currentPrice ?? undefined,
+    startPrice: item.startingPrice,
+    endsAt: item.endedAt ?? undefined,
+    startsAt: item.startedAt ?? undefined,
+    watchCount: item.watchCount,
+    watched: item.watched,
+  };
+}
 
 export const Route = createFileRoute("/_buyer/watchlist")({
   component: WatchlistPage,
@@ -12,11 +45,8 @@ export const Route = createFileRoute("/_buyer/watchlist")({
 
 /** DESIGN.md · watchlist.html — 관심 등록한 예정 경매만 (최신순) */
 function WatchlistPage() {
-  const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["watchlist"],
-    queryFn: getWatchlist,
-  });
-  const watchlist = data ?? [];
+  const { data, isPending, isError, refetch } = useGetMyWatches({ size: 100 });
+  const watchlist = (data?.items ?? []).map(toAuctionSummary);
 
   return (
     <PageContainer className="flex flex-col gap-6">
