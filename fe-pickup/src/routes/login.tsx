@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { login } from "@/api/generated/authentication/authentication";
 import type { ExceptionResponse, LoginRequest } from "@/api/generated/model";
 import { setAuthenticated, setNickname } from "@/lib/auth";
+import { Logo } from "@/components/logo";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -49,7 +50,7 @@ function LoginPage() {
     >
       <div className="flex flex-col items-center gap-2 text-center">
         <Link to="/home" className="flex flex-col items-center gap-2">
-          <span className="inline-block size-8 rounded-[8px] bg-primary" />
+          <Logo role="buyer" className="size-8" />
           <h1 className="text-2xl font-bold">PickUp</h1>
         </Link>
         <p className="text-sm text-[var(--color-text-sub)]">

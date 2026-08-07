@@ -19,6 +19,7 @@ import { formatPoint } from "@/lib/format";
 import { setAuthenticated, useIsAuthenticated, useNickname } from "@/lib/auth";
 import { logout } from "@/api/generated/authentication/authentication";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,10 +92,7 @@ export function Gnb({ role }: { role: Role }) {
             to={role === "seller" ? "/seller" : "/home"}
             className="flex items-center gap-2 text-lg font-bold"
           >
-            <span
-              className="inline-block size-5 rounded-[6px] bg-primary"
-              aria-hidden
-            />
+            <Logo role={role} className="size-5" />
             PickUp
             {role === "seller" && (
               <span className="rounded-[var(--radius-pill)] bg-[var(--color-seller-weak)] px-2 py-0.5 text-xs font-medium text-[var(--color-seller)]">
