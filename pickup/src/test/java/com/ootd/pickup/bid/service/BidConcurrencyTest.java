@@ -19,8 +19,6 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaReposit
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
-import com.ootd.pickup.point.domain.Point;
-import com.ootd.pickup.point.repository.PointJpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -48,8 +46,6 @@ class BidConcurrencyTest {
 
   @Autowired private MemberJpaRepository memberJpaRepository;
 
-  @Autowired private PointJpaRepository pointJpaRepository;
-
   @Autowired private CardJpaRepository cardJpaRepository;
 
   @AfterEach
@@ -58,7 +54,6 @@ class BidConcurrencyTest {
     auctionJpaRepository.deleteAll();
     consignmentJpaRepository.deleteAll();
     cardJpaRepository.deleteAll();
-    pointJpaRepository.deleteAll();
     memberJpaRepository.deleteAll();
   }
 
@@ -68,8 +63,6 @@ class BidConcurrencyTest {
     Member seller = memberJpaRepository.save(Member.create("seller", "password", "판매자"));
     Member firstBidder = memberJpaRepository.save(Member.create("bidder1", "password", "입찰자1"));
     Member secondBidder = memberJpaRepository.save(Member.create("bidder2", "password", "입찰자2"));
-    pointJpaRepository.save(createPointWithBalance(firstBidder.getMemberId(), 50_000L));
-    pointJpaRepository.save(createPointWithBalance(secondBidder.getMemberId(), 50_000L));
     Card card =
         cardJpaRepository.save(
             Card.builder()
@@ -128,12 +121,6 @@ class BidConcurrencyTest {
         bids.stream().filter(bid -> bid.getBidStatus() == BidStatus.HIGHEST).toList();
     assertThat(results).allMatch(Set.of("SUCCESS", "OUTBID_EXISTS")::contains);
     assertThat(highestBids).singleElement().extracting(Bid::getBidPrice).isEqualTo(11_000L);
-  }
-
-  private Point createPointWithBalance(Long memberId, long balance) {
-    Point point = Point.create(memberId);
-    point.adjustBalance(balance);
-    return point;
   }
 
   private String placeBidAfterSignal(
