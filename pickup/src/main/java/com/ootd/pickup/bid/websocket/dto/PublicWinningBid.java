@@ -15,8 +15,17 @@ public record PublicWinningBid(
   }
 
   private static String maskNickname(String nickname) {
-    String prefix = nickname.substring(0, 3);
-    String suffix = nickname.substring(nickname.length() - 2);
-    return prefix + "***" + suffix;
+    if (nickname == null || nickname.isBlank()) {
+      return "***";
+    }
+
+    int[] codePoints = nickname.codePoints().toArray();
+    if (codePoints.length == 1) {
+      return "***";
+    }
+
+    String first = new String(codePoints, 0, 1);
+    String last = new String(codePoints, codePoints.length - 1, 1);
+    return first + "***" + last;
   }
 }

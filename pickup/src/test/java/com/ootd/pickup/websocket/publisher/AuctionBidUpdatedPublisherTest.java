@@ -52,6 +52,6 @@ class AuctionBidUpdatedPublisherTest {
     AuctionBidUpdatedMessage message = messageCaptor.getValue();
     assertThat(message.type()).isEqualTo("AUCTION_BID_UPDATED");
     assertThat(message.currentPrice()).isEqualTo(20_000L);
-    assertThat(message.latestBid().nicknameMasked()).isEqualTo("피카츄***스터");
+    assertThat(message.latestBid().nicknameMasked()).isEqualTo("피***터");
   }
 }
