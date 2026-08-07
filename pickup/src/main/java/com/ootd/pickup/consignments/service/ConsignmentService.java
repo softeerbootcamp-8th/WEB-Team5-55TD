@@ -235,6 +235,8 @@ public class ConsignmentService {
     Map<Long, Long> auctionIdsByConsignmentId =
         auctionManageService.findAuctionIdsByConsignments(consignments);
 
+    Map<Long, String> thumbnailsByConsignmentId = resolveThumbnails(consignments);
+
     List<GetMyConsignmentsResponse> items =
         consignments.stream()
             .map(
@@ -243,7 +245,8 @@ public class ConsignmentService {
                         consignment,
                         sellerMemberId,
                         certificatesByConsignmentId.get(consignment.getConsignmentId()),
-                        auctionIdsByConsignmentId.get(consignment.getConsignmentId())))
+                        auctionIdsByConsignmentId.get(consignment.getConsignmentId()),
+                        thumbnailsByConsignmentId.get(consignment.getConsignmentId())))
             .toList();
 
     return CursorPageResponse.from(items, hasNext, nextCursor);
@@ -279,6 +282,24 @@ public class ConsignmentService {
     return certificateRepository
         .findCertificateByConsignment(consignment)
         .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
+  }
+
+  private Map<Long, String> resolveThumbnails(List<Consignment> consignments) {
+    if (consignments.isEmpty()) {
+      return Map.of();
+    }
+
+    List<Long> consignmentIds = consignments.stream().map(Consignment::getConsignmentId).toList();
+    List<ConsignmentImage> images =
+        consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+            consignmentIds);
+
+    return images.stream()
+        .collect(
+            Collectors.toMap(
+                image -> image.getConsignment().getConsignmentId(),
+                image -> imageUrlResolver.resolve(image.getObjectKey()),
+                (first, second) -> first));
   }
 
   public record ConsignmentModificationResult(
