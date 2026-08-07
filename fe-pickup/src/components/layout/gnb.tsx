@@ -108,10 +108,13 @@ export function Gnb({ role }: { role: Role }) {
                   key={item.to}
                   to={item.to}
                   activeOptions={{ exact: item.to === "/seller" }}
-                  className="rounded-[var(--radius-sm)] px-3 py-2 text-sm whitespace-nowrap text-[var(--color-text-sub)] transition-colors hover:text-foreground"
+                  className="relative rounded-[var(--radius-sm)] px-3 py-2 text-sm whitespace-nowrap text-[var(--color-text-sub)] transition-colors hover:text-foreground"
                   activeProps={{
+                    // rounded-[var(--radius-sm)]에 걸린 inset box-shadow는 바닥 모서리 라운드를
+                    // 따라 양 끝이 말려 올라가 보인다(] 를 90도 돌린 모양). 부모 라운드에
+                    // 영향받지 않는 별도의 pill 인디케이터(after)로 대체.
                     className:
-                      "text-foreground font-semibold [box-shadow:inset_0_-2px_0_var(--primary)]",
+                      "text-foreground font-semibold after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary after:content-['']",
                   }}
                 >
                   {item.label}
