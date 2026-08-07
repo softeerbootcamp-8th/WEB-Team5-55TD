@@ -5,8 +5,8 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 
 import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
-import com.ootd.pickup.bid.websocket.publisher.AuctionBidUpdatedPublisher;
 import com.ootd.pickup.bid.websocket.handler.AuctionBidUpdatedEventHandler;
+import com.ootd.pickup.bid.websocket.publisher.AuctionBidUpdatedPublisher;
 import org.junit.jupiter.api.Test;
 
 class AuctionBidUpdatedEventHandlerTest {
