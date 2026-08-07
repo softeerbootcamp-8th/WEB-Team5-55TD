@@ -47,8 +47,11 @@ function pollingInterval() {
   return baseInterval + Math.floor(Math.random() * POLLING_JITTER_MILLIS);
 }
 
-function laterEndTime(current: string | undefined, next: string | undefined) {
-  if (!next) return current;
+function laterEndTime(
+  current: string | null | undefined,
+  next: string | null | undefined,
+): string | undefined {
+  if (!next) return current ?? undefined;
   if (!current) return next;
   return Date.parse(next) >= Date.parse(current) ? next : current;
 }
@@ -149,7 +152,7 @@ function LiveAuctionPage() {
         endsAt:
           current.auctionId === auction.id
             ? laterEndTime(current.endsAt, message.endedAt)
-            : message.endedAt,
+            : (message.endedAt ?? undefined),
       }));
       void queryClient.invalidateQueries({
         queryKey: ["auction-bids", auction.id],

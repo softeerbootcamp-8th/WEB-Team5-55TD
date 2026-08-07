@@ -15,7 +15,7 @@ export interface AuctionBidUpdatedMessage {
   auctionStatus: ApiAuctionStatus;
   currentPrice: number;
   startedAt: string;
-  endedAt: string;
+  endedAt: string | null;
   latestBid: {
     bidId: number;
     nicknameMasked: string;
@@ -70,7 +70,7 @@ function parseMessage(frame: IMessage): AuctionBidUpdatedMessage | null {
     typeof value.currentPrice === "number" &&
     Number.isFinite(value.currentPrice) &&
     typeof value.startedAt === "string" &&
-    typeof value.endedAt === "string" &&
+    (value.endedAt === null || typeof value.endedAt === "string") &&
     typeof value.occurredAt === "string" &&
     typeof latestBid.bidId === "number" &&
     latestBid.bidId > 0 &&
@@ -125,9 +125,6 @@ export function useAuctionBidUpdates({
     });
 
     client.onConnect = () => {
-      const receiptId = `auction-${auctionId}-${crypto.randomUUID()}`;
-
-      client.watchForReceipt(receiptId, () => onSubscribedRef.current());
       client.subscribe(
         `/topic/auctions/${auctionId}`,
         (frame) => {
@@ -159,8 +156,8 @@ export function useAuctionBidUpdates({
           latestBidIdRef.current = message.latestBid.bidId;
           onBidUpdatedRef.current(message);
         },
-        { receipt: receiptId },
       );
+      onSubscribedRef.current();
     };
     client.onStompError = (frame) => {
       console.warn(
