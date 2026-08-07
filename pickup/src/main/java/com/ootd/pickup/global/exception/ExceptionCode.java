@@ -153,9 +153,7 @@ public enum ExceptionCode {
   CONSIGNMENT_NOT_UNBLOCKABLE(
       HttpStatus.CONFLICT,
       ClientExceptionCode.CONSIGNMENT_NOT_UNBLOCKABLE,
-      "차단된 상품만 차단 해제할 수 있습니다."),
-  INSUFFICIENT_BID_LIMIT(
-      HttpStatus.CONFLICT, ClientExceptionCode.INSUFFICIENT_BID_LIMIT, "보유 포인트가 입찰 금액보다 적습니다.");
+      "차단된 상품만 차단 해제할 수 있습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;
