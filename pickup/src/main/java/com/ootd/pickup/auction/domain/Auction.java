@@ -91,4 +91,11 @@ public class Auction {
     this.winningBidId = winningBidId;
     this.winningPrice = winningPrice;
   }
+
+  public Long getCurrentPrice() {
+    if (auctionStatus == AuctionStatus.SCHEDULED) {
+      return null;
+    }
+    return winningPrice != null ? winningPrice : startingPrice;
+  }
 }

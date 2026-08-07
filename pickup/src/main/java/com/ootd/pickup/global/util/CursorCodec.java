@@ -30,7 +30,7 @@ public final class CursorCodec {
 
     try {
       String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-      return parser.apply(raw.split(DELIMITER));
+      return parser.apply(raw.split(DELIMITER, -1));
     } catch (RuntimeException e) {
       throw new PickUpException(INVALID_CURSOR);
     }

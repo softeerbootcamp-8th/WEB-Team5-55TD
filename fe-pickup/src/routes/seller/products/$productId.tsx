@@ -1,11 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Gavel, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -23,7 +19,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { deleteMyConsignment, getMyConsignmentDetail } from "@/api/consignments";
+import {
+  deleteMyConsignment,
+  getMyConsignmentDetail,
+} from "@/api/consignments";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
 import { PRODUCT_STATUS_META } from "@/lib/status";
@@ -43,7 +42,11 @@ function ProductDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
 
-  const { data: product, isPending, isError } = useQuery({
+  const {
+    data: product,
+    isPending,
+    isError,
+  } = useQuery({
     queryKey: ["consignments", "detail", productId],
     queryFn: () => getMyConsignmentDetail(productId),
   });
@@ -56,7 +59,9 @@ function ProductDetailPage() {
       navigate({ to: "/seller/products" });
     },
     onError: (error: AxiosError<ExceptionResponse>) => {
-      toast.error(error.response?.data?.message ?? DEFAULT_DELETE_ERROR_MESSAGE);
+      toast.error(
+        error.response?.data?.message ?? DEFAULT_DELETE_ERROR_MESSAGE,
+      );
     },
   });
 
@@ -98,9 +103,10 @@ function ProductDetailPage() {
   const canDelete = canModify;
 
   // 카드 원본 이미지를 대표 사진으로 우선 노출하고, 위탁 등록 시 첨부한 실물 사진은 썸네일로 보여준다.
-  const gallery = [product.thumbnailUrl, ...product.images].filter(
-    (img): img is string => !!img,
-  );
+  const gallery = [
+    product.thumbnailUrl,
+    ...product.images.map((image) => image.imageUrl),
+  ].filter((img): img is string => !!img);
   const mainImage = gallery[activeImage] ?? gallery[0];
 
   return (
@@ -184,11 +190,7 @@ function ProductDetailPage() {
               </Button>
             )}
             {canApply && (
-              <Button
-                size="lg"
-                asChild
-                className="w-full shrink-0 sm:w-auto"
-              >
+              <Button size="lg" asChild className="w-full shrink-0 sm:w-auto">
                 <Link
                   to="/seller/apply/$productId"
                   params={{ productId: product.id }}

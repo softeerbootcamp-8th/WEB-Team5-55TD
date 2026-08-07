@@ -3,8 +3,12 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
-import type { AxiosError } from "axios";
+import axios from "axios";
 import { PageContainer } from "@/components/layout/page";
+import {
+  ConsignmentImageFields,
+  type ConsignmentImageValue,
+} from "@/components/domain/consignment-image-fields";
 import { StepIndicator } from "@/components/domain/step-indicator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +16,12 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useSearchCards } from "@/api/generated/card/card";
 import { registerConsignment } from "@/api/generated/consignment/consignment";
+import { CreateImageUploadRequestPurpose } from "@/api/generated/model";
 import type {
   ExceptionResponse,
-  RegisterConsignmentRequest,
   SearchCardsResponse,
 } from "@/api/generated/model";
+import { uploadImage } from "@/api/image-upload";
 
 export const Route = createFileRoute("/seller/register")({
   component: RegisterWizard,
@@ -79,52 +84,67 @@ function RegisterWizard() {
   const [inspectedAt, setInspectedAt] = useState("");
   const [majorDefect, setMajorDefect] = useState("");
 
-  // 3단계 — 이미지 URL (업로드 API 미구현 — URL 직접 입력)
-  const [frontImageUrl, setFrontImageUrl] = useState("");
-  const [backImageUrl, setBackImageUrl] = useState("");
-  const [extraImageUrl, setExtraImageUrl] = useState("");
+  const [images, setImages] = useState<ConsignmentImageValue[]>([]);
 
   const canNext =
     step === 0
       ? selectedCard !== null
       : step === 1
-        ? grade.length > 0 && serialNumber.trim().length > 0 && inspectedAt.length > 0
+        ? grade.length > 0 &&
+          serialNumber.trim().length > 0 &&
+          inspectedAt.length > 0
         : step === 2
-          ? frontImageUrl.trim().length > 0 && backImageUrl.trim().length > 0
+          ? images.length >= 2
           : true;
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
   const { mutate: submitRegister, isPending: isSubmitting } = useMutation({
-    mutationFn: (payload: RegisterConsignmentRequest) =>
-      registerConsignment(payload),
+    mutationFn: async (cardId: number) => {
+      const temporaryObjectKeys = await Promise.all(
+        images.map((image) => {
+          if (image.kind !== "new") {
+            throw new Error("새 상품에는 새 이미지만 등록할 수 있습니다.");
+          }
+          return uploadImage(
+            image.file,
+            CreateImageUploadRequestPurpose.CONSIGNMENT,
+          );
+        }),
+      );
+
+      return registerConsignment({
+        cardId,
+        majorDefect: majorDefect.trim() || undefined,
+        certificate: {
+          serialNumber: serialNumber.trim(),
+          certificationBody,
+          grade,
+          inspectedAt,
+        },
+        images: temporaryObjectKeys.map((temporaryObjectKey) => ({
+          temporaryObjectKey,
+        })),
+      });
+    },
     onSuccess: () => {
       toast.success("상품이 등록되었습니다.");
       navigate({ to: "/seller/products" });
     },
-    onError: (error: AxiosError<ExceptionResponse>) => {
-      toast.error(error.response?.data?.message ?? DEFAULT_ERROR_MESSAGE);
+    onError: (error: unknown) => {
+      const message = axios.isAxiosError<ExceptionResponse>(error)
+        ? error.response?.data?.message
+        : error instanceof Error
+          ? error.message
+          : undefined;
+      toast.error(message ?? DEFAULT_ERROR_MESSAGE);
     },
   });
 
   const handleSubmit = () => {
     if (!selectedCard?.cardId || isSubmitting) return;
-    submitRegister({
-      cardId: selectedCard.cardId,
-      majorDefect: majorDefect.trim() || undefined,
-      certificate: {
-        serialNumber: serialNumber.trim(),
-        certificationBody,
-        grade,
-        inspectedAt,
-      },
-      images: [
-        { imageUrl: frontImageUrl.trim() },
-        { imageUrl: backImageUrl.trim() },
-        ...(extraImageUrl.trim() ? [{ imageUrl: extraImageUrl.trim() }] : []),
-      ],
-    });
+    submitRegister(selectedCard.cardId);
   };
 
   return (
@@ -179,8 +199,8 @@ function RegisterWizard() {
                             {card.cardName}
                           </span>
                           <span className="text-xs text-[var(--color-text-muted)]">
-                            {card.setName} · {card.cardNumber} ·{" "}
-                            {card.language} · {card.rarity}
+                            {card.setName} · {card.cardNumber} · {card.language}{" "}
+                            · {card.rarity}
                           </span>
                         </div>
                       </button>
@@ -223,9 +243,9 @@ function RegisterWizard() {
         {step === 1 && (
           <div className="flex flex-col gap-4">
             <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
-              인증기관(PSA · BGS · CGC · SGC · ACE) 감정을 받은 카드만 등록할
-              수 있습니다. 서비스는 검수를 제공하지 않으며 인증서 일련번호로
-              자가 인증합니다.
+              인증기관(PSA · BGS · CGC · SGC · ACE) 감정을 받은 카드만 등록할 수
+              있습니다. 서비스는 검수를 제공하지 않으며 인증서 일련번호로 자가
+              인증합니다.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <Field label="인증기관" required>
@@ -245,7 +265,10 @@ function RegisterWizard() {
                 </Select>
               </Field>
               <Field label="감정 등급" required>
-                <Select value={grade} onChange={(e) => setGrade(e.target.value)}>
+                <Select
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                >
                   <option value="" disabled>
                     등급 선택
                   </option>
@@ -284,32 +307,12 @@ function RegisterWizard() {
 
         {step === 2 && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-[var(--color-text-sub)]">
-              앞면 · 뒷면 이미지 URL은 필수입니다.{" "}
-              <span className="text-[var(--color-danger)]">*</span>{" "}
-              (이미지 업로드 기능은 아직 준비 중이라 URL을 직접 입력합니다.)
-            </p>
-            <Field label="앞면 이미지 URL" required>
-              <Input
-                value={frontImageUrl}
-                onChange={(e) => setFrontImageUrl(e.target.value)}
-                placeholder="https://example.com/cards/front.png"
-              />
-            </Field>
-            <Field label="뒷면 이미지 URL" required>
-              <Input
-                value={backImageUrl}
-                onChange={(e) => setBackImageUrl(e.target.value)}
-                placeholder="https://example.com/cards/back.png"
-              />
-            </Field>
-            <Field label="추가 이미지 URL">
-              <Input
-                value={extraImageUrl}
-                onChange={(e) => setExtraImageUrl(e.target.value)}
-                placeholder="https://example.com/cards/extra.png"
-              />
-            </Field>
+            <ConsignmentImageFields
+              images={images}
+              onChange={setImages}
+              onError={(message) => toast.error(message)}
+              disabled={isSubmitting}
+            />
           </div>
         )}
 
@@ -333,10 +336,7 @@ function RegisterWizard() {
               <Summary label="일련번호" value={serialNumber} />
               <Summary label="감정일" value={inspectedAt} />
               <Summary label="주요 결함" value={majorDefect || "-"} />
-              <Summary
-                label="이미지"
-                value={`${[frontImageUrl, backImageUrl, extraImageUrl].filter((v) => v.trim().length > 0).length}장`}
-              />
+              <Summary label="이미지" value={`${images.length}장`} />
             </dl>
           </div>
         )}
@@ -344,11 +344,15 @@ function RegisterWizard() {
 
       {/* 네비게이션 */}
       <div className="flex justify-between">
-        <Button variant="secondary" onClick={prev} disabled={step === 0}>
+        <Button
+          variant="secondary"
+          onClick={prev}
+          disabled={step === 0 || isSubmitting}
+        >
           이전
         </Button>
         {step < STEPS.length - 1 ? (
-          <Button onClick={next} disabled={!canNext}>
+          <Button onClick={next} disabled={!canNext || isSubmitting}>
             다음 단계
           </Button>
         ) : (

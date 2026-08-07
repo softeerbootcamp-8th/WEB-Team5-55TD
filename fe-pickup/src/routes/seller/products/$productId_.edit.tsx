@@ -1,25 +1,25 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
-import type { AxiosError } from "axios";
+import axios from "axios";
 import { PageContainer } from "@/components/layout/page";
+import {
+  ConsignmentImageFields,
+  type ConsignmentImageValue,
+} from "@/components/domain/consignment-image-fields";
 import { EmptyState } from "@/components/domain/section-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import {
-  getMyConsignmentDetail,
-  modifyMyConsignment,
-} from "@/api/consignments";
+import { getMyConsignmentDetail } from "@/api/consignments";
 import type { ConsignmentDetail } from "@/api/consignments";
+import { modifyConsignment } from "@/api/generated/consignment/consignment";
+import { CreateImageUploadRequestPurpose } from "@/api/generated/model";
 import type { ExceptionResponse } from "@/api/generated/model";
+import { uploadImage } from "@/api/image-upload";
 import { ProductStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/seller/products/$productId_/edit")({
@@ -48,7 +48,11 @@ const DEFAULT_ERROR_MESSAGE =
 function ProductEditPage() {
   const { productId } = Route.useParams();
 
-  const { data: product, isPending, isError } = useQuery({
+  const {
+    data: product,
+    isPending,
+    isError,
+  } = useQuery({
     queryKey: ["consignments", "detail", productId],
     queryFn: () => getMyConsignmentDetail(productId),
   });
@@ -124,13 +128,31 @@ function EditForm({
   const [serialNumber, setSerialNumber] = useState(product.grade?.serial ?? "");
   const [inspectedAt, setInspectedAt] = useState(product.inspectedAt);
   const [majorDefect, setMajorDefect] = useState(product.majorDefect ?? "");
-  const [frontImageUrl, setFrontImageUrl] = useState(product.images[0] ?? "");
-  const [backImageUrl, setBackImageUrl] = useState(product.images[1] ?? "");
-  const [extraImageUrl, setExtraImageUrl] = useState(product.images[2] ?? "");
+  const [images, setImages] = useState<ConsignmentImageValue[]>(
+    product.images.map((image) => ({
+      kind: "existing",
+      consignmentImageId: image.consignmentImageId,
+      imageUrl: image.imageUrl,
+    })),
+  );
 
   const { mutate: submitModify, isPending: isSubmitting } = useMutation({
-    mutationFn: () =>
-      modifyMyConsignment(productId, {
+    mutationFn: async () => {
+      const imageRequests = await Promise.all(
+        images.map(async (image) => {
+          if (image.kind === "existing") {
+            return { consignmentImageId: image.consignmentImageId };
+          }
+
+          const temporaryObjectKey = await uploadImage(
+            image.file,
+            CreateImageUploadRequestPurpose.CONSIGNMENT,
+          );
+          return { temporaryObjectKey };
+        }),
+      );
+
+      return modifyConsignment(Number(productId), {
         majorDefect: majorDefect.trim() || undefined,
         certificate: {
           serialNumber: serialNumber.trim(),
@@ -138,19 +160,21 @@ function EditForm({
           grade,
           inspectedAt,
         },
-        images: [
-          { imageUrl: frontImageUrl.trim() },
-          { imageUrl: backImageUrl.trim() },
-          ...(extraImageUrl.trim() ? [{ imageUrl: extraImageUrl.trim() }] : []),
-        ],
-      }),
+        images: imageRequests,
+      });
+    },
     onSuccess: () => {
       toast.success("상품 정보가 수정되었습니다.");
       queryClient.invalidateQueries({ queryKey: ["consignments"] });
       navigate({ to: "/seller/products/$productId", params: { productId } });
     },
-    onError: (error: AxiosError<ExceptionResponse>) => {
-      toast.error(error.response?.data?.message ?? DEFAULT_ERROR_MESSAGE);
+    onError: (error: unknown) => {
+      const message = axios.isAxiosError<ExceptionResponse>(error)
+        ? error.response?.data?.message
+        : error instanceof Error
+          ? error.message
+          : undefined;
+      toast.error(message ?? DEFAULT_ERROR_MESSAGE);
     },
   });
 
@@ -158,25 +182,35 @@ function EditForm({
     grade.length > 0 &&
     serialNumber.trim().length > 0 &&
     inspectedAt.length > 0 &&
-    frontImageUrl.trim().length > 0 &&
-    backImageUrl.trim().length > 0;
+    images.length >= 2;
 
   return (
     <PageContainer className="flex max-w-2xl flex-col gap-8">
       <Link
         to="/seller/products/$productId"
         params={{ productId }}
-        className="inline-flex items-center gap-1 text-sm text-[var(--color-text-sub)] hover:text-foreground"
+        aria-disabled={isSubmitting}
+        tabIndex={isSubmitting ? -1 : undefined}
+        onClick={(event) => {
+          if (isSubmitting) event.preventDefault();
+        }}
+        className={cn(
+          "inline-flex items-center gap-1 text-sm text-[var(--color-text-sub)] hover:text-foreground",
+          isSubmitting && "pointer-events-none opacity-50",
+        )}
       >
         <ChevronLeft className="size-4" /> 상품 상세
       </Link>
 
       <h1 className="text-2xl font-bold">{product.cardName} 정보 수정</h1>
 
-      <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-6">
+      <fieldset
+        disabled={isSubmitting}
+        className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-6"
+      >
         <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
-          카드 자체 정보는 변경할 수 없으며, 감정서와 이미지, 주요 결함만
-          수정할 수 있습니다.
+          카드 자체 정보는 변경할 수 없으며, 감정서와 이미지, 주요 결함만 수정할
+          수 있습니다.
         </p>
         <div className="grid grid-cols-2 gap-4">
           <Field label="인증기관" required>
@@ -230,35 +264,26 @@ function EditForm({
             placeholder="예: 뒷면 우하단 미세 스크래치"
           />
         </Field>
-        <Field label="앞면 이미지 URL" required>
-          <Input
-            value={frontImageUrl}
-            onChange={(e) => setFrontImageUrl(e.target.value)}
-            placeholder="https://example.com/cards/front.png"
-          />
-        </Field>
-        <Field label="뒷면 이미지 URL" required>
-          <Input
-            value={backImageUrl}
-            onChange={(e) => setBackImageUrl(e.target.value)}
-            placeholder="https://example.com/cards/back.png"
-          />
-        </Field>
-        <Field label="추가 이미지 URL">
-          <Input
-            value={extraImageUrl}
-            onChange={(e) => setExtraImageUrl(e.target.value)}
-            placeholder="https://example.com/cards/extra.png"
-          />
-        </Field>
-      </div>
+        <ConsignmentImageFields
+          images={images}
+          onChange={setImages}
+          onError={(message) => toast.error(message)}
+          disabled={isSubmitting}
+        />
+      </fieldset>
 
       <div className="flex justify-end gap-3">
-        <Button variant="secondary" asChild>
-          <Link to="/seller/products/$productId" params={{ productId }}>
+        {isSubmitting ? (
+          <Button variant="secondary" disabled>
             취소
-          </Link>
-        </Button>
+          </Button>
+        ) : (
+          <Button variant="secondary" asChild>
+            <Link to="/seller/products/$productId" params={{ productId }}>
+              취소
+            </Link>
+          </Button>
+        )}
         <Button
           onClick={() => submitModify()}
           disabled={!canSubmit || isSubmitting}

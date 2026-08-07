@@ -18,6 +18,7 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaReposit
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -84,11 +85,63 @@ class WatchRepositoryIntegrationTest {
             tuple(secondMember.getMemberId(), firstAuction.getAuctionId()));
   }
 
+  @Test
+  void 회원의_관심목록조회는_예정_또는_진행중_상태_경매만_최신순으로_반환한다() {
+    // given
+    Member member = createMember("watch-list-owner");
+    Auction scheduledAuction = createAuction(member, "예정 카드", AuctionStatus.SCHEDULED);
+    Auction ongoingAuction = createAuction(member, "진행중 카드", AuctionStatus.ONGOING);
+    Auction wonAuction = createAuction(member, "낙찰 카드", AuctionStatus.WON);
+    Watch firstWatch =
+        watchJpaRepository.save(Watch.builder().member(member).auction(scheduledAuction).build());
+    Watch secondWatch =
+        watchJpaRepository.save(Watch.builder().member(member).auction(ongoingAuction).build());
+    watchJpaRepository.save(Watch.builder().member(member).auction(wonAuction).build());
+    watchJpaRepository.flush();
+
+    // when
+    List<Watch> result = watchRepository.findAllActiveByMemberId(member.getMemberId(), null, 10);
+
+    // then
+    assertThat(result)
+        .extracting(Watch::getWatchId)
+        .containsExactly(secondWatch.getWatchId(), firstWatch.getWatchId());
+  }
+
+  @Test
+  void 관심목록조회는_커서_이후의_항목만_watchId_역순으로_반환한다() {
+    // given
+    Member member = createMember("watch-list-cursor");
+    Auction auctionA = createAuction(member, "커서 카드1", AuctionStatus.SCHEDULED);
+    Auction auctionB = createAuction(member, "커서 카드2", AuctionStatus.SCHEDULED);
+    Auction auctionC = createAuction(member, "커서 카드3", AuctionStatus.SCHEDULED);
+    Watch watchA =
+        watchJpaRepository.save(Watch.builder().member(member).auction(auctionA).build());
+    Watch watchB =
+        watchJpaRepository.save(Watch.builder().member(member).auction(auctionB).build());
+    Watch watchC =
+        watchJpaRepository.save(Watch.builder().member(member).auction(auctionC).build());
+    watchJpaRepository.flush();
+
+    // when
+    List<Watch> result =
+        watchRepository.findAllActiveByMemberId(member.getMemberId(), watchC.getWatchId(), 10);
+
+    // then
+    assertThat(result)
+        .extracting(Watch::getWatchId)
+        .containsExactly(watchB.getWatchId(), watchA.getWatchId());
+  }
+
   private Member createMember(String loginId) {
     return memberJpaRepository.save(Member.create(loginId, "password", loginId + "-nickname"));
   }
 
   private Auction createAuction(Member sellerMember, String cardName) {
+    return createAuction(sellerMember, cardName, AuctionStatus.SCHEDULED);
+  }
+
+  private Auction createAuction(Member sellerMember, String cardName, AuctionStatus auctionStatus) {
     Card card =
         cardJpaRepository.save(
             Card.builder()
@@ -110,7 +163,7 @@ class WatchRepositoryIntegrationTest {
         Auction.builder()
             .consignment(consignment)
             .startedAt(LocalDateTime.now().plusDays(1))
-            .auctionStatus(AuctionStatus.SCHEDULED)
+            .auctionStatus(auctionStatus)
             .startingPrice(10000L)
             .reservePrice(15000L)
             .bidIncrement(500L)
