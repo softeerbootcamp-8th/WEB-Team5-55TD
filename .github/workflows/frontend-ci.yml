@@ -20,6 +20,10 @@ on:
         description: '빌드 산출물(dist)을 아티팩트로 업로드할지 여부 (CD에서 사용)'
         type: boolean
         default: false
+      ref:
+        description: '체크아웃할 커밋/브랜치. 비우면 이 워크플로를 호출한 컨텍스트의 기본 ref를 쓴다.'
+        type: string
+        required: false
 
 # PR 에 커밋을 연달아 푸시하면 이전 실행은 의미가 없으므로 취소한다.
 # 단 CD 가 workflow_call 로 부른 실행은 취소되면 안 된다.
@@ -44,6 +48,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       # packageManager 필드("pnpm@11.15.1")에서 버전을 읽는다.
       # 저장소 루트에는 package.json 이 없으므로 경로를 명시해야 한다.
