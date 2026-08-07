@@ -36,8 +36,8 @@ import org.springframework.test.context.ActiveProfiles;
  * SettlementService의 정산 처리를 실제 DB 트랜잭션과 락으로 검증한다.
  *
  * <p>{@code SettlementServiceTest}는 Mockito로 락 획득 순서만 검증하지만, 여기서는 실제 비관적 락({@code
- * PointJpaRepository#findByMemberIdForUpdate})과 {@code settlement} 테이블의 유니크 제약이 걸린 채로 서로 다른
- * 트랜잭션이 동시에 부딛혔을 때도 교착상태 없이 끝나고 최종 데이터가 정확한지 확인한다.
+ * PointJpaRepository#findByMemberIdForUpdate})과 {@code settlement} 테이블의 유니크 제약이 걸린 채로 서로 다른 트랜잭션이
+ * 동시에 부딛혔을 때도 교착상태 없이 끝나고 최종 데이터가 정확한지 확인한다.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -113,8 +113,10 @@ class SettlementConcurrencyTest {
 
     // then: 제한 시간 내에 둘 다 성공적으로 끝나야 한다(교착상태였다면 timeout 되어 예외가 발생한다)
     assertThat(results).containsOnly("SUCCESS");
-    long balanceA = pointJpaRepository.findByMemberId(memberA.getMemberId()).orElseThrow().getBalance();
-    long balanceB = pointJpaRepository.findByMemberId(memberB.getMemberId()).orElseThrow().getBalance();
+    long balanceA =
+        pointJpaRepository.findByMemberId(memberA.getMemberId()).orElseThrow().getBalance();
+    long balanceB =
+        pointJpaRepository.findByMemberId(memberB.getMemberId()).orElseThrow().getBalance();
     assertThat(balanceA).isEqualTo(100_000L - priceAWins + priceBWins);
     assertThat(balanceB).isEqualTo(100_000L + priceAWins - priceBWins);
     assertThat(settlementJpaRepository.findAll())

@@ -15,11 +15,11 @@ import org.springframework.stereotype.Component;
  * DomainEvent}/{@code EventHandler}를 몰라도 되게 한다. {@code RestController}가 HTTP 요청/응답을 다루고 {@code
  * Service}는 순수 비즈니스 로직만 다루는 것과 같은 이유다.
  *
- * <p>인스턴스가 여러 대면 같은 경매의 정산 이벤트가 서로 다른 인스턴스에서 동시에 처리될 수 있다. 이때 뒤늦은 쪽은 {@code settlement}
- * 테이블의 유니크 제약에 걸려 {@link DataIntegrityViolationException}과 함께 트랜잭션 전체가 롤백된다({@link
- * SettlementService} 참고). 이는 실패가 아니라 다른 인스턴스가 이미 같은 정산을 끝냈다는 신호이므로, 트랜잭션이 이미 안전하게 롤백된 이 시점(트랜잭션
- * 경계 밖)에서 잡아 정상 소비로 처리한다. 여기서 잡지 않으면 {@code SQSEventConsumer}가 이를 알 수 없는 실패로 보고 error 로그(Slack
- * 알림)를 남기고 메시지 그룹을 막아, 자기 치유되는 경합인데도 소음과 지연을 만든다.
+ * <p>인스턴스가 여러 대면 같은 경매의 정산 이벤트가 서로 다른 인스턴스에서 동시에 처리될 수 있다. 이때 뒤늦은 쪽은 {@code settlement} 테이블의 유니크
+ * 제약에 걸려 {@link DataIntegrityViolationException}과 함께 트랜잭션 전체가 롤백된다({@link SettlementService} 참고).
+ * 이는 실패가 아니라 다른 인스턴스가 이미 같은 정산을 끝냈다는 신호이므로, 트랜잭션이 이미 안전하게 롤백된 이 시점(트랜잭션 경계 밖)에서 잡아 정상 소비로 처리한다. 여기서
+ * 잡지 않으면 {@code SQSEventConsumer}가 이를 알 수 없는 실패로 보고 error 로그(Slack 알림)를 남기고 메시지 그룹을 막아, 자기 치유되는
+ * 경합인데도 소음과 지연을 만든다.
  */
 @Slf4j
 @Component
