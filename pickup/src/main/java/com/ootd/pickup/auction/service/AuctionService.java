@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -176,7 +175,10 @@ public class AuctionService {
         try {
           redisTemplate
               .opsForValue()
-              .set(FEATURED_AUCTION_CACHE_KEY, String.valueOf(featured.getAuctionId()), Duration.ofSeconds(10));
+              .set(
+                  FEATURED_AUCTION_CACHE_KEY,
+                  String.valueOf(featured.getAuctionId()),
+                  Duration.ofSeconds(10));
         } catch (Exception ignored) {
         }
       }
