@@ -19,6 +19,7 @@ import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
 import com.ootd.pickup.point.repository.PointReservationRepository;
 import com.ootd.pickup.point.repository.PointTransactionRepository;
+import com.ootd.pickup.point.service.PointLockService;
 import com.ootd.pickup.settlement.domain.Settlement;
 import com.ootd.pickup.settlement.domain.SettlementType;
 import com.ootd.pickup.settlement.repository.SettlementRepository;
@@ -51,6 +52,7 @@ class SettlementServiceTest {
 
   @BeforeEach
   void setUp() {
+    PointLockService pointLockService = new PointLockService(pointRepository);
     settlementService =
         new SettlementService(
             auctionManageService,
@@ -58,6 +60,7 @@ class SettlementServiceTest {
             pointRepository,
             pointReservationRepository,
             pointTransactionRepository,
+            pointLockService,
             settlementRepository);
   }
 

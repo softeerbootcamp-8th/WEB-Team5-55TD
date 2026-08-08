@@ -1,11 +1,9 @@
 package com.ootd.pickup.settlement.service;
 
-import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 import static com.ootd.pickup.point.domain.PointReservationStatus.ACTIVE;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.service.AuctionManageService;
-import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import com.ootd.pickup.point.domain.Point;
@@ -14,13 +12,11 @@ import com.ootd.pickup.point.domain.PointTransaction;
 import com.ootd.pickup.point.repository.PointRepository;
 import com.ootd.pickup.point.repository.PointReservationRepository;
 import com.ootd.pickup.point.repository.PointTransactionRepository;
+import com.ootd.pickup.point.service.PointLockService;
 import com.ootd.pickup.settlement.domain.Settlement;
 import com.ootd.pickup.settlement.domain.SettlementType;
 import com.ootd.pickup.settlement.repository.SettlementRepository;
 import java.util.Arrays;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,9 +46,9 @@ import org.springframework.transaction.annotation.Transactional;
  * 트랜잭션이 이미 같은 정산을 끝냈다는 신호이므로, 트랜잭션 경계 밖인 {@code SettlementEventHandler}가 이 예외를 "이미 처리됨"으로 해석해 메시지를
  * 정상 소비 처리한다.
  *
- * <p>포인트 잔액 갱신은 {@link PointRepository#findByMemberIdForUpdate}로 행 락을 잡는다. 서로 다른 경매의 정산이 동시에 처리되며
- * 같은 회원의 포인트를 건드릴 수 있어, 락 없이는 동시 갱신 하나가 유실될 수 있다(lost update). 또한 두 회원의 락을 잡는 순서가 경매마다 "낙찰자 먼저"로
- * 고정돼 있으면, 경매 A는 회원1→회원2, 경매 B는 회원2→회원1 순으로 잠그려 할 때 교착상태가 날 수 있으므로 항상 memberId 오름차순으로 잠근다.
+ * <p>포인트 잔액 갱신은 {@link PointLockService}를 통해 행 락을 잡는다. 서로 다른 경매의 정산이 동시에 처리되며 같은 회원의 포인트를 건드릴 수 있어,
+ * 락 없이는 동시 갱신 하나가 유실될 수 있다(lost update). 또한 두 회원의 락을 잡는 순서가 경매마다 "낙찰자 먼저"로 고정돼 있으면, 경매 A는 회원1→회원2,
+ * 경매 B는 회원2→회원1 순으로 잠그려 할 때 교착상태가 날 수 있으므로 {@code PointLockService}가 항상 memberId 오름차순으로 잠근다.
  */
 @Service
 @RequiredArgsConstructor
@@ -65,6 +61,7 @@ public class SettlementService {
   private final PointRepository pointRepository;
   private final PointReservationRepository pointReservationRepository;
   private final PointTransactionRepository pointTransactionRepository;
+  private final PointLockService pointLockService;
   private final SettlementRepository settlementRepository;
 
   @Transactional
@@ -96,7 +93,7 @@ public class SettlementService {
     PointReservation reservation =
         pointReservationRepository.findByAuctionIdForUpdate(auctionId).orElse(null);
     Map<Long, Point> points =
-        lockPoints(
+        pointLockService.lockPoints(
             Arrays.asList(
                 winnerSettled ? winnerMemberId : null, sellerSettled ? sellerMemberId : null));
 
@@ -133,16 +130,6 @@ public class SettlementService {
     return alreadySettled;
   }
 
-  private Map<Long, Point> lockPoints(List<Long> memberIds) {
-    Map<Long, Point> points = new LinkedHashMap<>();
-    memberIds.stream()
-        .filter(java.util.Objects::nonNull)
-        .distinct()
-        .sorted(Comparator.naturalOrder())
-        .forEach(memberId -> points.put(memberId, getPointForUpdate(memberId)));
-    return points;
-  }
-
   private void payWinningBid(
       Auction auction, Member winner, Point point, PointReservation reservation, long amount) {
     if (reservation == null) {
@@ -170,11 +157,5 @@ public class SettlementService {
     pointRepository.save(point);
     pointTransactionRepository.save(
         PointTransaction.forAuctionPayout(seller, amount, point.getBalance(), auction));
-  }
-
-  private Point getPointForUpdate(Long memberId) {
-    return pointRepository
-        .findByMemberIdForUpdate(memberId)
-        .orElseThrow(() -> new PickUpException(POINT_NOT_FOUND));
   }
 }

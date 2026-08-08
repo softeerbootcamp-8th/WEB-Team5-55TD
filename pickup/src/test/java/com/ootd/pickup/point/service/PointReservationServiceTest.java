@@ -35,8 +35,9 @@ class PointReservationServiceTest {
 
   @BeforeEach
   void setUp() {
+    PointLockService pointLockService = new PointLockService(pointRepository);
     pointReservationService =
-        new PointReservationService(pointRepository, pointReservationRepository);
+        new PointReservationService(pointRepository, pointReservationRepository, pointLockService);
   }
 
   @Test

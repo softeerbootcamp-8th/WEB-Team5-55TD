@@ -45,7 +45,6 @@ import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.domain.PointTransaction;
-import com.ootd.pickup.point.domain.PointTransactionType;
 import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
 import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import com.ootd.pickup.point.repository.PointRepository;
@@ -330,12 +329,10 @@ class MemberServiceTest {
     // given
     Member member = Member.create("pickup-user", "password-hash", "픽업회원");
     ReflectionTestUtils.setField(member, "memberId", 1L);
-    PointTransaction newest =
-        PointTransaction.create(
-            member, PointTransactionType.AUCTION_PAYOUT, 1_000L, 3_000L, null, "payout:3");
-    PointTransaction next =
-        PointTransaction.create(
-            member, PointTransactionType.AUCTION_PAYMENT, -500L, 2_000L, null, "payment:2");
+    Auction auction = Auction.builder().build();
+    ReflectionTestUtils.setField(auction, "auctionId", 1L);
+    PointTransaction newest = PointTransaction.forAuctionPayout(member, 1_000L, 3_000L, auction);
+    PointTransaction next = PointTransaction.forAuctionPayment(member, 500L, 2_000L, auction);
     ReflectionTestUtils.setField(newest, "pointTransactionId", 3L);
     ReflectionTestUtils.setField(next, "pointTransactionId", 2L);
     given(pointTransactionRepository.findAllByMemberId(1L, null, 2))

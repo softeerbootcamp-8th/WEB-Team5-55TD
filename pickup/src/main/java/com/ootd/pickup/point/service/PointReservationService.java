@@ -1,7 +1,6 @@
 package com.ootd.pickup.point.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.INSUFFICIENT_BID_LIMIT;
-import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.bid.domain.Bid;
@@ -13,8 +12,6 @@ import com.ootd.pickup.point.domain.PointReservationStatus;
 import com.ootd.pickup.point.repository.PointRepository;
 import com.ootd.pickup.point.repository.PointReservationRepository;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +25,7 @@ public class PointReservationService {
 
   private final PointRepository pointRepository;
   private final PointReservationRepository pointReservationRepository;
+  private final PointLockService pointLockService;
 
   @Transactional
   public void validateAvailable(Auction auction, Member bidder, long amount) {
@@ -39,7 +37,7 @@ public class PointReservationService {
         && reservation.getReservationStatus() == PointReservationStatus.ACTIVE) {
       memberIds.add(reservation.getMember().getMemberId());
     }
-    Map<Long, Point> points = lockPoints(memberIds);
+    Map<Long, Point> points = pointLockService.lockPoints(memberIds);
     Point bidderPoint = points.get(bidder.getMemberId());
     long reusableReservation =
         reservation != null
@@ -63,7 +61,7 @@ public class PointReservationService {
         && reservation.getReservationStatus() == PointReservationStatus.ACTIVE) {
       memberIds.add(reservation.getMember().getMemberId());
     }
-    Map<Long, Point> points = lockPoints(memberIds);
+    Map<Long, Point> points = pointLockService.lockPoints(memberIds);
 
     Point bidderPoint = points.get(bidder.getMemberId());
     if (reservation == null) {
@@ -92,27 +90,13 @@ public class PointReservationService {
         .filter(reservation -> reservation.getReservationStatus() == PointReservationStatus.ACTIVE)
         .ifPresent(
             reservation -> {
-              Point point = getPointForUpdate(reservation.getMember().getMemberId());
+              Point point =
+                  pointLockService.getPointForUpdate(reservation.getMember().getMemberId());
               point.release(reservation.getAmount());
               reservation.release();
               pointRepository.save(point);
               pointReservationRepository.save(reservation);
             });
-  }
-
-  private Map<Long, Point> lockPoints(List<Long> memberIds) {
-    Map<Long, Point> points = new LinkedHashMap<>();
-    memberIds.stream()
-        .distinct()
-        .sorted(Comparator.naturalOrder())
-        .forEach(memberId -> points.put(memberId, getPointForUpdate(memberId)));
-    return points;
-  }
-
-  private Point getPointForUpdate(Long memberId) {
-    return pointRepository
-        .findByMemberIdForUpdate(memberId)
-        .orElseThrow(() -> new PickUpException(POINT_NOT_FOUND));
   }
 
   private void reserve(Point point, long amount) {
