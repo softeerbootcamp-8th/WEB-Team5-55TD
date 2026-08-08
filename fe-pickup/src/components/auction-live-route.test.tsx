@@ -41,19 +41,13 @@ vi.mock("@/api/auctions", () => ({ getAuctionDetail: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ useIsAuthenticated: () => true }));
 
 describe("실시간 경매 라우트", () => {
-  it("현재가와 입찰 입력을 표시한다", async () => {
+  it("현재가와 최소 입찰가 입력을 표시한다", async () => {
     const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
     expect(screen.getByRole("heading", { name: "Mewtwo" })).toBeInTheDocument();
     expect(screen.getByText("10,000원")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("10,500 이상")).toBeInTheDocument();
-  });
-
-  it("최소 입찰가보다 낮은 금액은 제출할 수 없다", async () => {
-    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
-    const Component = Route.options.component as ComponentType;
-    render(<Component />);
     fireEvent.change(screen.getByPlaceholderText("10,500 이상"), {
       target: { value: "10000" },
     });
