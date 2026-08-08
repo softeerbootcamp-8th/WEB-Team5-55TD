@@ -11,7 +11,8 @@ function TabsList({
   return (
     <TabsPrimitive.List
       className={cn(
-        "inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-[var(--color-surface-2)] p-1",
+        "inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-[var(--radius-pill)] bg-[var(--color-surface-2)] p-1",
+        "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
       {...props}
@@ -26,7 +27,7 @@ function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "inline-flex items-center justify-center rounded-[var(--radius-pill)] px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+        "inline-flex shrink-0 items-center justify-center rounded-[var(--radius-pill)] px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
         "text-[var(--color-text-sub)] outline-none",
         "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
         "disabled:pointer-events-none disabled:opacity-50",

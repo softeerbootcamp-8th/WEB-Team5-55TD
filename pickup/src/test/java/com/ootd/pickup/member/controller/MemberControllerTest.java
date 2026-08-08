@@ -9,13 +9,21 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
+import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
+import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
 import com.ootd.pickup.global.auth.Authentication;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.service.MemberService;
+import com.ootd.pickup.member.service.ProfileApplicationService;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -32,6 +40,8 @@ class MemberControllerTest {
   @Autowired private ObjectMapper objectMapper;
 
   @MockitoBean private MemberService memberService;
+
+  @MockitoBean private ProfileApplicationService profileApplicationService;
 
   @MockitoBean private SlackErrorNotifier slackErrorNotifier;
 
@@ -80,7 +90,7 @@ class MemberControllerTest {
     // given
     UpdateMyProfileRequest request = new UpdateMyProfileRequest("라이츄회원", null, null, null);
     MyProfileResponse response = new MyProfileResponse(1L, "pickup-user", "라이츄회원", null);
-    given(memberService.updateMyProfile(1L, request)).willReturn(response);
+    given(profileApplicationService.updateMyProfile(1L, request)).willReturn(response);
 
     // when & then
     mockMvc
@@ -93,7 +103,7 @@ class MemberControllerTest {
         .andExpect(jsonPath("$.nickname").value("라이츄회원"))
         .andExpect(jsonPath("$.joinedAt").doesNotExist());
 
-    then(memberService).should().updateMyProfile(1L, request);
+    then(profileApplicationService).should().updateMyProfile(1L, request);
   }
 
   @Test
@@ -182,6 +192,56 @@ class MemberControllerTest {
   void 인증정보가_없으면_내_정보_조회는_401을_반환한다() throws Exception {
     // given & when & then
     mockMvc.perform(get("/members/me")).andExpect(status().isUnauthorized());
+
+    then(memberService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 인증된_회원이_관심목록을_조회하면_200과_관심경매목록을_반환한다() throws Exception {
+    // given
+    AuctionListItemResponse item =
+        new AuctionListItemResponse(
+            10L,
+            2L,
+            new GetCardDetailResponse(
+                1L,
+                "리자몽 1st Edition Holo",
+                "Base Set",
+                "4/102",
+                "일본어",
+                "홀로 레어",
+                "https://example.com/card.png"),
+            "PSA 10",
+            AuctionStatus.SCHEDULED,
+            10_000L,
+            null,
+            LocalDateTime.of(2026, 8, 10, 12, 0),
+            null,
+            null,
+            3L,
+            true,
+            "https://example.com/thumb.png");
+    CursorPageResponse<AuctionListItemResponse, String> response =
+        CursorPageResponse.from(List.of(item), false, null);
+    given(memberService.getMyWatches(1L, new GetMyWatchesRequest(null, 20))).willReturn(response);
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/members/me/watches")
+                .param("size", "20")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.items[0].auctionId").value(10L))
+        .andExpect(jsonPath("$.items[0].auctionStatus").value("SCHEDULED"))
+        .andExpect(jsonPath("$.items[0].watched").value(true));
+  }
+
+  @Test
+  void 인증정보가_없으면_관심목록_조회는_401을_반환한다() throws Exception {
+    // given & when & then
+    mockMvc.perform(get("/members/me/watches")).andExpect(status().isUnauthorized());
 
     then(memberService).shouldHaveNoInteractions();
   }

@@ -10,6 +10,11 @@ spring:
     username: ${DB_USERNAME:pickup}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: pickup-pool
+      register-mbeans: true
+      data-source-properties:
+        rewriteBatchedStatements: true
   jpa:
     open-in-view: false
     hibernate:
@@ -17,6 +22,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        jdbc:
+          batch_size: 100
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -24,6 +31,12 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:1s}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
+  task:
+    scheduling:
+      pool:
+        size: 2
 auth:
   token:
     issuer: ${JWT_ISSUER:pickup}
@@ -35,3 +48,32 @@ slack:
   enabled: ${SLACK_ENABLED:false}
   bot-token: ${SLACK_BOT_TOKEN:}
   channel: ${SLACK_CHANNEL:}
+
+scheduler:
+  enabled: ${SCHEDULER_ENABLED:true}
+  auction:
+    enabled: ${SCHEDULER_AUCTION_ENABLED:true}
+    fixed-delay: ${SCHEDULER_AUCTION_FIXED_DELAY:1s}
+  outbox:
+    enabled: ${SCHEDULER_OUTBOX_ENABLED:false}
+    fixed-delay: ${SCHEDULER_OUTBOX_FIXED_DELAY:1s}
+
+event:
+  sqs:
+    enabled: ${EVENT_SQS_ENABLED:false}
+    queue-url: ${EVENT_SQS_QUEUE_URL:}
+    region: ${EVENT_SQS_REGION:ap-northeast-2}
+    wait-time: ${EVENT_SQS_WAIT_TIME:20s}
+    visibility-timeout: ${EVENT_SQS_VISIBILITY_TIMEOUT:30s}
+    max-messages: ${EVENT_SQS_MAX_MESSAGES:10}
+
+image:
+  storage:
+    bucket: ${IMAGE_STORAGE_BUCKET:}
+    region: ${IMAGE_STORAGE_REGION:}
+    media-base-url: ${IMAGE_MEDIA_BASE_URL:}
+    upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}
+
+realtime:
+  websocket:
+    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS}

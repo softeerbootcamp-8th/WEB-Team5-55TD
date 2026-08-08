@@ -26,7 +26,8 @@ public record AuctionListItemResponse(
       Certificate certificate,
       String thumbnailUrl,
       long watchCount,
-      boolean watched) {
+      boolean watched,
+      Long currentPrice) {
     return new AuctionListItemResponse(
         auction.getAuctionId(),
         auction.getConsignment().getConsignmentId(),
@@ -34,8 +35,7 @@ public record AuctionListItemResponse(
         certificate != null ? certificate.getGradeDisplay() : null,
         auction.getAuctionStatus(),
         auction.getStartingPrice(),
-        // TODO: Bid 도메인 도입 후 현재 최고 입찰가로 교체
-        null,
+        currentPrice,
         auction.getStartedAt(),
         auction.getEndedAt(),
         auction.getRemainingSeconds(),

@@ -1,10 +1,13 @@
 package com.ootd.pickup.consignments.api;
 
+import com.ootd.pickup.consignments.dto.request.GetMyConsignmentsRequest;
 import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
+import com.ootd.pickup.consignments.dto.response.GetMyConsignmentsResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
 import com.ootd.pickup.global.config.SwaggerConfig;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,6 +18,7 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Consignment", description = "상품 등록 API")
@@ -50,8 +54,8 @@ public interface ConsignmentApi {
                             "inspectedAt": "2026-06-30"
                           },
                           "images": [
-                            { "imageUrl": "https://example.com/cards/10-front.png" },
-                            { "imageUrl": "https://example.com/cards/10-back.png" }
+                            { "temporaryObjectKey": "uploads/1/consignments/00000000-0000-0000-0000-000000000001.jpg" },
+                            { "temporaryObjectKey": "uploads/1/consignments/00000000-0000-0000-0000-000000000002.jpg" }
                           ]
                         }
                         """))),
@@ -113,6 +117,72 @@ public interface ConsignmentApi {
       RegisterConsignmentRequest registerConsignmentRequest);
 
   @Operation(
+      summary = "내 상품 목록 조회",
+      description =
+          """
+            내가 등록한 상품 목록을 판매 상태(status)로 필터링하여 조회합니다.
+            상품 ID 내림차순으로 조회하며, 다음 페이지 조회 시 이전 응답의 cursor를 전달합니다.
+            """,
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "내 상품 목록 조회 성공",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = CursorPageResponse.class),
+                    examples =
+                        @ExampleObject(
+                            name = "내 상품 목록 조회 결과",
+                            value =
+                                """
+                            {
+                              "hasNext": true,
+                              "cursor": 99,
+                              "size": 1,
+                              "items": [
+                                {
+                                  "consignmentId": 100,
+                                  "auctionId": null,
+                                  "card": {
+                                    "cardId": 10,
+                                    "cardName": "리자몽 1st Edition Holo",
+                                    "setName": "Base Set",
+                                    "cardNumber": "4/102",
+                                    "language": "일본어",
+                                    "rarity": "MINT",
+                                    "imageUrl": "https://example.com/cards/10.png"
+                                  },
+                                  "sellerMemberId": 1,
+                                  "majorDefect": "모서리에 약간의 마모",
+                                  "status": "REGISTERABLE",
+                                  "certificate": {
+                                    "certificateId": 200,
+                                    "serialNumber": "PSA-84213907",
+                                    "certificationBody": "PSA",
+                                    "grade": "10",
+                                    "gradeCode": "GEM_MINT",
+                                    "inspectedAt": "2026-06-30"
+                                  }
+                                }
+                              ]
+                            }
+                            """))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "잘못된 조회 조건 (필수 파라미터 누락, 유효하지 않은 상태 값 등)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증이 필요함 (access-token 쿠키 없음/만료)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<CursorPageResponse<GetMyConsignmentsResponse, Long>> getMyConsignments(
+      @Parameter(hidden = true) Long sellerMemberId,
+      @ParameterObject GetMyConsignmentsRequest getMyConsignmentsRequest);
+
+  @Operation(
       summary = "상품 상세 조회",
       description = "상품 ID로 상품 상세 정보를 조회합니다.",
       responses = {
@@ -150,8 +220,8 @@ public interface ConsignmentApi {
                                 "inspectedAt": "2026-06-30"
                               },
                               "images": [
-                                { "productImageId": 1, "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
-                                { "productImageId": 2, "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
+                                { "consignmentImageId": 1, "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
+                                { "consignmentImageId": 2, "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
                               ],
                               "auctionRegistered": false
                             }
@@ -168,7 +238,10 @@ public interface ConsignmentApi {
       summary = "상품 정보 수정",
       description =
           """
-            상품의 major defect, 감정서, 이미지 목록(전체 교체)을 수정합니다.
+            상품의 major defect, 감정서, 이미지 목록을 수정합니다.
+            images는 수정 후 남길 최종 이미지 목록입니다. 기존 이미지는 consignmentImageId로 유지하고
+            새 이미지는 temporaryObjectKey로 추가하며, 목록에서 빠진 기존 이미지는 삭제합니다.
+            배열 순서가 최종 이미지 순서가 됩니다.
             경매 신청 이후(AUCTION_SCHEDULED)/진행 중(AUCTION_ONGOING)/낙찰 완료(WON) 상태에서는 수정할 수 없습니다.
             """,
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
@@ -192,8 +265,8 @@ public interface ConsignmentApi {
                             "inspectedAt": "2026-06-30"
                           },
                           "images": [
-                            { "imageUrl": "https://example.com/cards/10-front.png" },
-                            { "imageUrl": "https://example.com/cards/10-back.png" }
+                            { "consignmentImageId": 1 },
+                            { "temporaryObjectKey": "uploads/1/consignments/00000000-0000-0000-0000-000000000003.jpg" }
                           ]
                         }
                         """))),
@@ -232,8 +305,8 @@ public interface ConsignmentApi {
                                 "inspectedAt": "2026-06-30"
                               },
                               "images": [
-                                { "productImageId": 3, "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
-                                { "productImageId": 4, "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
+                                { "consignmentImageId": 1, "imageOrder": 1, "imageUrl": "https://example.com/cards/10-front.png" },
+                                { "consignmentImageId": 3, "imageOrder": 2, "imageUrl": "https://example.com/cards/10-back.png" }
                               ],
                               "auctionRegistered": false
                             }

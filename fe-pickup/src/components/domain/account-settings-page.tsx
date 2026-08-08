@@ -13,6 +13,15 @@ import type {
   MyProfileResponse,
   UpdateMyProfileRequest,
 } from "@/api/generated/model";
+import {
+  CreateImageUploadRequestPurpose,
+  ProfileImageUpdateRequestAction,
+} from "@/api/generated/model";
+import {
+  IMAGE_ACCEPT,
+  getImageValidationError,
+  uploadImage,
+} from "@/api/image-upload";
 import { Avatar } from "@/components/domain/avatar";
 import { PageContainer } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
@@ -98,13 +107,16 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState(profile.profileImageUrl);
   const [isAvatarChanged, setIsAvatarChanged] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [nickname, setNicknameInput] = useState(profile.nickname ?? "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const nicknameValid = nickname.length >= 4;
+  const normalizedNickname = nickname.trim();
+  const nicknameValid = normalizedNickname.length >= 4;
   const passwordTouched =
     currentPassword.length > 0 ||
     newPassword.length > 0 ||
@@ -118,7 +130,7 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
   const passwordValid =
     !passwordTouched ||
     (!currentPasswordTooShort && !newPasswordTooShort && !passwordMismatch);
-  const nicknameChanged = nickname !== profile.nickname;
+  const nicknameChanged = normalizedNickname !== profile.nickname;
   const hasServerChanges = nicknameChanged || passwordTouched;
   const hasChanges = hasServerChanges || isAvatarChanged;
   const valid = nicknameValid && passwordValid && hasChanges;
@@ -128,6 +140,10 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
       onSuccess: (updatedProfile) => {
         queryClient.setQueryData(getGetMyProfileQueryKey(), updatedProfile);
         if (updatedProfile.nickname) setNickname(updatedProfile.nickname);
+        setAvatarUrl(updatedProfile.profileImageUrl);
+        setAvatarFile(null);
+        setIsAvatarChanged(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         setCurrentPassword("");
         setNewPassword("");
         setNewPasswordConfirm("");
@@ -139,14 +155,23 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
       },
     },
   });
+  const isSaving = isUploadingAvatar || updateProfileMutation.isPending;
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const validationError = getImageValidationError(file);
+    if (validationError) {
+      toast.error(validationError);
+      event.currentTarget.value = "";
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       setAvatarUrl(reader.result as string);
+      setAvatarFile(file);
       setIsAvatarChanged(true);
     };
     reader.readAsDataURL(file);
@@ -154,24 +179,47 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
 
   const resetAvatar = () => {
     setAvatarUrl(undefined);
+    setAvatarFile(null);
     setIsAvatarChanged(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!valid || updateProfileMutation.isPending) return;
-
-    if (isAvatarChanged) {
-      toast.info("프로필 이미지 저장 기능은 준비 중입니다.");
-    }
-
-    if (!hasServerChanges) return;
+    if (!valid || isSaving) return;
 
     const request: UpdateMyProfileRequest = {};
-    if (nicknameChanged) request.nickname = nickname;
+    if (nicknameChanged) request.nickname = normalizedNickname;
     if (passwordTouched) {
       request.currentPassword = currentPassword;
       request.password = newPassword;
+    }
+
+    if (isAvatarChanged) {
+      if (avatarFile) {
+        setIsUploadingAvatar(true);
+        try {
+          const temporaryObjectKey = await uploadImage(
+            avatarFile,
+            CreateImageUploadRequestPurpose.PROFILE,
+          );
+          request.profileImageUpdate = {
+            action: ProfileImageUpdateRequestAction.SET,
+            temporaryObjectKey,
+          };
+        } catch (error) {
+          setErrorMessage(
+            error instanceof Error ? error.message : UPDATE_ERROR_MESSAGE,
+          );
+          setIsUploadingAvatar(false);
+          return;
+        }
+        setIsUploadingAvatar(false);
+      } else {
+        request.profileImageUpdate = {
+          action: ProfileImageUpdateRequestAction.REMOVE,
+        };
+      }
     }
 
     updateProfileMutation.mutate({ data: request });
@@ -203,7 +251,7 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={IMAGE_ACCEPT}
               className="hidden"
               onChange={handleAvatarChange}
             />
@@ -301,10 +349,10 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
           <Button
             type="submit"
             size="lg"
-            disabled={!valid || updateProfileMutation.isPending}
+            disabled={!valid || isSaving}
             className="w-full"
           >
-            {updateProfileMutation.isPending ? "저장 중..." : "저장하기"}
+            {isSaving ? "저장 중..." : "저장하기"}
           </Button>
         </form>
       </CardContent>

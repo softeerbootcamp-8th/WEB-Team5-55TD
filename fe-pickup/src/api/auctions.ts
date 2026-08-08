@@ -39,6 +39,11 @@ interface AuctionPageResponse {
 
 export interface AuctionDetailView extends AuctionDetail {
   card?: CardResponse;
+  cardState?: string;
+  majorDefect?: string;
+  inspectedAt?: string;
+  /** 경매 전체의 낙찰 여부 (WON). 낙찰자가 조회자 본인인지는 백엔드가 아직 알려주지 않는다. */
+  won: boolean;
 }
 
 export type AuctionSort =
@@ -46,6 +51,7 @@ export type AuctionSort =
   | "PRICE_ASC"
   | "PRICE_DESC"
   | "ENDING_SOON"
+  | "STARTING_SOON"
   | "RECENT";
 
 export interface AuctionSearchParams {
@@ -81,12 +87,47 @@ function toSummary(item: AuctionListItemResponse): AuctionSummary {
     endsAt: item.endedAt ?? undefined,
     startsAt: item.startedAt ?? undefined,
     watchCount: item.watchCount,
+    watched: item.watched,
   };
 }
 
-export async function searchAuctions(
-  params: AuctionSearchParams,
-): Promise<{
+export interface CreateAuctionPayload {
+  consignmentId: string;
+  startingPrice: number;
+  reserve: number;
+  /** LocalDateTime 형식 (타임존 없이) — 예: "2026-08-01T10:00:00" */
+  scheduledStartAt: string;
+}
+
+interface CreateAuctionResponse {
+  auctionId: number;
+  consignmentId: number;
+  auctionStatus: ApiAuctionStatus;
+  startingPrice: number;
+  bidIncrement: number;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  winningBidId?: number | null;
+  winningPrice?: number | null;
+  createdAt: string;
+}
+
+export async function registerAuction(
+  payload: CreateAuctionPayload,
+): Promise<{ auctionId: string; bidIncrement: number }> {
+  const { data } = await axiosInstance.post<CreateAuctionResponse>(
+    "/auctions",
+    {
+      consignmentId: Number(payload.consignmentId),
+      startingPrice: payload.startingPrice,
+      reserve: payload.reserve,
+      scheduledStartAt: payload.scheduledStartAt,
+    },
+  );
+  return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
+}
+
+export async function searchAuctions(params: AuctionSearchParams): Promise<{
   items: AuctionSummary[];
   hasNext: boolean;
   cursor?: string;
@@ -111,6 +152,48 @@ export async function searchAuctions(
   };
 }
 
+/** 진행 중인 경매가 하나도 없으면(404) null을 반환한다. */
+export async function getFeaturedAuction(): Promise<AuctionSummary | null> {
+  try {
+    const { data } =
+      await axiosInstance.get<AuctionListItemResponse>("/auctions/featured");
+    return toSummary(data);
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "response" in error &&
+      (error as { response?: { status?: number } }).response?.status === 404
+    ) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+interface CertificateResponse {
+  certificateId: number;
+  serialNumber: string;
+  certificationBody: string;
+  grade: string;
+  inspectedAt?: string | null;
+}
+
+interface ConsignmentImageResponse {
+  consignmentImageId: number;
+  imageOrder: number;
+  imageUrl: string;
+}
+
+interface AuctionDetailResponse extends AuctionListItemResponse {
+  sellerNickname?: string | null;
+  certificate?: CertificateResponse | null;
+  images?: ConsignmentImageResponse[] | null;
+  cardState?: string | null;
+  majorDefect?: string | null;
+  bidIncrement?: number | null;
+}
+
 function isListItem(value: unknown): value is AuctionListItemResponse {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<AuctionListItemResponse>;
@@ -120,6 +203,38 @@ function isListItem(value: unknown): value is AuctionListItemResponse {
     typeof item.auctionStatus === "string" &&
     !!item.card
   );
+}
+
+/** 상세 응답에만 있는 images 배열 유무로 목록 항목과 구분한다. */
+function isDetailResponse(value: unknown): value is AuctionDetailResponse {
+  return (
+    isListItem(value) && Array.isArray((value as { images?: unknown }).images)
+  );
+}
+
+function toDetail(item: AuctionDetailResponse): AuctionDetailView {
+  const summary = toSummary(item);
+  const grade = item.certificate
+    ? {
+        agency: item.certificate.certificationBody as Grade["agency"],
+        score: item.certificate.grade,
+        serial: item.certificate.serialNumber,
+      }
+    : summary.grade;
+
+  return {
+    ...summary,
+    grade,
+    sellerNickname: item.sellerNickname ?? undefined,
+    minBidUnit: item.bidIncrement ?? Math.round(item.startingPrice * 0.05),
+    images: (item.images ?? []).map((image) => image.imageUrl),
+    bidCount: 0,
+    card: item.card,
+    cardState: item.cardState ?? undefined,
+    majorDefect: item.majorDefect ?? undefined,
+    inspectedAt: item.certificate?.inspectedAt ?? undefined,
+    won: item.auctionStatus === "WON",
+  };
 }
 
 function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
@@ -133,32 +248,30 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
     ),
     bidCount: 0,
     card: item.card,
+    won: item.auctionStatus === "WON",
   };
 }
 
 /**
- * 상세 API가 목록과 같은 중첩 응답을 반환하는 경우와 기존 프런트 스펙 응답을
- * 모두 지원한다. 현재 서버 브랜치에 상세 엔드포인트가 없는 동안에는 목록에서
- * 같은 경매를 찾아 상세 화면을 구성한다.
+ * 상세 API가 풍부한 상세 응답(certificate·images·cardState 등)을 반환하는 경우와
+ * 목록과 같은 중첩 응답을 반환하는 경우를 모두 지원한다. 상세 엔드포인트가 없는
+ * 서버(구 브랜치)에서는 목록에서 같은 경매를 찾아 상세 화면을 구성한다.
  */
 export async function getAuctionDetail(
   auctionId: string,
 ): Promise<AuctionDetailView> {
   try {
-    const { data } = await axiosInstance.get<unknown>(
-      `/auctions/${auctionId}`,
-    );
+    const { data } = await axiosInstance.get<unknown>(`/auctions/${auctionId}`);
+    if (isDetailResponse(data)) return toDetail(data);
     if (isListItem(data)) return detailFromListItem(data);
     return data as AuctionDetailView;
   } catch (error) {
-    if (
-      !(
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error &&
-        (error as { response?: { status?: number } }).response?.status === 404
-      )
-    ) {
+    if (!(
+      typeof error === "object" &&
+      error !== null &&
+      "response" in error &&
+      (error as { response?: { status?: number } }).response?.status === 404
+    )) {
       throw error;
     }
 
@@ -176,6 +289,7 @@ export async function getAuctionDetail(
       minBidUnit: Math.round((summary.startPrice ?? 0) * 0.05),
       images: summary.thumbnailUrl ? [summary.thumbnailUrl] : [],
       bidCount: 0,
+      won: false,
     };
   }
 }

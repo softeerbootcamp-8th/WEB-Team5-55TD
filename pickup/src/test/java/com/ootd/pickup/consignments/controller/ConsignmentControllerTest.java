@@ -11,15 +11,19 @@ import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.dto.request.CertificateRequest;
 import com.ootd.pickup.consignments.dto.request.ConsignmentImageRequest;
+import com.ootd.pickup.consignments.dto.request.GetMyConsignmentsRequest;
 import com.ootd.pickup.consignments.dto.request.ModifyConsignmentRequest;
 import com.ootd.pickup.consignments.dto.request.RegisterConsignmentRequest;
 import com.ootd.pickup.consignments.dto.response.CertificateResponse;
 import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
 import com.ootd.pickup.consignments.dto.response.GetConsignmentDetailResponse;
+import com.ootd.pickup.consignments.dto.response.GetMyConsignmentsResponse;
 import com.ootd.pickup.consignments.dto.response.RegisterConsignmentResponse;
+import com.ootd.pickup.consignments.service.ConsignmentApplicationService;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.auth.Authentication;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import java.time.LocalDate;
@@ -40,6 +44,8 @@ class ConsignmentControllerTest {
   @Autowired private ObjectMapper objectMapper;
 
   @MockitoBean private ConsignmentService consignmentService;
+
+  @MockitoBean private ConsignmentApplicationService consignmentApplicationService;
 
   @MockitoBean private SlackErrorNotifier slackErrorNotifier;
 
@@ -68,7 +74,9 @@ class ConsignmentControllerTest {
                 "10",
                 "GEM_MINT",
                 LocalDate.of(2026, 6, 30)));
-    given(consignmentService.registerConsignment(eq(1L), any(RegisterConsignmentRequest.class)))
+    given(
+            consignmentApplicationService.registerConsignment(
+                eq(1L), any(RegisterConsignmentRequest.class)))
         .willReturn(response);
 
     // when & then
@@ -137,10 +145,40 @@ class ConsignmentControllerTest {
   }
 
   @Test
+  void 이미지가_5장을_초과하면_400을_반환한다() throws Exception {
+    // given
+    RegisterConsignmentRequest request =
+        new RegisterConsignmentRequest(
+            10L,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("uploads/1/consignments/1.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/2.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/3.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/4.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/5.jpg"),
+                new ConsignmentImageRequest("uploads/1/consignments/6.jpg")));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 존재하지_않는_카드ID로_등록하면_404를_반환한다() throws Exception {
     // given
     RegisterConsignmentRequest request = createRequest();
-    given(consignmentService.registerConsignment(eq(1L), any(RegisterConsignmentRequest.class)))
+    given(
+            consignmentApplicationService.registerConsignment(
+                eq(1L), any(RegisterConsignmentRequest.class)))
         .willThrow(new PickUpException(CARD_NOT_FOUND));
 
     // when & then
@@ -152,6 +190,108 @@ class ConsignmentControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value(CARD_NOT_FOUND.getMessage()));
+  }
+
+  @Test
+  void 유효한_요청으로_내_상품_목록을_조회하면_200과_커서페이지를_반환한다() throws Exception {
+    // given
+    GetMyConsignmentsResponse item =
+        new GetMyConsignmentsResponse(
+            100L,
+            500L,
+            new GetCardDetailResponse(
+                10L,
+                "리자몽 1st Edition Holo",
+                "Base Set",
+                "4/102",
+                "일본어",
+                "MINT",
+                "https://image.example.com/card.png"),
+            1L,
+            "모서리에 약간의 마모",
+            ConsignmentStatus.REGISTERABLE,
+            new CertificateResponse(
+                200L,
+                "PSA-84213907",
+                CertificationBody.PSA,
+                "10",
+                "GEM_MINT",
+                LocalDate.of(2026, 6, 30)),
+            "https://image.example.com/consignment-thumbnail.png");
+    CursorPageResponse<GetMyConsignmentsResponse, Long> response =
+        new CursorPageResponse<>(true, 100L, 1, List.of(item));
+    given(consignmentService.getMyConsignments(eq(1L), any(GetMyConsignmentsRequest.class)))
+        .willReturn(response);
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .param("status", "REGISTERABLE")
+                .param("size", "1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hasNext").value(true))
+        .andExpect(jsonPath("$.cursor").value(100L))
+        .andExpect(jsonPath("$.items[0].consignmentId").value(100L))
+        .andExpect(jsonPath("$.items[0].auctionId").value(500L))
+        .andExpect(jsonPath("$.items[0].sellerMemberId").value(1L))
+        .andExpect(jsonPath("$.items[0].status").value("REGISTERABLE"))
+        .andExpect(jsonPath("$.items[0].card.cardId").value(10L))
+        .andExpect(jsonPath("$.items[0].certificate.certificateId").value(200L));
+  }
+
+  @Test
+  void 인증_없이_내_상품_목록을_조회하면_401을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(get("/consignments").param("status", "REGISTERABLE").param("size", "20"))
+        .andExpect(status().isUnauthorized());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 크기를_생략하고_내_상품_목록을_조회하면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(
+            get("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .param("status", "REGISTERABLE"))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void status를_생략하고_내_상품_목록을_조회하면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(
+            get("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .param("size", "20"))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 유효하지_않은_status로_내_상품_목록을_조회하면_400을_반환한다() throws Exception {
+    // given
+    given(consignmentService.getMyConsignments(eq(1L), any(GetMyConsignmentsRequest.class)))
+        .willThrow(new PickUpException(INVALID_CONSIGNMENT_STATUS));
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .param("status", "존재하지않는상태")
+                .param("size", "20"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(INVALID_CONSIGNMENT_STATUS.getMessage()));
   }
 
   @Test
@@ -194,7 +334,7 @@ class ConsignmentControllerTest {
         .andExpect(jsonPath("$.sellerMemberNickname").value("피카츄"))
         .andExpect(jsonPath("$.status").value("REGISTERABLE"))
         .andExpect(jsonPath("$.certificate.certificateId").value(200L))
-        .andExpect(jsonPath("$.images[0].productImageId").value(1L))
+        .andExpect(jsonPath("$.images[0].consignmentImageId").value(1L))
         .andExpect(jsonPath("$.images[0].imageOrder").value(1))
         .andExpect(jsonPath("$.images[1].imageOrder").value(2))
         .andExpect(jsonPath("$.auctionRegistered").value(false));
@@ -245,7 +385,7 @@ class ConsignmentControllerTest {
                 new ConsignmentImageResponse(4L, 2, "https://image.example.com/back.png")),
             false);
     given(
-            consignmentService.modifyConsignment(
+            consignmentApplicationService.modifyConsignment(
                 eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
         .willReturn(response);
 
@@ -307,7 +447,7 @@ class ConsignmentControllerTest {
     Long consignmentId = 100L;
     ModifyConsignmentRequest request = createModifyRequest();
     given(
-            consignmentService.modifyConsignment(
+            consignmentApplicationService.modifyConsignment(
                 eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
         .willThrow(new PickUpException(CONSIGNMENT_MODIFY_OWNER_MISMATCH));
 
@@ -328,7 +468,7 @@ class ConsignmentControllerTest {
     Long notExistConsignmentId = 999L;
     ModifyConsignmentRequest request = createModifyRequest();
     given(
-            consignmentService.modifyConsignment(
+            consignmentApplicationService.modifyConsignment(
                 eq(notExistConsignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
         .willThrow(new PickUpException(CONSIGNMENT_NOT_FOUND));
 
@@ -349,7 +489,7 @@ class ConsignmentControllerTest {
     Long consignmentId = 100L;
     ModifyConsignmentRequest request = createModifyRequest();
     given(
-            consignmentService.modifyConsignment(
+            consignmentApplicationService.modifyConsignment(
                 eq(consignmentId), eq(1L), any(ModifyConsignmentRequest.class)))
         .willThrow(new PickUpException(CONSIGNMENT_NOT_MODIFIABLE));
 
@@ -376,7 +516,7 @@ class ConsignmentControllerTest {
                 .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
         .andExpect(status().isNoContent());
 
-    then(consignmentService).should().deleteConsignment(consignmentId, 1L);
+    then(consignmentApplicationService).should().deleteConsignment(consignmentId, 1L);
   }
 
   @Test
@@ -397,7 +537,7 @@ class ConsignmentControllerTest {
     // given
     Long consignmentId = 100L;
     willThrow(new PickUpException(CONSIGNMENT_DELETE_OWNER_MISMATCH))
-        .given(consignmentService)
+        .given(consignmentApplicationService)
         .deleteConsignment(consignmentId, 1L);
 
     // when & then
@@ -414,7 +554,7 @@ class ConsignmentControllerTest {
     // given
     Long notExistConsignmentId = 999L;
     willThrow(new PickUpException(CONSIGNMENT_NOT_FOUND))
-        .given(consignmentService)
+        .given(consignmentApplicationService)
         .deleteConsignment(notExistConsignmentId, 1L);
 
     // when & then
@@ -431,7 +571,7 @@ class ConsignmentControllerTest {
     // given
     Long consignmentId = 100L;
     willThrow(new PickUpException(CONSIGNMENT_NOT_DELETABLE))
-        .given(consignmentService)
+        .given(consignmentApplicationService)
         .deleteConsignment(consignmentId, 1L);
 
     // when & then

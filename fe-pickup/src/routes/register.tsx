@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createMember } from "@/api/generated/member/member";
 import type { ExceptionResponse, MemberRequest } from "@/api/generated/model";
+import { Logo } from "@/components/logo";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
@@ -25,9 +26,9 @@ function RegisterPage() {
     passwordConfirm.length > 0 && password !== passwordConfirm;
 
   const valid =
-    username.length >= 4 &&
-    nickname.length >= 4 &&
-    password.length >= 4 &&
+    username.trim().length >= 4 &&
+    nickname.trim().length >= 4 &&
+    password.trim().length >= 4 &&
     password === passwordConfirm;
 
   const { mutate, isPending } = useMutation({
@@ -46,7 +47,7 @@ function RegisterPage() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid || isPending) return;
-    mutate({ loginId: username, nickname, password });
+    mutate({ loginId: username.trim(), nickname: nickname.trim(), password });
   };
 
   return (
@@ -56,7 +57,7 @@ function RegisterPage() {
     >
       <div className="flex flex-col gap-4">
         <Link to="/home" className="flex items-center gap-2 self-start">
-          <span className="inline-block size-6 rounded-[6px] bg-primary" />
+          <Logo role="buyer" className="size-6" />
           <span className="text-lg font-bold">PickUp</span>
         </Link>
         <div className="flex flex-col gap-1">

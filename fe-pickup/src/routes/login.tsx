@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { login } from "@/api/generated/authentication/authentication";
 import type { ExceptionResponse, LoginRequest } from "@/api/generated/model";
 import { setAuthenticated, setNickname } from "@/lib/auth";
+import { Logo } from "@/components/logo";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -22,7 +23,7 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const valid = username.length >= 4 && password.length >= 4;
+  const valid = username.trim().length >= 4 && password.trim().length >= 4;
 
   const { mutate, isPending } = useMutation({
     mutationFn: (loginRequest: LoginRequest) => login(loginRequest),
@@ -39,7 +40,7 @@ function LoginPage() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid || isPending) return;
-    mutate({ loginId: username, password });
+    mutate({ loginId: username.trim(), password });
   };
 
   return (
@@ -49,7 +50,7 @@ function LoginPage() {
     >
       <div className="flex flex-col items-center gap-2 text-center">
         <Link to="/home" className="flex flex-col items-center gap-2">
-          <span className="inline-block size-8 rounded-[8px] bg-primary" />
+          <Logo role="buyer" className="size-8" />
           <h1 className="text-2xl font-bold">PickUp</h1>
         </Link>
         <p className="text-sm text-[var(--color-text-sub)]">
@@ -86,9 +87,7 @@ function LoginPage() {
             aria-invalid={errorMessage !== null}
           />
           {errorMessage && (
-            <p className="text-xs text-[var(--color-danger)]">
-              {errorMessage}
-            </p>
+            <p className="text-xs text-[var(--color-danger)]">{errorMessage}</p>
           )}
         </div>
 

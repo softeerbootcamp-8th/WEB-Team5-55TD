@@ -35,8 +35,8 @@ public class Member {
   @Column(nullable = true)
   private LocalDateTime updatedAt;
 
-  @Column(nullable = true)
-  private String profileImageUrl;
+  @Column(name = "profile_image_object_key", length = 512)
+  private String profileImageObjectKey;
 
   public static Member create(String loginId, String password, String nickname) {
     Member member = new Member();
@@ -48,16 +48,23 @@ public class Member {
     return member;
   }
 
-  public void updateProfile(String nickname, String passwordHash, String profileImageUrl) {
+  public void updateProfile(String nickname, String passwordHash) {
     if (nickname != null) {
       this.nickname = nickname;
     }
     if (passwordHash != null) {
       this.password = passwordHash;
     }
-    if (profileImageUrl != null) {
-      this.profileImageUrl = profileImageUrl;
-    }
+    updatedAt = LocalDateTime.now();
+  }
+
+  public void updateProfileImage(String profileImageObjectKey) {
+    this.profileImageObjectKey = profileImageObjectKey;
+    updatedAt = LocalDateTime.now();
+  }
+
+  public void removeProfileImage() {
+    profileImageObjectKey = null;
     updatedAt = LocalDateTime.now();
   }
 

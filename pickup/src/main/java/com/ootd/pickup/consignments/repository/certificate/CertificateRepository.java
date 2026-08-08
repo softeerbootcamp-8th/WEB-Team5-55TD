@@ -10,6 +10,8 @@ public interface CertificateRepository {
 
   Optional<Certificate> findCertificateByConsignment(Consignment consignment);
 
+  List<Certificate> findAllByConsignmentIn(List<Consignment> consignments);
+
   void deleteByConsignment(Consignment consignment);
 
   List<Certificate> findAllByConsignmentIds(List<Long> consignmentIds);

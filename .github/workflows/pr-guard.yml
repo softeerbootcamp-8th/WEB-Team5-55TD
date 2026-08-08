@@ -1,0 +1,63 @@
+name: PR Guard
+
+# PR 자체의 형태를 검증하는 전용 워크플로.
+#
+# backend-ci / frontend-ci 에 job 으로 넣지 않고 파일을 분리했다.
+# 그쪽 워크플로는 `branches: [develop, main]` 과 `paths` 필터가 걸려 있어서,
+# 정작 잡아야 할 "base 가 develop/main 이 아닌 PR" 에서는 실행조차 되지 않는다.
+# required status check 는 실행되지 않으면 상태를 보고하지 못하고,
+# 상태가 없으면 GitHub 은 "Expected" 로 남겨둔다. 즉 필터가 있는 워크플로는
+# 게이트 역할을 할 수 없다. 이 파일에 branches/paths 필터를 추가하면 안 된다.
+on:
+  pull_request:
+    # edited 가 필요한 이유: PR 의 base 브랜치를 바꾸면 synchronize 가 아니라
+    # edited(changes.base) 가 발생한다. 이 타입이 없으면 base 를 develop 으로
+    # 되돌려도 체크가 실패한 상태로 남아 머지가 계속 막힌다.
+    types: [opened, reopened, synchronize, edited]
+
+# 제목/본문 수정만으로도 edited 가 연달아 발생할 수 있으므로 이전 실행은 취소한다.
+concurrency:
+  group: pr-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  base-branch:
+    # 이 name 이 그대로 required status check 의 context 가 된다.
+    # 값을 바꾸면 develop/main 룰셋의 체크 이름도 함께 고쳐야 한다.
+    name: Verify PR Base Branch
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          ALLOWED_BASES="develop main"
+
+          for allowed in $ALLOWED_BASES; do
+            if [ "$BASE_REF" = "$allowed" ]; then
+              echo "✅ base: \`$BASE_REF\` — 허용된 대상 브랜치입니다." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          done
+
+          {
+            echo "## ❌ 허용되지 않은 base 브랜치"
+            echo
+            echo "| 항목 | 값 |"
+            echo "| --- | --- |"
+            echo "| head | \`$HEAD_REF\` |"
+            echo "| base | \`$BASE_REF\` |"
+            echo "| 허용 | \`develop\`, \`main\` |"
+            echo
+            echo "리뷰 편의를 위해 다른 작업 브랜치를 base 로 잡은 PR 로 보입니다."
+            echo "머지 전에 PR 화면 상단의 base 드롭다운에서 \`develop\` 으로 변경하세요."
+            echo "base 를 바꾸면 이 검사는 자동으로 다시 실행됩니다."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::error::base 브랜치가 '$BASE_REF' 입니다. develop 또는 main 이어야 합니다."
+          exit 1

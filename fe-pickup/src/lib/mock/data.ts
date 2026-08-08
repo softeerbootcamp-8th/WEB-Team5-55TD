@@ -10,18 +10,9 @@ import type {
   CardInfo,
   Grade,
   MyBidItem,
-  Product,
-  SaleItem,
   User,
 } from "@/lib/types";
-import {
-  AuctionStatus,
-  GradeAgency,
-  MyBidStatus,
-  ProductStatus,
-  SettlementStatus,
-  UserRole,
-} from "@/lib/types";
+import { AuctionStatus, GradeAgency, MyBidStatus, UserRole } from "@/lib/types";
 import { minBidUnit } from "@/lib/format";
 
 const NOW = Date.now();
@@ -304,105 +295,6 @@ export const bidsByAuction: Record<string, Bid[]> = {
     },
   ],
 };
-
-/** 셀러 상품 목록 */
-export const products: Product[] = [
-  {
-    id: "p1",
-    cardName: "갸라도스 (Base Set)",
-    grade: g("PSA", "9", "PSA-84551200"),
-    status: ProductStatus.REGISTERABLE,
-    card: {
-      tcg: "Pokémon",
-      set: "Base Set",
-      number: "6/102",
-      language: "영어",
-      rarity: "Holo Rare",
-      condition: "상단 모서리 미세 마모",
-      defects: "뒷면 우하단 미세 스크래치",
-    },
-    images: ["front", "back"],
-    createdAt: iso(-day(1)),
-  },
-  {
-    id: "p2",
-    cardName: "알로라 리자몽 GX",
-    grade: g("BGS", "9.5", "BGS-2210567"),
-    status: ProductStatus.AUCTION_UPCOMING,
-    card: {
-      tcg: "Pokémon",
-      set: "Burning Shadows",
-      number: "20/147",
-      language: "영어",
-      rarity: "Ultra Rare",
-      condition: "미개봉급",
-    },
-    images: ["front", "back"],
-    createdAt: iso(-day(2)),
-  },
-  {
-    id: "p3",
-    cardName: "다크 마그마 (Team Rocket)",
-    grade: g("CGC", "8.5", "CGC-119002"),
-    status: ProductStatus.AUCTION_LIVE,
-    card: {
-      tcg: "Pokémon",
-      set: "Team Rocket",
-      number: "4/82",
-      language: "일본어",
-      rarity: "Holo Rare",
-      condition: "양호",
-    },
-    images: ["front", "back"],
-    createdAt: iso(-day(3)),
-  },
-  {
-    id: "p4",
-    cardName: "썬더 (Fossil)",
-    grade: g("PSA", "10", "PSA-90223311"),
-    status: ProductStatus.SOLD,
-    card: {
-      tcg: "Pokémon",
-      set: "Fossil",
-      number: "16/62",
-      language: "영어",
-      rarity: "Holo Rare",
-      condition: "GEM MINT",
-    },
-    images: ["front", "back"],
-    createdAt: iso(-day(9)),
-  },
-];
-
-/** 판매 내역 */
-export const sales: SaleItem[] = [
-  {
-    id: "s1",
-    cardName: "썬더 (Fossil)",
-    grade: g("PSA", "10", "PSA-90223311"),
-    finalPrice: 780_000,
-    status: ProductStatus.SOLD,
-    settlement: SettlementStatus.DONE,
-    endedAt: iso(-day(5)),
-  },
-  {
-    id: "s2",
-    cardName: "다크 마그마 (Team Rocket)",
-    grade: g("CGC", "8.5", "CGC-119002"),
-    finalPrice: 210_000,
-    status: ProductStatus.SOLD,
-    settlement: SettlementStatus.PENDING,
-    endedAt: iso(-day(1)),
-  },
-  {
-    id: "s3",
-    cardName: "라프라스 (Fossil)",
-    grade: g("PSA", "8", "PSA-66110234"),
-    status: "LOST",
-    settlement: SettlementStatus.REAPPLICABLE,
-    endedAt: iso(-day(8)),
-  },
-];
 
 /** 마이페이지 — 입찰 내역 */
 export const myBids: MyBidItem[] = [

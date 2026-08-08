@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Radio } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  createFileRoute,
+  Link,
+  notFound,
+  useNavigate,
+} from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AxiosError } from "axios";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
@@ -17,73 +23,168 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { auctionDetails, bidsByAuction, currentUser } from "@/lib/mock/data";
-import type { Bid } from "@/lib/types";
-import { formatWon, maskNickname } from "@/lib/format";
+import { getAuctionDetail } from "@/api/auctions";
+import { getAuctionBids, getBidErrorMessage, placeBid } from "@/api/bids";
+import {
+  useAuctionBidUpdates,
+  type AuctionBidUpdatedMessage,
+} from "@/hooks/use-auction-bid-updates";
+import { useIsAuthenticated } from "@/lib/auth";
+import { formatWon } from "@/lib/format";
+import { AuctionStatus } from "@/lib/types";
+
+const BID_PREVIEW_SIZE = 6;
+const BID_MODAL_SIZE = 100;
+const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
+const HIDDEN_POLLING_INTERVAL_MILLIS = 60_000;
+const POLLING_JITTER_MILLIS = 3_000;
+
+function pollingInterval() {
+  const baseInterval =
+    document.visibilityState === "hidden"
+      ? HIDDEN_POLLING_INTERVAL_MILLIS
+      : ACTIVE_POLLING_INTERVAL_MILLIS;
+  return baseInterval + Math.floor(Math.random() * POLLING_JITTER_MILLIS);
+}
+
+function laterEndTime(
+  current: string | null | undefined,
+  next: string | null | undefined,
+): string | undefined {
+  if (!next) return current ?? undefined;
+  if (!current) return next;
+  return Date.parse(next) >= Date.parse(current) ? next : current;
+}
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/live")({
-  loader: ({ params }) => {
-    const auction = auctionDetails[params.auctionId];
-    if (!auction) throw notFound();
-    return { auction };
+  loader: async ({ params }) => {
+    try {
+      return { auction: await getAuctionDetail(params.auctionId) };
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        throw notFound();
+      }
+      throw error;
+    }
   },
   component: LiveAuctionPage,
 });
 
-let bidSeq = 1000;
-
-/** DESIGN.md · live-auction.html + bid-confirm / all-bids / bid-fail 모달 */
+/** DESIGN.md · live-auction.html — 실 입찰 API 연동, §5.9 최근 6건 + 전체 모달 */
 function LiveAuctionPage() {
-  const { auction } = Route.useLoaderData();
+  const { auction: initialAuction } = Route.useLoaderData();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const isAuthenticated = useIsAuthenticated();
+  const auctionQuery = useQuery({
+    queryKey: ["auction-detail", initialAuction.id],
+    queryFn: () => getAuctionDetail(initialAuction.id),
+    initialData: initialAuction,
+    staleTime: 0,
+    refetchInterval: (query) =>
+      query.state.data?.status === AuctionStatus.LIVE
+        ? pollingInterval()
+        : false,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+  const auction = auctionQuery.data;
   const minUnit = auction.minBidUnit ?? 0;
 
-  const [bids, setBids] = useState<Bid[]>(
-    () => bidsByAuction[auction.id] ?? [],
-  );
-  const [currentPrice, setCurrentPrice] = useState(
-    auction.currentPrice ?? auction.startPrice ?? 0,
-  );
-  const [amount, setAmount] = useState<string>("");
-  const [overtaken, setOvertaken] = useState(false);
-
+  const [realtimeSnapshot, setRealtimeSnapshot] = useState({
+    auctionId: auction.id,
+    price: auction.currentPrice ?? auction.startPrice ?? 0,
+    endsAt: auction.endsAt,
+  });
+  const [amount, setAmount] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [allBidsOpen, setAllBidsOpen] = useState(false);
   const [fail, setFail] = useState<string | null>(null);
+  const [allBidsOpen, setAllBidsOpen] = useState(false);
 
+  const snapshotPrice = auction.currentPrice ?? auction.startPrice ?? 0;
+  const realtimePrice =
+    realtimeSnapshot.auctionId === auction.id
+      ? realtimeSnapshot.price
+      : snapshotPrice;
+  const realtimeEndsAt =
+    realtimeSnapshot.auctionId === auction.id
+      ? realtimeSnapshot.endsAt
+      : auction.endsAt;
+  const currentPrice = Math.max(realtimePrice, snapshotPrice);
+  const endsAt = laterEndTime(auction.endsAt, realtimeEndsAt);
   const minNext = currentPrice + minUnit;
-  const iAmTop = bids[0]?.isMine ?? false;
+  const recommendedAmounts = [
+    minNext,
+    minNext + minUnit,
+    minNext + minUnit * 2,
+  ];
+  const parsedAmount = (() => {
+    const normalized = amount.trim().replaceAll(",", "");
+    if (!/^\d+$/.test(normalized)) return null;
+    const value = Number(normalized);
+    return Number.isSafeInteger(value) && value >= minNext ? value : null;
+  })();
 
-  // 경쟁 입찰 시뮬레이션 (실시간 추월)
-  const iAmTopRef = useRef(iAmTop);
-  useEffect(() => {
-    iAmTopRef.current = iAmTop;
-  }, [iAmTop]);
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      if (Math.random() > 0.55) {
-        setCurrentPrice((prev) => {
-          const next = prev + minUnit;
-          setBids((b) => [
-            {
-              id: `sim_${bidSeq++}`,
-              maskedNickname: maskNickname("collector" + (bidSeq % 90)),
-              amount: next,
-              createdAt: new Date().toISOString(),
-            },
-            ...b,
-          ]);
-          return next;
-        });
-        if (iAmTopRef.current) setOvertaken(true);
-      }
-    }, 7000);
-    return () => window.clearInterval(id);
-  }, [minUnit]);
+  const previewBidsQuery = useQuery({
+    queryKey: ["auction-bids", auction.id, "preview"],
+    queryFn: () => getAuctionBids(auction.id, { size: BID_PREVIEW_SIZE }),
+    staleTime: 0,
+    refetchInterval: () =>
+      auction.status === AuctionStatus.LIVE ? pollingInterval() : false,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+  const allBidsQuery = useQuery({
+    queryKey: ["auction-bids", auction.id, "all"],
+    queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
+    enabled: allBidsOpen,
+  });
+  const latestBidId = previewBidsQuery.data?.items[0]
+    ? Number(previewBidsQuery.data.items[0].id)
+    : undefined;
+
+  const refreshSnapshot = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ["auction-detail", auction.id],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["auction-bids", auction.id],
+    });
+  }, [auction.id, queryClient]);
+
+  const applyBidUpdate = useCallback(
+    (message: AuctionBidUpdatedMessage) => {
+      setRealtimeSnapshot((current) => ({
+        auctionId: auction.id,
+        price:
+          current.auctionId === auction.id
+            ? Math.max(current.price, message.currentPrice)
+            : message.currentPrice,
+        endsAt:
+          current.auctionId === auction.id
+            ? laterEndTime(current.endsAt, message.endedAt)
+            : (message.endedAt ?? undefined),
+      }));
+      void queryClient.invalidateQueries({
+        queryKey: ["auction-bids", auction.id],
+      });
+    },
+    [auction.id, queryClient],
+  );
+
+  useAuctionBidUpdates({
+    auctionId: auction.id,
+    latestBidId,
+    onBidUpdated: applyBidUpdate,
+    onSubscribed: refreshSnapshot,
+  });
+
+  const bidMutation = useMutation({
+    mutationFn: (bidPrice: number) => placeBid(auction.id, bidPrice),
+  });
 
   const onBidClick = () => {
-    const value = Number(amount.replace(/[^0-9]/g, ""));
-    if (!value || value < minNext) {
+    if (parsedAmount === null) {
       setFail("입찰가는 현재가 + 최소 입찰 단위 이상이어야 합니다.");
       return;
     }
@@ -91,26 +192,27 @@ function LiveAuctionPage() {
   };
 
   const confirmBid = useCallback(() => {
-    const value = Number(amount.replace(/[^0-9]/g, ""));
+    if (parsedAmount === null) return;
     setConfirmOpen(false);
-    if (value < currentPrice + minUnit) {
-      setFail("이미 더 높은 입찰이 등록되었습니다.");
-      return;
-    }
-    setBids((b) => [
-      {
-        id: `me_${bidSeq++}`,
-        maskedNickname: currentUser.nickname,
-        amount: value,
-        createdAt: new Date().toISOString(),
-        isMine: true,
+    bidMutation.mutate(parsedAmount, {
+      onSuccess: (placed) => {
+        queryClient.invalidateQueries({
+          queryKey: ["auction-bids", auction.id],
+        });
+        setRealtimeSnapshot((current) => ({
+          auctionId: auction.id,
+          price:
+            current.auctionId === auction.id
+              ? Math.max(current.price, placed.bidPrice)
+              : placed.bidPrice,
+          endsAt:
+            current.auctionId === auction.id ? current.endsAt : auction.endsAt,
+        }));
+        setAmount("");
       },
-      ...b,
-    ]);
-    setCurrentPrice(value);
-    setOvertaken(false);
-    setAmount("");
-  }, [amount, currentPrice, minUnit]);
+      onError: (error) => setFail(getBidErrorMessage(error)),
+    });
+  }, [auction.endsAt, auction.id, bidMutation, parsedAmount, queryClient]);
 
   const goEnd = useCallback(() => {
     navigate({
@@ -119,22 +221,27 @@ function LiveAuctionPage() {
     });
   }, [auction.id, navigate]);
 
+  useEffect(() => {
+    if (auction.status === AuctionStatus.ENDED) {
+      goEnd();
+    }
+  }, [auction.status, goEnd]);
+
   return (
     <PageContainer className="grid gap-8 md:grid-cols-[1fr_380px]">
       {/* 좌: 카드 + 현재가/타이머 */}
       <div className="flex flex-col gap-6">
         <div className="grid gap-6 sm:grid-cols-[220px_1fr]">
-          <CardThumb cardName={auction.cardName} grade={auction.grade} />
+          <CardThumb
+            cardName={auction.cardName}
+            grade={auction.grade}
+            imageUrl={auction.thumbnailUrl}
+          />
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <GradeBadge grade={auction.grade} />
-              <span className="inline-flex items-center gap-1 text-xs text-[var(--color-success)]">
-                <Radio className="size-3.5" /> 실시간 연결됨
-              </span>
-            </div>
+            <GradeBadge grade={auction.grade} />
             <h1 className="text-2xl font-bold">{auction.cardName}</h1>
             <p className="text-sm text-[var(--color-text-sub)]">
-              판매자 · {auction.sellerNickname}
+              판매자 · {auction.sellerNickname || "검증된 위탁 상품"}
             </p>
             <div className="mt-2 flex items-end justify-between rounded-[var(--radius-lg)] border border-border bg-card p-5">
               <Price amount={currentPrice} label="현재가" size="lg" />
@@ -142,62 +249,107 @@ function LiveAuctionPage() {
                 <span className="text-xs text-[var(--color-text-muted)]">
                   남은 시간
                 </span>
-                <Countdown to={auction.endsAt} onEnd={goEnd} />
+                <Countdown to={endsAt} onEnd={goEnd} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* 추월 알림 */}
-        {overtaken && (
-          <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[color-mix(in_srgb,var(--color-danger)_12%,transparent)] px-4 py-3 text-sm text-[var(--color-danger)]">
-            <AlertTriangle className="size-4" />
-            추월당했습니다. 다시 입찰하려면 {formatWon(minNext)} 이상
-            입력하세요.
-          </div>
-        )}
-
         {/* 입찰 입력 */}
-        <div className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-[var(--color-text-sub)]">
-              최소 다음 입찰가
-            </span>
-            <span className="tabular font-semibold text-foreground">
-              {formatWon(minNext)}
-            </span>
+        {isAuthenticated ? (
+          <div className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--color-text-sub)]">
+                최소 다음 입찰가
+              </span>
+              <span className="tabular font-semibold text-foreground">
+                {formatWon(minNext)}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                inputMode="numeric"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={`${minNext.toLocaleString("ko-KR")} 이상`}
+                className="tabular"
+              />
+              <Button
+                onClick={onBidClick}
+                disabled={parsedAmount === null || bidMutation.isPending}
+                className="shrink-0"
+              >
+                {bidMutation.isPending ? "입찰 중…" : "입찰하기"}
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2" aria-label="추천 입찰 금액">
+              {recommendedAmounts.map((recommended, index) => (
+                <Button
+                  key={`${recommended}-${index}`}
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setAmount(String(recommended))}
+                >
+                  {formatWon(recommended)}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              입찰은 취소할 수 없습니다.
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Input
-              inputMode="numeric"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder={`${minNext.toLocaleString("ko-KR")} 이상`}
-              className="tabular"
-            />
-            <Button onClick={onBidClick} className="shrink-0">
-              입찰하기
+        ) : (
+          <div className="flex items-center justify-between rounded-[var(--radius-lg)] border border-border bg-card p-5">
+            <p className="text-sm text-[var(--color-text-sub)]">
+              입찰하려면 로그인이 필요합니다.
+            </p>
+            <Button asChild size="sm">
+              <Link to="/login">로그인</Link>
             </Button>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            입찰은 취소할 수 없습니다.
-          </p>
-        </div>
+        )}
       </div>
 
-      {/* 우: 실시간 입찰 내역 (최근 6건 + 전체) */}
+      {/* 우: 입찰 내역 (최근 6건 + 전체 모달) */}
       <aside className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">입찰 내역</h2>
           <button
+            type="button"
             onClick={() => setAllBidsOpen(true)}
-            className="text-xs text-primary hover:underline"
+            className="text-sm font-semibold text-primary hover:underline"
           >
             전체
           </button>
         </div>
-        <BidList bids={bids.slice(0, 6)} />
+        {previewBidsQuery.isPending ? (
+          <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+            불러오는 중입니다.
+          </p>
+        ) : (
+          <BidList bids={previewBidsQuery.data?.items ?? []} />
+        )}
       </aside>
+
+      {/* 전체 입찰 모달 */}
+      <Dialog open={allBidsOpen} onOpenChange={setAllBidsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>전체 입찰 내역</DialogTitle>
+          </DialogHeader>
+          {allBidsQuery.isPending ? (
+            <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+              불러오는 중입니다.
+            </p>
+          ) : (
+            <BidList
+              bids={allBidsQuery.data?.items ?? []}
+              className="max-h-96 overflow-y-auto"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 입찰 확인 모달 */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -216,7 +368,7 @@ function LiveAuctionPage() {
             <div className="flex justify-between">
               <dt className="text-[var(--color-text-sub)]">입찰 금액</dt>
               <dd className="tabular font-bold text-primary">
-                {formatWon(Number(amount.replace(/[^0-9]/g, "")) || 0)}
+                {formatWon(parsedAmount ?? 0)}
               </dd>
             </div>
           </dl>
@@ -228,25 +380,14 @@ function LiveAuctionPage() {
             >
               취소
             </Button>
-            <Button className="flex-1" onClick={confirmBid}>
+            <Button
+              className="flex-1"
+              onClick={confirmBid}
+              disabled={bidMutation.isPending}
+            >
               입찰하기
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 전체 입찰 모달 */}
-      <Dialog open={allBidsOpen} onOpenChange={setAllBidsOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>전체 입찰 내역</DialogTitle>
-            <DialogDescription>
-              닉네임은 마스킹되며 본인 입찰은 “나”로 표시됩니다.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[50vh] overflow-y-auto pr-1">
-            <BidList bids={bids} />
-          </div>
         </DialogContent>
       </Dialog>
 
@@ -259,21 +400,9 @@ function LiveAuctionPage() {
             </DialogTitle>
             <DialogDescription>{fail}</DialogDescription>
           </DialogHeader>
-          <dl className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-2)] p-4 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-[var(--color-text-sub)]">현재가</dt>
-              <dd className="tabular">{formatWon(currentPrice)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-[var(--color-text-sub)]">최소 다음 입찰가</dt>
-              <dd className="tabular font-bold text-foreground">
-                {formatWon(minNext)}
-              </dd>
-            </div>
-          </dl>
           <DialogFooter>
             <Button className="w-full" onClick={() => setFail(null)}>
-              다시 입찰
+              확인
             </Button>
           </DialogFooter>
         </DialogContent>

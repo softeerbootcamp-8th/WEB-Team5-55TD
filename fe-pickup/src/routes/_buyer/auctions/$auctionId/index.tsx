@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { AxiosError } from "axios";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Expand } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
+import { ImageLightbox } from "@/components/domain/image-lightbox";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
-import { HeartButton } from "@/components/domain/heart-button";
+import { WatchButton } from "@/components/domain/heart-button";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -39,6 +41,14 @@ function AuctionDetailPage() {
   const isLive = auction.status === AuctionStatus.LIVE;
   const isUpcoming = auction.status === AuctionStatus.UPCOMING;
   const images = auction.images ?? [];
+  // 확대해서 볼 이미지 목록 — 개별 이미지가 없으면 썸네일 한 장으로라도 확대 가능하게 한다.
+  const galleryImages =
+    images.length > 0
+      ? images
+      : auction.thumbnailUrl
+        ? [auction.thumbnailUrl]
+        : [];
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -52,23 +62,44 @@ function AuctionDetailPage() {
       <div className="grid gap-8 md:grid-cols-2">
         {/* 이미지 */}
         <div className="flex flex-col gap-3">
-          <CardThumb
-            cardName={auction.cardName}
-            grade={auction.grade}
-            imageUrl={images[0] ?? auction.thumbnailUrl}
-            label={!images[0] && !auction.thumbnailUrl ? "앞면" : undefined}
-            className="w-full"
-          />
+          <button
+            type="button"
+            onClick={() => galleryImages.length > 0 && setLightboxIndex(0)}
+            disabled={galleryImages.length === 0}
+            className="group relative block w-full rounded-[var(--radius-md)] text-left disabled:cursor-default"
+          >
+            <CardThumb
+              cardName={auction.cardName}
+              grade={auction.grade}
+              imageUrl={images[0] ?? auction.thumbnailUrl}
+              label={!images[0] && !auction.thumbnailUrl ? "앞면" : undefined}
+              className="w-full"
+            />
+            {galleryImages.length > 0 && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
+                <Expand className="size-6 text-white drop-shadow" />
+              </span>
+            )}
+          </button>
           {images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
               {images.map((img, i) => (
-                <CardThumb
-                  key={img}
-                  cardName={auction.cardName}
-                  imageUrl={img}
-                  aspect="aspect-square"
-                  label={i === 0 ? "앞" : i === 1 ? "뒤" : `${i + 1}`}
-                />
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setLightboxIndex(i)}
+                  className="group relative block rounded-[var(--radius-md)] text-left"
+                >
+                  <CardThumb
+                    cardName={auction.cardName}
+                    imageUrl={img}
+                    aspect="aspect-square"
+                    label={i === 0 ? "앞" : i === 1 ? "뒤" : `${i + 1}`}
+                  />
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
+                    <Expand className="size-4 text-white drop-shadow" />
+                  </span>
+                </button>
               ))}
             </div>
           )}
@@ -81,8 +112,10 @@ function AuctionDetailPage() {
               <StatusBadge status={auction.status} />
               <GradeBadge grade={auction.grade} />
             </div>
-            <HeartButton
+            <WatchButton
+              auctionId={auction.id}
               count={auction.watchCount}
+              watched={auction.watched ?? false}
               className="bg-[var(--color-surface-2)] !text-[var(--color-text-sub)]"
             />
           </div>
@@ -153,6 +186,24 @@ function AuctionDetailPage() {
                     label="인증서 일련번호"
                     value={auction.grade?.serial ?? "-"}
                   />
+                  <Row
+                    label="검수 완료일"
+                    value={
+                      auction.inspectedAt
+                        ? formatDateTime(auction.inspectedAt)
+                        : "-"
+                    }
+                  />
+                  <Row
+                    label="카드 상태"
+                    value={auction.cardState ?? "-"}
+                    full
+                  />
+                  <Row
+                    label="주요 결함"
+                    value={auction.majorDefect ?? "-"}
+                    full
+                  />
                 </dl>
               </AccordionContent>
             </AccordionItem>
@@ -175,6 +226,16 @@ function AuctionDetailPage() {
           )}
         </div>
       </div>
+
+      {lightboxIndex !== null && (
+        <ImageLightbox
+          images={galleryImages}
+          index={lightboxIndex}
+          onIndexChange={setLightboxIndex}
+          onOpenChange={(open) => !open && setLightboxIndex(null)}
+          alt={auction.cardName}
+        />
+      )}
     </PageContainer>
   );
 }
