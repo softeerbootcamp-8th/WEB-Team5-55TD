@@ -70,6 +70,7 @@ describe("구매자 입찰·관심 목록", () => {
     expect(
       screen.getByText("입찰 내역을 불러오지 못했습니다."),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     cleanup();
     queryResults = [
       { isPending: false, isError: false, data: { items: [bid] } },
@@ -94,6 +95,7 @@ describe("구매자 입찰·관심 목록", () => {
     expect(
       screen.getByText("관심 경매를 불러오지 못했습니다."),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     cleanup();
     watches = {
       data: { items: [] },
