@@ -54,7 +54,9 @@ class AuctionTest {
 
   @Test
   void 예정_경매의_남은_시간은_null이다() {
-    assertThat(auction(AuctionStatus.SCHEDULED, LocalDateTime.now().plusHours(1)).getRemainingSeconds())
+    assertThat(
+            auction(AuctionStatus.SCHEDULED, LocalDateTime.now().plusHours(1))
+                .getRemainingSeconds())
         .isNull();
   }
 
@@ -65,13 +67,17 @@ class AuctionTest {
 
   @Test
   void 진행_경매의_남은_시간은_0보다_크거나_같다() {
-    assertThat(auction(AuctionStatus.ONGOING, LocalDateTime.now().plusMinutes(1)).getRemainingSeconds())
+    assertThat(
+            auction(AuctionStatus.ONGOING, LocalDateTime.now().plusMinutes(1))
+                .getRemainingSeconds())
         .isGreaterThan(0L);
   }
 
   @Test
   void 진행_경매의_종료시각이_지나면_남은_시간은_0이다() {
-    assertThat(auction(AuctionStatus.ONGOING, LocalDateTime.now().minusMinutes(1)).getRemainingSeconds())
+    assertThat(
+            auction(AuctionStatus.ONGOING, LocalDateTime.now().minusMinutes(1))
+                .getRemainingSeconds())
         .isZero();
   }
 
