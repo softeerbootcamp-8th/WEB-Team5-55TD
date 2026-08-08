@@ -77,5 +77,29 @@ describe("셀러 상품 상세", () => {
     expect(screen.getByText("상품을 삭제할까요?")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "취소" }));
     expect(screen.queryByText("상품을 삭제할까요?")).not.toBeInTheDocument();
+    cleanup();
+    queryState = {
+      data: { ...product, status: "AUCTION_UPCOMING" },
+      isPending: false,
+      isError: false,
+    };
+    render(<Component />);
+    expect(
+      screen.getByText(
+        "경매 예정 상태의 상품은 정보 수정·경매 취소가 불가합니다.",
+      ),
+    ).toBeInTheDocument();
+    cleanup();
+    queryState = {
+      data: { ...product, status: "SOLD" },
+      isPending: false,
+      isError: false,
+    };
+    render(<Component />);
+    expect(
+      screen.getByText(
+        "경매 시작 이후 상태의 상품은 정보를 수정할 수 없습니다.",
+      ),
+    ).toBeInTheDocument();
   });
 });
