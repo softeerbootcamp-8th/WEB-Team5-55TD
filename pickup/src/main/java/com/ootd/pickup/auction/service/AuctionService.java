@@ -30,12 +30,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuctionService {
 
@@ -51,49 +52,6 @@ public class AuctionService {
   private final ImageUrlResolver imageUrlResolver;
   private final BidRepository bidRepository;
   private final StringRedisTemplate redisTemplate;
-
-  public AuctionService(
-      ConsignmentRepository consignmentRepository,
-      AuctionRepository auctionRepository,
-      CertificateRepository certificateRepository,
-      CertificateManageService certificateManageService,
-      ConsignmentImageRepository consignmentImageRepository,
-      WatchRepository watchRepository,
-      ImageUrlResolver imageUrlResolver,
-      BidRepository bidRepository) {
-    this(
-        consignmentRepository,
-        auctionRepository,
-        certificateRepository,
-        certificateManageService,
-        consignmentImageRepository,
-        watchRepository,
-        imageUrlResolver,
-        bidRepository,
-        null);
-  }
-
-  @Autowired
-  public AuctionService(
-      ConsignmentRepository consignmentRepository,
-      AuctionRepository auctionRepository,
-      CertificateRepository certificateRepository,
-      CertificateManageService certificateManageService,
-      ConsignmentImageRepository consignmentImageRepository,
-      WatchRepository watchRepository,
-      ImageUrlResolver imageUrlResolver,
-      BidRepository bidRepository,
-      @Autowired(required = false) StringRedisTemplate redisTemplate) {
-    this.consignmentRepository = consignmentRepository;
-    this.auctionRepository = auctionRepository;
-    this.certificateRepository = certificateRepository;
-    this.certificateManageService = certificateManageService;
-    this.consignmentImageRepository = consignmentImageRepository;
-    this.watchRepository = watchRepository;
-    this.imageUrlResolver = imageUrlResolver;
-    this.bidRepository = bidRepository;
-    this.redisTemplate = redisTemplate;
-  }
 
   @Transactional
   public CreateAuctionResponse registerAuction(Long memberId, CreateAuctionRequest request) {
