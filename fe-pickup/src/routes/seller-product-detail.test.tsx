@@ -101,5 +101,9 @@ describe("셀러 상품 상세", () => {
         "경매 시작 이후 상태의 상품은 정보를 수정할 수 없습니다.",
       ),
     ).toBeInTheDocument();
+    cleanup();
+    queryState = { data: undefined, isPending: false, isError: false };
+    render(<Component />);
+    expect(screen.getByText("상품을 찾을 수 없습니다.")).toBeInTheDocument();
   });
 });
