@@ -4,7 +4,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.INSUFFICIENT_BID_LI
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-성import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.times;
 
 import com.ootd.pickup.auction.domain.Auction;

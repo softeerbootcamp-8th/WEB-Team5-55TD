@@ -1,13 +1,83 @@
-ALTER TABLE member_point
-    ADD COLUMN reserved_balance BIGINT NOT NULL DEFAULT 0 AFTER balance;
+SET @reserved_balance_exists := (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'member_point'
+      AND column_name = 'reserved_balance'
+);
+
+SET @sql := IF(@reserved_balance_exists = 0,
+    'ALTER TABLE member_point ADD COLUMN reserved_balance BIGINT NOT NULL DEFAULT 0 AFTER balance',
+    'SELECT 1');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 ALTER TABLE member_point
-    ADD CONSTRAINT chk_member_point_balance_non_negative CHECK (balance >= 0),
-    ADD CONSTRAINT chk_member_point_reserved_balance_non_negative CHECK (reserved_balance >= 0),
-    ADD CONSTRAINT chk_member_point_reserved_not_over_balance CHECK (reserved_balance <= balance);
+    ALTER COLUMN reserved_balance DROP DEFAULT;
+
+SET @chk_balance_non_negative_exists := (
+    SELECT COUNT(*) FROM information_schema.table_constraints
+    WHERE table_schema = DATABASE()
+      AND table_name = 'member_point'
+      AND constraint_name = 'chk_member_point_balance_non_negative'
+);
+
+SET @sql := IF(@chk_balance_non_negative_exists = 0,
+    'ALTER TABLE member_point ADD CONSTRAINT chk_member_point_balance_non_negative CHECK (balance >= 0)',
+    'SELECT 1');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @chk_reserved_balance_non_negative_exists := (
+    SELECT COUNT(*) FROM information_schema.table_constraints
+    WHERE table_schema = DATABASE()
+      AND table_name = 'member_point'
+      AND constraint_name = 'chk_member_point_reserved_balance_non_negative'
+);
+
+SET @sql := IF(@chk_reserved_balance_non_negative_exists = 0,
+    'ALTER TABLE member_point ADD CONSTRAINT chk_member_point_reserved_balance_non_negative CHECK (reserved_balance >= 0)',
+    'SELECT 1');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @chk_reserved_not_over_balance_exists := (
+    SELECT COUNT(*) FROM information_schema.table_constraints
+    WHERE table_schema = DATABASE()
+      AND table_name = 'member_point'
+      AND constraint_name = 'chk_member_point_reserved_not_over_balance'
+);
+
+SET @sql := IF(@chk_reserved_not_over_balance_exists = 0,
+    'ALTER TABLE member_point ADD CONSTRAINT chk_member_point_reserved_not_over_balance CHECK (reserved_balance <= balance)',
+    'SELECT 1');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @legacy_unreserved_bid_exists := (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'auction'
+      AND column_name = 'legacy_unreserved_bid'
+);
+
+SET @sql := IF(@legacy_unreserved_bid_exists = 0,
+    'ALTER TABLE auction ADD COLUMN legacy_unreserved_bid BOOLEAN NOT NULL DEFAULT FALSE',
+    'SELECT 1');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 ALTER TABLE auction
-    ADD COLUMN legacy_unreserved_bid BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER COLUMN legacy_unreserved_bid DROP DEFAULT;
 
 UPDATE auction
 SET legacy_unreserved_bid = TRUE
@@ -61,12 +131,16 @@ INSERT INTO point_transaction (
     created_at
 )
 SELECT
-    member_id,
+    mp.member_id,
     'OPENING_BALANCE',
-    balance,
-    balance,
+    mp.balance,
+    mp.balance,
     NULL,
-    CONCAT('OPENING_BALANCE:', member_id),
+    CONCAT('OPENING_BALANCE:', mp.member_id),
     CURRENT_TIMESTAMP(6)
-FROM member_point
-WHERE balance <> 0;
+FROM member_point mp
+WHERE mp.balance <> 0
+  AND NOT EXISTS (
+      SELECT 1 FROM point_transaction pt
+      WHERE pt.idempotency_key = CONCAT('OPENING_BALANCE:', mp.member_id)
+  );
