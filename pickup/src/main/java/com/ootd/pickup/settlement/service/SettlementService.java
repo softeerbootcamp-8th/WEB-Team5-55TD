@@ -2,8 +2,6 @@ package com.ootd.pickup.settlement.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 import static com.ootd.pickup.point.domain.PointReservationStatus.ACTIVE;
-import static com.ootd.pickup.point.domain.PointTransactionType.AUCTION_PAYMENT;
-import static com.ootd.pickup.point.domain.PointTransactionType.AUCTION_PAYOUT;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.service.AuctionManageService;
@@ -164,26 +162,14 @@ public class SettlementService {
     }
     pointRepository.save(point);
     pointTransactionRepository.save(
-        PointTransaction.create(
-            winner,
-            AUCTION_PAYMENT,
-            -amount,
-            point.getBalance(),
-            auction,
-            "AUCTION_PAYMENT:" + auction.getAuctionId()));
+        PointTransaction.forAuctionPayment(winner, amount, point.getBalance(), auction));
   }
 
   private void paySeller(Auction auction, Member seller, Point point, long amount) {
     point.increaseBalance(amount);
     pointRepository.save(point);
     pointTransactionRepository.save(
-        PointTransaction.create(
-            seller,
-            AUCTION_PAYOUT,
-            amount,
-            point.getBalance(),
-            auction,
-            "AUCTION_PAYOUT:" + auction.getAuctionId()));
+        PointTransaction.forAuctionPayout(seller, amount, point.getBalance(), auction));
   }
 
   private Point getPointForUpdate(Long memberId) {

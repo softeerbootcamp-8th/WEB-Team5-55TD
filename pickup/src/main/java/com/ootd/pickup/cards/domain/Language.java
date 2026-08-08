@@ -26,7 +26,7 @@ public enum Language {
     return Arrays.stream(values())
         .filter(
             value -> value.name().equalsIgnoreCase(language) || value.displayName.equals(language))
-        .findFirst()
+        .findFirst()=
         .orElseThrow(() -> new PickUpException(ILLEGAL_ARGUMENT));
   }
 

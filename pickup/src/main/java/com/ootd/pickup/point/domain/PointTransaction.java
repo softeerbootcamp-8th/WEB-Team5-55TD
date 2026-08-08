@@ -53,7 +53,33 @@ public class PointTransaction {
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
-  public static PointTransaction create(
+  public static PointTransaction forAuctionPayment(
+      Member winner, long amount, long balanceAfter, Auction auction) {
+    return create(
+        winner,
+        PointTransactionType.AUCTION_PAYMENT,
+        -amount,
+        balanceAfter,
+        auction,
+        keyOf(PointTransactionType.AUCTION_PAYMENT, auction.getAuctionId()));
+  }
+
+  public static PointTransaction forAuctionPayout(
+      Member seller, long amount, long balanceAfter, Auction auction) {
+    return create(
+        seller,
+        PointTransactionType.AUCTION_PAYOUT,
+        amount,
+        balanceAfter,
+        auction,
+        keyOf(PointTransactionType.AUCTION_PAYOUT, auction.getAuctionId()));
+  }
+
+  private static String keyOf(PointTransactionType transactionType, Long auctionId) {
+    return transactionType.name() + ":" + auctionId;
+  }
+
+  private static PointTransaction create(
       Member member,
       PointTransactionType transactionType,
       long amount,
