@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   Accordion,
@@ -17,6 +17,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 describe("공통 UI 컴포넌트", () => {
   it("card, input, label, button, separator를 렌더링한다", () => {
@@ -49,5 +57,20 @@ describe("공통 UI 컴포넌트", () => {
       </Accordion>,
     );
     expect(screen.getByText("상세 정보")).toBeInTheDocument();
+  });
+
+  it("dropdown menu를 열고 항목을 표시한다", async () => {
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>메뉴</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuLabel>계정</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>설정</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    await waitFor(() => expect(screen.getByText("계정")).toBeInTheDocument());
+    expect(screen.getByText("설정")).toBeInTheDocument();
   });
 });

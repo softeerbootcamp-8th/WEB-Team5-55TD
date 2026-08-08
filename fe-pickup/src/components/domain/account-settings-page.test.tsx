@@ -11,11 +11,12 @@ let profileState: {
   isError: false,
 };
 const refetch = vi.fn();
+const updateMutate = vi.fn();
 
 vi.mock("@/api/generated/member/member", () => ({
   getGetMyProfileQueryKey: () => ["profile"],
   useGetMyProfile: () => ({ ...profileState, refetch }),
-  useUpdateMyProfile: () => ({ isPending: false, mutate: vi.fn() }),
+  useUpdateMyProfile: () => ({ isPending: false, mutate: updateMutate }),
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ setQueryData: vi.fn() }),
@@ -68,5 +69,39 @@ describe("AccountSettingsPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("tester")).toBeInTheDocument();
     expect(screen.getByLabelText("새 비밀번호")).toBeInTheDocument();
+    fireEvent.change(screen.getByDisplayValue("tester"), {
+      target: { value: "abc" },
+    });
+    expect(
+      screen.getByText("닉네임은 4자 이상이어야 합니다."),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByDisplayValue("abc"), {
+      target: { value: "tester2" },
+    });
+    fireEvent.change(screen.getByLabelText("현재 비밀번호"), {
+      target: { value: "12" },
+    });
+    fireEvent.change(screen.getByLabelText("새 비밀번호"), {
+      target: { value: "1234" },
+    });
+    fireEvent.change(screen.getByLabelText("새 비밀번호 확인"), {
+      target: { value: "5678" },
+    });
+    expect(
+      screen.getByText("현재 비밀번호는 4자 이상 입력해 주세요."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("새 비밀번호가 일치하지 않습니다."),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("현재 비밀번호"), {
+      target: { value: "1234" },
+    });
+    fireEvent.change(screen.getByLabelText("새 비밀번호 확인"), {
+      target: { value: "1234" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "저장하기" }));
+    expect(updateMutate).toHaveBeenCalledWith({
+      data: { nickname: "tester2", currentPassword: "1234", password: "1234" },
+    });
   });
 });
