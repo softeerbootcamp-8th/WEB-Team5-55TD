@@ -56,5 +56,14 @@ describe("셀러 홈", () => {
     expect(
       screen.getByText("최근 낙찰 상품을 불러오지 못했습니다."),
     ).toBeInTheDocument();
+    cleanup();
+    queries = [
+      { data: { registered: 0, scheduled: 0, ongoing: 0, sold: 0 } },
+      { isPending: false, isError: false, data: [] },
+      { isPending: false, isError: false, data: [] },
+    ];
+    render(<Component />);
+    expect(screen.getByText("진행 중인 경매가 없습니다.")).toBeInTheDocument();
+    expect(screen.getByText("최근 낙찰 상품이 없습니다.")).toBeInTheDocument();
   });
 });
