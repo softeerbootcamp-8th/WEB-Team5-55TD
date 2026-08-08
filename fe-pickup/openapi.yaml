@@ -1095,7 +1095,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/ExceptionResponse"
         "404":
-          description: 회원 없음
+          description: 포인트 정보 없음
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+      security:
+      - access-token-cookie: []
+  /members/me/point-transactions:
+    get:
+      tags:
+      - Member
+      summary: 내 포인트 거래내역 조회
+      description: 실제 포인트 증감 내역을 최신순 커서 기반으로 조회합니다.
+      operationId: getMyPointTransactions
+      parameters:
+      - name: getPointTransactionsRequest
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/GetPointTransactionsRequest"
+      responses:
+        "200":
+          description: 포인트 거래내역 조회 성공
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointTransactionsPageResponse"
+        "400":
+          description: 유효하지 않은 커서 또는 페이지 크기
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 인증 필요
           content:
             '*/*':
               schema:
@@ -2064,10 +2098,78 @@ components:
           format: int32
     PointBalanceResponse:
       type: object
+      required:
+      - pointBalance
+      - reservedPointBalance
+      - availablePointBalance
       properties:
         pointBalance:
           type: integer
           format: int64
+        reservedPointBalance:
+          type: integer
+          format: int64
+        availablePointBalance:
+          type: integer
+          format: int64
+    GetPointTransactionsRequest:
+      type: object
+      properties:
+        cursor:
+          type: string
+        size:
+          type: integer
+          format: int32
+    PointTransactionItemResponse:
+      type: object
+      required:
+      - pointTransactionId
+      - transactionType
+      - amount
+      - balanceAfter
+      - createdAt
+      properties:
+        pointTransactionId:
+          type: integer
+          format: int64
+        transactionType:
+          type: string
+          enum:
+          - OPENING_BALANCE
+          - AUCTION_PAYMENT
+          - AUCTION_PAYOUT
+        amount:
+          type: integer
+          format: int64
+        balanceAfter:
+          type: integer
+          format: int64
+        auctionId:
+          type: integer
+          format: int64
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    PointTransactionsPageResponse:
+      type: object
+      required:
+      - hasNext
+      - size
+      - items
+      properties:
+        hasNext:
+          type: boolean
+        cursor:
+          type: string
+          nullable: true
+        size:
+          type: integer
+          format: int32
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PointTransactionItemResponse"
     GetMyBidsRequest:
       type: object
       properties:

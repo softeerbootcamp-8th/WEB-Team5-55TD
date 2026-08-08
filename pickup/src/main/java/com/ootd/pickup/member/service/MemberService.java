@@ -5,7 +5,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_PASSWORD;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_LOGIN_ID_ALREADY_EXISTS;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NICKNAME_ALREADY_EXISTS;
-import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
+import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.auction.domain.Auction;
@@ -29,7 +29,11 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.dto.*;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
+import com.ootd.pickup.point.domain.PointTransaction;
+import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import com.ootd.pickup.point.repository.PointRepository;
+import com.ootd.pickup.point.repository.PointTransactionRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -50,6 +54,7 @@ public class MemberService {
   private final MemberRepository memberRepository;
   private final MemberManageService memberManageService;
   private final PointRepository pointRepository;
+  private final PointTransactionRepository pointTransactionRepository;
   private final ImageUrlResolver imageUrlResolver;
   private final BidRepository bidRepository;
   private final CertificateRepository certificateRepository;
@@ -119,8 +124,24 @@ public class MemberService {
     Point point =
         pointRepository
             .findByMemberId(memberId)
-            .orElseThrow(() -> new PickUpException(MEMBER_NOT_FOUND));
-    return new PointBalanceResponse(point.getBalance());
+            .orElseThrow(() -> new PickUpException(POINT_NOT_FOUND));
+    return new PointBalanceResponse(
+        point.getBalance(), point.getReservedBalance(), point.getAvailableBalance());
+  }
+
+  @Transactional(readOnly = true)
+  public CursorPageResponse<PointTransactionItemResponse, String> getMyPointTransactions(
+      Long memberId, GetPointTransactionsRequest request) {
+    int size = resolveSize(request.size());
+    Long cursorId = decodeCursor(request.cursor());
+    List<PointTransaction> fetched =
+        pointTransactionRepository.findAllByMemberId(memberId, cursorId, size + 1);
+    boolean hasNext = fetched.size() > size;
+    List<PointTransaction> page = hasNext ? fetched.subList(0, size) : fetched;
+    List<PointTransactionItemResponse> items =
+        page.stream().map(PointTransactionItemResponse::fromEntity).toList();
+    String nextCursor = hasNext ? String.valueOf(page.getLast().getPointTransactionId()) : null;
+    return CursorPageResponse.from(items, hasNext, nextCursor);
   }
 
   @Transactional(readOnly = true)

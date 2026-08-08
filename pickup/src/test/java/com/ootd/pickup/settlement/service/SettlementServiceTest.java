@@ -17,6 +17,8 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
+import com.ootd.pickup.point.repository.PointReservationRepository;
+import com.ootd.pickup.point.repository.PointTransactionRepository;
 import com.ootd.pickup.settlement.domain.Settlement;
 import com.ootd.pickup.settlement.domain.SettlementType;
 import com.ootd.pickup.settlement.repository.SettlementRepository;
@@ -38,6 +40,8 @@ class SettlementServiceTest {
   @Mock private AuctionManageService auctionManageService;
   @Mock private MemberManageService memberManageService;
   @Mock private PointRepository pointRepository;
+  @Mock private PointReservationRepository pointReservationRepository;
+  @Mock private PointTransactionRepository pointTransactionRepository;
   @Mock private SettlementRepository settlementRepository;
 
   @Captor private ArgumentCaptor<Settlement> settlementCaptor;
@@ -49,7 +53,12 @@ class SettlementServiceTest {
   void setUp() {
     settlementService =
         new SettlementService(
-            auctionManageService, memberManageService, pointRepository, settlementRepository);
+            auctionManageService,
+            memberManageService,
+            pointRepository,
+            pointReservationRepository,
+            pointTransactionRepository,
+            settlementRepository);
   }
 
   @Test
@@ -157,6 +166,7 @@ class SettlementServiceTest {
             .bidIncrement(500L)
             .build();
     ReflectionTestUtils.setField(auction, "auctionId", auctionId);
+    ReflectionTestUtils.setField(auction, "legacyUnreservedBid", true);
     return auction;
   }
 

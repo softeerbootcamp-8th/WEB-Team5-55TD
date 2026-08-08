@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { getAuctionDetail } from "@/api/auctions";
 import { getAuctionBids, getBidErrorMessage, placeBid } from "@/api/bids";
+import { getGetMyPointBalanceQueryKey } from "@/api/generated/member/member";
 import { useIsAuthenticated } from "@/lib/auth";
 import { formatWon } from "@/lib/format";
 
@@ -91,7 +92,12 @@ function LiveAuctionPage() {
     setConfirmOpen(false);
     bidMutation.mutate(value, {
       onSuccess: (placed) => {
-        queryClient.invalidateQueries({ queryKey: ["auction-bids", auction.id] });
+        queryClient.invalidateQueries({
+          queryKey: ["auction-bids", auction.id],
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetMyPointBalanceQueryKey(),
+        });
         setCurrentPrice(placed.bidPrice);
         setAmount("");
       },

@@ -1,6 +1,9 @@
 package com.ootd.pickup.settlement.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
+import static com.ootd.pickup.point.domain.PointReservationStatus.ACTIVE;
+import static com.ootd.pickup.point.domain.PointTransactionType.AUCTION_PAYMENT;
+import static com.ootd.pickup.point.domain.PointTransactionType.AUCTION_PAYOUT;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.service.AuctionManageService;
@@ -8,10 +11,19 @@ import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import com.ootd.pickup.point.domain.Point;
+import com.ootd.pickup.point.domain.PointReservation;
+import com.ootd.pickup.point.domain.PointTransaction;
 import com.ootd.pickup.point.repository.PointRepository;
+import com.ootd.pickup.point.repository.PointReservationRepository;
+import com.ootd.pickup.point.repository.PointTransactionRepository;
 import com.ootd.pickup.settlement.domain.Settlement;
 import com.ootd.pickup.settlement.domain.SettlementType;
 import com.ootd.pickup.settlement.repository.SettlementRepository;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -53,6 +65,8 @@ public class SettlementService {
   private final AuctionManageService auctionManageService;
   private final MemberManageService memberManageService;
   private final PointRepository pointRepository;
+  private final PointReservationRepository pointReservationRepository;
+  private final PointTransactionRepository pointTransactionRepository;
   private final SettlementRepository settlementRepository;
 
   @Transactional
@@ -64,21 +78,47 @@ public class SettlementService {
     }
 
     boolean winnerSettled =
-        trySettle(auctionId, winnerMemberId, SettlementType.WINNER_PAYMENT, winningPrice);
+        !isAlreadySettled(auctionId, winnerMemberId, SettlementType.WINNER_PAYMENT);
     boolean sellerSettled =
-        trySettle(auctionId, sellerMemberId, SettlementType.SELLER_PAYOUT, winningPrice);
+        !isAlreadySettled(auctionId, sellerMemberId, SettlementType.SELLER_PAYOUT);
+    if (!winnerSettled && !sellerSettled) {
+      return;
+    }
 
-    adjustBalancesInLockOrder(
-        winnerMemberId, winnerSettled, sellerMemberId, sellerSettled, winningPrice);
+    Auction auction = auctionManageService.getAuctionById(auctionId);
+    Member winner = memberManageService.getMemberById(winnerMemberId);
+    Member seller = memberManageService.getMemberById(sellerMemberId);
+    if (winnerSettled) {
+      saveSettlement(auction, winner, SettlementType.WINNER_PAYMENT, winningPrice);
+    }
+    if (sellerSettled) {
+      saveSettlement(auction, seller, SettlementType.SELLER_PAYOUT, winningPrice);
+    }
+
+    PointReservation reservation =
+        pointReservationRepository.findByAuctionIdForUpdate(auctionId).orElse(null);
+    Map<Long, Point> points =
+        lockPoints(
+            Arrays.asList(
+                winnerSettled ? winnerMemberId : null, sellerSettled ? sellerMemberId : null));
+
+    if (winnerSettled) {
+      payWinningBid(auction, winner, points.get(winnerMemberId), reservation, winningPrice);
+    }
+    if (sellerSettled) {
+      paySeller(auction, seller, points.get(sellerMemberId), winningPrice);
+    }
   }
 
-  private boolean trySettle(
-      Long auctionId, Long memberId, SettlementType settlementType, Long amount) {
-    if (isAlreadySettled(auctionId, memberId, settlementType)) {
-      return false;
-    }
-    settle(auctionId, memberId, settlementType, amount);
-    return true;
+  private void saveSettlement(
+      Auction auction, Member member, SettlementType settlementType, Long amount) {
+    settlementRepository.save(Settlement.create(auction, member, settlementType, amount));
+    log.info(
+        "정산 처리 - auctionId={}, memberId={}, settlementType={}, amount={}",
+        auction.getAuctionId(),
+        member.getMemberId(),
+        settlementType,
+        amount);
   }
 
   private boolean isAlreadySettled(Long auctionId, Long memberId, SettlementType settlementType) {
@@ -95,51 +135,55 @@ public class SettlementService {
     return alreadySettled;
   }
 
-  private void settle(Long auctionId, Long memberId, SettlementType settlementType, Long amount) {
-    Auction auction = auctionManageService.getAuctionById(auctionId);
-    Member member = memberManageService.getMemberById(memberId);
-    settlementRepository.save(Settlement.create(auction, member, settlementType, amount));
-    log.info(
-        "정산 처리 - auctionId={}, memberId={}, settlementType={}, amount={}",
-        auctionId,
-        memberId,
-        settlementType,
-        amount);
+  private Map<Long, Point> lockPoints(List<Long> memberIds) {
+    Map<Long, Point> points = new LinkedHashMap<>();
+    memberIds.stream()
+        .filter(java.util.Objects::nonNull)
+        .distinct()
+        .sorted(Comparator.naturalOrder())
+        .forEach(memberId -> points.put(memberId, getPointForUpdate(memberId)));
+    return points;
   }
 
-  private void adjustBalancesInLockOrder(
-      Long winnerMemberId,
-      boolean winnerSettled,
-      Long sellerMemberId,
-      boolean sellerSettled,
-      Long amount) {
-    if (winnerMemberId < sellerMemberId) {
-      if (winnerSettled) {
-        decreaseBalance(winnerMemberId, amount);
+  private void payWinningBid(
+      Auction auction, Member winner, Point point, PointReservation reservation, long amount) {
+    if (reservation == null) {
+      if (!auction.isLegacyUnreservedBid()) {
+        throw new IllegalStateException("낙찰 경매의 포인트 예약을 찾을 수 없습니다.");
       }
-      if (sellerSettled) {
-        increaseBalance(sellerMemberId, amount);
-      }
+      point.decreaseBalance(amount);
     } else {
-      if (sellerSettled) {
-        increaseBalance(sellerMemberId, amount);
+      if (reservation.getReservationStatus() != ACTIVE
+          || !reservation.getMember().getMemberId().equals(winner.getMemberId())
+          || reservation.getAmount() != amount) {
+        throw new IllegalStateException("낙찰 정보와 포인트 예약이 일치하지 않습니다.");
       }
-      if (winnerSettled) {
-        decreaseBalance(winnerMemberId, amount);
-      }
+      point.capture(amount);
+      reservation.capture();
+      pointReservationRepository.save(reservation);
     }
-  }
-
-  private void decreaseBalance(Long memberId, Long amount) {
-    Point point = getPointForUpdate(memberId);
-    point.decreaseBalance(amount);
     pointRepository.save(point);
+    pointTransactionRepository.save(
+        PointTransaction.create(
+            winner,
+            AUCTION_PAYMENT,
+            -amount,
+            point.getBalance(),
+            auction,
+            "AUCTION_PAYMENT:" + auction.getAuctionId()));
   }
 
-  private void increaseBalance(Long memberId, Long amount) {
-    Point point = getPointForUpdate(memberId);
+  private void paySeller(Auction auction, Member seller, Point point, long amount) {
     point.increaseBalance(amount);
     pointRepository.save(point);
+    pointTransactionRepository.save(
+        PointTransaction.create(
+            seller,
+            AUCTION_PAYOUT,
+            amount,
+            point.getBalance(),
+            auction,
+            "AUCTION_PAYOUT:" + auction.getAuctionId()));
   }
 
   private Point getPointForUpdate(Long memberId) {

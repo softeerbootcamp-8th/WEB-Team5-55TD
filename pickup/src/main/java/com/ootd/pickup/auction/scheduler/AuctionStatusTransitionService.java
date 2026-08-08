@@ -10,6 +10,7 @@ import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.event.NotificationEvent;
+import com.ootd.pickup.point.service.PointReservationService;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,6 +52,7 @@ public class AuctionStatusTransitionService {
   private final AuctionSchedulerJpaRepository auctionSchedulerJpaRepository;
   private final EventProducer eventProducer;
   private final EventPublisher eventPublisher;
+  private final PointReservationService pointReservationService;
 
   /** 시작 시각에 도달한 예정 경매를 진행 중으로 전이시킨다. 대상 판정 기준 시각은 DB에서 읽는다. */
   @Transactional
@@ -157,6 +159,10 @@ public class AuctionStatusTransitionService {
 
     // 낙찰 입찰은 두 계열이 모두 필요로 한다. 한 번만 조회해 함께 쓴다.
     List<Auction> closedAuctions = findClosedAuctions(auctionIds);
+    closedAuctions.stream()
+        .filter(auction -> auction.getAuctionStatus() == PASSED)
+        .forEach(
+            auction -> pointReservationService.releaseForPassedAuction(auction.getAuctionId()));
     Map<Long, Bid> winningBidsById = findWinningBidsById(closedAuctions);
 
     int appended = appendClosedEventsToOutbox(closedAuctions, winningBidsById);
@@ -223,6 +229,9 @@ public class AuctionStatusTransitionService {
 
   /** 유찰된 경매는 낙찰 입찰이 없다. 빈 맵에 null 키로 조회하면 예외가 나므로 먼저 걸러낸다. */
   private Bid winningBidOf(Auction auction, Map<Long, Bid> winningBidsById) {
+    if (auction.getAuctionStatus() != WON) {
+      return null;
+    }
     Long winningBidId = auction.getWinningBidId();
     return winningBidId == null ? null : winningBidsById.get(winningBidId);
   }

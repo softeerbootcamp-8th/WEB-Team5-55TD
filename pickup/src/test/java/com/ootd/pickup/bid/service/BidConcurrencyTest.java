@@ -21,6 +21,7 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointJpaRepository;
+import com.ootd.pickup.point.repository.PointReservationJpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -50,10 +51,13 @@ class BidConcurrencyTest {
 
   @Autowired private PointJpaRepository pointJpaRepository;
 
+  @Autowired private PointReservationJpaRepository pointReservationJpaRepository;
+
   @Autowired private CardJpaRepository cardJpaRepository;
 
   @AfterEach
   void tearDown() {
+    pointReservationJpaRepository.deleteAll();
     bidJpaRepository.deleteAll();
     auctionJpaRepository.deleteAll();
     consignmentJpaRepository.deleteAll();
