@@ -41,6 +41,7 @@ export interface AuctionDetailView extends AuctionDetail {
   card?: CardResponse;
   cardState?: string;
   majorDefect?: string;
+  inspectedAt?: string;
   /** 경매 전체의 낙찰 여부 (WON). 낙찰자가 조회자 본인인지는 백엔드가 아직 알려주지 않는다. */
   won: boolean;
 }
@@ -126,9 +127,7 @@ export async function registerAuction(
   return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
 }
 
-export async function searchAuctions(
-  params: AuctionSearchParams,
-): Promise<{
+export async function searchAuctions(params: AuctionSearchParams): Promise<{
   items: AuctionSummary[];
   hasNext: boolean;
   cursor?: string;
@@ -156,9 +155,8 @@ export async function searchAuctions(
 /** 진행 중인 경매가 하나도 없으면(404) null을 반환한다. */
 export async function getFeaturedAuction(): Promise<AuctionSummary | null> {
   try {
-    const { data } = await axiosInstance.get<AuctionListItemResponse>(
-      "/auctions/featured",
-    );
+    const { data } =
+      await axiosInstance.get<AuctionListItemResponse>("/auctions/featured");
     return toSummary(data);
   } catch (error) {
     if (
@@ -209,7 +207,9 @@ function isListItem(value: unknown): value is AuctionListItemResponse {
 
 /** 상세 응답에만 있는 images 배열 유무로 목록 항목과 구분한다. */
 function isDetailResponse(value: unknown): value is AuctionDetailResponse {
-  return isListItem(value) && Array.isArray((value as { images?: unknown }).images);
+  return (
+    isListItem(value) && Array.isArray((value as { images?: unknown }).images)
+  );
 }
 
 function toDetail(item: AuctionDetailResponse): AuctionDetailView {
@@ -232,6 +232,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     card: item.card,
     cardState: item.cardState ?? undefined,
     majorDefect: item.majorDefect ?? undefined,
+    inspectedAt: item.certificate?.inspectedAt ?? undefined,
     won: item.auctionStatus === "WON",
   };
 }
@@ -260,21 +261,17 @@ export async function getAuctionDetail(
   auctionId: string,
 ): Promise<AuctionDetailView> {
   try {
-    const { data } = await axiosInstance.get<unknown>(
-      `/auctions/${auctionId}`,
-    );
+    const { data } = await axiosInstance.get<unknown>(`/auctions/${auctionId}`);
     if (isDetailResponse(data)) return toDetail(data);
     if (isListItem(data)) return detailFromListItem(data);
     return data as AuctionDetailView;
   } catch (error) {
-    if (
-      !(
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error &&
-        (error as { response?: { status?: number } }).response?.status === 404
-      )
-    ) {
+    if (!(
+      typeof error === "object" &&
+      error !== null &&
+      "response" in error &&
+      (error as { response?: { status?: number } }).response?.status === 404
+    )) {
       throw error;
     }
 
