@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.ootd.pickup.auction.domain.AuctionStatus;
+
 public interface AuctionJpaRepository extends JpaRepository<Auction, Long> {
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -20,4 +22,7 @@ public interface AuctionJpaRepository extends JpaRepository<Auction, Long> {
       where auction.auctionId = :auctionId
       """)
   Optional<Auction> findByIdForUpdate(@Param("auctionId") Long auctionId);
+
+  @Query("select count(a) from Auction a where a.consignment.sellerMember.memberId = :memberId and a.auctionStatus = :status")
+  long countBySellerMemberIdAndStatus(@Param("memberId") Long memberId, @Param("status") AuctionStatus status);
 }
