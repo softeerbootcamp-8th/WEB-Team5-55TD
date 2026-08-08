@@ -32,6 +32,13 @@ export const Route = createFileRoute("/seller/apply/$productId")({
 const DEFAULT_ERROR_MESSAGE =
   "경매 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 
+function parsePositivePrice(value: string): number | null {
+  const normalized = value.trim().replaceAll(",", "");
+  if (!/^\d+$/.test(normalized)) return null;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 /** DESIGN.md · auction-apply.html — 희망 시작가/낙찰가/일정, 신청 후 수정·삭제 불가 */
 function AuctionApplyPage() {
   const { productId } = Route.useParams();
@@ -46,18 +53,28 @@ function AuctionApplyPage() {
   const [reserve, setReserve] = useState("");
   const [schedule, setSchedule] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [minimumSchedule] = useState(() => {
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+      .toISOString()
+      .slice(0, 16);
+  });
 
-  const startValue = Number(startPrice.replace(/[^0-9]/g, ""));
-  const reserveValue = Number(reserve.replace(/[^0-9]/g, ""));
+  const startValue = parsePositivePrice(startPrice);
+  const reserveValue = parsePositivePrice(reserve);
   const unit = startValue ? minBidUnit(startValue) : 0;
-  const valid = startValue > 0 && reserveValue > 0 && schedule.length > 0;
+  const scheduleValue = schedule ? new Date(schedule).getTime() : Number.NaN;
+  const scheduleValid =
+    Number.isFinite(scheduleValue) &&
+    scheduleValue > new Date(minimumSchedule).getTime();
+  const valid = startValue !== null && reserveValue !== null && scheduleValid;
 
   const { mutate: submitApply, isPending: isSubmitting } = useMutation({
     mutationFn: () =>
       registerAuction({
         consignmentId: productId,
-        startingPrice: startValue,
-        reserve: reserveValue,
+        startingPrice: startValue!,
+        reserve: reserveValue!,
         scheduledStartAt: `${schedule}:00`,
       }),
     onSuccess: () => {
@@ -95,10 +112,7 @@ function AuctionApplyPage() {
           description="등록 가능 상태의 상품만 경매를 신청할 수 있습니다."
           action={
             <Button variant="secondary" asChild>
-              <Link
-                to="/seller/products/$productId"
-                params={{ productId }}
-              >
+              <Link to="/seller/products/$productId" params={{ productId }}>
                 상품 상세로
               </Link>
             </Button>
@@ -149,6 +163,11 @@ function AuctionApplyPage() {
             placeholder="1,000,000"
             className="tabular"
           />
+          {startPrice && startValue === null && (
+            <p className="text-xs text-[var(--color-danger)]">
+              시작가는 0보다 큰 안전한 범위의 정수로 입력해 주세요.
+            </p>
+          )}
           <p className="text-xs text-[var(--color-text-muted)]">
             최소 입찰 단위는 시작가의 5%로 시스템이 결정합니다 —{" "}
             <span className="tabular font-semibold text-foreground">
@@ -169,6 +188,11 @@ function AuctionApplyPage() {
             placeholder="구매자에게 공개되지 않습니다"
             className="tabular"
           />
+          {reserve && reserveValue === null && (
+            <p className="text-xs text-[var(--color-danger)]">
+              최소 희망 낙찰가는 0보다 큰 안전한 범위의 정수로 입력해 주세요.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -179,7 +203,13 @@ function AuctionApplyPage() {
             type="datetime-local"
             value={schedule}
             onChange={(e) => setSchedule(e.target.value)}
+            min={minimumSchedule}
           />
+          {schedule && !scheduleValid && (
+            <p className="text-xs text-[var(--color-danger)]">
+              현재보다 이후의 일정을 선택해 주세요.
+            </p>
+          )}
         </div>
       </div>
 
@@ -207,7 +237,9 @@ function AuctionApplyPage() {
           <dl className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-2)] p-4 text-sm">
             <div className="flex justify-between">
               <dt className="text-[var(--color-text-sub)]">희망 시작가</dt>
-              <dd className="tabular font-semibold">{formatWon(startValue)}</dd>
+              <dd className="tabular font-semibold">
+                {formatWon(startValue ?? 0)}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-[var(--color-text-sub)]">최소 입찰 단위</dt>
