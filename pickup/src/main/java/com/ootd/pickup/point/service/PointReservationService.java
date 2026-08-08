@@ -27,8 +27,15 @@ public class PointReservationService {
   private final PointReservationRepository pointReservationRepository;
   private final PointLockService pointLockService;
 
+  /**
+   * 입찰 예약에 필요한 {@code PointReservation}/{@code Point} 행을 잠그고 잔액이 충분한지 검증한다.
+   *
+   * <p>{@link #reserveHighestBid}에서 같은 행을 다시 잠그지 않도록, 여기서 잠근 엔티티를 {@link PreparedBidReservation}에
+   * 담아 반환한다. 잔액 검증을 {@code Bid} insert 이전에 끝냄으로써 잔액 부족으로 실패하는 입찰이 불필요한 insert-then-rollback을 하지 않게
+   * 한다.
+   */
   @Transactional
-  public void validateAvailable(Auction auction, Member bidder, long amount) {
+  public PreparedBidReservation prepareReservation(Auction auction, Member bidder, long amount) {
     PointReservation reservation =
         pointReservationRepository.findByAuctionIdForUpdate(auction.getAuctionId()).orElse(null);
     List<Long> memberIds = new ArrayList<>();
@@ -48,22 +55,14 @@ public class PointReservationService {
     if (amount > Math.addExact(bidderPoint.getAvailableBalance(), reusableReservation)) {
       throw new PickUpException(INSUFFICIENT_BID_LIMIT);
     }
+    return new PreparedBidReservation(reservation, points);
   }
 
   @Transactional
-  public void reserveHighestBid(Auction auction, Bid bid, Member bidder) {
-    PointReservation reservation =
-        pointReservationRepository.findByAuctionIdForUpdate(auction.getAuctionId()).orElse(null);
-
-    List<Long> memberIds = new ArrayList<>();
-    memberIds.add(bidder.getMemberId());
-    if (reservation != null
-        && reservation.getReservationStatus() == PointReservationStatus.ACTIVE) {
-      memberIds.add(reservation.getMember().getMemberId());
-    }
-    Map<Long, Point> points = pointLockService.lockPoints(memberIds);
-
-    Point bidderPoint = points.get(bidder.getMemberId());
+  public void reserveHighestBid(
+      Auction auction, PreparedBidReservation prepared, Bid bid, Member bidder) {
+    PointReservation reservation = prepared.reservation();
+    Point bidderPoint = prepared.lockedPoints().get(bidder.getMemberId());
     if (reservation == null) {
       reserve(bidderPoint, bid.getBidPrice());
       pointReservationRepository.save(
@@ -72,7 +71,7 @@ public class PointReservationService {
       if (reservation.getReservationStatus() != PointReservationStatus.ACTIVE) {
         throw new IllegalStateException("종료된 포인트 예약이 진행 중 경매에 남아 있습니다.");
       }
-      Point previousPoint = points.get(reservation.getMember().getMemberId());
+      Point previousPoint = prepared.lockedPoints().get(reservation.getMember().getMemberId());
       previousPoint.release(reservation.getAmount());
       reserve(bidderPoint, bid.getBidPrice());
       pointRepository.save(previousPoint);
@@ -105,4 +104,11 @@ public class PointReservationService {
     }
     point.reserve(amount);
   }
+
+  /**
+   * {@link #prepareReservation}에서 잠근 {@code PointReservation}/{@code Point}를 {@link
+   * #reserveHighestBid}로 넘기기 위한 락 컨텍스트.
+   */
+  public record PreparedBidReservation(
+      PointReservation reservation, Map<Long, Point> lockedPoints) {}
 }

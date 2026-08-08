@@ -27,6 +27,7 @@ import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.service.PointReservationService;
+import com.ootd.pickup.point.service.PointReservationService.PreparedBidReservation;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -69,9 +70,10 @@ public class BidService {
         currentHighestBid.map(Bid::getBidPrice).orElseGet(auction::getStartingPrice);
 
     validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
-    pointReservationService.validateAvailable(auction, member, request.bidPrice());
+    PreparedBidReservation preparedReservation =
+        pointReservationService.prepareReservation(auction, member, request.bidPrice());
     Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
-    pointReservationService.reserveHighestBid(auction, savedBid, member);
+    pointReservationService.reserveHighestBid(auction, preparedReservation, savedBid, member);
 
     currentHighestBid.ifPresent(
         bid -> {
