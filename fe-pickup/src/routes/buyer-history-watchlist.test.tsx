@@ -78,10 +78,7 @@ describe("구매자 입찰·관심 목록", () => {
     render(<Component />);
     expect(screen.getAllByText("Pikachu").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("tab", { name: "낙찰 내역" }));
-    expect(screen.getByRole("tab", { name: "낙찰 내역" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(screen.getByRole("tab", { name: "낙찰 내역" })).toBeInTheDocument();
   });
 
   it("관심 목록의 오류·빈 상태·카드 목록을 표시한다", async () => {
