@@ -4,5 +4,4 @@ public record SellerStatsResponse(
     long registeredConsignments,
     long scheduledAuctions,
     long ongoingAuctions,
-    long wonConsignments
-) {}
+    long wonConsignments) {}

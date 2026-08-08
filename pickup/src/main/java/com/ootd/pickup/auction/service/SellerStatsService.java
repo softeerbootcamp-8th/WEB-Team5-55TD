@@ -23,10 +23,8 @@ public class SellerStatsService {
     long registeredConsignments = consignmentJpaRepository.countBySellerMemberId(memberId);
     long scheduledAuctions =
         auctionJpaRepository.countBySellerMemberIdAndStatus(memberId, SCHEDULED);
-    long ongoingAuctions =
-        auctionJpaRepository.countBySellerMemberIdAndStatus(memberId, ONGOING);
-    long wonConsignments =
-        auctionJpaRepository.countBySellerMemberIdAndStatus(memberId, WON);
+    long ongoingAuctions = auctionJpaRepository.countBySellerMemberIdAndStatus(memberId, ONGOING);
+    long wonConsignments = auctionJpaRepository.countBySellerMemberIdAndStatus(memberId, WON);
 
     return new SellerStatsResponse(
         registeredConsignments, scheduledAuctions, ongoingAuctions, wonConsignments);
