@@ -16,7 +16,6 @@ public interface AuctionJpaRepository extends JpaRepository<Auction, Long> {
       select auction
       from Auction auction
       join fetch auction.consignment consignment
-      join fetch consignment.sellerMember
       where auction.auctionId = :auctionId
       """)
   Optional<Auction> findByIdForUpdate(@Param("auctionId") Long auctionId);
