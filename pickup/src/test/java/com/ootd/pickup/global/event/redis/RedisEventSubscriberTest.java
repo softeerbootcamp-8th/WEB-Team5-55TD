@@ -11,6 +11,8 @@ import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.global.event.DomainEvent;
 import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.event.NotificationEventDispatcher;
+import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -30,6 +32,9 @@ class RedisEventSubscriberTest {
 
   private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
   private final List<AuctionBidUpdatedNotificationEvent> receivedEvents = new ArrayList<>();
+  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+  private final RealtimeNotificationMetrics metrics =
+      new RealtimeNotificationMetrics(meterRegistry);
 
   @Mock private Message message;
 
@@ -48,6 +53,7 @@ class RedisEventSubscriberTest {
     subscriber.onMessage(message, null);
 
     assertThat(receivedEvents).containsExactly(event);
+    assertThat(receiveCount("success", "AUCTION_BID_UPDATED")).isEqualTo(1);
   }
 
   @Test
@@ -77,6 +83,7 @@ class RedisEventSubscriberTest {
     subscriber.onMessage(message, null);
 
     assertThat(receivedEvents).isEmpty();
+    assertThat(receiveCount("deserialize_failure", "unknown")).isEqualTo(1);
   }
 
   @Test
@@ -87,6 +94,7 @@ class RedisEventSubscriberTest {
     subscriber.onMessage(message, null);
 
     assertThat(receivedEvents).isEmpty();
+    assertThat(receiveCount("channel_mismatch", "AUCTION_BID_UPDATED")).isEqualTo(1);
   }
 
   @Test
@@ -116,7 +124,15 @@ class RedisEventSubscriberTest {
     NotificationEnvelopeReader envelopeReader = new NotificationEnvelopeReader(objectMapper);
     NotificationChannelResolver channelResolver = new NotificationChannelResolver();
     NotificationEventDispatcher eventDispatcher = new NotificationEventDispatcher(eventHandlers);
-    return new RedisEventSubscriber(envelopeReader, channelResolver, eventDispatcher);
+    return new RedisEventSubscriber(envelopeReader, channelResolver, eventDispatcher, metrics);
+  }
+
+  private double receiveCount(String outcome, String eventType) {
+    return meterRegistry
+        .get("pickup.redis.notification.receive")
+        .tags("outcome", outcome, "event_type", eventType)
+        .counter()
+        .count();
   }
 
   private NotificationEnvelope envelopeOf(AuctionBidUpdatedNotificationEvent event) {
