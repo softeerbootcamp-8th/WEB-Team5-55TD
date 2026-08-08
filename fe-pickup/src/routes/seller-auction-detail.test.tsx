@@ -13,6 +13,7 @@ const auction = {
   grade: { agency: "PSA", score: "10" },
   endsAt: new Date(Date.now() + 3600000).toISOString(),
 };
+let nickname = "seller";
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
     options,
@@ -23,7 +24,7 @@ vi.mock("@tanstack/react-router", () => ({
   ),
   notFound: () => new Error("not found"),
 }));
-vi.mock("@/lib/auth", () => ({ useNickname: () => "seller" }));
+vi.mock("@/lib/auth", () => ({ useNickname: () => nickname }));
 vi.mock("@/api/auctions", () => ({ getAuctionDetail: vi.fn() }));
 
 describe("셀러 경매 상세", () => {
@@ -34,5 +35,10 @@ describe("셀러 경매 상세", () => {
     expect(screen.getByRole("heading", { name: "Mewtwo" })).toBeInTheDocument();
     expect(screen.getByText("12,000원")).toBeInTheDocument();
     expect(screen.getByText("입찰 내역")).toBeInTheDocument();
+    nickname = "other";
+    const guarded = render(<Component />);
+    expect(
+      guarded.getByText("본인 소유의 경매만 모니터링할 수 있습니다."),
+    ).toBeInTheDocument();
   });
 });
