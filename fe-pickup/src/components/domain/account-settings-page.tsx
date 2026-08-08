@@ -115,7 +115,8 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const nicknameValid = nickname.length >= 4;
+  const normalizedNickname = nickname.trim();
+  const nicknameValid = normalizedNickname.length >= 4;
   const passwordTouched =
     currentPassword.length > 0 ||
     newPassword.length > 0 ||
@@ -129,7 +130,7 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
   const passwordValid =
     !passwordTouched ||
     (!currentPasswordTooShort && !newPasswordTooShort && !passwordMismatch);
-  const nicknameChanged = nickname !== profile.nickname;
+  const nicknameChanged = normalizedNickname !== profile.nickname;
   const hasServerChanges = nicknameChanged || passwordTouched;
   const hasChanges = hasServerChanges || isAvatarChanged;
   const valid = nicknameValid && passwordValid && hasChanges;
@@ -188,7 +189,7 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
     if (!valid || isSaving) return;
 
     const request: UpdateMyProfileRequest = {};
-    if (nicknameChanged) request.nickname = nickname;
+    if (nicknameChanged) request.nickname = normalizedNickname;
     if (passwordTouched) {
       request.currentPassword = currentPassword;
       request.password = newPassword;

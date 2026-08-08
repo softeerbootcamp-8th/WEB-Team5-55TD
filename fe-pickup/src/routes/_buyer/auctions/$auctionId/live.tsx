@@ -113,6 +113,17 @@ function LiveAuctionPage() {
   const currentPrice = Math.max(realtimePrice, snapshotPrice);
   const endsAt = laterEndTime(auction.endsAt, realtimeEndsAt);
   const minNext = currentPrice + minUnit;
+  const recommendedAmounts = [
+    minNext,
+    minNext + minUnit,
+    minNext + minUnit * 2,
+  ];
+  const parsedAmount = (() => {
+    const normalized = amount.trim().replaceAll(",", "");
+    if (!/^\d+$/.test(normalized)) return null;
+    const value = Number(normalized);
+    return Number.isSafeInteger(value) && value >= minNext ? value : null;
+  })();
 
   const previewBidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id, "preview"],
@@ -173,8 +184,7 @@ function LiveAuctionPage() {
   });
 
   const onBidClick = () => {
-    const value = Number(amount.replace(/[^0-9]/g, ""));
-    if (!value || value < minNext) {
+    if (parsedAmount === null) {
       setFail("입찰가는 현재가 + 최소 입찰 단위 이상이어야 합니다.");
       return;
     }
@@ -182,9 +192,9 @@ function LiveAuctionPage() {
   };
 
   const confirmBid = useCallback(() => {
-    const value = Number(amount.replace(/[^0-9]/g, ""));
+    if (parsedAmount === null) return;
     setConfirmOpen(false);
-    bidMutation.mutate(value, {
+    bidMutation.mutate(parsedAmount, {
       onSuccess: (placed) => {
         queryClient.invalidateQueries({
           queryKey: ["auction-bids", auction.id],
@@ -202,7 +212,7 @@ function LiveAuctionPage() {
       },
       onError: (error) => setFail(getBidErrorMessage(error)),
     });
-  }, [amount, auction.endsAt, auction.id, bidMutation, queryClient]);
+  }, [auction.endsAt, auction.id, bidMutation, parsedAmount, queryClient]);
 
   const goEnd = useCallback(() => {
     navigate({
@@ -266,11 +276,24 @@ function LiveAuctionPage() {
               />
               <Button
                 onClick={onBidClick}
-                disabled={bidMutation.isPending}
+                disabled={parsedAmount === null || bidMutation.isPending}
                 className="shrink-0"
               >
                 {bidMutation.isPending ? "입찰 중…" : "입찰하기"}
               </Button>
+            </div>
+            <div className="flex flex-wrap gap-2" aria-label="추천 입찰 금액">
+              {recommendedAmounts.map((recommended, index) => (
+                <Button
+                  key={`${recommended}-${index}`}
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setAmount(String(recommended))}
+                >
+                  {formatWon(recommended)}
+                </Button>
+              ))}
             </div>
             <p className="text-xs text-[var(--color-text-muted)]">
               입찰은 취소할 수 없습니다.
@@ -345,7 +368,7 @@ function LiveAuctionPage() {
             <div className="flex justify-between">
               <dt className="text-[var(--color-text-sub)]">입찰 금액</dt>
               <dd className="tabular font-bold text-primary">
-                {formatWon(Number(amount.replace(/[^0-9]/g, "")) || 0)}
+                {formatWon(parsedAmount ?? 0)}
               </dd>
             </div>
           </dl>
