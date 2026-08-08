@@ -51,4 +51,39 @@ class AuctionTest {
     assertThat(auction.getWinningBidId()).isEqualTo(11L);
     assertThat(auction.getWinningPrice()).isEqualTo(11_000L);
   }
+
+  @Test
+  void 종료_5분_이내_입찰이면_입찰시각부터_5분으로_종료시각을_연장한다() {
+    LocalDateTime bidAt = LocalDateTime.of(2026, 8, 8, 21, 58);
+    Auction auction = ongoingAuction(bidAt.plusMinutes(2));
+
+    boolean extended = auction.extendEndAtForSoftClose(bidAt);
+
+    assertThat(extended).isTrue();
+    assertThat(auction.getEndedAt()).isEqualTo(bidAt.plusMinutes(5));
+  }
+
+  @Test
+  void 종료까지_5분보다_많이_남은_입찰은_종료시각을_바꾸지_않는다() {
+    LocalDateTime bidAt = LocalDateTime.of(2026, 8, 8, 21, 50);
+    LocalDateTime endedAt = bidAt.plusMinutes(6);
+    Auction auction = ongoingAuction(endedAt);
+
+    boolean extended = auction.extendEndAtForSoftClose(bidAt);
+
+    assertThat(extended).isFalse();
+    assertThat(auction.getEndedAt()).isEqualTo(endedAt);
+  }
+
+  private Auction ongoingAuction(LocalDateTime endedAt) {
+    return Auction.builder()
+        .consignment(null)
+        .startedAt(endedAt.minusDays(7))
+        .endedAt(endedAt)
+        .auctionStatus(AuctionStatus.ONGOING)
+        .startingPrice(10_000L)
+        .reservePrice(15_000L)
+        .bidIncrement(500L)
+        .build();
+  }
 }

@@ -100,7 +100,7 @@ class AuctionServiceTest {
               return auction;
             });
 
-    LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1);
+    LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1).withHour(13).withMinute(30);
     CreateAuctionRequest request =
         new CreateAuctionRequest(consignmentId, 10000L, 15000L, scheduledStartAt);
 
@@ -113,8 +113,9 @@ class AuctionServiceTest {
     assertThat(response.auctionStatus()).isEqualTo(AuctionStatus.SCHEDULED);
     assertThat(response.startingPrice()).isEqualTo(10000L);
     assertThat(response.bidIncrement()).isEqualTo(500L);
-    assertThat(response.startedAt()).isEqualTo(scheduledStartAt);
-    assertThat(response.endedAt()).isNull();
+    LocalDateTime confirmedStartAt = scheduledStartAt.toLocalDate().atTime(21, 0);
+    assertThat(response.startedAt()).isEqualTo(confirmedStartAt);
+    assertThat(response.endedAt()).isEqualTo(confirmedStartAt.plusDays(7));
     assertThat(response.winningBidId()).isNull();
     assertThat(response.winningPrice()).isNull();
     assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.AUCTION_SCHEDULED);

@@ -92,6 +92,21 @@ public class Auction {
     this.winningPrice = winningPrice;
   }
 
+  /** 종료 5분 이내의 유효 입찰이면 해당 입찰 시각부터 다시 5분을 보장한다. */
+  public boolean extendEndAtForSoftClose(LocalDateTime bidAt) {
+    if (auctionStatus != AuctionStatus.ONGOING || endedAt == null || !endedAt.isAfter(bidAt)) {
+      return false;
+    }
+
+    LocalDateTime softCloseBoundary = bidAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+    if (endedAt.isAfter(softCloseBoundary)) {
+      return false;
+    }
+
+    endedAt = softCloseBoundary;
+    return true;
+  }
+
   public Long getCurrentPrice() {
     if (auctionStatus == AuctionStatus.SCHEDULED) {
       return null;
