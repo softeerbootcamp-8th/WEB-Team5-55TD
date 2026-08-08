@@ -2,14 +2,16 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ComponentType, ReactNode } from "react";
 
-const auction = {
-  id: "1",
-  cardName: "Mewtwo",
-  status: "LIVE" as const,
-  currentPrice: 10000,
-  minBidUnit: 500,
-  endsAt: new Date(Date.now() + 3600000).toISOString(),
-};
+const { auction } = vi.hoisted(() => ({
+  auction: {
+    id: "1",
+    cardName: "Mewtwo",
+    status: "LIVE" as const,
+    currentPrice: 10000,
+    minBidUnit: 500,
+    endsAt: new Date(Date.now() + 3600000).toISOString(),
+  },
+}));
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
