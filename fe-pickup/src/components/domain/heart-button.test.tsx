@@ -1,25 +1,29 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigate = vi.fn();
 const toast = { info: vi.fn(), error: vi.fn() };
 let authenticated = true;
+const deleteMutate = vi.fn();
+const registerMutate = vi.fn();
+const invalidateQueries = vi.fn();
+const invalidateRouter = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
-  useRouter: () => ({ invalidate: vi.fn() }),
+  useRouter: () => ({ invalidate: invalidateRouter }),
 }));
 vi.mock("@/lib/auth", () => ({ useIsAuthenticated: () => authenticated }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/api/generated/watch/watch", () => ({
-  useDeleteWatch: () => ({ isPending: false, mutate: vi.fn() }),
-  useRegisterWatch: () => ({ isPending: false, mutate: vi.fn() }),
+  useDeleteWatch: () => ({ isPending: false, mutate: deleteMutate }),
+  useRegisterWatch: () => ({ isPending: false, mutate: registerMutate }),
 }));
 vi.mock("@/api/generated/member/member", () => ({
   getGetMyWatchesQueryKey: () => ["watches"],
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries }),
 }));
 
 describe("HeartButton", () => {
@@ -48,5 +52,27 @@ describe("HeartButton", () => {
       expect.objectContaining({ action: expect.any(Object) }),
     );
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("WatchButton은 관심 등록·해제 요청을 낙관적으로 처리한다", async () => {
+    const { WatchButton } = await import("./heart-button");
+    render(<WatchButton auctionId="7" watched={false} count={2} />);
+    fireEvent.click(screen.getByRole("button", { name: "관심 등록" }));
+    expect(registerMutate).toHaveBeenCalledWith(
+      { auctionId: 7 },
+      expect.objectContaining({
+        onError: expect.any(Function),
+        onSettled: expect.any(Function),
+      }),
+    );
+    const options = registerMutate.mock.calls[0][1];
+    await options.onSettled();
+    expect(invalidateQueries).toHaveBeenCalled();
+    expect(invalidateRouter).toHaveBeenCalled();
+
+    cleanup();
+    render(<WatchButton auctionId="7" watched count={2} />);
+    fireEvent.click(screen.getByRole("button", { name: "관심 해제" }));
+    expect(deleteMutate).toHaveBeenCalled();
   });
 });
