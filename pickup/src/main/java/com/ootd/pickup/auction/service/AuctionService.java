@@ -25,13 +25,11 @@ import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
 import com.ootd.pickup.images.service.ImageUrlResolver;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuctionService {
 
   private static final double BID_INCREMENT_RATIO = 0.05;
-  private static final String FEATURED_AUCTION_CACHE_KEY = "auction:featured:id";
 
   private final ConsignmentRepository consignmentRepository;
   private final AuctionRepository auctionRepository;
@@ -51,7 +48,6 @@ public class AuctionService {
   private final WatchRepository watchRepository;
   private final ImageUrlResolver imageUrlResolver;
   private final BidRepository bidRepository;
-  private final StringRedisTemplate redisTemplate;
 
   @Transactional
   public CreateAuctionResponse registerAuction(Long memberId, CreateAuctionRequest request) {
@@ -108,40 +104,23 @@ public class AuctionService {
   }
 
   public AuctionListItemResponse getFeaturedAuction(Long viewerMemberId) {
-    Auction featured = null;
-    if (redisTemplate != null) {
-      try {
-        String cachedId = redisTemplate.opsForValue().get(FEATURED_AUCTION_CACHE_KEY);
-        if (cachedId != null) {
-          Long auctionId = Long.parseLong(cachedId);
-          featured = auctionRepository.findById(auctionId).orElse(null);
-        }
-      } catch (Exception ignored) {
-      }
-    }
+    return getFeaturedAuctionFromDb(viewerMemberId);
+  }
 
-    if (featured == null) {
-      List<Auction> candidates =
-          auctionRepository.searchAuctions(
-              null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1);
-      featured =
-          candidates.stream()
-              .findFirst()
-              .orElseThrow(() -> new PickUpException(FEATURED_AUCTION_NOT_FOUND));
+  public AuctionListItemResponse getFeaturedAuctionFromDb(Long viewerMemberId) {
+    List<Auction> candidates =
+        auctionRepository.searchAuctions(
+            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1);
+    Auction featured =
+        candidates.stream()
+            .findFirst()
+            .orElseThrow(() -> new PickUpException(FEATURED_AUCTION_NOT_FOUND));
 
-      if (redisTemplate != null) {
-        try {
-          redisTemplate
-              .opsForValue()
-              .set(
-                  FEATURED_AUCTION_CACHE_KEY,
-                  String.valueOf(featured.getAuctionId()),
-                  Duration.ofSeconds(10));
-        } catch (Exception ignored) {
-        }
-      }
-    }
+    return assemble(List.of(featured), viewerMemberId).items().getFirst();
+  }
 
+  public AuctionListItemResponse getFeaturedAuctionById(Long auctionId, Long viewerMemberId) {
+    Auction featured = getAuction(auctionId);
     return assemble(List.of(featured), viewerMemberId).items().getFirst();
   }
 

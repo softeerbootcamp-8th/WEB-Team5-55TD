@@ -7,6 +7,7 @@ import com.ootd.pickup.auction.dto.response.AuctionDetailResponse;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.service.AuctionService;
+import com.ootd.pickup.auction.service.FeaturedAuctionFacade;
 import com.ootd.pickup.global.auth.annotation.MemberId;
 import com.ootd.pickup.global.auth.annotation.OptionalMemberId;
 import com.ootd.pickup.global.auth.annotation.RequireAuthentication;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuctionController implements AuctionApi {
 
   private final AuctionService auctionService;
+  private final FeaturedAuctionFacade featuredAuctionFacade;
 
   @PostMapping
   @RequireAuthentication
@@ -51,7 +53,7 @@ public class AuctionController implements AuctionApi {
   @Override
   public ResponseEntity<AuctionListItemResponse> getFeaturedAuction(
       @OptionalMemberId Long memberId) {
-    return ResponseEntity.ok(auctionService.getFeaturedAuction(memberId));
+    return ResponseEntity.ok(featuredAuctionFacade.getFeaturedAuction(memberId));
   }
 
   @GetMapping("/{auctionId}")

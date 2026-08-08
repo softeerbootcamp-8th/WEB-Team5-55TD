@@ -14,6 +14,7 @@ import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CertificateResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.service.AuctionService;
+import com.ootd.pickup.auction.service.FeaturedAuctionFacade;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
 import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
@@ -43,7 +44,21 @@ class AuctionControllerTest {
 
   @MockitoBean private AuctionService auctionService;
 
+  @MockitoBean private FeaturedAuctionFacade featuredAuctionFacade;
+
   @MockitoBean private SlackErrorNotifier slackErrorNotifier;
+
+  @Test
+  void 대표_경매를_조회하면_200과_대표경매_정보를_반환한다() throws Exception {
+    // given
+    given(featuredAuctionFacade.getFeaturedAuction(isNull())).willReturn(createListItem());
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions/featured"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.auctionId").value(1L));
+  }
 
   @Test
   void 유효한_요청으로_경매를_신청하면_201과_경매_정보를_반환한다() throws Exception {

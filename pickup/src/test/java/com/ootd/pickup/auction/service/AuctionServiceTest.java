@@ -43,7 +43,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,8 +64,6 @@ class AuctionServiceTest {
 
   @Mock private BidRepository bidRepository;
 
-  @Mock private StringRedisTemplate redisTemplate;
-
   private AuctionService auctionService;
 
   @BeforeEach
@@ -80,8 +77,7 @@ class AuctionServiceTest {
             consignmentImageRepository,
             watchRepository,
             imageUrlResolver,
-            bidRepository,
-            redisTemplate);
+            bidRepository);
     lenient()
         .when(imageUrlResolver.resolve(anyString()))
         .thenAnswer(invocation -> invocation.getArgument(0));
