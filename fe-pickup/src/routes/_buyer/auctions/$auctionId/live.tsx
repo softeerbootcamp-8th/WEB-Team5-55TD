@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   createFileRoute,
   Link,
@@ -25,11 +25,36 @@ import {
 } from "@/components/ui/dialog";
 import { getAuctionDetail } from "@/api/auctions";
 import { getAuctionBids, getBidErrorMessage, placeBid } from "@/api/bids";
+import {
+  useAuctionBidUpdates,
+  type AuctionBidUpdatedMessage,
+} from "@/hooks/use-auction-bid-updates";
 import { useIsAuthenticated } from "@/lib/auth";
 import { formatWon } from "@/lib/format";
+import { AuctionStatus } from "@/lib/types";
 
 const BID_PREVIEW_SIZE = 6;
 const BID_MODAL_SIZE = 100;
+const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
+const HIDDEN_POLLING_INTERVAL_MILLIS = 60_000;
+const POLLING_JITTER_MILLIS = 3_000;
+
+function pollingInterval() {
+  const baseInterval =
+    document.visibilityState === "hidden"
+      ? HIDDEN_POLLING_INTERVAL_MILLIS
+      : ACTIVE_POLLING_INTERVAL_MILLIS;
+  return baseInterval + Math.floor(Math.random() * POLLING_JITTER_MILLIS);
+}
+
+function laterEndTime(
+  current: string | null | undefined,
+  next: string | null | undefined,
+): string | undefined {
+  if (!next) return current ?? undefined;
+  if (!current) return next;
+  return Date.parse(next) >= Date.parse(current) ? next : current;
+}
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/live")({
   loader: async ({ params }) => {
@@ -47,20 +72,46 @@ export const Route = createFileRoute("/_buyer/auctions/$auctionId/live")({
 
 /** DESIGN.md · live-auction.html — 실 입찰 API 연동, §5.9 최근 6건 + 전체 모달 */
 function LiveAuctionPage() {
-  const { auction } = Route.useLoaderData();
+  const { auction: initialAuction } = Route.useLoaderData();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isAuthenticated = useIsAuthenticated();
+  const auctionQuery = useQuery({
+    queryKey: ["auction-detail", initialAuction.id],
+    queryFn: () => getAuctionDetail(initialAuction.id),
+    initialData: initialAuction,
+    staleTime: 0,
+    refetchInterval: (query) =>
+      query.state.data?.status === AuctionStatus.LIVE
+        ? pollingInterval()
+        : false,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+  const auction = auctionQuery.data;
   const minUnit = auction.minBidUnit ?? 0;
 
-  const [currentPrice, setCurrentPrice] = useState(
-    auction.currentPrice ?? auction.startPrice ?? 0,
-  );
+  const [realtimeSnapshot, setRealtimeSnapshot] = useState({
+    auctionId: auction.id,
+    price: auction.currentPrice ?? auction.startPrice ?? 0,
+    endsAt: auction.endsAt,
+  });
   const [amount, setAmount] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [fail, setFail] = useState<string | null>(null);
   const [allBidsOpen, setAllBidsOpen] = useState(false);
 
+  const snapshotPrice = auction.currentPrice ?? auction.startPrice ?? 0;
+  const realtimePrice =
+    realtimeSnapshot.auctionId === auction.id
+      ? realtimeSnapshot.price
+      : snapshotPrice;
+  const realtimeEndsAt =
+    realtimeSnapshot.auctionId === auction.id
+      ? realtimeSnapshot.endsAt
+      : auction.endsAt;
+  const currentPrice = Math.max(realtimePrice, snapshotPrice);
+  const endsAt = laterEndTime(auction.endsAt, realtimeEndsAt);
   const minNext = currentPrice + minUnit;
   const recommendedAmounts = [
     minNext,
@@ -77,11 +128,55 @@ function LiveAuctionPage() {
   const previewBidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id, "preview"],
     queryFn: () => getAuctionBids(auction.id, { size: BID_PREVIEW_SIZE }),
+    staleTime: 0,
+    refetchInterval: () =>
+      auction.status === AuctionStatus.LIVE ? pollingInterval() : false,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
   const allBidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id, "all"],
     queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
     enabled: allBidsOpen,
+  });
+  const latestBidId = previewBidsQuery.data?.items[0]
+    ? Number(previewBidsQuery.data.items[0].id)
+    : undefined;
+
+  const refreshSnapshot = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ["auction-detail", auction.id],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["auction-bids", auction.id],
+    });
+  }, [auction.id, queryClient]);
+
+  const applyBidUpdate = useCallback(
+    (message: AuctionBidUpdatedMessage) => {
+      setRealtimeSnapshot((current) => ({
+        auctionId: auction.id,
+        price:
+          current.auctionId === auction.id
+            ? Math.max(current.price, message.currentPrice)
+            : message.currentPrice,
+        endsAt:
+          current.auctionId === auction.id
+            ? laterEndTime(current.endsAt, message.endedAt)
+            : (message.endedAt ?? undefined),
+      }));
+      void queryClient.invalidateQueries({
+        queryKey: ["auction-bids", auction.id],
+      });
+    },
+    [auction.id, queryClient],
+  );
+
+  useAuctionBidUpdates({
+    auctionId: auction.id,
+    latestBidId,
+    onBidUpdated: applyBidUpdate,
+    onSubscribed: refreshSnapshot,
   });
 
   const bidMutation = useMutation({
@@ -104,12 +199,20 @@ function LiveAuctionPage() {
         queryClient.invalidateQueries({
           queryKey: ["auction-bids", auction.id],
         });
-        setCurrentPrice(placed.bidPrice);
+        setRealtimeSnapshot((current) => ({
+          auctionId: auction.id,
+          price:
+            current.auctionId === auction.id
+              ? Math.max(current.price, placed.bidPrice)
+              : placed.bidPrice,
+          endsAt:
+            current.auctionId === auction.id ? current.endsAt : auction.endsAt,
+        }));
         setAmount("");
       },
       onError: (error) => setFail(getBidErrorMessage(error)),
     });
-  }, [auction.id, bidMutation, parsedAmount, queryClient]);
+  }, [auction.endsAt, auction.id, bidMutation, parsedAmount, queryClient]);
 
   const goEnd = useCallback(() => {
     navigate({
@@ -117,6 +220,12 @@ function LiveAuctionPage() {
       params: { auctionId: auction.id },
     });
   }, [auction.id, navigate]);
+
+  useEffect(() => {
+    if (auction.status === AuctionStatus.ENDED) {
+      goEnd();
+    }
+  }, [auction.status, goEnd]);
 
   return (
     <PageContainer className="grid gap-8 md:grid-cols-[1fr_380px]">
@@ -140,7 +249,7 @@ function LiveAuctionPage() {
                 <span className="text-xs text-[var(--color-text-muted)]">
                   남은 시간
                 </span>
-                <Countdown to={auction.endsAt} onEnd={goEnd} />
+                <Countdown to={endsAt} onEnd={goEnd} />
               </div>
             </div>
           </div>
