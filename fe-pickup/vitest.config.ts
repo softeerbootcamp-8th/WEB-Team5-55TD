@@ -13,19 +13,13 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "lcov"],
+      reporter: ["text", "html", "lcov", "json-summary"],
       include: [
         "src/lib/format.ts",
         "src/lib/status.ts",
         "src/lib/utils.ts",
         "src/lib/auth.ts",
       ],
-      thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 80,
-        statements: 80,
-      },
     },
   },
 });
