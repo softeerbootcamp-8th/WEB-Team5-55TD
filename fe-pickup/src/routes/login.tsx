@@ -23,7 +23,7 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const valid = username.length >= 4 && password.length >= 4;
+  const valid = username.trim().length >= 4 && password.trim().length >= 4;
 
   const { mutate, isPending } = useMutation({
     mutationFn: (loginRequest: LoginRequest) => login(loginRequest),
@@ -40,7 +40,7 @@ function LoginPage() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid || isPending) return;
-    mutate({ loginId: username, password });
+    mutate({ loginId: username.trim(), password });
   };
 
   return (
@@ -87,9 +87,7 @@ function LoginPage() {
             aria-invalid={errorMessage !== null}
           />
           {errorMessage && (
-            <p className="text-xs text-[var(--color-danger)]">
-              {errorMessage}
-            </p>
+            <p className="text-xs text-[var(--color-danger)]">{errorMessage}</p>
           )}
         </div>
 

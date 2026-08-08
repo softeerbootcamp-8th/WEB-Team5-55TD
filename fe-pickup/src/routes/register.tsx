@@ -26,9 +26,9 @@ function RegisterPage() {
     passwordConfirm.length > 0 && password !== passwordConfirm;
 
   const valid =
-    username.length >= 4 &&
-    nickname.length >= 4 &&
-    password.length >= 4 &&
+    username.trim().length >= 4 &&
+    nickname.trim().length >= 4 &&
+    password.trim().length >= 4 &&
     password === passwordConfirm;
 
   const { mutate, isPending } = useMutation({
@@ -47,7 +47,7 @@ function RegisterPage() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid || isPending) return;
-    mutate({ loginId: username, nickname, password });
+    mutate({ loginId: username.trim(), nickname: nickname.trim(), password });
   };
 
   return (

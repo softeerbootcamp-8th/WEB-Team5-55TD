@@ -187,6 +187,14 @@ function AuctionDetailPage() {
                     value={auction.grade?.serial ?? "-"}
                   />
                   <Row
+                    label="검수 완료일"
+                    value={
+                      auction.inspectedAt
+                        ? formatDateTime(auction.inspectedAt)
+                        : "-"
+                    }
+                  />
+                  <Row
                     label="카드 상태"
                     value={auction.cardState ?? "-"}
                     full
