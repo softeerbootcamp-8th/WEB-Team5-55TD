@@ -119,6 +119,24 @@ describe("구매자 입찰·관심 목록", () => {
             watchCount: 1,
             watched: true,
           },
+          {
+            auctionId: 10,
+            card: { cardName: "Eevee" },
+            auctionStatus: "SCHEDULED",
+            startingPrice: 500,
+            grade: "",
+            watchCount: 1,
+            watched: true,
+          },
+          {
+            auctionId: 11,
+            card: { cardName: "Gengar" },
+            auctionStatus: "PASSED",
+            startingPrice: 700,
+            grade: "CGC 8",
+            watchCount: 0,
+            watched: true,
+          },
         ],
       },
       isPending: false,
@@ -126,6 +144,8 @@ describe("구매자 입찰·관심 목록", () => {
       refetch: vi.fn(),
     };
     render(<Component />);
-    expect(screen.getByText("Mewtwo")).toBeInTheDocument();
+    expect(screen.getAllByText("Mewtwo").length).toBeGreaterThan(0);
+    expect(screen.getByText("Eevee")).toBeInTheDocument();
+    expect(screen.getByText("Gengar")).toBeInTheDocument();
   });
 });
