@@ -94,4 +94,26 @@ describe("auctions api", () => {
       grade: { agency: "BGS", score: "9", serial: "S1" },
     });
   });
+
+  it("상세 API가 목록 형식이면 기본 상세 모델로 변환한다", async () => {
+    const api = await import("@/api/auctions");
+    get.mockResolvedValueOnce({
+      data: {
+        auctionId: 11,
+        card,
+        auctionStatus: "SCHEDULED",
+        startingPrice: 20000,
+        thumbnailUrl: "thumb.jpg",
+        watchCount: 1,
+        watched: false,
+      },
+    });
+    await expect(api.getAuctionDetail("11")).resolves.toMatchObject({
+      id: "11",
+      status: "UPCOMING",
+      minBidUnit: 1000,
+      images: ["thumb.jpg", "card.jpg"],
+      won: false,
+    });
+  });
 });
