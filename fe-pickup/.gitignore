@@ -8,6 +8,7 @@ dist-ssr
 *.local
 
 # generated
+coverage
 src/api/generated
 src/routeTree.gen.ts
 
