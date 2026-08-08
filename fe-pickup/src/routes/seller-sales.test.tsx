@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ComponentType } from "react";
 
-let search = { tab: undefined as string | undefined };
+const search = { tab: undefined as string | undefined };
 let queries: Array<Record<string, unknown>> = [];
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({

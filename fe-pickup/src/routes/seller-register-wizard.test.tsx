@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType } from "react";
 
 let cardData: { items: Array<Record<string, unknown>> } | undefined;
 const mutate = vi.fn();
