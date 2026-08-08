@@ -19,10 +19,22 @@ vi.mock("@tanstack/react-query", () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 vi.mock("@/api/consignments", () => ({ getMyConsignments: vi.fn() }));
 vi.mock("@/api/sales", () => ({ getMySalesHistory: vi.fn() }));
 vi.mock("@/api/seller-stats", () => ({ getMySellerStats: vi.fn() }));
+vi.mock("@/api/generated/card/card", () => ({
+  useSearchCards: () => ({ data: undefined, isFetching: false }),
+}));
+vi.mock("@/api/generated/consignment/consignment", () => ({
+  registerConsignment: vi.fn(),
+}));
+vi.mock("@/api/image-upload", () => ({
+  uploadImage: vi.fn(),
+  IMAGE_ACCEPT: "image/*",
+  getImageValidationError: () => null,
+}));
 
 describe("셀러 라우트 초기 상태", () => {
   it("셀러 홈은 통계와 목록 영역을 표시한다", async () => {
@@ -50,5 +62,18 @@ describe("셀러 라우트 초기 상태", () => {
     expect(
       screen.getByRole("heading", { name: "판매 내역" }),
     ).toBeInTheDocument();
+  });
+
+  it("상품 등록 위저드는 첫 단계와 진행 조건을 표시한다", async () => {
+    const register = await import("@/routes/seller/register");
+    const Register = register.Route.options.component as React.ComponentType;
+    render(<Register />);
+    expect(
+      screen.getByRole("heading", { name: "카드 등록" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("카드명 검색 (예: 리자몽)"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("카드 정보")).toBeInTheDocument();
   });
 });
