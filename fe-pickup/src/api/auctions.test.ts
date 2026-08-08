@@ -116,4 +116,33 @@ describe("auctions api", () => {
       won: false,
     });
   });
+
+  it("상세 API가 404면 목록에서 경매를 찾아 보완한다", async () => {
+    const api = await import("@/api/auctions");
+    get
+      .mockRejectedValueOnce({ response: { status: 404 } })
+      .mockResolvedValueOnce({
+        data: {
+          hasNext: false,
+          items: [
+            {
+              auctionId: 12,
+              card,
+              auctionStatus: "PASSED",
+              startingPrice: 30000,
+              thumbnailUrl: "thumb.jpg",
+              watchCount: 0,
+              watched: false,
+            },
+          ],
+        },
+      });
+    await expect(api.getAuctionDetail("12")).resolves.toMatchObject({
+      id: "12",
+      status: "ENDED",
+      minBidUnit: 1500,
+      images: ["thumb.jpg"],
+      won: false,
+    });
+  });
 });
