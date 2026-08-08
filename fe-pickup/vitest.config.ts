@@ -10,15 +10,16 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    setupFiles: ["./src/test-setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov", "json-summary"],
-      include: [
-        "src/lib/format.ts",
-        "src/lib/status.ts",
-        "src/lib/utils.ts",
-        "src/lib/auth.ts",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/api/generated/**",
+        "src/routeTree.gen.ts",
       ],
     },
   },
