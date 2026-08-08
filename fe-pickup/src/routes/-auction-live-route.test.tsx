@@ -9,7 +9,7 @@ vi.mock("@tanstack/react-router", () => ({
       auction: {
         id: "1",
         cardName: "Mewtwo",
-        status: "LIVE" as const,
+        status: "LIVE",
         currentPrice: 10000,
         minBidUnit: 500,
         endsAt: new Date(Date.now() + 3600000).toISOString(),
@@ -41,46 +41,22 @@ vi.mock("@/api/auctions", () => ({ getAuctionDetail: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ useIsAuthenticated: () => true }));
 
 describe("실시간 경매 라우트", () => {
-  it("현재가, 최소 입찰가, 입찰 입력을 표시한다", async () => {
+  it("현재가와 입찰 입력을 표시한다", async () => {
     const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
-    (Route as unknown as { useLoaderData: () => unknown }).useLoaderData =
-      () => ({
-        auction: {
-          id: "1",
-          cardName: "Mewtwo",
-          status: "LIVE",
-          currentPrice: 10000,
-          minBidUnit: 500,
-          endsAt: new Date(Date.now() + 3600000).toISOString(),
-        },
-      });
     const Component = Route.options.component as ComponentType;
     render(<Component />);
     expect(screen.getByRole("heading", { name: "Mewtwo" })).toBeInTheDocument();
     expect(screen.getByText("10,000원")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("10,500 이상")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "입찰하기" }),
-    ).toBeInTheDocument();
   });
 
-  it("최소 입찰가보다 낮은 금액은 입찰 버튼을 비활성화한다", async () => {
+  it("최소 입찰가보다 낮은 금액은 제출할 수 없다", async () => {
     const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
-    (Route as unknown as { useLoaderData: () => unknown }).useLoaderData =
-      () => ({
-        auction: {
-          id: "1",
-          cardName: "Mewtwo",
-          status: "LIVE",
-          currentPrice: 10000,
-          minBidUnit: 500,
-          endsAt: new Date(Date.now() + 3600000).toISOString(),
-        },
-      });
     const Component = Route.options.component as ComponentType;
     render(<Component />);
-    const input = screen.getByPlaceholderText("10,500 이상");
-    fireEvent.change(input, { target: { value: "10000" } });
+    fireEvent.change(screen.getByPlaceholderText("10,500 이상"), {
+      target: { value: "10000" },
+    });
     expect(screen.getByRole("button", { name: "입찰하기" })).toBeDisabled();
   });
 });
