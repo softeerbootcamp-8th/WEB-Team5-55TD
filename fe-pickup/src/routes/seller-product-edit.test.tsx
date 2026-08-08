@@ -74,6 +74,9 @@ describe("셀러 상품 수정", () => {
     expect(
       screen.getByText("지금은 정보를 수정할 수 없는 상품이에요."),
     ).toBeInTheDocument();
+    queryState = { data: undefined, isPending: false, isError: false };
+    render(<Component />);
+    expect(screen.getByText("상품을 찾을 수 없습니다.")).toBeInTheDocument();
   });
 
   it("수정 가능한 상품의 입력 폼을 표시한다", async () => {
