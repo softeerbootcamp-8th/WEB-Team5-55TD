@@ -48,7 +48,7 @@ public class AuctionStatusTransitionService {
    */
   private static final Limit BATCH_LIMIT = Limit.of(100);
 
-  private final AuctionSchedulerJpaRepository auctionSchedulerJpaRepository;
+  private final AuctionSchedulerRepository auctionSchedulerJpaRepository;
   private final EventProducer eventProducer;
   private final EventPublisher eventPublisher;
 

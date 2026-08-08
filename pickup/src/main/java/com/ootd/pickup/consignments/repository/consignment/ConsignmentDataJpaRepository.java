@@ -6,7 +6,9 @@ import static com.ootd.pickup.consignments.domain.QConsignment.*;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +33,13 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
 
   @Override
   public Optional<Consignment> findByIdForUpdate(Long consignmentId) {
-    return consignmentJpaRepository.findByIdForUpdate(consignmentId);
+    return Optional.ofNullable(
+        ((JPAQuery<Consignment>)
+                queryFactory
+                    .selectFrom(consignment)
+                    .where(consignment.consignmentId.eq(consignmentId)))
+            .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+            .fetchOne());
   }
 
   @Override
