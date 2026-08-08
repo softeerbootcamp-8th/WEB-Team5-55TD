@@ -4,6 +4,8 @@ import static com.ootd.pickup.global.exception.ExceptionCode.INSUFFICIENT_BID_LI
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+성import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.times;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
@@ -16,6 +18,7 @@ import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.domain.PointReservation;
 import com.ootd.pickup.point.repository.PointRepository;
 import com.ootd.pickup.point.repository.PointReservationRepository;
+import com.ootd.pickup.point.service.PointReservationService.PreparedBidReservation;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,11 +54,15 @@ class PointReservationServiceTest {
     given(pointRepository.findByMemberIdForUpdate(2L)).willReturn(Optional.of(point));
 
     // when
-    pointReservationService.reserveHighestBid(auction, bid, bidder);
+    PreparedBidReservation prepared =
+        pointReservationService.prepareReservation(auction, bidder, 10_500L);
+    pointReservationService.reserveHighestBid(auction, prepared, bid, bidder);
 
     // then
     assertThat(point.getReservedBalance()).isEqualTo(10_500L);
     assertThat(point.getAvailableBalance()).isEqualTo(9_500L);
+    then(pointReservationRepository).should(times(1)).findByAuctionIdForUpdate(1L);
+    then(pointRepository).should(times(1)).findByMemberIdForUpdate(2L);
   }
 
   @Test
@@ -77,7 +84,9 @@ class PointReservationServiceTest {
     given(pointRepository.findByMemberIdForUpdate(3L)).willReturn(Optional.of(newPoint));
 
     // when
-    pointReservationService.reserveHighestBid(auction, newBid, newBidder);
+    PreparedBidReservation prepared =
+        pointReservationService.prepareReservation(auction, newBidder, 11_000L);
+    pointReservationService.reserveHighestBid(auction, prepared, newBid, newBidder);
 
     // then
     assertThat(previousPoint.getReservedBalance()).isZero();
@@ -91,14 +100,13 @@ class PointReservationServiceTest {
     // given
     Auction auction = createAuction(1L);
     Member bidder = createMember(2L);
-    Bid bid = createBid(auction, bidder, 11_000L, 10L);
     Point point = createPoint(2L, 20_000L);
     point.reserve(10_000L);
     given(pointReservationRepository.findByAuctionIdForUpdate(1L)).willReturn(Optional.empty());
     given(pointRepository.findByMemberIdForUpdate(2L)).willReturn(Optional.of(point));
 
     // when & then
-    assertThatThrownBy(() -> pointReservationService.reserveHighestBid(auction, bid, bidder))
+    assertThatThrownBy(() -> pointReservationService.prepareReservation(auction, bidder, 11_000L))
         .isInstanceOf(PickUpException.class)
         .satisfies(
             exception ->

@@ -197,7 +197,7 @@ class BidServiceTest {
         .willReturn(Optional.empty());
     willThrow(new PickUpException(INSUFFICIENT_BID_LIMIT))
         .given(pointReservationService)
-        .validateAvailable(eq(auction), eq(bidder), eq(10_500L));
+        .prepareReservation(eq(auction), eq(bidder), eq(10_500L));
 
     // when & then
     assertExceptionCode(
