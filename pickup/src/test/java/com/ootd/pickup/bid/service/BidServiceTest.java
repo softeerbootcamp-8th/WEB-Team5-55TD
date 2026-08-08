@@ -65,7 +65,11 @@ class BidServiceTest {
   void setUp() {
     bidService =
         new BidService(
-            auctionRepository, bidRepository, memberRepository, pointRepository, applicationEventPublisher);
+            auctionRepository,
+            bidRepository,
+            memberRepository,
+            pointRepository,
+            applicationEventPublisher);
   }
 
   @Test
