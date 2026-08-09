@@ -49,6 +49,7 @@ public class AuctionStatusTransitionService {
   private static final Limit BATCH_LIMIT = Limit.of(100);
 
   private final AuctionSchedulerJpaRepository auctionSchedulerJpaRepository;
+  private final AuctionSchedulerStatusUpdateRepository auctionSchedulerStatusUpdateRepository;
   private final EventProducer eventProducer;
   private final EventPublisher eventPublisher;
 
@@ -74,7 +75,8 @@ public class AuctionStatusTransitionService {
       return;
     }
 
-    auctionSchedulerJpaRepository.updateConsignmentStatusToAuctionOngoingByAuctionIdIn(auctionIds);
+    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToAuctionOngoingByAuctionIdIn(
+        auctionIds);
     publishStartedAfterCommit(auctionIds);
     log.info("경매를 시작했습니다 - count={}, auctionIds={}", updated, auctionIds);
   }
@@ -156,8 +158,8 @@ public class AuctionStatusTransitionService {
       return;
     }
 
-    auctionSchedulerJpaRepository.updateConsignmentStatusToWonByAuctionIdIn(auctionIds);
-    auctionSchedulerJpaRepository.updateConsignmentStatusToPassedByAuctionIdIn(auctionIds);
+    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToWonByAuctionIdIn(auctionIds);
+    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToPassedByAuctionIdIn(auctionIds);
 
     // 낙찰 입찰은 두 계열이 모두 필요로 한다. 한 번만 조회해 함께 쓴다.
     List<Auction> closedAuctions = findClosedAuctions(auctionIds);
@@ -227,14 +229,7 @@ public class AuctionStatusTransitionService {
     return events.size();
   }
 
-  /**
-   * 낙찰로 전이된 경매의 최고 입찰을 {@code WON}으로 전이시킨다.
-   *
-   * <p>여기서 전이시키지 않으면 {@code Bid.bidStatus}가 영원히 {@code HIGHEST}에 머물러, 낙찰 내역 조회({@code bidStatus
-   * = WON} 필터)가 실제로 낙찰된 입찰이 있어도 항상 빈 결과를 반환한다.
-   *
-   * @param closedAuctions 전이가 끝난 경매 목록
-   */
+  /** 낙찰로 전이된 경매의 최고 입찰을 {@code WON}으로 전이시킨다. */
   private void markWinningBidsAsWon(List<Auction> closedAuctions) {
     List<Long> winningBidIds =
         closedAuctions.stream()
@@ -246,7 +241,7 @@ public class AuctionStatusTransitionService {
       return;
     }
 
-    auctionSchedulerJpaRepository.updateBidStatusToWonByIdIn(winningBidIds);
+    auctionSchedulerStatusUpdateRepository.updateBidStatusToWonByIdIn(winningBidIds);
   }
 
   /** 유찰된 경매는 낙찰 입찰이 없다. 빈 맵에 null 키로 조회하면 예외가 나므로 먼저 걸러낸다. */

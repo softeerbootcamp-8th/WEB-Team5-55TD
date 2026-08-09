@@ -92,29 +92,6 @@ public interface AuctionSchedulerJpaRepository extends Repository<Auction, Long>
   int updateAuctionStatusToOngoingByIdIn(@Param("auctionIds") List<Long> auctionIds);
 
   /**
-   * 경매가 진행 중으로 전이된 위탁 상품을 함께 진행 중으로 전이시킨다.
-   *
-   * <p>{@link #updateAuctionStatusToOngoingByIdIn}과 같은 이유로 위탁 상품도 bulk update로만 전이시킨다. 대상은 방금
-   * 전이된 경매의 {@code consignmentId}로 좁힌다.
-   *
-   * @param auctionIds 방금 진행 중으로 전이된 경매 식별자 목록
-   * @return 실제로 갱신된 건수
-   */
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Query(
-      """
-      update Consignment consignment
-      set consignment.status = com.ootd.pickup.consignments.domain.ConsignmentStatus.AUCTION_ONGOING
-      where consignment.consignmentId in (
-        select auction.consignment.consignmentId
-        from Auction auction
-        where auction.auctionId in :auctionIds
-      )
-        and consignment.status = com.ootd.pickup.consignments.domain.ConsignmentStatus.AUCTION_SCHEDULED
-      """)
-  int updateConsignmentStatusToAuctionOngoingByAuctionIdIn(@Param("auctionIds") List<Long> auctionIds);
-
-  /**
    * 리저브를 채운 경매를 낙찰로 전이시킨다.
    *
    * <p>리저브 비교를 DB에서 한다. 엔티티를 로드해 비교하면 {@code winning_price}를 읽은 시점과 갱신 시점이 벌어져, 그 사이에 들어온 마감 직전 입찰이
@@ -154,54 +131,6 @@ public interface AuctionSchedulerJpaRepository extends Repository<Auction, Long>
         and (auction.winningPrice is null or auction.winningPrice < auction.reservePrice)
       """)
   int updateAuctionStatusToPassedByIdIn(@Param("auctionIds") List<Long> auctionIds);
-
-  /**
-   * 낙찰로 전이된 경매의 위탁 상품을 판매 완료로 전이시킨다.
-   *
-   * <p>대상은 방금 갱신된 {@code auction_status}로 좁힌다. 이 메서드가 {@link #updateAuctionStatusToWonByIdIn} 바로
-   * 다음에 불려야 정확한 대상을 잡는다.
-   *
-   * @param auctionIds 전이를 시도한 경매 식별자 목록
-   * @return 실제로 갱신된 건수
-   */
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Query(
-      """
-      update Consignment consignment
-      set consignment.status = com.ootd.pickup.consignments.domain.ConsignmentStatus.WON
-      where consignment.consignmentId in (
-        select auction.consignment.consignmentId
-        from Auction auction
-        where auction.auctionId in :auctionIds
-          and auction.auctionStatus = com.ootd.pickup.auction.domain.AuctionStatus.WON
-      )
-        and consignment.status = com.ootd.pickup.consignments.domain.ConsignmentStatus.AUCTION_ONGOING
-      """)
-  int updateConsignmentStatusToWonByAuctionIdIn(@Param("auctionIds") List<Long> auctionIds);
-
-  /**
-   * 유찰로 전이된 경매의 위탁 상품을 재등록 가능(유찰) 상태로 전이시킨다.
-   *
-   * <p>{@code ConsignmentStatus.PASSED}는 재등록이 가능한 상태다({@code isModifiable}). 여기서 전이시키지 않으면 위탁
-   * 상품이 {@code AUCTION_ONGOING}에 영원히 머물러, 유찰 후 같은 상품으로 경매를 다시 신청할 방법이 없다.
-   *
-   * @param auctionIds 전이를 시도한 경매 식별자 목록
-   * @return 실제로 갱신된 건수
-   */
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Query(
-      """
-      update Consignment consignment
-      set consignment.status = com.ootd.pickup.consignments.domain.ConsignmentStatus.PASSED
-      where consignment.consignmentId in (
-        select auction.consignment.consignmentId
-        from Auction auction
-        where auction.auctionId in :auctionIds
-          and auction.auctionStatus = com.ootd.pickup.auction.domain.AuctionStatus.PASSED
-      )
-        and consignment.status = com.ootd.pickup.consignments.domain.ConsignmentStatus.AUCTION_ONGOING
-      """)
-  int updateConsignmentStatusToPassedByAuctionIdIn(@Param("auctionIds") List<Long> auctionIds);
 
   /**
    * 이벤트 조립에 필요한 연관까지 함께 경매를 조회한다.
@@ -244,22 +173,4 @@ public interface AuctionSchedulerJpaRepository extends Repository<Auction, Long>
       where bid.bidId in :bidIds
       """)
   List<Bid> findAllBidsWithMemberByIdIn(@Param("bidIds") List<Long> bidIds);
-
-  /**
-   * 낙찰이 확정된 입찰을 {@code WON}으로 전이시킨다.
-   *
-   * <p>경매가 {@code WON}으로 전이될 때 그 경매의 최고 입찰({@code HIGHEST})도 함께 낙찰로 전이돼야 한다. 여기서 갱신하지 않으면 낙찰
-   * 내역 조회({@code bid.bidStatus = WON} 필터)가 영원히 빈 결과를 반환한다.
-   *
-   * @param bidIds 낙찰로 전이시킬 입찰 식별자 목록
-   * @return 실제로 갱신된 건수
-   */
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Query(
-      """
-      update Bid bid
-      set bid.bidStatus = com.ootd.pickup.bid.domain.BidStatus.WON
-      where bid.bidId in :bidIds
-      """)
-  int updateBidStatusToWonByIdIn(@Param("bidIds") List<Long> bidIds);
 }
