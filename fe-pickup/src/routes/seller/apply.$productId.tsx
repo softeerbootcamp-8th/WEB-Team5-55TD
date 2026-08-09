@@ -104,7 +104,10 @@ function AuctionApplyPage() {
     );
   }
 
-  if (product.status !== ProductStatus.REGISTERABLE) {
+  if (
+    product.status !== ProductStatus.REGISTERABLE &&
+    product.status !== ProductStatus.REAPPLICABLE
+  ) {
     return (
       <PageContainer className="flex flex-col gap-6">
         <EmptyState

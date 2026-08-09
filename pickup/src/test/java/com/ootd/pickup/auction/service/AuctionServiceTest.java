@@ -12,6 +12,8 @@ import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.bid.domain.Bid;
+import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
@@ -610,6 +612,96 @@ class AuctionServiceTest {
     assertThat(response.nextMinBid()).isEqualTo(10500L);
     assertThat(response.recommendedBid()).isNull();
     assertThat(response.remainingSeconds()).isCloseTo(60 * 60L, Offset.offset(5L));
+  }
+
+  @Test
+  void 낙찰된_경매를_낙찰자가_조회하면_myBidWon이_true다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.WON, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.WON,
+            LocalDateTime.now().minusHours(2),
+            LocalDateTime.now().minusHours(1));
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    Bid winningBid = Bid.create(auction, createMember(9L), 10000L);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
+    given(watchRepository.findWatchedAuctionIds(9L, List.of(1L))).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 10000L));
+    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.WON))
+        .willReturn(Optional.of(winningBid));
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(9L, 1L);
+
+    // then
+    assertThat(response.myBidWon()).isTrue();
+  }
+
+  @Test
+  void 낙찰된_경매를_낙찰자가_아닌_회원이_조회하면_myBidWon이_false다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.WON, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.WON,
+            LocalDateTime.now().minusHours(2),
+            LocalDateTime.now().minusHours(1));
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    Bid winningBid = Bid.create(auction, createMember(9L), 10000L);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
+    given(watchRepository.findWatchedAuctionIds(42L, List.of(1L))).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 10000L));
+    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.WON))
+        .willReturn(Optional.of(winningBid));
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(42L, 1L);
+
+    // then
+    assertThat(response.myBidWon()).isFalse();
+  }
+
+  @Test
+  void 낙찰된_경매를_비로그인_상태로_조회하면_myBidWon이_false다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.WON, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.WON,
+            LocalDateTime.now().minusHours(2),
+            LocalDateTime.now().minusHours(1));
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
+    given(watchRepository.findWatchedAuctionIds(isNull(), eq(List.of(1L)))).willReturn(Set.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 10000L));
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
+
+    // then
+    assertThat(response.myBidWon()).isFalse();
   }
 
   @Test

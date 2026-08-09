@@ -67,7 +67,8 @@ public class Consignment {
   }
 
   public void scheduleAuction() {
-    if (this.status != REGISTERABLE) {
+    // PASSED(유찰)도 재등록 가능한 상태다. REGISTERABLE과 같은 경로로 경매를 신청할 수 있어야 한다.
+    if (this.status != REGISTERABLE && this.status != PASSED) {
       throw new PickUpException(CONSIGNMENT_NOT_REGISTERABLE);
     }
     this.status = AUCTION_SCHEDULED;

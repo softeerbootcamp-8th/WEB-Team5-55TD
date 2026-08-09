@@ -42,8 +42,10 @@ export interface AuctionDetailView extends AuctionDetail {
   cardState?: string;
   majorDefect?: string;
   inspectedAt?: string;
-  /** 경매 전체의 낙찰 여부 (WON). 낙찰자가 조회자 본인인지는 백엔드가 아직 알려주지 않는다. */
+  /** 경매 전체의 낙찰 여부 (WON). 낙찰자가 누구인지와 무관하게 경매 자체의 결과다. */
   won: boolean;
+  /** 조회자 본인이 이 경매의 낙찰자인지. */
+  myBidWon: boolean;
 }
 
 export type AuctionSort =
@@ -192,6 +194,7 @@ interface AuctionDetailResponse extends AuctionListItemResponse {
   cardState?: string | null;
   majorDefect?: string | null;
   bidIncrement?: number | null;
+  myBidWon?: boolean;
 }
 
 function isListItem(value: unknown): value is AuctionListItemResponse {
@@ -234,6 +237,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     majorDefect: item.majorDefect ?? undefined,
     inspectedAt: item.certificate?.inspectedAt ?? undefined,
     won: item.auctionStatus === "WON",
+    myBidWon: item.myBidWon ?? false,
   };
 }
 
@@ -249,6 +253,8 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
     bidCount: 0,
     card: item.card,
     won: item.auctionStatus === "WON",
+    // 목록 응답에는 조회자별 낙찰 여부가 없다. 상세 API가 없는 구 브랜치 대비 fallback이라 항상 false다.
+    myBidWon: false,
   };
 }
 
@@ -290,6 +296,7 @@ export async function getAuctionDetail(
       images: summary.thumbnailUrl ? [summary.thumbnailUrl] : [],
       bidCount: 0,
       won: false,
+      myBidWon: false,
     };
   }
 }

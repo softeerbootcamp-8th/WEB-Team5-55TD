@@ -84,14 +84,44 @@ describe("auctions api", () => {
           inspectedAt: "2026-01-01",
         },
         bidIncrement: 1000,
+        myBidWon: true,
       },
     });
     await expect(api.getAuctionDetail("7")).resolves.toMatchObject({
       id: "7",
       won: true,
+      myBidWon: true,
       minBidUnit: 1000,
       images: ["front.jpg"],
       grade: { agency: "BGS", score: "9", serial: "S1" },
+    });
+  });
+
+  it("조회자가 낙찰자가 아니면 myBidWon이 false로 매핑된다", async () => {
+    const api = await import("@/api/auctions");
+    get.mockResolvedValueOnce({
+      data: {
+        auctionId: 8,
+        card,
+        auctionStatus: "WON",
+        startingPrice: 10000,
+        watchCount: 0,
+        watched: false,
+        images: [],
+        certificate: {
+          serialNumber: "S2",
+          certificationBody: "BGS",
+          grade: "9",
+          inspectedAt: "2026-01-01",
+        },
+        bidIncrement: 1000,
+        myBidWon: false,
+      },
+    });
+    await expect(api.getAuctionDetail("8")).resolves.toMatchObject({
+      id: "8",
+      won: true,
+      myBidWon: false,
     });
   });
 
@@ -114,6 +144,7 @@ describe("auctions api", () => {
       minBidUnit: 1000,
       images: ["thumb.jpg", "card.jpg"],
       won: false,
+      myBidWon: false,
     });
   });
 
@@ -143,6 +174,7 @@ describe("auctions api", () => {
       minBidUnit: 1500,
       images: ["thumb.jpg"],
       won: false,
+      myBidWon: false,
     });
   });
 });

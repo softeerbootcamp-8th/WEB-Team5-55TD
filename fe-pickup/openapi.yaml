@@ -2163,6 +2163,8 @@ components:
         recommendedBid:
           type: integer
           format: int64
+        myBidWon:
+          type: boolean
     GetAuctionBidsRequest:
       type: object
       properties:

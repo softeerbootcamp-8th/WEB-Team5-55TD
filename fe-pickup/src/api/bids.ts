@@ -121,11 +121,7 @@ function parseGrade(value?: string | null): Grade | undefined {
   return { agency: agency as Grade["agency"], score: score.join(" ") };
 }
 
-/**
- * 경매가 이미 종료된 뒤에는 OUTBID를 "추월됨"이 아니라 "미낙찰"로 보여준다.
- * 백엔드가 아직 경매 종료 시 낙찰 입찰을 WON으로 전환하는 배치를 구현하지 않아
- * 실제로는 status에 WON이 관측되지 않지만, 화면은 계약된 값을 그대로 대비한다.
- */
+/** 경매가 이미 종료된 뒤에는 OUTBID를 "추월됨"이 아니라 "미낙찰"로 보여준다. */
 function toUiBidStatus(
   status: BidStatus,
   auctionStatus: ApiAuctionStatus,

@@ -13,6 +13,7 @@ import com.ootd.pickup.auction.repository.auction.AuctionCursor;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.auction.AuctionSort;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
@@ -130,9 +131,34 @@ public class AuctionService {
     Long currentPrice =
         resolveCurrentPrice(
             auction, bidRepository.findCurrentPricesByAuctionIds(List.of(auctionId)));
+    boolean myBidWon = resolveMyBidWon(auction, viewerMemberId);
 
     return AuctionDetailResponse.of(
-        auction, certificate, images, watchCount, watched, currentPrice, imageUrlResolver);
+        auction,
+        certificate,
+        images,
+        watchCount,
+        watched,
+        currentPrice,
+        imageUrlResolver,
+        myBidWon);
+  }
+
+  /**
+   * 조회자 본인이 이 경매의 낙찰자인지 판정한다.
+   *
+   * <p>경매 결과 화면은 낙찰 여부를 조회자별로 다르게 보여줘야 한다. 경매 전체의 {@code auctionStatus}만으로는 "누가" 낙찰됐는지 알 수
+   * 없으므로, 낙찰 입찰의 회원과 조회자를 직접 대조한다.
+   */
+  private boolean resolveMyBidWon(Auction auction, Long viewerMemberId) {
+    if (viewerMemberId == null || auction.getAuctionStatus() != AuctionStatus.WON) {
+      return false;
+    }
+
+    return bidRepository
+        .findFirstByAuctionIdAndBidStatus(auction.getAuctionId(), BidStatus.WON)
+        .map(bid -> bid.getMember().getMemberId().equals(viewerMemberId))
+        .orElse(false);
   }
 
   private Consignment getConsignment(Long consignmentId) {

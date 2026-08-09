@@ -55,8 +55,9 @@ function ProductListPage() {
   const activeTab = tab ?? "registerable";
 
   const registerableQuery = useQuery({
-    queryKey: ["consignments", "my", "REGISTERABLE"],
-    queryFn: () => fetchByStatuses(["REGISTERABLE"]),
+    queryKey: ["consignments", "my", "REGISTERABLE", "PASSED"],
+    // PASSED(유찰)도 재등록 가능한 상태라 등록 가능 탭에 함께 노출한다.
+    queryFn: () => fetchByStatuses(["REGISTERABLE", "PASSED"]),
   });
   const upcomingQuery = useQuery({
     queryKey: ["consignments", "my", "AUCTION_SCHEDULED"],
