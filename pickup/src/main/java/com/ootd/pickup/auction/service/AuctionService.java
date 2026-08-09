@@ -57,12 +57,28 @@ public class AuctionService {
       throw new PickUpException(CONSIGNMENT_AUCTION_OWNER_MISMATCH);
     }
 
-    consignment.scheduleAuction();
+    Long bidIncrement = calculateBidIncrement(request.startingPrice());
 
-    Long bidIncrement = Math.round(request.startingPrice() * BID_INCREMENT_RATIO);
+    consignment.scheduleAuction();
     Auction auction = auctionRepository.save(request.toEntity(consignment, bidIncrement));
 
     return CreateAuctionResponse.from(auction);
+  }
+
+  /**
+   * startingPrice에 업계 기준 상한을 두는 대신, 이후 계산(예: {@code AuctionDetailResponse.nextMinBid()}의
+   * currentPrice + bidIncrement)이 Long 범위를 넘지 않는지만 기술적으로 검증한다. 여기서 걸러지지 않고 저장된 뒤에는 addExact가
+   * ArithmeticException으로 막아 500 + Slack 알림으로 이어지지만, 그건 "저장되면 안 됐던 값이 저장된" 마지막 방어선이지 사용자에게 보여줄 응답이
+   * 아니다. 정상 입력이라면 여기서 400으로 끝나야 한다.
+   */
+  private Long calculateBidIncrement(Long startingPrice) {
+    long bidIncrement = Math.round(startingPrice * BID_INCREMENT_RATIO);
+    try {
+      Math.addExact(startingPrice, bidIncrement);
+    } catch (ArithmeticException e) {
+      throw new PickUpException(STARTING_PRICE_TOO_LARGE);
+    }
+    return bidIncrement;
   }
 
   public CursorPageResponse<AuctionListItemResponse, String> searchAuctions(
