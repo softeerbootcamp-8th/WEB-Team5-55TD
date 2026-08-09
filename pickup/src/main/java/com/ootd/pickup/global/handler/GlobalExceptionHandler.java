@@ -1,6 +1,7 @@
 package com.ootd.pickup.global.handler;
 
 import com.ootd.pickup.global.exception.ExceptionResponseFactory;
+import com.ootd.pickup.global.exception.JacksonFieldPathResolver;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
 import com.ootd.pickup.global.slack.ErrorRequestContext;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -38,6 +40,22 @@ public class GlobalExceptionHandler {
     if (fieldError != null) {
       errorMessage = fieldError.getDefaultMessage();
     }
+
+    ExceptionResponse response =
+        ExceptionResponseFactory.badRequest(errorMessage, request.getRequestURI());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ExceptionResponse> handleHttpMessageNotReadableException(
+      HttpMessageNotReadableException e, HttpServletRequest request) {
+    String invalidField = JacksonFieldPathResolver.resolve(e);
+    log.warn("요청 본문을 읽을 수 없음 - path={}, field={}", request.getRequestURI(), invalidField, e);
+
+    String errorMessage =
+        invalidField == null
+            ? "요청 본문 형식이 올바르지 않습니다. 입력값을 확인해주세요."
+            : "요청 필드 '%s' 값이 올바르지 않습니다. 입력값을 확인해주세요.".formatted(invalidField);
 
     ExceptionResponse response =
         ExceptionResponseFactory.badRequest(errorMessage, request.getRequestURI());

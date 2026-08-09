@@ -17,7 +17,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpInputMessage;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.validation.BeanPropertyBindingResult;
@@ -65,5 +68,23 @@ class GlobalExceptionHandlerTest {
 
     // then
     assertThat(response.getBody().message()).isEqualTo("유효하지 않은 입력입니다.");
+  }
+
+  @Test
+  void BIGINT_범위를_초과한_숫자_필드로_요청하면_500이_아닌_400을_반환한다() throws Exception {
+    // given
+    GlobalExceptionHandler handler = new GlobalExceptionHandler(mock(SlackErrorNotifier.class));
+    HttpMessageNotReadableException exception =
+        new HttpMessageNotReadableException("Long 범위를 초과한 숫자입니다.", mock(HttpInputMessage.class));
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    given(request.getRequestURI()).willReturn("/consignments");
+
+    // when
+    ResponseEntity<ExceptionResponse> response =
+        handler.handleHttpMessageNotReadableException(exception, request);
+
+    // then
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().message()).isEqualTo("요청 본문 형식이 올바르지 않습니다. 입력값을 확인해주세요.");
   }
 }
