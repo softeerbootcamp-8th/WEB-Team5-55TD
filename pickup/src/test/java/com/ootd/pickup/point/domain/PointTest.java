@@ -65,4 +65,29 @@ class PointTest {
     assertThatThrownBy(() -> point.decreaseBalance(-1L))
         .isInstanceOf(IllegalArgumentException.class);
   }
+
+  @Test
+  void 증가시켰을_때_잔액이_Long_범위를_넘으면_예외가_발생하고_잔액은_그대로다() {
+    // given
+    Point point = Point.create(1L);
+    point.increaseBalance(Long.MAX_VALUE - 1);
+
+    // when & then
+    assertThatThrownBy(() -> point.increaseBalance(2L)).isInstanceOf(ArithmeticException.class);
+    assertThat(point.getBalance()).isEqualTo(Long.MAX_VALUE - 1);
+  }
+
+  @Test
+  void 감소시켰을_때_잔액이_Long_범위를_넘으면_예외가_발생하고_잔액은_그대로다() {
+    // given
+    // decreaseBalance는 잔액이 음수가 되는 것 자체는 막지 않는다(마지막 방어선은 DB의
+    // chk_member_point_balance_non_negative 제약). 잔액을 Long.MIN_VALUE 근처까지
+    // 내려서 한 번 더 빼면 Long 범위를 넘도록 만든다.
+    Point point = Point.create(1L);
+    point.decreaseBalance(Long.MAX_VALUE);
+
+    // when & then
+    assertThatThrownBy(() -> point.decreaseBalance(2L)).isInstanceOf(ArithmeticException.class);
+    assertThat(point.getBalance()).isEqualTo(-Long.MAX_VALUE);
+  }
 }

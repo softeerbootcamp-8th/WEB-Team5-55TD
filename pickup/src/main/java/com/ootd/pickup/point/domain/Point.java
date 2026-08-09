@@ -35,12 +35,12 @@ public class Point {
 
   public void increaseBalance(long amount) {
     validateAmount(amount);
-    this.balance += amount;
+    this.balance = Math.addExact(this.balance, amount);
   }
 
   public void decreaseBalance(long amount) {
     validateAmount(amount);
-    this.balance -= amount;
+    this.balance = Math.subtractExact(this.balance, amount);
   }
 
   private void validateAmount(long amount) {
