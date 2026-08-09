@@ -26,11 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-class AuctionSchedulerRepositoryIntegrationTest {
+class AuctionSchedulerJpaRepositoryIntegrationTest {
 
   private static final long RESERVE_PRICE = 15000L;
 
-  @Autowired private AuctionSchedulerRepository auctionSchedulerJpaRepository;
+  @Autowired private AuctionSchedulerJpaRepository auctionSchedulerJpaRepository;
 
   @Autowired private AuctionJpaRepository auctionJpaRepository;
 

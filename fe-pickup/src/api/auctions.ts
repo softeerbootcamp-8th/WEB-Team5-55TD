@@ -253,7 +253,7 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
     bidCount: 0,
     card: item.card,
     won: item.auctionStatus === "WON",
-    // 목록 응답에는 조회자별 낙찰 여부가 없다.
+    // 목록 응답에는 조회자별 낙찰 여부가 없다. 상세 API가 없는 구 브랜치 대비 fallback이라 항상 false다.
     myBidWon: false,
   };
 }

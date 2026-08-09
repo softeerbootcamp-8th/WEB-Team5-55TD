@@ -232,10 +232,7 @@ class AuctionSchedulerIntegrationTest {
 
   private ConsignmentStatus findConsignmentStatus(Auction auction) {
     Long consignmentId =
-        auctionJpaRepository
-            .findById(auction.getAuctionId())
-            .orElseThrow()
-            .getConsignment()
+        auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow().getConsignment()
             .getConsignmentId();
     return consignmentJpaRepository.findById(consignmentId).orElseThrow().getStatus();
   }
