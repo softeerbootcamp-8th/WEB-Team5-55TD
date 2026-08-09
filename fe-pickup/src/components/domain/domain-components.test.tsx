@@ -19,13 +19,15 @@ describe("공통 도메인 컴포넌트", () => {
       <Price amount={1280000} label="현재가" size="lg" />,
     );
     expect(screen.getByText("현재가")).toBeInTheDocument();
-    expect(screen.getByText("1,280,000원")).toBeInTheDocument();
-    expect(screen.getByText("1,280,000원")).toHaveClass(
-      "text-[var(--color-price)]",
+    expect(screen.getByText("128만원")).toBeInTheDocument();
+    expect(screen.getByText("128만원")).toHaveClass("text-[var(--color-price)]");
+    expect(screen.getByText("128만원")).toHaveAttribute(
+      "title",
+      "1,280,000원",
     );
 
     rerender(<Price amount={1280000} emphasize={false} />);
-    expect(screen.getByText("1,280,000원")).toHaveClass("text-foreground");
+    expect(screen.getByText("128만원")).toHaveClass("text-foreground");
   });
 
   it("경매 상태와 낙찰 결과를 표시한다", () => {
