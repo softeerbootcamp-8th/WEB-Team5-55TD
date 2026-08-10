@@ -8,6 +8,7 @@ import type {
   WatchItemResponse,
   WatchItemResponseAuctionStatus,
 } from "@/api/generated/model";
+import { computeEndsAt } from "@/api/auctions";
 import { AuctionStatus, type AuctionSummary, type Grade } from "@/lib/types";
 
 function toUiStatus(status?: WatchItemResponseAuctionStatus): AuctionStatus {
@@ -32,7 +33,7 @@ function toAuctionSummary(item: WatchItemResponse): AuctionSummary {
     grade: parseGrade(item.grade),
     currentPrice: item.currentPrice ?? undefined,
     startPrice: item.startingPrice,
-    endsAt: item.endedAt ?? undefined,
+    endsAt: computeEndsAt(item),
     startsAt: item.startedAt ?? undefined,
     watchCount: item.watchCount,
     watched: item.watched,
@@ -43,7 +44,7 @@ export const Route = createFileRoute("/_buyer/watchlist")({
   component: WatchlistPage,
 });
 
-/** DESIGN.md · watchlist.html — 관심 등록한 예정 경매만 (최신순) */
+/** 관심 등록한 경매 목록 — 서버가 반환하는 진행 전·진행 중 경매를 모두 표시한다. */
 function WatchlistPage() {
   const { data, isPending, isError, refetch } = useGetMyWatches({ size: 100 });
   const watchlist = (data?.items ?? []).map(toAuctionSummary);
@@ -53,7 +54,7 @@ function WatchlistPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">관심 목록</h1>
         <p className="text-sm text-[var(--color-text-sub)]">
-          관심 등록한 예정 경매입니다. 낙찰 시 자동으로 제거됩니다.
+          관심 등록한 경매입니다. 낙찰 시 자동으로 제거됩니다.
         </p>
       </div>
 

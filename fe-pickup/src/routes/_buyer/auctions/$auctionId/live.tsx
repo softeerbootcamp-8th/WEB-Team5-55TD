@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createFileRoute,
   Link,
@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
+import { toast } from "sonner";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
@@ -26,14 +27,47 @@ import {
 import { getAuctionDetail } from "@/api/auctions";
 import { getAuctionBids, getBidErrorMessage, placeBid } from "@/api/bids";
 import { getGetMyPointBalanceQueryKey } from "@/api/generated/member/member";
-import { useIsAuthenticated } from "@/lib/auth";
+import { refreshAccessToken } from "@/api/mutator/custom-instance";
+import {
+  useAuctionBidUpdates,
+  type AuctionBidUpdatedMessage,
+} from "@/hooks/use-auction-bid-updates";
+import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
 import { formatWon } from "@/lib/format";
+import { AuctionStatus } from "@/lib/types";
 
 const BID_PREVIEW_SIZE = 6;
 const BID_MODAL_SIZE = 100;
+const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
+const HIDDEN_POLLING_INTERVAL_MILLIS = 60_000;
+const POLLING_JITTER_MILLIS = 3_000;
+
+function pollingInterval() {
+  const baseInterval =
+    document.visibilityState === "hidden"
+      ? HIDDEN_POLLING_INTERVAL_MILLIS
+      : ACTIVE_POLLING_INTERVAL_MILLIS;
+  return baseInterval + Math.floor(Math.random() * POLLING_JITTER_MILLIS);
+}
+
+function laterEndTime(
+  current: string | null | undefined,
+  next: string | null | undefined,
+): string | undefined {
+  if (!next) return current ?? undefined;
+  if (!current) return next;
+  return Date.parse(next) >= Date.parse(current) ? next : current;
+}
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/live")({
   loader: async ({ params }) => {
+    if (isAuthenticated()) {
+      // 실시간 입찰 도중 access-token 만료(401 → 재발급 → 원 요청 재시도) 왕복 지연이
+      // 끼는 걸 줄이기 위해, 경매 참여 화면 진입 시 한 번 선제로 갱신해 둔다.
+      // 실패해도 무시한다 — 기존 access-token이 여전히 유효할 수 있고, 실제로 만료된
+      // 경우엔 요청 인터셉터의 리액티브 재발급이 안전망으로 남아 있다.
+      void refreshAccessToken().catch(() => {});
+    }
     try {
       return { auction: await getAuctionDetail(params.auctionId) };
     } catch (error) {
@@ -48,30 +82,138 @@ export const Route = createFileRoute("/_buyer/auctions/$auctionId/live")({
 
 /** DESIGN.md · live-auction.html — 실 입찰 API 연동, §5.9 최근 6건 + 전체 모달 */
 function LiveAuctionPage() {
-  const { auction } = Route.useLoaderData();
+  const { auction: initialAuction } = Route.useLoaderData();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isAuthenticated = useIsAuthenticated();
+  const auctionQuery = useQuery({
+    queryKey: ["auction-detail", initialAuction.id],
+    queryFn: () => getAuctionDetail(initialAuction.id),
+    initialData: initialAuction,
+    staleTime: 0,
+    refetchInterval: (query) =>
+      query.state.data?.status === AuctionStatus.LIVE
+        ? pollingInterval()
+        : false,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+  const auction = auctionQuery.data;
   const minUnit = auction.minBidUnit ?? 0;
 
-  const [currentPrice, setCurrentPrice] = useState(
-    auction.currentPrice ?? auction.startPrice ?? 0,
-  );
+  const [realtimeSnapshot, setRealtimeSnapshot] = useState({
+    auctionId: auction.id,
+    price: auction.currentPrice ?? auction.startPrice ?? 0,
+    endsAt: auction.endsAt,
+  });
   const [amount, setAmount] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [fail, setFail] = useState<string | null>(null);
   const [allBidsOpen, setAllBidsOpen] = useState(false);
 
+  const snapshotPrice = auction.currentPrice ?? auction.startPrice ?? 0;
+  const realtimePrice =
+    realtimeSnapshot.auctionId === auction.id
+      ? realtimeSnapshot.price
+      : snapshotPrice;
+  const realtimeEndsAt =
+    realtimeSnapshot.auctionId === auction.id
+      ? realtimeSnapshot.endsAt
+      : auction.endsAt;
+  const currentPrice = Math.max(realtimePrice, snapshotPrice);
+  const endsAt = laterEndTime(auction.endsAt, realtimeEndsAt);
   const minNext = currentPrice + minUnit;
+  const recommendedAmounts = [
+    minNext,
+    minNext + minUnit,
+    minNext + minUnit * 2,
+  ];
+  const parsedAmount = (() => {
+    const normalized = amount.trim().replaceAll(",", "");
+    if (!/^\d+$/.test(normalized)) return null;
+    const value = Number(normalized);
+    return Number.isSafeInteger(value) && value >= minNext ? value : null;
+  })();
 
   const previewBidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id, "preview"],
     queryFn: () => getAuctionBids(auction.id, { size: BID_PREVIEW_SIZE }),
+    staleTime: 0,
+    refetchInterval: () =>
+      auction.status === AuctionStatus.LIVE ? pollingInterval() : false,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
   const allBidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id, "all"],
     queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
     enabled: allBidsOpen,
+  });
+  const latestBidId = previewBidsQuery.data?.items[0]
+    ? Number(previewBidsQuery.data.items[0].id)
+    : undefined;
+
+  // 실시간 화면에서 추월당했는지 판단하려면 "내가 최고 입찰자였는지"를 알아야 한다.
+  // 페이지를 새로 열었을 때는 입찰 내역에서, 직접 입찰했을 때는 그 결과에서 채운다.
+  const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(
+    null,
+  );
+  const topPreviewBid = previewBidsQuery.data?.items[0];
+  useEffect(() => {
+    if (topPreviewBid?.isMine) {
+      myHighestBidRef.current = {
+        bidId: Number(topPreviewBid.id),
+        price: topPreviewBid.amount,
+      };
+    }
+  }, [topPreviewBid]);
+
+  const refreshSnapshot = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ["auction-detail", auction.id],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["auction-bids", auction.id],
+    });
+  }, [auction.id, queryClient]);
+
+  const applyBidUpdate = useCallback(
+    (message: AuctionBidUpdatedMessage) => {
+      const myHighestBid = myHighestBidRef.current;
+      if (
+        myHighestBid &&
+        message.latestBid.bidId !== myHighestBid.bidId &&
+        message.currentPrice > myHighestBid.price
+      ) {
+        myHighestBidRef.current = null;
+        toast.warning("추월당했습니다", {
+          description: `다른 회원이 ${formatWon(message.currentPrice)}에 입찰했습니다.`,
+        });
+      }
+
+      setRealtimeSnapshot((current) => ({
+        auctionId: auction.id,
+        price:
+          current.auctionId === auction.id
+            ? Math.max(current.price, message.currentPrice)
+            : message.currentPrice,
+        endsAt:
+          current.auctionId === auction.id
+            ? laterEndTime(current.endsAt, message.endedAt)
+            : (message.endedAt ?? undefined),
+      }));
+      void queryClient.invalidateQueries({
+        queryKey: ["auction-bids", auction.id],
+      });
+    },
+    [auction.id, queryClient],
+  );
+
+  useAuctionBidUpdates({
+    auctionId: auction.id,
+    latestBidId,
+    onBidUpdated: applyBidUpdate,
+    onSubscribed: refreshSnapshot,
   });
 
   const bidMutation = useMutation({
@@ -79,8 +221,7 @@ function LiveAuctionPage() {
   });
 
   const onBidClick = () => {
-    const value = Number(amount.replace(/[^0-9]/g, ""));
-    if (!value || value < minNext) {
+    if (parsedAmount === null) {
       setFail("입찰가는 현재가 + 최소 입찰 단위 이상이어야 합니다.");
       return;
     }
@@ -88,22 +229,31 @@ function LiveAuctionPage() {
   };
 
   const confirmBid = useCallback(() => {
-    const value = Number(amount.replace(/[^0-9]/g, ""));
+    if (parsedAmount === null) return;
     setConfirmOpen(false);
-    bidMutation.mutate(value, {
+    bidMutation.mutate(parsedAmount, {
       onSuccess: (placed) => {
+        myHighestBidRef.current = { bidId: placed.bidId, price: placed.bidPrice };
         queryClient.invalidateQueries({
           queryKey: ["auction-bids", auction.id],
         });
         queryClient.invalidateQueries({
           queryKey: getGetMyPointBalanceQueryKey(),
         });
-        setCurrentPrice(placed.bidPrice);
+        setRealtimeSnapshot((current) => ({
+          auctionId: auction.id,
+          price:
+            current.auctionId === auction.id
+              ? Math.max(current.price, placed.bidPrice)
+              : placed.bidPrice,
+          endsAt:
+            current.auctionId === auction.id ? current.endsAt : auction.endsAt,
+        }));
         setAmount("");
       },
       onError: (error) => setFail(getBidErrorMessage(error)),
     });
-  }, [amount, auction.id, bidMutation, queryClient]);
+  }, [auction.endsAt, auction.id, bidMutation, parsedAmount, queryClient]);
 
   const goEnd = useCallback(() => {
     navigate({
@@ -111,6 +261,12 @@ function LiveAuctionPage() {
       params: { auctionId: auction.id },
     });
   }, [auction.id, navigate]);
+
+  useEffect(() => {
+    if (auction.status === AuctionStatus.ENDED) {
+      goEnd();
+    }
+  }, [auction.status, goEnd]);
 
   return (
     <PageContainer className="grid gap-8 md:grid-cols-[1fr_380px]">
@@ -134,7 +290,7 @@ function LiveAuctionPage() {
                 <span className="text-xs text-[var(--color-text-muted)]">
                   남은 시간
                 </span>
-                <Countdown to={auction.endsAt} onEnd={goEnd} />
+                <Countdown to={endsAt} onEnd={goEnd} />
               </div>
             </div>
           </div>
@@ -161,11 +317,24 @@ function LiveAuctionPage() {
               />
               <Button
                 onClick={onBidClick}
-                disabled={bidMutation.isPending}
+                disabled={parsedAmount === null || bidMutation.isPending}
                 className="shrink-0"
               >
                 {bidMutation.isPending ? "입찰 중…" : "입찰하기"}
               </Button>
+            </div>
+            <div className="flex flex-wrap gap-2" aria-label="추천 입찰 금액">
+              {recommendedAmounts.map((recommended, index) => (
+                <Button
+                  key={`${recommended}-${index}`}
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setAmount(String(recommended))}
+                >
+                  {formatWon(recommended)}
+                </Button>
+              ))}
             </div>
             <p className="text-xs text-[var(--color-text-muted)]">
               입찰은 취소할 수 없습니다.
@@ -240,7 +409,7 @@ function LiveAuctionPage() {
             <div className="flex justify-between">
               <dt className="text-[var(--color-text-sub)]">입찰 금액</dt>
               <dd className="tabular font-bold text-primary">
-                {formatWon(Number(amount.replace(/[^0-9]/g, "")) || 0)}
+                {formatWon(parsedAmount ?? 0)}
               </dd>
             </div>
           </dl>

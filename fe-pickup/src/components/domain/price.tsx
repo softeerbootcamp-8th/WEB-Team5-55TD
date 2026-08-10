@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { formatWon } from "@/lib/format";
+import { formatWon, formatWonCompact } from "@/lib/format";
 
 type PriceSize = "sm" | "md" | "lg";
 
@@ -29,13 +29,14 @@ export function Price({
         <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
       )}
       <span
+        title={formatWon(amount)}
         className={cn(
           "tabular font-bold",
           sizeClass[size],
           emphasize ? "text-[var(--color-price)]" : "text-foreground",
         )}
       >
-        {formatWon(amount)}
+        {formatWonCompact(amount)}
       </span>
     </div>
   );
