@@ -32,12 +32,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BidService {
@@ -58,7 +60,8 @@ public class BidService {
             .findByIdForUpdate(auctionId)
             .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
 
-    validateAuction(auction, memberId);
+    LocalDateTime bidAt = LocalDateTime.now();
+    validateAuction(auction, memberId, bidAt);
 
     Member member =
         memberRepository
@@ -82,6 +85,9 @@ public class BidService {
         });
 
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
+    if (auction.extendEndAtForSoftClose(bidAt)) {
+      log.info("마감 임박 입찰로 경매를 연장했습니다 - auctionId={}, endedAt={}", auctionId, auction.getEndedAt());
+    }
     auctionRepository.save(auction);
     applicationEventPublisher.publishEvent(
         AuctionBidUpdatedNotificationEvent.fromEntity(auction, savedBid));
@@ -89,12 +95,12 @@ public class BidService {
     return PlaceBidResponse.from(savedBid);
   }
 
-  private void validateAuction(Auction auction, Long memberId) {
+  private void validateAuction(Auction auction, Long memberId, LocalDateTime bidAt) {
     if (auction.getAuctionStatus() == SCHEDULED) {
       throw new PickUpException(AUCTION_NOT_STARTED);
     }
     if (auction.getAuctionStatus() != ONGOING
-        || (auction.getEndedAt() != null && !auction.getEndedAt().isAfter(LocalDateTime.now()))) {
+        || (auction.getEndedAt() != null && !auction.getEndedAt().isAfter(bidAt))) {
       throw new PickUpException(AUCTION_ENDED);
     }
     if (auction.getConsignment().getSellerMember().getMemberId().equals(memberId)) {

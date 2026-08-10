@@ -43,7 +43,7 @@ public interface AuctionApi {
                           "consignmentId": 100,
                           "startingPrice": 10000,
                           "reserve": 15000,
-                          "scheduledStartAt": "2026-08-01T10:00:00"
+                          "scheduledStartAt": "2026-08-01T21:00:00"
                         }
                         """))),
       responses = {
@@ -64,8 +64,8 @@ public interface AuctionApi {
                               "auctionStatus": "SCHEDULED",
                               "startingPrice": 10000,
                               "bidIncrement": 500,
-                              "startedAt": "2026-08-01T10:00:00",
-                              "endedAt": null,
+                              "startedAt": "2026-08-01T21:00:00",
+                              "endedAt": "2026-08-08T21:00:00",
                               "winningBidId": null,
                               "winningPrice": null,
                               "createdAt": "2026-07-29T12:00:00"
