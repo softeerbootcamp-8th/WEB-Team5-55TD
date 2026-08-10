@@ -45,6 +45,7 @@ jobs:
       IMAGE_STORAGE_REGION: ${{ secrets.IMAGE_STORAGE_REGION }}
       IMAGE_MEDIA_BASE_URL: ${{ secrets.IMAGE_MEDIA_BASE_URL }}
       IMAGE_UPLOAD_URL_TTL: ${{ secrets.IMAGE_UPLOAD_URL_TTL }}
+      WEBSOCKET_ALLOWED_ORIGINS: https://${{ vars.CLOUDFRONT_DOMAIN }}
       DD_SERVICE: pickup-api
       DD_ENV: production
       DD_VERSION: ${{ github.sha }}
@@ -69,6 +70,7 @@ jobs:
           [ -n "${IMAGE_STORAGE_REGION}" ] || missing+=("secrets.IMAGE_STORAGE_REGION")
           [ -n "${IMAGE_MEDIA_BASE_URL}" ] || missing+=("secrets.IMAGE_MEDIA_BASE_URL")
           [ -n "${IMAGE_UPLOAD_URL_TTL}" ] || missing+=("secrets.IMAGE_UPLOAD_URL_TTL")
+          [ -n "${WEBSOCKET_ALLOWED_ORIGINS}" ] || missing+=("vars.CLOUDFRONT_DOMAIN")
           [ -n "${DD_SERVICE}" ]        || missing+=("DD_SERVICE")
           [ -n "${DD_ENV}" ]            || missing+=("DD_ENV")
           [ -n "${DD_VERSION}" ]        || missing+=("DD_VERSION")
@@ -88,6 +90,8 @@ jobs:
             || invalid+=("secrets.IMAGE_MEDIA_BASE_URL")
           [[ "${IMAGE_UPLOAD_URL_TTL}" =~ ^[1-9][0-9]*[smhd]$ ]] \
             || invalid+=("secrets.IMAGE_UPLOAD_URL_TTL")
+          [[ "${WEBSOCKET_ALLOWED_ORIGINS}" =~ ^https://[A-Za-z0-9.-]+$ ]] \
+            || invalid+=("vars.CLOUDFRONT_DOMAIN")
           [ "${DD_SERVICE}" = "pickup-api" ] || invalid+=("DD_SERVICE")
           [ "${DD_ENV}" = "production" ] || invalid+=("DD_ENV")
           [[ "${DD_VERSION}" =~ ^[0-9a-f]{40}$ ]] || invalid+=("DD_VERSION")
@@ -188,6 +192,7 @@ jobs:
             "IMAGE_STORAGE_REGION=${IMAGE_STORAGE_REGION}" \
             "IMAGE_MEDIA_BASE_URL=${IMAGE_MEDIA_BASE_URL}" \
             "IMAGE_UPLOAD_URL_TTL=${IMAGE_UPLOAD_URL_TTL}" \
+            "WEBSOCKET_ALLOWED_ORIGINS=${WEBSOCKET_ALLOWED_ORIGINS}" \
             "DD_SERVICE=${DD_SERVICE}" \
             "DD_ENV=${DD_ENV}" \
             "DD_VERSION=${DD_VERSION}" \
