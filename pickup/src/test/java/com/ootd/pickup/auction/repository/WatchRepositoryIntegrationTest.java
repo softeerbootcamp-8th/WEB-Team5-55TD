@@ -86,6 +86,41 @@ class WatchRepositoryIntegrationTest {
   }
 
   @Test
+  void 경매기준_관심삭제는_해당_경매의_관심만_모든_회원것을_삭제한다() {
+    // given
+    Member firstMember = createMember("watch-cleanup-first");
+    Member secondMember = createMember("watch-cleanup-second");
+    Auction targetAuction = createAuction(firstMember, "삭제 대상 카드");
+    Auction otherAuction = createAuction(firstMember, "다른 카드");
+    watchJpaRepository.save(Watch.builder().member(firstMember).auction(targetAuction).build());
+    watchJpaRepository.save(Watch.builder().member(secondMember).auction(targetAuction).build());
+    watchJpaRepository.save(Watch.builder().member(firstMember).auction(otherAuction).build());
+    watchJpaRepository.flush();
+
+    // when
+    int deletedCount = watchRepository.deleteByAuctionId(targetAuction.getAuctionId());
+
+    // then
+    assertThat(deletedCount).isEqualTo(2);
+    assertThat(watchJpaRepository.findAll())
+        .extracting(watch -> watch.getAuction().getAuctionId())
+        .containsExactly(otherAuction.getAuctionId());
+  }
+
+  @Test
+  void 관심이_없는_경매를_기준으로_삭제해도_예외없이_0건_처리된다() {
+    // given
+    Member member = createMember("watch-cleanup-empty");
+    Auction auction = createAuction(member, "관심없는 카드");
+
+    // when
+    int deletedCount = watchRepository.deleteByAuctionId(auction.getAuctionId());
+
+    // then
+    assertThat(deletedCount).isZero();
+  }
+
+  @Test
   void 회원의_관심목록조회는_예정_또는_진행중_상태_경매만_최신순으로_반환한다() {
     // given
     Member member = createMember("watch-list-owner");

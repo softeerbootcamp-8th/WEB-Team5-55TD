@@ -12,8 +12,10 @@ import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 import com.ootd.pickup.auction.domain.Auction;
@@ -34,8 +36,7 @@ import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
-import com.ootd.pickup.point.domain.Point;
-import com.ootd.pickup.point.repository.PointRepository;
+import com.ootd.pickup.point.service.PointReservationService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -56,7 +57,7 @@ class BidServiceTest {
   @Mock private BidRepository bidRepository;
 
   @Mock private MemberRepository memberRepository;
-  @Mock private PointRepository pointRepository;
+  @Mock private PointReservationService pointReservationService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private BidService bidService;
@@ -68,7 +69,7 @@ class BidServiceTest {
             auctionRepository,
             bidRepository,
             memberRepository,
-            pointRepository,
+            pointReservationService,
             applicationEventPublisher);
   }
 
@@ -80,7 +81,6 @@ class BidServiceTest {
     Member bidder = createMember(2L);
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(pointRepository.findByMemberId(2L)).willReturn(Optional.of(createPoint(2L, 50_000L)));
     given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
         .willReturn(Optional.empty());
     given(bidRepository.save(any(Bid.class)))
@@ -126,7 +126,6 @@ class BidServiceTest {
     ReflectionTestUtils.setField(previousHighestBid, "bidId", 10L);
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(3L)).willReturn(Optional.of(newBidder));
-    given(pointRepository.findByMemberId(3L)).willReturn(Optional.of(createPoint(3L, 50_000L)));
     given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
         .willReturn(Optional.of(previousHighestBid));
     given(bidRepository.save(any(Bid.class)))
@@ -196,7 +195,9 @@ class BidServiceTest {
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
     given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
         .willReturn(Optional.empty());
-    given(pointRepository.findByMemberId(2L)).willReturn(Optional.of(createPoint(2L, 10_000L)));
+    willThrow(new PickUpException(INSUFFICIENT_BID_LIMIT))
+        .given(pointReservationService)
+        .prepareReservation(eq(auction), eq(bidder), eq(10_500L));
 
     // when & then
     assertExceptionCode(
@@ -214,7 +215,6 @@ class BidServiceTest {
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
     given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
         .willReturn(Optional.empty());
-    given(pointRepository.findByMemberId(2L)).willReturn(Optional.of(createPoint(2L, 10_500L)));
     given(bidRepository.save(any(Bid.class)))
         .willAnswer(
             invocation -> {
@@ -444,11 +444,5 @@ class BidServiceTest {
     Member member = Member.create("loginId" + memberId, "password", "닉네임" + memberId);
     ReflectionTestUtils.setField(member, "memberId", memberId);
     return member;
-  }
-
-  private Point createPoint(Long memberId, long balance) {
-    Point point = Point.create(memberId);
-    point.increaseBalance(balance);
-    return point;
   }
 }

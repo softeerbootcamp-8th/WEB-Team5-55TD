@@ -202,6 +202,17 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   }
 
   @Override
+  public long countBySellerMemberIdAndStatus(Long sellerMemberId, AuctionStatus status) {
+    return queryFactory
+        .select(auction.count())
+        .from(auction)
+        .where(
+            auction.consignment.sellerMember.memberId.eq(sellerMemberId),
+            auction.auctionStatus.eq(status))
+        .fetchOne();
+  }
+
+  @Override
   public Map<Long, Long> findAuctionIdsByConsignmentIn(List<Consignment> consignments) {
     if (consignments.isEmpty()) {
       return Map.of();

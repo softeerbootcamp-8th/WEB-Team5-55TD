@@ -45,6 +45,11 @@ public class WatchDataJpaRepository implements WatchRepository {
   }
 
   @Override
+  public int deleteByAuctionId(Long auctionId) {
+    return (int) queryFactory.delete(watch).where(watch.auction.auctionId.eq(auctionId)).execute();
+  }
+
+  @Override
   public Map<Long, Long> countByAuctionIds(List<Long> auctionIds) {
     if (auctionIds.isEmpty()) {
       return Map.of();

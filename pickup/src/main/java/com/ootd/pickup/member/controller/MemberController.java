@@ -16,6 +16,8 @@ import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.service.MemberService;
 import com.ootd.pickup.member.service.ProfileApplicationService;
+import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -62,6 +64,15 @@ public class MemberController implements MemberApi {
   @RequireAuthentication
   public ResponseEntity<PointBalanceResponse> getMyPointBalance(@MemberId Long memberId) {
     return ResponseEntity.ok(memberService.getMyPointBalance(memberId));
+  }
+
+  @GetMapping("/me/point-transactions")
+  @Override
+  @RequireAuthentication
+  public ResponseEntity<CursorPageResponse<PointTransactionItemResponse, String>>
+      getMyPointTransactions(
+          @MemberId Long memberId, @Valid @ModelAttribute GetPointTransactionsRequest request) {
+    return ResponseEntity.ok(memberService.getMyPointTransactions(memberId, request));
   }
 
   @GetMapping("/me/bids")

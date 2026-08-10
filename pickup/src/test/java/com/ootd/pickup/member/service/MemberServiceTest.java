@@ -44,7 +44,11 @@ import com.ootd.pickup.member.dto.ProfileImageUpdateRequest;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
+import com.ootd.pickup.point.domain.PointTransaction;
+import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import com.ootd.pickup.point.repository.PointRepository;
+import com.ootd.pickup.point.repository.PointTransactionRepository;
 import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -67,6 +71,8 @@ class MemberServiceTest {
   @Mock private MemberManageService memberManageService;
 
   @Mock private PointRepository pointRepository;
+
+  @Mock private PointTransactionRepository pointTransactionRepository;
 
   @Mock private ImageUrlResolver imageUrlResolver;
 
@@ -303,6 +309,8 @@ class MemberServiceTest {
 
     // then
     assertThat(response.pointBalance()).isZero();
+    assertThat(response.reservedPointBalance()).isZero();
+    assertThat(response.availablePointBalance()).isZero();
   }
 
   @Test
@@ -313,7 +321,34 @@ class MemberServiceTest {
     // when & then
     assertThatThrownBy(() -> memberService.getMyPointBalance(1L))
         .isInstanceOf(PickUpException.class)
-        .hasMessage("회원을 찾을 수 없습니다.");
+        .hasMessage("포인트 정보를 찾을 수 없습니다.");
+  }
+
+  @Test
+  void 포인트_거래내역을_최신순_커서페이지로_조회한다() {
+    // given
+    Member member = Member.create("pickup-user", "password-hash", "픽업회원");
+    ReflectionTestUtils.setField(member, "memberId", 1L);
+    Auction auction = Auction.builder().build();
+    ReflectionTestUtils.setField(auction, "auctionId", 1L);
+    PointTransaction newest = PointTransaction.forAuctionPayout(member, 1_000L, 3_000L, auction);
+    PointTransaction next = PointTransaction.forAuctionPayment(member, 500L, 2_000L, auction);
+    ReflectionTestUtils.setField(newest, "pointTransactionId", 3L);
+    ReflectionTestUtils.setField(next, "pointTransactionId", 2L);
+    given(pointTransactionRepository.findAllByMemberId(1L, null, 2))
+        .willReturn(List.of(newest, next));
+
+    // when
+    CursorPageResponse<PointTransactionItemResponse, String> response =
+        memberService.getMyPointTransactions(1L, new GetPointTransactionsRequest(null, 1));
+
+    // then
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.cursor()).isEqualTo("3");
+    assertThat(response.items())
+        .singleElement()
+        .extracting(PointTransactionItemResponse::amount)
+        .isEqualTo(1_000L);
   }
 
   @Test

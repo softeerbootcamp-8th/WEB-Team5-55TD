@@ -48,6 +48,15 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
   }
 
   @Override
+  public long countBySellerMemberId(Long sellerMemberId) {
+    return queryFactory
+        .select(consignment.count())
+        .from(consignment)
+        .where(consignment.sellerMember.memberId.eq(sellerMemberId))
+        .fetchOne();
+  }
+
+  @Override
   public List<Consignment> findAllBySellerMemberIdAndStatusAndCursor(
       Long sellerMemberId, ConsignmentStatus status, Long cursor, int size) {
     return queryFactory
