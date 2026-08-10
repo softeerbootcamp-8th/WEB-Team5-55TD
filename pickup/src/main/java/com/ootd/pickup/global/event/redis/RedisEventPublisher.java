@@ -2,6 +2,7 @@ package com.ootd.pickup.global.event.redis;
 
 import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.event.NotificationEvent;
+import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -24,10 +25,23 @@ public class RedisEventPublisher implements EventPublisher {
   private final StringRedisTemplate redisTemplate;
   private final ObjectMapper objectMapper;
   private final NotificationChannelResolver channelResolver;
+  private final RealtimeNotificationMetrics metrics;
 
   @Override
   public void publish(NotificationEvent event) {
-    redisTemplate.convertAndSend(channelResolver.resolve(event), serialize(event));
+    try {
+      Long subscriberCount =
+          redisTemplate.convertAndSend(channelResolver.resolve(event), serialize(event));
+      // Redis PUBLISH는 구독자가 없어도 예외 없이 성공하므로 반환값을 확인해야 실제 알림 유실을 발견할 수 있다.
+      if (subscriberCount == 0) {
+        metrics.recordRedisPublishNoSubscribers(event.eventType());
+        return;
+      }
+      metrics.recordRedisPublishSuccess(event.eventType());
+    } catch (RuntimeException exception) {
+      metrics.recordRedisPublishFailure(event.eventType());
+      throw exception;
+    }
   }
 
   private String serialize(NotificationEvent event) {

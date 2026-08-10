@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.willThrow;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
+import com.ootd.pickup.point.service.PointReservationService;
 import com.ootd.pickup.settlement.service.SettlementService;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,12 +21,13 @@ import org.springframework.dao.DataIntegrityViolationException;
 class SettlementEventHandlerTest {
 
   @Mock private SettlementService settlementService;
+  @Mock private PointReservationService pointReservationService;
 
   private SettlementEventHandler settlementEventHandler;
 
   @BeforeEach
   void setUp() {
-    settlementEventHandler = new SettlementEventHandler(settlementService);
+    settlementEventHandler = new SettlementEventHandler(settlementService, pointReservationService);
   }
 
   @Test
@@ -44,6 +46,21 @@ class SettlementEventHandlerTest {
 
     // then
     then(settlementService).should().settleAuction(1L, 2L, 3L, 10_500L);
+    then(pointReservationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 유찰_이벤트를_받으면_포인트_예약_해제를_위임하고_정산하지_않는다() {
+    // given
+    AuctionEndedMessageQueueEvent event =
+        createEndedEvent(1L, null, 3L, null, AuctionStatus.PASSED);
+
+    // when
+    settlementEventHandler.handle(event);
+
+    // then
+    then(pointReservationService).should().releaseForPassedAuction(1L);
+    then(settlementService).shouldHaveNoInteractions();
   }
 
   @Test
@@ -60,6 +77,16 @@ class SettlementEventHandlerTest {
 
   private AuctionEndedMessageQueueEvent createEndedEvent(
       Long auctionId, Long winnerMemberId, Long sellerMemberId, Long winningPrice) {
+    return createEndedEvent(
+        auctionId, winnerMemberId, sellerMemberId, winningPrice, AuctionStatus.WON);
+  }
+
+  private AuctionEndedMessageQueueEvent createEndedEvent(
+      Long auctionId,
+      Long winnerMemberId,
+      Long sellerMemberId,
+      Long winningPrice,
+      AuctionStatus auctionStatus) {
     return new AuctionEndedMessageQueueEvent(
         "event-id",
         auctionId,
@@ -70,7 +97,7 @@ class SettlementEventHandlerTest {
         10L,
         winnerMemberId,
         winningPrice,
-        AuctionStatus.WON,
+        auctionStatus,
         LocalDateTime.now().minusHours(1),
         LocalDateTime.now(),
         LocalDateTime.now().minusHours(1),

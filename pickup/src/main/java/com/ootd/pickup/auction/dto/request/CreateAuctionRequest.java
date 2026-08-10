@@ -16,11 +16,10 @@ public record CreateAuctionRequest(
     @NotNull @Future LocalDateTime scheduledStartAt) {
 
   public Auction toEntity(Consignment consignment, Long bidIncrement) {
-    LocalDateTime confirmedStartAt = AuctionSchedulePolicy.confirmStartAt(scheduledStartAt);
     return Auction.builder()
         .consignment(consignment)
-        .startedAt(confirmedStartAt)
-        .endedAt(AuctionSchedulePolicy.initialEndAt(confirmedStartAt))
+        .startedAt(scheduledStartAt)
+        .endedAt(AuctionSchedulePolicy.initialEndAt(scheduledStartAt))
         .auctionStatus(AuctionStatus.SCHEDULED)
         .startingPrice(startingPrice)
         .reservePrice(reserve)

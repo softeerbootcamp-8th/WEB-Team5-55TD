@@ -58,6 +58,9 @@ public class Auction {
   @Column(name = "winning_price")
   private Long winningPrice;
 
+  @Column(name = "legacy_unreserved_bid", nullable = false)
+  private boolean legacyUnreservedBid;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -77,6 +80,7 @@ public class Auction {
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
+    this.legacyUnreservedBid = false;
     this.createdAt = LocalDateTime.now();
   }
 
@@ -105,6 +109,10 @@ public class Auction {
 
     endedAt = softCloseBoundary;
     return true;
+  }
+
+  public void markBidReserved() {
+    this.legacyUnreservedBid = false;
   }
 
   public Long getCurrentPrice() {

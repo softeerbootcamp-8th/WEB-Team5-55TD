@@ -113,9 +113,8 @@ class AuctionServiceTest {
     assertThat(response.auctionStatus()).isEqualTo(AuctionStatus.SCHEDULED);
     assertThat(response.startingPrice()).isEqualTo(10000L);
     assertThat(response.bidIncrement()).isEqualTo(500L);
-    LocalDateTime confirmedStartAt = scheduledStartAt.toLocalDate().atTime(21, 0);
-    assertThat(response.startedAt()).isEqualTo(confirmedStartAt);
-    assertThat(response.endedAt()).isEqualTo(confirmedStartAt.plusDays(7));
+    assertThat(response.startedAt()).isEqualTo(scheduledStartAt);
+    assertThat(response.endedAt()).isEqualTo(scheduledStartAt.plusDays(7));
     assertThat(response.winningBidId()).isNull();
     assertThat(response.winningPrice()).isNull();
     assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.AUCTION_SCHEDULED);

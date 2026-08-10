@@ -7,6 +7,8 @@ import static org.mockito.BDDMockito.*;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
 import com.ootd.pickup.global.event.NotificationEvent;
+import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -36,12 +38,17 @@ class RedisEventPublisherTest {
   private final NotificationChannelResolver channelResolver = new NotificationChannelResolver();
   private final NotificationEnvelopeReader envelopeReader =
       new NotificationEnvelopeReader(objectMapper);
+  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+  private final RealtimeNotificationMetrics metrics =
+      new RealtimeNotificationMetrics(meterRegistry);
 
   private RedisEventPublisher redisEventPublisher;
 
   @BeforeEach
   void setUp() {
-    redisEventPublisher = new RedisEventPublisher(redisTemplate, objectMapper, channelResolver);
+    given(redisTemplate.convertAndSend(anyString(), anyString())).willReturn(1L);
+    redisEventPublisher =
+        new RedisEventPublisher(redisTemplate, objectMapper, channelResolver, metrics);
   }
 
   @Test
@@ -56,6 +63,7 @@ class RedisEventPublisherTest {
     ArgumentCaptor<String> channelCaptor = ArgumentCaptor.forClass(String.class);
     then(redisTemplate).should().convertAndSend(channelCaptor.capture(), any());
     assertThat(channelCaptor.getValue()).isEqualTo(channelResolver.resolve(event));
+    assertThat(publishCount("success")).isEqualTo(1);
   }
 
   @Test
@@ -88,6 +96,35 @@ class RedisEventPublisherTest {
     ArgumentCaptor<String> channelCaptor = ArgumentCaptor.forClass(String.class);
     then(redisTemplate).should(times(2)).convertAndSend(channelCaptor.capture(), any());
     assertThat(channelCaptor.getAllValues()).doesNotHaveDuplicates();
+  }
+
+  @Test
+  void Redis_발행이_실패하면_실패를_기록하고_예외를_전파한다() {
+    NotificationEvent event = createEvent(42L);
+    given(redisTemplate.convertAndSend(anyString(), anyString()))
+        .willThrow(new IllegalStateException("redis unavailable"));
+
+    assertThatThrownBy(() -> redisEventPublisher.publish(event))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(publishCount("failure")).isEqualTo(1);
+  }
+
+  @Test
+  void Redis_구독자가_없으면_별도_결과로_기록한다() {
+    NotificationEvent event = createEvent(42L);
+    given(redisTemplate.convertAndSend(anyString(), anyString())).willReturn(0L);
+
+    redisEventPublisher.publish(event);
+
+    assertThat(publishCount("no_subscribers")).isEqualTo(1);
+  }
+
+  private double publishCount(String outcome) {
+    return meterRegistry
+        .get("pickup.redis.notification.publish")
+        .tags("outcome", outcome, "event_type", "AUCTION_STARTED")
+        .counter()
+        .count();
   }
 
   private AuctionStartedNotificationEvent createEvent(Long auctionId) {

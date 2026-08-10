@@ -75,6 +75,19 @@ function parseGrade(value?: string | null): Grade | undefined {
   return { agency: agency as Grade["agency"], score: score.join(" ") };
 }
 
+export function computeEndsAt(item: {
+  endedAt?: string | null;
+  remainingSeconds?: number | null;
+}): string | undefined {
+  if (item.endedAt) {
+    return item.endedAt;
+  }
+  if (typeof item.remainingSeconds === "number" && item.remainingSeconds >= 0) {
+    return new Date(Date.now() + item.remainingSeconds * 1000).toISOString();
+  }
+  return undefined;
+}
+
 function toSummary(item: AuctionListItemResponse): AuctionSummary {
   return {
     id: String(item.auctionId),
@@ -84,7 +97,7 @@ function toSummary(item: AuctionListItemResponse): AuctionSummary {
     grade: parseGrade(item.grade),
     currentPrice: item.currentPrice ?? undefined,
     startPrice: item.startingPrice,
-    endsAt: item.endedAt ?? undefined,
+    endsAt: computeEndsAt(item),
     startsAt: item.startedAt ?? undefined,
     watchCount: item.watchCount,
     watched: item.watched,

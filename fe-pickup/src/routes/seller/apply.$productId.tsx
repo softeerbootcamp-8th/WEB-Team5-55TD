@@ -23,7 +23,7 @@ import { registerAuction } from "@/api/auctions";
 import { getMyConsignmentDetail } from "@/api/consignments";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
-import { formatWon, minBidUnit } from "@/lib/format";
+import { formatDateTime, formatWon, minBidUnit } from "@/lib/format";
 
 export const Route = createFileRoute("/seller/apply/$productId")({
   component: AuctionApplyPage,
@@ -54,15 +54,20 @@ function AuctionApplyPage() {
   const [schedule, setSchedule] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [minimumSchedule] = useState(() => {
-    const now = new Date();
-    if (now.getHours() >= 21) now.setDate(now.getDate() + 1);
-    return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+    // 요청이 서버에 도착하는 사이에 과거 시각이 되지 않도록 1분의 여유를 둔다.
+    const now = new Date(Date.now() + 60_000);
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+      .toISOString()
+      .slice(0, 16);
   });
 
   const startValue = parsePositivePrice(startPrice);
   const reserveValue = parsePositivePrice(reserve);
   const unit = startValue ? minBidUnit(startValue) : 0;
-  const scheduleValid = schedule.length > 0 && schedule >= minimumSchedule;
+  const scheduleValue = schedule ? new Date(schedule).getTime() : Number.NaN;
+  const scheduleValid =
+    Number.isFinite(scheduleValue) &&
+    scheduleValue > new Date(minimumSchedule).getTime();
   const valid = startValue !== null && reserveValue !== null && scheduleValid;
 
   const { mutate: submitApply, isPending: isSubmitting } = useMutation({
@@ -71,7 +76,7 @@ function AuctionApplyPage() {
         consignmentId: productId,
         startingPrice: startValue!,
         reserve: reserveValue!,
-        scheduledStartAt: `${schedule}T21:00:00`,
+        scheduledStartAt: `${schedule}:00`,
       }),
     onSuccess: () => {
       toast.success("경매 신청이 완료되었습니다.");
@@ -193,21 +198,21 @@ function AuctionApplyPage() {
 
         <div className="flex flex-col gap-1.5">
           <Label>
-            희망 시작일 <span className="text-[var(--color-danger)]">*</span>
+            희망 시작 일시 <span className="text-[var(--color-danger)]">*</span>
           </Label>
           <Input
-            type="date"
+            type="datetime-local"
             value={schedule}
             onChange={(e) => setSchedule(e.target.value)}
             min={minimumSchedule}
           />
           {schedule && !scheduleValid && (
             <p className="text-xs text-[var(--color-danger)]">
-              선택 가능한 시작일을 확인해 주세요.
+              현재보다 이후의 일시를 선택해 주세요.
             </p>
           )}
           <p className="text-xs text-[var(--color-text-muted)]">
-            선택한 날짜의 오후 9시에 시작하며 7일간 진행됩니다.
+            선택한 일시에 시작하며 7일간 진행됩니다.
           </p>
         </div>
       </div>
@@ -244,7 +249,7 @@ function AuctionApplyPage() {
             <div className="flex justify-between">
               <dt className="text-[var(--color-text-sub)]">경매 일정</dt>
               <dd className="tabular text-right">
-                {schedule || "-"} 21:00부터 7일
+                {schedule ? `${formatDateTime(schedule)}부터 7일` : "-"}
               </dd>
             </div>
             <div className="flex justify-between">

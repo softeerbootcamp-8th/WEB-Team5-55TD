@@ -45,6 +45,8 @@ dependencies {
     implementation 'software.amazon.awssdk:url-connection-client'
     implementation 'software.amazon.awssdk:sso'
     implementation 'software.amazon.awssdk:ssooidc'
+    implementation 'io.micrometer:micrometer-registry-statsd'
+
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
     runtimeOnly 'com.mysql:mysql-connector-j'

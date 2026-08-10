@@ -223,6 +223,9 @@ public class AuctionStatusTransitionService {
 
   /** 유찰된 경매는 낙찰 입찰이 없다. 빈 맵에 null 키로 조회하면 예외가 나므로 먼저 걸러낸다. */
   private Bid winningBidOf(Auction auction, Map<Long, Bid> winningBidsById) {
+    if (auction.getAuctionStatus() != WON) {
+      return null;
+    }
     Long winningBidId = auction.getWinningBidId();
     return winningBidId == null ? null : winningBidsById.get(winningBidId);
   }

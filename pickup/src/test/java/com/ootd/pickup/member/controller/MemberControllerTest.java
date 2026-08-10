@@ -1,5 +1,7 @@
 package com.ootd.pickup.member.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -22,6 +24,9 @@ import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.service.MemberService;
 import com.ootd.pickup.member.service.ProfileApplicationService;
+import com.ootd.pickup.point.domain.PointTransactionType;
+import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -177,7 +182,8 @@ class MemberControllerTest {
   @Test
   void 인증된_회원이_포인트를_조회하면_200과_잔액을_반환한다() throws Exception {
     // given
-    given(memberService.getMyPointBalance(1L)).willReturn(new PointBalanceResponse(3_000_000L));
+    given(memberService.getMyPointBalance(1L))
+        .willReturn(new PointBalanceResponse(3_000_000L, 500_000L, 2_500_000L));
 
     // when & then
     mockMvc
@@ -185,7 +191,35 @@ class MemberControllerTest {
             get("/members/me/points")
                 .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.pointBalance").value(3_000_000L));
+        .andExpect(jsonPath("$.pointBalance").value(3_000_000L))
+        .andExpect(jsonPath("$.reservedPointBalance").value(500_000L))
+        .andExpect(jsonPath("$.availablePointBalance").value(2_500_000L));
+  }
+
+  @Test
+  void 인증된_회원이_포인트_거래내역을_조회하면_커서페이지를_반환한다() throws Exception {
+    // given
+    PointTransactionItemResponse item =
+        new PointTransactionItemResponse(
+            3L,
+            PointTransactionType.AUCTION_PAYOUT,
+            10_500L,
+            20_500L,
+            1L,
+            LocalDateTime.of(2026, 8, 8, 10, 0));
+    given(memberService.getMyPointTransactions(eq(1L), any(GetPointTransactionsRequest.class)))
+        .willReturn(CursorPageResponse.from(List.of(item), false, null));
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/members/me/point-transactions")
+                .param("size", "20")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].transactionType").value("AUCTION_PAYOUT"))
+        .andExpect(jsonPath("$.items[0].amount").value(10_500L))
+        .andExpect(jsonPath("$.hasNext").value(false));
   }
 
   @Test
