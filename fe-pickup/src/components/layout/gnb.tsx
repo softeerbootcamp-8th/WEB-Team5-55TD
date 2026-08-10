@@ -10,6 +10,7 @@ import {
   Repeat,
   Settings,
   User as UserIcon,
+  WalletCards,
 } from "lucide-react";
 import {
   useGetMyPointBalance,
@@ -42,6 +43,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: "경매", to: "/auctions" },
     { label: "관심", to: "/watchlist" },
     { label: "입찰 / 낙찰 내역", to: "/bids" },
+    { label: "포인트", to: "/points" },
   ],
   seller: [
     { label: "PickUp 홈", to: "/seller" },
@@ -64,7 +66,7 @@ export function Gnb({ role }: { role: Role }) {
   const nickname = profileQuery.data?.nickname ?? storedNickname ?? "회원";
   const items = NAV[role];
 
-  const pointBalance = pointBalanceQuery.data?.pointBalance;
+  const pointBalance = pointBalanceQuery.data?.availablePointBalance;
   const pointBalanceLabel = pointBalanceQuery.isLoading
     ? "조회 중"
     : pointBalanceQuery.isError
@@ -136,13 +138,16 @@ export function Gnb({ role }: { role: Role }) {
                 <DropdownMenuLabel>{nickname} 님</DropdownMenuLabel>
                 <div className="flex items-center justify-between px-3 py-1.5">
                   <span className="text-xs text-[var(--color-text-muted)]">
-                    보유 포인트
+                    사용 가능 포인트
                   </span>
                   <span className="tabular text-sm font-semibold text-primary">
                     {pointBalanceLabel}
                   </span>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => navigate({ to: "/points" })}>
+                  <WalletCards /> 포인트 / 거래내역
+                </DropdownMenuItem>
                 {role === "buyer" ? (
                   <>
                     <DropdownMenuItem
@@ -218,13 +223,18 @@ export function Gnb({ role }: { role: Role }) {
                 <DropdownMenuLabel>{nickname} 님</DropdownMenuLabel>
                 <div className="flex items-center justify-between px-3 py-1.5">
                   <span className="text-xs text-[var(--color-text-muted)]">
-                    보유 포인트
+                    사용 가능 포인트
                   </span>
                   <span className="tabular text-sm font-semibold text-primary">
                     {pointBalanceLabel}
                   </span>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/points">
+                    <WalletCards /> 포인트 / 거래내역
+                  </Link>
+                </DropdownMenuItem>
                 {items.map((item) => (
                   <DropdownMenuItem key={item.to} asChild>
                     <Link

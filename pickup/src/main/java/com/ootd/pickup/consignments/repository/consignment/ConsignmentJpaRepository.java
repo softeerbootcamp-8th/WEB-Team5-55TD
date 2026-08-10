@@ -13,4 +13,7 @@ public interface ConsignmentJpaRepository extends JpaRepository<Consignment, Lon
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select c from Consignment c where c.consignmentId = :consignmentId")
   Optional<Consignment> findByIdForUpdate(@Param("consignmentId") Long consignmentId);
+
+  @Query("select count(c) from Consignment c where c.sellerMember.memberId = :memberId")
+  long countBySellerMemberId(@Param("memberId") Long memberId);
 }

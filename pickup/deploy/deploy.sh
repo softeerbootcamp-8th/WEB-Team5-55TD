@@ -3,9 +3,9 @@
 # EC2 에서 실행되는 배포 스크립트.
 # GitHub Actions 러너가 SSM Run Command 로 이 스크립트를 내려받아 실행한다.
 #
-#   사용법: deploy.sh s3://<bucket>/pickup/<sha>/app.jar <image-runtime-config-base64>
+#   사용법: deploy.sh s3://<bucket>/pickup/<sha>/app.jar <runtime-config-base64>
 #
-# 흐름: 백업 → 다운로드 → 교체 → 재시작 → 헬스체크 → (실패 시) 롤백
+# 흐름: JAR·Datadog 설정 다운로드 → 기존 파일 백업 → 교체 → 재시작 → 헬스체크 → (실패 시) 롤백
 #
 set -euo pipefail
 
@@ -20,6 +20,21 @@ RUNTIME_ENV_DIR="${RUNTIME_ENV_DIR:-/etc/pickup}"
 RUNTIME_ENV_FILE="${RUNTIME_ENV_FILE:-${RUNTIME_ENV_DIR}/image-storage.env}"
 SYSTEMD_DROPIN_DIR="${SYSTEMD_DROPIN_DIR:-/etc/systemd/system/${SERVICE}.service.d}"
 SYSTEMD_DROPIN_FILE="${SYSTEMD_DROPIN_FILE:-${SYSTEMD_DROPIN_DIR}/20-image-storage.conf}"
+DATADOG_JMX_DIR="${DATADOG_JMX_DIR:-/opt/datadog/jmx}"
+DATADOG_DROPIN_FILE="${DATADOG_DROPIN_FILE:-${SYSTEMD_DROPIN_DIR}/datadog.conf}"
+
+DATADOG_CONFIG_NAMES=(
+  hikaricp-jmx.yaml
+  tomcat-jmx.yaml
+  websocket-jmx.yaml
+  pickup-datadog.conf
+)
+DATADOG_CONFIG_TARGETS=(
+  "${DATADOG_JMX_DIR}/hikaricp.yaml"
+  "${DATADOG_JMX_DIR}/tomcat.yaml"
+  "${DATADOG_JMX_DIR}/websocket.yaml"
+  "${DATADOG_DROPIN_FILE}"
+)
 
 JAR="${APP_DIR}/app.jar"
 PREV="${APP_DIR}/app.jar.prev"
@@ -45,10 +60,10 @@ die() {
 # ---------------------------------------------------------------- 사전 점검
 
 S3_URI="${1:-}"
-IMAGE_RUNTIME_CONFIG_BASE64="${2:-}"
+RUNTIME_CONFIG_BASE64="${2:-}"
 [ -n "${S3_URI}" ] \
-  || die "S3 경로 인자가 없습니다. 사용법: $0 s3://bucket/key <image-runtime-config-base64>"
-[ -n "${IMAGE_RUNTIME_CONFIG_BASE64}" ] || die "이미지 런타임 설정이 없습니다."
+  || die "S3 경로 인자가 없습니다. 사용법: $0 s3://bucket/key <runtime-config-base64>"
+[ -n "${RUNTIME_CONFIG_BASE64}" ] || die "런타임 설정이 없습니다."
 case "${S3_URI}" in
   s3://*) ;;
   *) die "s3:// 로 시작하는 경로가 필요합니다: ${S3_URI}" ;;
@@ -76,7 +91,7 @@ mkdir -p "${APP_DIR}"
 validate_runtime_config() {
   local line_count
   line_count=$(wc -l < "${IMAGE_ENV_TMP}" | tr -d ' ')
-  [ "${line_count}" -eq 5 ] || return 1
+  [ "${line_count}" -eq 8 ] || return 1
 
   grep -qxE 'IMAGE_STORAGE_BUCKET=[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]' "${IMAGE_ENV_TMP}" \
     || return 1
@@ -84,6 +99,18 @@ validate_runtime_config() {
   grep -qxE 'IMAGE_MEDIA_BASE_URL=https://[A-Za-z0-9.-]+' "${IMAGE_ENV_TMP}" || return 1
   grep -qxE 'IMAGE_UPLOAD_URL_TTL=[1-9][0-9]*[smhd]' "${IMAGE_ENV_TMP}" || return 1
   grep -qxE 'WEBSOCKET_ALLOWED_ORIGINS=https://[A-Za-z0-9.-]+' "${IMAGE_ENV_TMP}" || return 1
+  grep -qx 'DD_SERVICE=pickup-api' "${IMAGE_ENV_TMP}" || return 1
+  grep -qx 'DD_ENV=production' "${IMAGE_ENV_TMP}" || return 1
+  grep -qxE 'DD_VERSION=[0-9a-f]{40}' "${IMAGE_ENV_TMP}" || return 1
+}
+
+validate_datadog_configs() {
+  grep -q 'alias: hikaricp.connections.active' "${DATADOG_CONFIG_TMPS[0]}" || return 1
+  grep -q 'alias: tomcat.threads.busy' "${DATADOG_CONFIG_TMPS[1]}" || return 1
+  grep -q 'bean: com.ootd.pickup.websocket:name=RealtimeWebSocketMetrics' \
+    "${DATADOG_CONFIG_TMPS[2]}" || return 1
+  grep -qx 'Environment="DD_JMXFETCH_CONFIG=hikaricp.yaml,tomcat.yaml,websocket.yaml"' \
+    "${DATADOG_CONFIG_TMPS[3]}" || return 1
 }
 
 backup_runtime_config() {
@@ -95,11 +122,20 @@ backup_runtime_config() {
     cp -p "${SYSTEMD_DROPIN_FILE}" "${SYSTEMD_DROPIN_BACKUP}" || return 1
     HAVE_SYSTEMD_DROPIN=1
   fi
+  local index
+  for index in "${!DATADOG_CONFIG_TARGETS[@]}"; do
+    if [ -f "${DATADOG_CONFIG_TARGETS[${index}]}" ]; then
+      cp -p "${DATADOG_CONFIG_TARGETS[${index}]}" \
+        "${DATADOG_CONFIG_BACKUPS[${index}]}" || return 1
+      DATADOG_CONFIG_EXISTED[${index}]=1
+    fi
+  done
   RUNTIME_CONFIG_BACKED_UP=1
 }
 
 install_runtime_config() {
-  install -d -o root -g root -m 0755 "${RUNTIME_ENV_DIR}" "${SYSTEMD_DROPIN_DIR}" || return 1
+  install -d -o root -g root -m 0755 \
+    "${RUNTIME_ENV_DIR}" "${SYSTEMD_DROPIN_DIR}" "${DATADOG_JMX_DIR}" || return 1
   install -o root -g root -m 0644 "${IMAGE_ENV_TMP}" "${RUNTIME_ENV_FILE}.new" || return 1
   mv "${RUNTIME_ENV_FILE}.new" "${RUNTIME_ENV_FILE}" || return 1
 
@@ -108,6 +144,14 @@ install_runtime_config() {
   install -o root -g root -m 0644 "${SYSTEMD_DROPIN_TMP}" \
     "${SYSTEMD_DROPIN_FILE}.new" || return 1
   mv "${SYSTEMD_DROPIN_FILE}.new" "${SYSTEMD_DROPIN_FILE}" || return 1
+
+  local index
+  for index in "${!DATADOG_CONFIG_TARGETS[@]}"; do
+    install -o root -g root -m 0644 "${DATADOG_CONFIG_TMPS[${index}]}" \
+      "${DATADOG_CONFIG_TARGETS[${index}]}.new" || return 1
+    mv "${DATADOG_CONFIG_TARGETS[${index}]}.new" \
+      "${DATADOG_CONFIG_TARGETS[${index}]}" || return 1
+  done
   systemctl daemon-reload || return 1
 }
 
@@ -126,6 +170,16 @@ restore_runtime_config() {
   else
     rm -f "${SYSTEMD_DROPIN_FILE}" || return 1
   fi
+
+  local index
+  for index in "${!DATADOG_CONFIG_TARGETS[@]}"; do
+    if [ "${DATADOG_CONFIG_EXISTED[${index}]}" -eq 1 ]; then
+      install -o root -g root -m 0644 "${DATADOG_CONFIG_BACKUPS[${index}]}" \
+        "${DATADOG_CONFIG_TARGETS[${index}]}" || return 1
+    else
+      rm -f "${DATADOG_CONFIG_TARGETS[${index}]}" || return 1
+    fi
+  done
   systemctl daemon-reload || return 1
 }
 
@@ -164,7 +218,7 @@ rollback() {
 
   local config_restore_ok=1
   if ! restore_runtime_config; then
-    log "이전 이미지 런타임 설정 복구 실패"
+    log "이전 런타임·Datadog 설정 복구 실패"
     config_restore_ok=0
   fi
 
@@ -218,18 +272,43 @@ IMAGE_ENV_TMP=$(mktemp /tmp/pickup-image-env.XXXXXX)
 SYSTEMD_DROPIN_TMP=$(mktemp /tmp/pickup-systemd-dropin.XXXXXX)
 RUNTIME_ENV_BACKUP=$(mktemp /tmp/pickup-image-env-backup.XXXXXX)
 SYSTEMD_DROPIN_BACKUP=$(mktemp /tmp/pickup-systemd-dropin-backup.XXXXXX)
-trap 'rm -f "${JAR_TMP}" "${IMAGE_ENV_TMP}" "${SYSTEMD_DROPIN_TMP}" "${RUNTIME_ENV_BACKUP}" "${SYSTEMD_DROPIN_BACKUP}"' EXIT
+DATADOG_CONFIG_TMPS=()
+DATADOG_CONFIG_BACKUPS=()
+DATADOG_CONFIG_EXISTED=()
+for index in "${!DATADOG_CONFIG_NAMES[@]}"; do
+  DATADOG_CONFIG_TMPS+=("$(mktemp /tmp/pickup-datadog-config.XXXXXX)")
+  DATADOG_CONFIG_BACKUPS+=("$(mktemp /tmp/pickup-datadog-backup.XXXXXX)")
+  DATADOG_CONFIG_EXISTED+=(0)
+done
+
+cleanup() {
+  rm -f "${JAR_TMP}" "${IMAGE_ENV_TMP}" "${SYSTEMD_DROPIN_TMP}" \
+    "${RUNTIME_ENV_BACKUP}" "${SYSTEMD_DROPIN_BACKUP}" \
+    "${DATADOG_CONFIG_TMPS[@]}" "${DATADOG_CONFIG_BACKUPS[@]}"
+}
+trap cleanup EXIT
 
 HAVE_RUNTIME_ENV=0
 HAVE_SYSTEMD_DROPIN=0
 RUNTIME_CONFIG_BACKED_UP=0
 
-printf '%s' "${IMAGE_RUNTIME_CONFIG_BASE64}" | base64 --decode > "${IMAGE_ENV_TMP}" \
-  || die "이미지 런타임 설정을 디코딩하지 못했습니다."
-validate_runtime_config || die "이미지 런타임 설정의 형식이 올바르지 않습니다."
-log "이미지 런타임 설정 검증 완료"
+printf '%s' "${RUNTIME_CONFIG_BASE64}" | base64 --decode > "${IMAGE_ENV_TMP}" \
+  || die "런타임 설정을 디코딩하지 못했습니다."
+validate_runtime_config || die "런타임 설정의 형식이 올바르지 않습니다."
+log "런타임 설정 검증 완료"
 
 log "대상 리비전: ${S3_URI}"
+
+ARTIFACT_BASE_URI="${S3_URI%/app.jar}"
+[ "${ARTIFACT_BASE_URI}" != "${S3_URI}" ] \
+  || die "배포 JAR 경로는 app.jar 로 끝나야 합니다: ${S3_URI}"
+for index in "${!DATADOG_CONFIG_NAMES[@]}"; do
+  "${AWS}" s3 cp "${ARTIFACT_BASE_URI}/${DATADOG_CONFIG_NAMES[${index}]}" \
+    "${DATADOG_CONFIG_TMPS[${index}]}" --quiet \
+    || die "Datadog 설정 다운로드 실패: ${DATADOG_CONFIG_NAMES[${index}]}"
+done
+validate_datadog_configs || die "Datadog 설정의 형식이 올바르지 않습니다."
+log "Datadog 설정 검증 완료"
 
 # 교체 전 소유권·권한을 기록해 그대로 복원한다.
 # systemd 유닛의 User= 를 스크립트에 하드코딩하지 않기 위한 것이다.
@@ -250,12 +329,12 @@ fi
 "${AWS}" s3 cp "${S3_URI}" "${JAR_TMP}" --quiet || die "S3 다운로드 실패: ${S3_URI}"
 [ -s "${JAR_TMP}" ] || die "다운로드한 파일이 비어 있습니다."
 
-backup_runtime_config || die "기존 이미지 런타임 설정을 백업하지 못했습니다."
+backup_runtime_config || die "기존 런타임·Datadog 설정을 백업하지 못했습니다."
 if ! install_runtime_config; then
   restore_runtime_config || true
-  die "이미지 런타임 설정을 설치하지 못했습니다."
+  die "런타임·Datadog 설정을 설치하지 못했습니다."
 fi
-log "이미지 런타임 설정 적용 완료"
+log "런타임·Datadog 설정 적용 완료"
 
 if ! mv "${JAR_TMP}" "${JAR}" \
   || ! chown "${OWNER}" "${JAR}" \

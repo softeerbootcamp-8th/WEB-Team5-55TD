@@ -10,10 +10,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 경매 종료(ONGOING → WON/PASSED) 사건 — 정산용.
+ * 경매 종료(ONGOING → WON/PASSED) 사건 — 종료 후 포인트 처리용.
  *
- * <p>후속 처리(정산)가 정확히 한 번만 실행돼야 하므로 {@link MessageQueueEvent}로 분류한다. Outbox에 먼저 저장되고 별도 Relay가 SQS
- * FIFO 큐로 옮긴다.
+ * <p>후속 처리(낙찰 정산 또는 유찰 예약 해제)가 안정적으로 실행돼야 하므로 {@link MessageQueueEvent}로 분류한다. Outbox에 먼저 저장되고 별도
+ * Relay가 SQS FIFO 큐로 옮긴다.
  *
  * <p>정산 컨슈머는 다른 프로세스에서 트랜잭션 밖에 실행되므로 낙찰자·판매자를 다시 조회할 수 없다. 그래서 마감 스케줄러가 이미 로드해 둔 {@code
  * winningBid}/{@code auction.getConsignment().getSellerMember()}에서 memberId를 미리 꺼내 담는다.

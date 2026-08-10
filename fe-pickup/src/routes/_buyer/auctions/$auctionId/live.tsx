@@ -26,11 +26,13 @@ import {
 } from "@/components/ui/dialog";
 import { getAuctionDetail } from "@/api/auctions";
 import { getAuctionBids, getBidErrorMessage, placeBid } from "@/api/bids";
+import { getGetMyPointBalanceQueryKey } from "@/api/generated/member/member";
+import { refreshAccessToken } from "@/api/mutator/custom-instance";
 import {
   useAuctionBidUpdates,
   type AuctionBidUpdatedMessage,
 } from "@/hooks/use-auction-bid-updates";
-import { useIsAuthenticated } from "@/lib/auth";
+import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
 import { formatWon } from "@/lib/format";
 import { AuctionStatus } from "@/lib/types";
 
@@ -59,6 +61,13 @@ function laterEndTime(
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/live")({
   loader: async ({ params }) => {
+    if (isAuthenticated()) {
+      // 실시간 입찰 도중 access-token 만료(401 → 재발급 → 원 요청 재시도) 왕복 지연이
+      // 끼는 걸 줄이기 위해, 경매 참여 화면 진입 시 한 번 선제로 갱신해 둔다.
+      // 실패해도 무시한다 — 기존 access-token이 여전히 유효할 수 있고, 실제로 만료된
+      // 경우엔 요청 인터셉터의 리액티브 재발급이 안전망으로 남아 있다.
+      void refreshAccessToken().catch(() => {});
+    }
     try {
       return { auction: await getAuctionDetail(params.auctionId) };
     } catch (error) {
@@ -227,6 +236,9 @@ function LiveAuctionPage() {
         myHighestBidRef.current = { bidId: placed.bidId, price: placed.bidPrice };
         queryClient.invalidateQueries({
           queryKey: ["auction-bids", auction.id],
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetMyPointBalanceQueryKey(),
         });
         setRealtimeSnapshot((current) => ({
           auctionId: auction.id,
