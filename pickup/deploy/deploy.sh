@@ -76,13 +76,14 @@ mkdir -p "${APP_DIR}"
 validate_runtime_config() {
   local line_count
   line_count=$(wc -l < "${IMAGE_ENV_TMP}" | tr -d ' ')
-  [ "${line_count}" -eq 4 ] || return 1
+  [ "${line_count}" -eq 5 ] || return 1
 
   grep -qxE 'IMAGE_STORAGE_BUCKET=[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]' "${IMAGE_ENV_TMP}" \
     || return 1
   grep -qx 'IMAGE_STORAGE_REGION=ap-northeast-2' "${IMAGE_ENV_TMP}" || return 1
   grep -qxE 'IMAGE_MEDIA_BASE_URL=https://[A-Za-z0-9.-]+' "${IMAGE_ENV_TMP}" || return 1
   grep -qxE 'IMAGE_UPLOAD_URL_TTL=[1-9][0-9]*[smhd]' "${IMAGE_ENV_TMP}" || return 1
+  grep -qxE 'WEBSOCKET_ALLOWED_ORIGINS=https://[A-Za-z0-9.-]+' "${IMAGE_ENV_TMP}" || return 1
 }
 
 backup_runtime_config() {
