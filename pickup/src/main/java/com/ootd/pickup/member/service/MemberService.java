@@ -59,8 +59,6 @@ public class MemberService {
   private static final int BCRYPT_COST_FACTOR = 12;
   private static final int DEFAULT_SIZE = 20;
   private static final int MAX_SIZE = 100;
-  private static final List<ConsignmentStatus> ACTIVE_CONSIGNMENT_STATUSES =
-      List.of(ConsignmentStatus.AUCTION_SCHEDULED, ConsignmentStatus.AUCTION_ONGOING);
 
   private final MemberRepository memberRepository;
   private final MemberManageService memberManageService;
@@ -336,7 +334,7 @@ public class MemberService {
   /** 경매가 예정/진행 중인 상품을 셀러로 등록해 두면, 탈퇴 후 그 경매를 아무도 관리할 수 없게 되므로 탈퇴를 막는다. */
   private boolean hasActiveConsignment(Long memberId) {
     return consignmentRepository.existsBySellerMemberIdAndStatusIn(
-        memberId, ACTIVE_CONSIGNMENT_STATUSES);
+        memberId, ConsignmentStatus.activeInAuctionStatuses());
   }
 
   /** 최고 입찰자인 상태로 탈퇴하면 경매가 종료돼도 낙찰자에게 연락할 수 없게 되므로 탈퇴를 막는다. */
