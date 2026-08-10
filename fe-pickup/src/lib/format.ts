@@ -6,6 +6,27 @@ export function formatWon(amount?: number): string {
   return `${amount.toLocaleString("ko-KR")}원`;
 }
 
+/**
+ * 억/만 단위로 축약한 금액 표기 (예: 1억 2,345만원, 128만원).
+ * 큰 금액이 카드/박스 폭을 넘어서는 문제를 레이아웃이 아니라 자릿수 자체를
+ * 줄여서 해결한다. 100만원 미만은 formatWon과 동일하게 전체 숫자를 그대로
+ * 보여주고(작은 금액에서 만원 단위 절삭은 오차가 눈에 띄므로), 그 이상만
+ * 축약하며 이때 만원 단위 미만 잔액은 버림(예: 123,456,789원 → "1억 2,345만원").
+ * 정확한 금액이 필요한 표(입찰/판매 내역, 포인트 등)에는 쓰지 않는다.
+ */
+export function formatWonCompact(amount?: number): string {
+  if (amount == null) return "-";
+  const abs = Math.abs(amount);
+  if (abs < 1_000_000) return formatWon(amount);
+  const sign = amount < 0 ? "-" : "";
+  const eok = Math.floor(abs / 100_000_000);
+  const man = Math.floor((abs % 100_000_000) / 10_000);
+  const parts: string[] = [];
+  if (eok > 0) parts.push(`${eok.toLocaleString("ko-KR")}억`);
+  if (man > 0) parts.push(`${man.toLocaleString("ko-KR")}만`);
+  return `${sign}${parts.join(" ")}원`;
+}
+
 /** 포인트 표기: 1,280,000P */
 export function formatPoint(amount?: number): string {
   if (amount == null) return "-";
