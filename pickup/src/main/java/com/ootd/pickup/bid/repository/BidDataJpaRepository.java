@@ -94,4 +94,9 @@ public class BidDataJpaRepository implements BidRepository {
   private BooleanExpression cursorPredicate(Long cursorBidId) {
     return cursorBidId == null ? null : bid.bidId.lt(cursorBidId);
   }
+
+  @Override
+  public boolean existsByMemberIdAndBidStatus(Long memberId, BidStatus bidStatus) {
+    return bidJpaRepository.existsByMember_MemberIdAndBidStatus(memberId, bidStatus);
+  }
 }

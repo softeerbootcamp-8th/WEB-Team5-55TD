@@ -3,8 +3,10 @@ package com.ootd.pickup.member.service;
 import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_PASSWORD;
+import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_ALREADY_WITHDRAWN;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_LOGIN_ID_ALREADY_EXISTS;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NICKNAME_ALREADY_EXISTS;
+import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_WITHDRAW_NOT_ALLOWED;
 import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
@@ -14,13 +16,16 @@ import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
 import com.ootd.pickup.bid.domain.Bid;
+import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
 import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
+import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
+import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
@@ -38,11 +43,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -51,6 +58,9 @@ public class MemberService {
   private static final int BCRYPT_COST_FACTOR = 12;
   private static final int DEFAULT_SIZE = 20;
   private static final int MAX_SIZE = 100;
+  private static final List<ConsignmentStatus> ACTIVE_CONSIGNMENT_STATUSES =
+      List.of(ConsignmentStatus.AUCTION_SCHEDULED, ConsignmentStatus.AUCTION_ONGOING);
+
   private final MemberRepository memberRepository;
   private final MemberManageService memberManageService;
   private final PointRepository pointRepository;
@@ -60,6 +70,7 @@ public class MemberService {
   private final CertificateRepository certificateRepository;
   private final WatchRepository watchRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
+  private final ConsignmentRepository consignmentRepository;
 
   public MemberResponse createMember(MemberRequest memberRequest) {
     if (memberRepository.existsByLoginId(memberRequest.loginId())) {
@@ -300,6 +311,34 @@ public class MemberService {
   private MyProfileResponse toMyProfileResponse(Member member) {
     return MyProfileResponse.from(
         member, imageUrlResolver.resolve(member.getProfileImageObjectKey()));
+  }
+
+  public void withdrawMember(Long memberId, WithdrawMemberRequest withdrawMemberRequest) {
+    Member member = memberManageService.getMemberById(memberId);
+
+    if (member.isWithdrawn()) {
+      throw new PickUpException(MEMBER_ALREADY_WITHDRAWN);
+    }
+    if (!member.isPasswordMatched(withdrawMemberRequest.password())) {
+      throw new PickUpException(INVALID_PASSWORD);
+    }
+    if (hasActiveConsignment(memberId) || hasActiveBid(memberId)) {
+      throw new PickUpException(MEMBER_WITHDRAW_NOT_ALLOWED);
+    }
+
+    member.withdraw();
+    log.info("회원이 탈퇴했습니다 - memberId={}", memberId);
+  }
+
+  /** 경매가 예정/진행 중인 상품을 셀러로 등록해 두면, 탈퇴 후 그 경매를 아무도 관리할 수 없게 되므로 탈퇴를 막는다. */
+  private boolean hasActiveConsignment(Long memberId) {
+    return consignmentRepository.existsBySellerMemberIdAndStatusIn(
+        memberId, ACTIVE_CONSIGNMENT_STATUSES);
+  }
+
+  /** 최고 입찰자인 상태로 탈퇴하면 경매가 종료돼도 낙찰자에게 연락할 수 없게 되므로 탈퇴를 막는다. */
+  private boolean hasActiveBid(Long memberId) {
+    return bidRepository.existsByMemberIdAndBidStatus(memberId, BidStatus.HIGHEST);
   }
 
   public record ProfileUpdateResult(MyProfileResponse response, String previousObjectKey) {}
