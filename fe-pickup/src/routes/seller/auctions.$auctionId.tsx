@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { ChevronLeft, Lock, Radio } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
@@ -11,8 +12,11 @@ import { Countdown } from "@/components/domain/countdown";
 import { BidList } from "@/components/domain/bid-list";
 import { Button } from "@/components/ui/button";
 import { getAuctionDetail } from "@/api/auctions";
+import { getAuctionBids } from "@/api/bids";
 import { useNickname } from "@/lib/auth";
-import type { Bid } from "@/lib/types";
+
+// 모니터링 화면에서 한 번에 보여줄 입찰 내역 상한. 그 이상은 요약 용도로 잘라낸다.
+const BID_LIST_SIZE = 100;
 
 export const Route = createFileRoute("/seller/auctions/$auctionId")({
   loader: async ({ params }) => {
@@ -28,35 +32,6 @@ export const Route = createFileRoute("/seller/auctions/$auctionId")({
   component: SellerAuctionPage,
 });
 
-// 입찰 내역 조회 API가 아직 없어 모니터링 화면용 샘플 데이터로 대체한다.
-const now = Date.now();
-const SAMPLE_BIDS: Bid[] = [
-  {
-    id: "m1",
-    maskedNickname: "col***88",
-    amount: 620_000,
-    createdAt: new Date(now - 40_000).toISOString(),
-  },
-  {
-    id: "m2",
-    maskedNickname: "psa***01",
-    amount: 590_000,
-    createdAt: new Date(now - 120_000).toISOString(),
-  },
-  {
-    id: "m3",
-    maskedNickname: "kan***12",
-    amount: 560_000,
-    createdAt: new Date(now - 300_000).toISOString(),
-  },
-  {
-    id: "m4",
-    maskedNickname: "bid***23",
-    amount: 530_000,
-    createdAt: new Date(now - 600_000).toISOString(),
-  },
-];
-
 /** DESIGN.md · seller-auction.html — 입찰 기능 제외, 모니터링 전용 */
 function SellerAuctionPage() {
   const { auction } = Route.useLoaderData();
@@ -64,6 +39,12 @@ function SellerAuctionPage() {
   // 서버가 아직 소유자 검증을 하지 않아 프런트에서 우선 가드한다 — 진짜 인가는 백엔드에서 처리돼야 한다.
   const isOwner =
     !myNickname || !auction.sellerNickname || myNickname === auction.sellerNickname;
+  const bidsQuery = useQuery({
+    queryKey: ["auction-bids", auction.id],
+    queryFn: () => getAuctionBids(auction.id, { size: BID_LIST_SIZE }),
+    enabled: isOwner,
+  });
+  const bids = bidsQuery.data?.items ?? [];
 
   if (!isOwner) {
     return (
@@ -116,7 +97,7 @@ function SellerAuctionPage() {
                   입찰 횟수
                 </span>
                 <span className="tabular text-lg font-bold">
-                  {SAMPLE_BIDS.length}
+                  {bidsQuery.isPending ? "-" : bids.length}
                 </span>
               </div>
               <div className="flex flex-col items-start gap-0.5">
@@ -139,10 +120,16 @@ function SellerAuctionPage() {
         </div>
       </div>
 
-      {/* 입찰 내역 (읽기 전용, 아직 API 없음 — 샘플 데이터) */}
+      {/* 입찰 내역 (읽기 전용 모니터링) */}
       <aside className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
         <h2 className="text-base font-semibold">입찰 내역</h2>
-        <BidList bids={SAMPLE_BIDS} />
+        {bidsQuery.isError ? (
+          <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+            입찰 내역을 불러오지 못했습니다.
+          </p>
+        ) : (
+          <BidList bids={bids} />
+        )}
       </aside>
     </PageContainer>
   );
