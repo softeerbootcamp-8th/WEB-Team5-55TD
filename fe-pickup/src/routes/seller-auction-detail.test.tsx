@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ComponentType, ReactNode } from "react";
 
@@ -14,11 +14,14 @@ const auction = {
   endsAt: new Date(Date.now() + 3600000).toISOString(),
 };
 let nickname = "seller";
-let bidsQueryResult: Record<string, unknown> = {
-  isPending: false,
-  isError: false,
-  data: { items: [], hasNext: false },
-};
+
+function pendingQuery() {
+  return { isPending: true, isError: false, data: undefined };
+}
+
+let previewResult: Record<string, unknown> = pendingQuery();
+let allResult: Record<string, unknown> = pendingQuery();
+
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
     options,
@@ -29,30 +32,37 @@ vi.mock("@tanstack/react-router", () => ({
   ),
   notFound: () => new Error("not found"),
 }));
+// 호출 순서가 아니라 queryKey로 구분한다 — "전체" 클릭 시 재렌더링되며 두 쿼리가
+// 다시 호출되는데, 순서 기반 큐로는 재렌더링마다 스킵되는 값이 달라져 깨지기 쉽다.
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => bidsQueryResult,
+  useQuery: (options: { queryKey: unknown[] }) =>
+    options.queryKey.includes("all") ? allResult : previewResult,
 }));
 vi.mock("@/lib/auth", () => ({ useNickname: () => nickname }));
 vi.mock("@/api/auctions", () => ({ getAuctionDetail: vi.fn() }));
-vi.mock("@/api/bids", () => ({ getAuctionBids: vi.fn() }));
+vi.mock("@/api/bids", () => ({
+  getAuctionBids: vi.fn(),
+  BID_PREVIEW_SIZE: 6,
+  BID_MODAL_SIZE: 100,
+}));
+
+function makeBids(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: String(i),
+    maskedNickname: "col***88",
+    amount: 11000 - i,
+    createdAt: new Date().toISOString(),
+  }));
+}
 
 describe("셀러 경매 상세", () => {
-  it("소유자의 경매 모니터링 정보와 실제 입찰 내역을 표시한다", async () => {
-    bidsQueryResult = {
+  it("소유자의 경매 모니터링 정보와 최근 입찰 미리보기를 표시한다", async () => {
+    previewResult = {
       isPending: false,
       isError: false,
-      data: {
-        items: [
-          {
-            id: "1",
-            maskedNickname: "col***88",
-            amount: 11000,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-        hasNext: false,
-      },
+      data: { items: makeBids(1), hasNext: false },
     };
+    allResult = pendingQuery();
     const { Route } = await import("@/routes/seller/auctions.$auctionId");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
@@ -60,7 +70,7 @@ describe("셀러 경매 상세", () => {
     expect(screen.getByText("12,000원")).toBeInTheDocument();
     expect(screen.getByText("입찰 내역")).toBeInTheDocument();
     expect(screen.getByText("col***88")).toBeInTheDocument();
-    // 입찰 횟수는 목데이터가 아니라 조회된 입찰 내역 개수를 반영한다.
+    // 입찰 횟수는 목데이터가 아니라 미리보기로 조회된 입찰 내역 개수를 반영한다.
     expect(screen.getByText("1")).toBeInTheDocument();
     cleanup();
 
@@ -72,8 +82,9 @@ describe("셀러 경매 상세", () => {
     nickname = "seller";
   });
 
-  it("입찰 내역 조회 실패 시 안내 문구를 보여준다", async () => {
-    bidsQueryResult = { isPending: false, isError: true, data: undefined };
+  it("미리보기 조회 실패 시 안내 문구를 보여준다", async () => {
+    previewResult = { isPending: false, isError: true, data: undefined };
+    allResult = pendingQuery();
     const { Route } = await import("@/routes/seller/auctions.$auctionId");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
@@ -82,24 +93,28 @@ describe("셀러 경매 상세", () => {
     ).toBeInTheDocument();
   });
 
-  it("입찰 내역이 잘렸으면 입찰 횟수에 +를 붙이고 안내 문구를 보여준다", async () => {
-    bidsQueryResult = {
+  it("미리보기가 잘렸으면 입찰 횟수에 +를 붙이고, 전체 클릭 시 모달에 전체 목록을 보여준다", async () => {
+    previewResult = {
       isPending: false,
       isError: false,
-      data: {
-        items: Array.from({ length: 20 }, (_, i) => ({
-          id: String(i),
-          maskedNickname: "col***88",
-          amount: 11000 - i,
-          createdAt: new Date().toISOString(),
-        })),
-        hasNext: true,
-      },
+      data: { items: makeBids(6), hasNext: true },
     };
+    allResult = pendingQuery();
     const { Route } = await import("@/routes/seller/auctions.$auctionId");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
-    expect(screen.getByText("20+")).toBeInTheDocument();
-    expect(screen.getByText("최근 20건만 표시됩니다.")).toBeInTheDocument();
+    expect(screen.getByText("6+")).toBeInTheDocument();
+    // 아직 모달을 열지 않았으니 전체 조회 결과(12건)는 반영되지 않는다.
+    expect(screen.queryByText("12")).not.toBeInTheDocument();
+
+    allResult = {
+      isPending: false,
+      isError: false,
+      data: { items: makeBids(12), hasNext: false },
+    };
+    fireEvent.click(screen.getByRole("button", { name: "전체" }));
+    expect(screen.getByRole("heading", { name: "전체 입찰 내역" })).toBeInTheDocument();
+    // 모달을 열어 전체 조회가 끝나면 입찰 횟수도 더 정확한 값(12)으로 갱신된다.
+    expect(screen.getByText("12")).toBeInTheDocument();
   });
 });
