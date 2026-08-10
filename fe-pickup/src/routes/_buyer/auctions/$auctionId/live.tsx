@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createFileRoute,
   Link,
@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
+import { toast } from "sonner";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
@@ -143,6 +144,21 @@ function LiveAuctionPage() {
     ? Number(previewBidsQuery.data.items[0].id)
     : undefined;
 
+  // 실시간 화면에서 추월당했는지 판단하려면 "내가 최고 입찰자였는지"를 알아야 한다.
+  // 페이지를 새로 열었을 때는 입찰 내역에서, 직접 입찰했을 때는 그 결과에서 채운다.
+  const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(
+    null,
+  );
+  const topPreviewBid = previewBidsQuery.data?.items[0];
+  useEffect(() => {
+    if (topPreviewBid?.isMine) {
+      myHighestBidRef.current = {
+        bidId: Number(topPreviewBid.id),
+        price: topPreviewBid.amount,
+      };
+    }
+  }, [topPreviewBid]);
+
   const refreshSnapshot = useCallback(() => {
     void queryClient.invalidateQueries({
       queryKey: ["auction-detail", auction.id],
@@ -154,6 +170,18 @@ function LiveAuctionPage() {
 
   const applyBidUpdate = useCallback(
     (message: AuctionBidUpdatedMessage) => {
+      const myHighestBid = myHighestBidRef.current;
+      if (
+        myHighestBid &&
+        message.latestBid.bidId !== myHighestBid.bidId &&
+        message.currentPrice > myHighestBid.price
+      ) {
+        myHighestBidRef.current = null;
+        toast.warning("추월당했습니다", {
+          description: `다른 회원이 ${formatWon(message.currentPrice)}에 입찰했습니다.`,
+        });
+      }
+
       setRealtimeSnapshot((current) => ({
         auctionId: auction.id,
         price:
@@ -196,6 +224,7 @@ function LiveAuctionPage() {
     setConfirmOpen(false);
     bidMutation.mutate(parsedAmount, {
       onSuccess: (placed) => {
+        myHighestBidRef.current = { bidId: placed.bidId, price: placed.bidPrice };
         queryClient.invalidateQueries({
           queryKey: ["auction-bids", auction.id],
         });
