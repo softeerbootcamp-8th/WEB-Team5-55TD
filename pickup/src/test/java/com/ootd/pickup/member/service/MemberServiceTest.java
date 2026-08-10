@@ -15,6 +15,7 @@ import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.auth.repository.RefreshTokenRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
@@ -87,6 +88,8 @@ class MemberServiceTest {
   @Mock private ConsignmentImageRepository consignmentImageRepository;
 
   @Mock private ConsignmentRepository consignmentRepository;
+
+  @Mock private RefreshTokenRepository refreshTokenRepository;
 
   @InjectMocks private MemberService memberService;
 
@@ -687,6 +690,7 @@ class MemberServiceTest {
     assertThat(member.isWithdrawn()).isTrue();
     assertThat(member.getLoginId()).isNull();
     assertThat(readPasswordHash(member)).isNull();
+    then(refreshTokenRepository).should().deleteByMemberId(1L);
   }
 
   @Test
@@ -704,6 +708,7 @@ class MemberServiceTest {
     assertThat(member.isWithdrawn()).isFalse();
     then(consignmentRepository).shouldHaveNoInteractions();
     then(bidRepository).shouldHaveNoInteractions();
+    then(refreshTokenRepository).shouldHaveNoInteractions();
   }
 
   @Test
@@ -719,6 +724,7 @@ class MemberServiceTest {
     assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
         .isInstanceOf(PickUpException.class)
         .hasMessage("이미 탈퇴한 회원입니다.");
+    then(refreshTokenRepository).shouldHaveNoInteractions();
   }
 
   @Test
@@ -736,6 +742,7 @@ class MemberServiceTest {
         .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
     assertThat(member.isWithdrawn()).isFalse();
     then(bidRepository).shouldHaveNoInteractions();
+    then(refreshTokenRepository).shouldHaveNoInteractions();
   }
 
   @Test
@@ -753,6 +760,7 @@ class MemberServiceTest {
         .isInstanceOf(PickUpException.class)
         .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
     assertThat(member.isWithdrawn()).isFalse();
+    then(refreshTokenRepository).shouldHaveNoInteractions();
   }
 
   private Watch createWatch(Long watchId, Member member, Auction auction) {

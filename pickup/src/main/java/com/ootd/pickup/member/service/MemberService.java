@@ -15,6 +15,7 @@ import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.auth.repository.RefreshTokenRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
@@ -71,6 +72,7 @@ public class MemberService {
   private final WatchRepository watchRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
   private final ConsignmentRepository consignmentRepository;
+  private final RefreshTokenRepository refreshTokenRepository;
 
   public MemberResponse createMember(MemberRequest memberRequest) {
     if (memberRepository.existsByLoginId(memberRequest.loginId())) {
@@ -327,6 +329,7 @@ public class MemberService {
     }
 
     member.withdraw();
+    refreshTokenRepository.deleteByMemberId(memberId);
     log.info("회원이 탈퇴했습니다 - memberId={}", memberId);
   }
 
