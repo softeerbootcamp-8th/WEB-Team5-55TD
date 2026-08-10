@@ -1,10 +1,13 @@
 package com.ootd.pickup.global.event;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 
+import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.LocalDateTime;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -16,8 +19,11 @@ class NotificationEventListenerTest {
   private final EventPublisher eventPublisher = mock(EventPublisher.class);
   private final AtomicReference<Runnable> submittedTask = new AtomicReference<>();
   private final Executor executor = submittedTask::set;
+  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+  private final RealtimeNotificationMetrics metrics =
+      new RealtimeNotificationMetrics(meterRegistry);
   private final NotificationEventListener listener =
-      new NotificationEventListener(eventPublisher, executor);
+      new NotificationEventListener(eventPublisher, executor, metrics);
 
   @Test
   void 커밋_리스너는_Redis_발행을_executor에_위임한다() {
@@ -39,10 +45,17 @@ class NotificationEventListenerTest {
           throw new RejectedExecutionException("queue full");
         };
     NotificationEventListener rejectingListener =
-        new NotificationEventListener(eventPublisher, rejectingExecutor);
+        new NotificationEventListener(eventPublisher, rejectingExecutor, metrics);
 
     assertThatCode(() -> rejectingListener.publish(testEvent())).doesNotThrowAnyException();
     then(eventPublisher).shouldHaveNoInteractions();
+    assertThat(
+            meterRegistry
+                .get("pickup.redis.notification.publish")
+                .tags("outcome", "rejected", "event_type", "AUCTION_BID_UPDATED")
+                .counter()
+                .count())
+        .isEqualTo(1);
   }
 
   @Test
