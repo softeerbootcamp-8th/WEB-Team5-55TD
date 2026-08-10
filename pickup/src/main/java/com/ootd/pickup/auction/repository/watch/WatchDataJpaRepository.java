@@ -37,7 +37,11 @@ public class WatchDataJpaRepository implements WatchRepository {
 
   @Override
   public int deleteByMemberIdAndAuctionId(Long memberId, Long auctionId) {
-    return watchJpaRepository.deleteByMemberIdAndAuctionId(memberId, auctionId);
+    return (int)
+        queryFactory
+            .delete(watch)
+            .where(watch.member.memberId.eq(memberId), watch.auction.auctionId.eq(auctionId))
+            .execute();
   }
 
   @Override

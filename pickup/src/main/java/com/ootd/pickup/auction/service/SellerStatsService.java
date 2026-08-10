@@ -5,8 +5,8 @@ import static com.ootd.pickup.auction.domain.AuctionStatus.SCHEDULED;
 import static com.ootd.pickup.auction.domain.AuctionStatus.WON;
 
 import com.ootd.pickup.auction.dto.response.SellerStatsResponse;
-import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
-import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionRepository;
+import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,15 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class SellerStatsService {
 
-  private final ConsignmentJpaRepository consignmentJpaRepository;
-  private final AuctionJpaRepository auctionJpaRepository;
+  private final ConsignmentRepository consignmentRepository;
+  private final AuctionRepository auctionRepository;
 
   public SellerStatsResponse getSellerStats(Long memberId) {
-    long registeredConsignments = consignmentJpaRepository.countBySellerMemberId(memberId);
-    long scheduledAuctions =
-        auctionJpaRepository.countBySellerMemberIdAndStatus(memberId, SCHEDULED);
-    long ongoingAuctions = auctionJpaRepository.countBySellerMemberIdAndStatus(memberId, ONGOING);
-    long wonConsignments = auctionJpaRepository.countBySellerMemberIdAndStatus(memberId, WON);
+    long registeredConsignments = consignmentRepository.countBySellerMemberId(memberId);
+    long scheduledAuctions = auctionRepository.countBySellerMemberIdAndStatus(memberId, SCHEDULED);
+    long ongoingAuctions = auctionRepository.countBySellerMemberIdAndStatus(memberId, ONGOING);
+    long wonConsignments = auctionRepository.countBySellerMemberIdAndStatus(memberId, WON);
 
     return new SellerStatsResponse(
         registeredConsignments, scheduledAuctions, ongoingAuctions, wonConsignments);

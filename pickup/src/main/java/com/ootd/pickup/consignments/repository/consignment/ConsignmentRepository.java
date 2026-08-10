@@ -12,6 +12,8 @@ public interface ConsignmentRepository {
 
   Optional<Consignment> findByIdForUpdate(Long consignmentId);
 
+  long countBySellerMemberId(Long sellerMemberId);
+
   void deleteById(Long consignmentId);
 
   List<Consignment> findAllBySellerMemberIdAndStatusAndCursor(

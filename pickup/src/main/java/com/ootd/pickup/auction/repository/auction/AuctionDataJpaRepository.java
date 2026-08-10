@@ -18,7 +18,9 @@ import com.querydsl.core.types.dsl.DateTimeExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -186,7 +188,28 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
   @Override
   public Optional<Auction> findByIdForUpdate(Long auctionId) {
-    return auctionJpaRepository.findByIdForUpdate(auctionId);
+    return Optional.ofNullable(
+        ((JPAQuery<Auction>)
+                queryFactory
+                    .selectFrom(auction)
+                    .join(auction.consignment, consignment)
+                    .fetchJoin()
+                    .join(consignment.sellerMember, member)
+                    .fetchJoin()
+                    .where(auction.auctionId.eq(auctionId)))
+            .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+            .fetchOne());
+  }
+
+  @Override
+  public long countBySellerMemberIdAndStatus(Long sellerMemberId, AuctionStatus status) {
+    return queryFactory
+        .select(auction.count())
+        .from(auction)
+        .where(
+            auction.consignment.sellerMember.memberId.eq(sellerMemberId),
+            auction.auctionStatus.eq(status))
+        .fetchOne();
   }
 
   @Override
