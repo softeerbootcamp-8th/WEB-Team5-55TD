@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { getAuctionDetail } from "@/api/auctions";
 import { getAuctionBids, getBidErrorMessage, placeBid } from "@/api/bids";
+import { getGetMyPointBalanceQueryKey } from "@/api/generated/member/member";
 import { refreshAccessToken } from "@/api/mutator/custom-instance";
 import {
   useAuctionBidUpdates,
@@ -235,6 +236,9 @@ function LiveAuctionPage() {
         myHighestBidRef.current = { bidId: placed.bidId, price: placed.bidPrice };
         queryClient.invalidateQueries({
           queryKey: ["auction-bids", auction.id],
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetMyPointBalanceQueryKey(),
         });
         setRealtimeSnapshot((current) => ({
           auctionId: auction.id,

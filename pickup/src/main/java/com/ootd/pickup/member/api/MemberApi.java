@@ -13,6 +13,8 @@ import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
+import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -108,6 +110,23 @@ public interface MemberApi {
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<PointBalanceResponse> getMyPointBalance(@Parameter(hidden = true) Long memberId);
+
+  @Operation(
+      summary = "내 포인트 거래내역 조회",
+      description = "실제 포인트 증감 내역을 최신순 커서 기반으로 조회합니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "포인트 거래내역 조회 성공",
+            content = @Content(schema = @Schema(implementation = CursorPageResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 필요",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<CursorPageResponse<PointTransactionItemResponse, String>> getMyPointTransactions(
+      @Parameter(hidden = true) Long memberId, GetPointTransactionsRequest request);
 
   @Operation(
       summary = "내 입찰 내역 조회",
