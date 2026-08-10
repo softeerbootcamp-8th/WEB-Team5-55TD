@@ -45,25 +45,20 @@ function SellerAuctionPage() {
     !myNickname || !auction.sellerNickname || myNickname === auction.sellerNickname;
   const [allBidsOpen, setAllBidsOpen] = useState(false);
 
-  // 실시간 경매 화면(live.tsx)과 같은 최근 N건 미리보기 + 전체보기 모달 구조를 쓴다.
-  // 다만 이 화면은 종료된 경매도 보여주는 읽기 전용 모니터링이라 폴링·웹소켓 갱신은
-  // 필요 없다고 판단해 넣지 않았다 — 한 번 조회하면 충분하다.
-  const previewBidsQuery = useQuery({
-    queryKey: ["auction-bids", auction.id, "preview"],
-    queryFn: () => getAuctionBids(auction.id, { size: BID_PREVIEW_SIZE }),
+  // 실시간 경매 화면(live.tsx)의 "최근 N건 미리보기 + 전체보기 모달" 구조를 쓰지만,
+  // 여기서는 미리보기용으로 따로 6건만 조회하지 않고 모달과 같은 쿼리를 재사용한다 —
+  // 6건만 받아오면 입찰 횟수도 6건을 넘는 순간 전부 "6+"처럼 뭉개져 표시되므로,
+  // 한 번에 최대 100건을 받아 그중 앞 6건만 미리보기로 자른다. 이 화면은 종료된
+  // 경매도 다루는 읽기 전용 모니터링이라 live.tsx의 폴링·웹소켓 갱신은 필요 없다.
+  const bidsQuery = useQuery({
+    queryKey: ["auction-bids", auction.id],
+    queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
     enabled: isOwner,
   });
-  const allBidsQuery = useQuery({
-    queryKey: ["auction-bids", auction.id, "all"],
-    queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
-    enabled: isOwner && allBidsOpen,
-  });
-  // 입찰 횟수는 모달을 한 번이라도 열어 더 큰 페이지를 받아온 뒤에는 그 값을 쓰고,
-  // 그 전에는 미리보기(최근 6건) 결과를 쓴다. 두 경우 모두 hasNext가 true면
-  // "6+"처럼 표시해 잘려서 안 보이는 입찰이 있다는 걸 숨기지 않는다.
-  const bidCountQuery = allBidsQuery.data ? allBidsQuery : previewBidsQuery;
-  const bidCount = bidCountQuery.data
-    ? `${bidCountQuery.data.items.length}${bidCountQuery.data.hasNext ? "+" : ""}`
+  const bids = bidsQuery.data?.items ?? [];
+  // 100건을 넘겨 실제로 잘렸을 때만 "100+"처럼 표시한다.
+  const bidCount = bidsQuery.data
+    ? `${bids.length}${bidsQuery.data.hasNext ? "+" : ""}`
     : undefined;
 
   if (!isOwner) {
@@ -152,38 +147,35 @@ function SellerAuctionPage() {
             전체
           </button>
         </div>
-        {previewBidsQuery.isError ? (
+        {bidsQuery.isError ? (
           <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
             입찰 내역을 불러오지 못했습니다.
           </p>
-        ) : previewBidsQuery.isPending ? (
+        ) : bidsQuery.isPending ? (
           <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
             불러오는 중입니다.
           </p>
         ) : (
-          <BidList bids={previewBidsQuery.data?.items ?? []} />
+          <BidList bids={bids.slice(0, BID_PREVIEW_SIZE)} />
         )}
       </aside>
 
-      {/* 전체 입찰 모달 */}
+      {/* 전체 입찰 모달 — 미리보기와 같은 쿼리 결과를 그대로 재사용한다. */}
       <Dialog open={allBidsOpen} onOpenChange={setAllBidsOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>전체 입찰 내역</DialogTitle>
           </DialogHeader>
-          {allBidsQuery.isError ? (
+          {bidsQuery.isError ? (
             <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
               입찰 내역을 불러오지 못했습니다.
             </p>
-          ) : allBidsQuery.isPending ? (
+          ) : bidsQuery.isPending ? (
             <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
               불러오는 중입니다.
             </p>
           ) : (
-            <BidList
-              bids={allBidsQuery.data?.items ?? []}
-              className="max-h-96 overflow-y-auto"
-            />
+            <BidList bids={bids} className="max-h-96 overflow-y-auto" />
           )}
         </DialogContent>
       </Dialog>
