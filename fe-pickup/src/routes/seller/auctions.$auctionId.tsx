@@ -15,9 +15,6 @@ import { getAuctionDetail } from "@/api/auctions";
 import { getAuctionBids } from "@/api/bids";
 import { useNickname } from "@/lib/auth";
 
-// 모니터링 화면에서 한 번에 보여줄 입찰 내역 상한. 그 이상은 요약 용도로 잘라낸다.
-const BID_LIST_SIZE = 100;
-
 export const Route = createFileRoute("/seller/auctions/$auctionId")({
   loader: async ({ params }) => {
     try {
@@ -39,12 +36,16 @@ function SellerAuctionPage() {
   // 서버가 아직 소유자 검증을 하지 않아 프런트에서 우선 가드한다 — 진짜 인가는 백엔드에서 처리돼야 한다.
   const isOwner =
     !myNickname || !auction.sellerNickname || myNickname === auction.sellerNickname;
+  // size는 지정하지 않아 getAuctionBids의 기본값(20)을 그대로 쓴다 — 이 화면은
+  // "전체보기" 모달이 아니라 항상 노출되는 요약 뷰라 그 정도 규모가 맞다.
+  // 그 이상 입찰이 있으면 hasNext로 알아내 입찰 횟수 표시에 반영한다.
   const bidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id],
-    queryFn: () => getAuctionBids(auction.id, { size: BID_LIST_SIZE }),
+    queryFn: () => getAuctionBids(auction.id),
     enabled: isOwner,
   });
   const bids = bidsQuery.data?.items ?? [];
+  const hasMoreBids = bidsQuery.data?.hasNext ?? false;
 
   if (!isOwner) {
     return (
@@ -97,7 +98,9 @@ function SellerAuctionPage() {
                   입찰 횟수
                 </span>
                 <span className="tabular text-lg font-bold">
-                  {bidsQuery.isPending ? "-" : bids.length}
+                  {bidsQuery.isPending
+                    ? "-"
+                    : `${bids.length}${hasMoreBids ? "+" : ""}`}
                 </span>
               </div>
               <div className="flex flex-col items-start gap-0.5">
@@ -128,7 +131,14 @@ function SellerAuctionPage() {
             입찰 내역을 불러오지 못했습니다.
           </p>
         ) : (
-          <BidList bids={bids} />
+          <>
+            <BidList bids={bids} />
+            {hasMoreBids && (
+              <p className="text-center text-xs text-[var(--color-text-muted)]">
+                최근 {bids.length}건만 표시됩니다.
+              </p>
+            )}
+          </>
         )}
       </aside>
     </PageContainer>

@@ -81,4 +81,25 @@ describe("셀러 경매 상세", () => {
       screen.getByText("입찰 내역을 불러오지 못했습니다."),
     ).toBeInTheDocument();
   });
+
+  it("입찰 내역이 잘렸으면 입찰 횟수에 +를 붙이고 안내 문구를 보여준다", async () => {
+    bidsQueryResult = {
+      isPending: false,
+      isError: false,
+      data: {
+        items: Array.from({ length: 20 }, (_, i) => ({
+          id: String(i),
+          maskedNickname: "col***88",
+          amount: 11000 - i,
+          createdAt: new Date().toISOString(),
+        })),
+        hasNext: true,
+      },
+    };
+    const { Route } = await import("@/routes/seller/auctions.$auctionId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    expect(screen.getByText("20+")).toBeInTheDocument();
+    expect(screen.getByText("최근 20건만 표시됩니다.")).toBeInTheDocument();
+  });
 });
