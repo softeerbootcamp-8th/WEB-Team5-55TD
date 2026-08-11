@@ -1,8 +1,13 @@
 ## dd-java-agent(JMXFetch)용 Spring WebSocket 지표 수집 설정.
 ##
-## 설치 경로: /opt/datadog/jmx/websocket.yaml
-## RealtimeWebSocketJmxMetrics가 Spring 기본 통계를 숫자형 MBean attribute로 노출한다.
-
+## 설치 경로: /opt/datadog/jmx/websocket.yaml (deploy.sh 가 배포마다 설치한다)
+##
+## 고칠 때 알아야 할 것
+##
+## - 파일명을 바꾸면 deploy/datadog.env 의 DD_JMXFETCH_CONFIG 도 함께 바꾼다.
+## - RealtimeWebSocketJmxMetrics 가 Spring 기본 통계를 숫자형 MBean attribute 로 노출한다.
+## - deploy.sh 가 bean 이름 com.ootd.pickup.websocket:name=RealtimeWebSocketMetrics 로
+##   이 파일을 식별한다.
 init_config:
   is_jmx: true
 

@@ -1,10 +1,13 @@
 ## dd-java-agent(JMXFetch)용 embedded Tomcat 지표 수집 설정.
 ##
-## 설치 경로: /opt/datadog/jmx/tomcat.yaml
-## hikaricp.yaml과 함께 DD_JMXFETCH_CONFIG에 쉼표로 구분해 등록한다.
-## MBean canonical name의 property 순서에 의존하지 않도록 bean_regex 대신
-## domain_regex와 type으로 매칭한다.
-
+## 설치 경로: /opt/datadog/jmx/tomcat.yaml (deploy.sh 가 배포마다 설치한다)
+##
+## 고칠 때 알아야 할 것
+##
+## - 파일명을 바꾸면 deploy/datadog.env 의 DD_JMXFETCH_CONFIG 도 함께 바꾼다.
+## - MBean canonical name 의 property 순서에 의존하지 않도록 bean_regex 대신
+##   domain_regex 와 type 으로 매칭한다.
+## - deploy.sh 가 alias: tomcat.threads.busy 로 이 파일을 식별한다.
 init_config:
   is_jmx: true
 
