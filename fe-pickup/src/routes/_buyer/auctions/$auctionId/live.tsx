@@ -192,6 +192,7 @@ function LiveAuctionPage() {
       ) {
         pendingBidRequestIdRef.current = null;
         setIsBidRequestPending(false);
+        setAmount("");
         myHighestBidRef.current = {
           bidId: message.latestBid.bidId,
           price: message.currentPrice,
@@ -276,9 +277,10 @@ function LiveAuctionPage() {
     bidMutation.mutate(parsedAmount, {
       onSuccess: (placed) => {
         // 접수만 된 상태다 — 실제 처리 결과(성공/실패)는 WebSocket으로 비동기 도착한다.
+        // 아직 입력값을 지우지 않는다: 결과를 못 받아 타임아웃될 경우에도 같은 금액으로
+        // 바로 재시도할 수 있어야 한다. 실제 성공이 확인되면 applyBidUpdate에서 지운다.
         pendingBidRequestIdRef.current = placed.bidRequestId;
         setIsBidRequestPending(true);
-        setAmount("");
       },
       onError: (error) => setFail(getBidErrorMessage(error)),
     });
