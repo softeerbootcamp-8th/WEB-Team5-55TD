@@ -12,6 +12,8 @@ public interface WatchRepository {
 
   int deleteByMemberIdAndAuctionId(Long memberId, Long auctionId);
 
+  int deleteByAuctionId(Long auctionId);
+
   Map<Long, Long> countByAuctionIds(List<Long> auctionIds);
 
   Set<Long> findWatchedAuctionIds(Long memberId, List<Long> auctionIds);

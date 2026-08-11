@@ -3,9 +3,6 @@ package com.ootd.pickup.global.event.outbox;
 import java.util.List;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 /**
  * Outbox 행 영속화.
@@ -26,22 +23,4 @@ public interface OutboxEventJpaRepository extends JpaRepository<OutboxEventEntit
    * @return 발행 대기 중인 행 목록. 없으면 빈 목록
    */
   List<OutboxEventEntity> findAllByPublishedFalseOrderByCreatedAtAsc(Limit limit);
-
-  /**
-   * 전송에 성공한 행을 발행 완료로 표시한다.
-   *
-   * <p>{@link OutboxEventEntity}에 값을 바꾸는 메서드를 두지 않고 bulk update로 처리한다. 인스턴스 메서드를 만들면 {@code
-   * isNew()}가 항상 {@code true}라는 전제가 깨진다.
-   *
-   * @param ids 발행에 성공한 이벤트 식별자 목록
-   * @return 표시된 건수
-   */
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Query(
-      """
-      update OutboxEventEntity outboxEvent
-      set outboxEvent.published = true
-      where outboxEvent.id in :ids
-      """)
-  int updatePublishedByIdIn(@Param("ids") List<String> ids);
 }

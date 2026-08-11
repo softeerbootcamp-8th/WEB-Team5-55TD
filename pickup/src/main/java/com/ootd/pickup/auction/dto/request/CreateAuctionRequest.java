@@ -1,6 +1,7 @@
 package com.ootd.pickup.auction.dto.request;
 
 import com.ootd.pickup.auction.domain.Auction;
+import com.ootd.pickup.auction.domain.AuctionSchedulePolicy;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.consignments.domain.Consignment;
 import jakarta.validation.constraints.Future;
@@ -18,6 +19,7 @@ public record CreateAuctionRequest(
     return Auction.builder()
         .consignment(consignment)
         .startedAt(scheduledStartAt)
+        .endedAt(AuctionSchedulePolicy.initialEndAt(scheduledStartAt))
         .auctionStatus(AuctionStatus.SCHEDULED)
         .startingPrice(startingPrice)
         .reservePrice(reserve)
