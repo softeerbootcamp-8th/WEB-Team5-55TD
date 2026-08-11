@@ -1,4 +1,5 @@
 import ws from 'k6/ws';
+import { sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 import { connect, parseFrame, subscribe } from './stomp.js';
 
