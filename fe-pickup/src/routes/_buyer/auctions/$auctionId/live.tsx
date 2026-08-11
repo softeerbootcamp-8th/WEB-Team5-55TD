@@ -5,7 +5,12 @@ import {
   notFound,
   useNavigate,
 } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
 import { PageContainer } from "@/components/layout/page";
@@ -13,7 +18,7 @@ import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
-import { BidList } from "@/components/domain/bid-list";
+import { BidList, RealtimeBidList } from "@/components/domain/bid-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,10 +32,10 @@ import {
 import { getAuctionDetail } from "@/api/auctions";
 import {
   BID_MODAL_SIZE,
-  BID_PREVIEW_SIZE,
   getAuctionBids,
   getBidErrorMessage,
   placeBid,
+  REALTIME_BID_PAGE_SIZE,
 } from "@/api/bids";
 import { getGetMyPointBalanceQueryKey } from "@/api/generated/member/member";
 import { refreshAccessToken } from "@/api/mutator/custom-instance";
@@ -139,22 +144,33 @@ function LiveAuctionPage() {
     return Number.isSafeInteger(value) && value >= minNext ? value : null;
   })();
 
-  const previewBidsQuery = useQuery({
+  // 실시간 입찰 목록 — 개수 제한 없이 최신순으로 이어서 불러온다(스크롤 페이지네이션).
+  // 입찰자별 중복 제거(같은 회원의 최신 입찰만 표시)는 RealtimeBidList가 담당한다.
+  const previewBidsQuery = useInfiniteQuery({
     queryKey: ["auction-bids", auction.id, "preview"],
-    queryFn: () => getAuctionBids(auction.id, { size: BID_PREVIEW_SIZE }),
+    queryFn: ({ pageParam }: { pageParam?: string }) =>
+      getAuctionBids(auction.id, {
+        size: REALTIME_BID_PAGE_SIZE,
+        cursor: pageParam,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNext ? lastPage.cursor : undefined,
     staleTime: 0,
     refetchInterval: () =>
       auction.status === AuctionStatus.LIVE ? pollingInterval() : false,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
+  const previewBidItems =
+    previewBidsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const allBidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id, "all"],
     queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
     enabled: allBidsOpen,
   });
-  const latestBidId = previewBidsQuery.data?.items[0]
-    ? Number(previewBidsQuery.data.items[0].id)
+  const latestBidId = previewBidItems[0]
+    ? Number(previewBidItems[0].id)
     : undefined;
 
   // 실시간 화면에서 추월당했는지 판단하려면 "내가 최고 입찰자였는지"를 알아야 한다.
@@ -162,7 +178,7 @@ function LiveAuctionPage() {
   const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(
     null,
   );
-  const topPreviewBid = previewBidsQuery.data?.items[0];
+  const topPreviewBid = previewBidItems[0];
   useEffect(() => {
     if (topPreviewBid?.isMine) {
       myHighestBidRef.current = {
@@ -356,7 +372,7 @@ function LiveAuctionPage() {
         )}
       </div>
 
-      {/* 우: 입찰 내역 (최근 6건 + 전체 모달) */}
+      {/* 우: 실시간 입찰 목록(입찰자별 최신 입찰만, 스크롤로 이어서 로드) + 전체 모달 */}
       <aside className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">입찰 내역</h2>
@@ -373,7 +389,12 @@ function LiveAuctionPage() {
             불러오는 중입니다.
           </p>
         ) : (
-          <BidList bids={previewBidsQuery.data?.items ?? []} />
+          <RealtimeBidList
+            bids={previewBidItems}
+            hasNext={previewBidsQuery.hasNextPage}
+            isFetchingNextPage={previewBidsQuery.isFetchingNextPage}
+            onLoadMore={() => void previewBidsQuery.fetchNextPage()}
+          />
         )}
       </aside>
 

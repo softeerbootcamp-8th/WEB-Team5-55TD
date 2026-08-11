@@ -27,19 +27,37 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: (options: { queryKey: unknown[]; initialData?: unknown }) => {
+  useQuery: (options: { initialData?: unknown }) => ({
+    data: options.initialData,
+    isPending: false,
+  }),
+  useInfiniteQuery: (options: { queryKey: unknown[] }) => {
     // "preview" 입찰 목록 조회에서, 조회자 본인이 현재 최고 입찰자인 상태를 시뮬레이션한다.
     if (options.queryKey.includes("preview")) {
       return {
         data: {
-          items: [
-            { id: "5", maskedNickname: "me", amount: 10000, isMine: true },
+          pages: [
+            {
+              items: [
+                { id: "5", maskedNickname: "me", amount: 10000, isMine: true },
+              ],
+              hasNext: false,
+            },
           ],
         },
         isPending: false,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        fetchNextPage: vi.fn(),
       };
     }
-    return { data: options.initialData, isPending: false };
+    return {
+      data: undefined,
+      isPending: false,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage: vi.fn(),
+    };
   },
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
