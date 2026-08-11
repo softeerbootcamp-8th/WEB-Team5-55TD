@@ -34,7 +34,7 @@ class CardControllerTest {
     Long cardId = 1L;
     GetCardDetailResponse response =
         new GetCardDetailResponse(
-            cardId, "피카츄", "베이스셋", "025/102", "한국어", "MINT", "https://image.example.com/1.png");
+            cardId, "피카츄", "베이스셋", "025/102", "한국어", "레어 홀로", "https://image.example.com/1.png");
     given(cardService.getCardDetail(cardId)).willReturn(response);
 
     // when & then
@@ -46,7 +46,7 @@ class CardControllerTest {
         .andExpect(jsonPath("$.setName").value("베이스셋"))
         .andExpect(jsonPath("$.cardNumber").value("025/102"))
         .andExpect(jsonPath("$.language").value("한국어"))
-        .andExpect(jsonPath("$.rarity").value("MINT"))
+        .andExpect(jsonPath("$.rarity").value("레어 홀로"))
         .andExpect(jsonPath("$.imageUrl").value("https://image.example.com/1.png"));
   }
 
@@ -73,7 +73,7 @@ class CardControllerTest {
             "Base Set",
             "4/102",
             "한국어",
-            "MINT",
+            "레어 홀로",
             "https://image.example.com/9.png");
     CursorPageResponse<SearchCardsResponse, Long> response =
         new CursorPageResponse<>(true, 9L, 1, List.of(item));
@@ -97,7 +97,7 @@ class CardControllerTest {
         .andExpect(jsonPath("$.items[0].setName").value("Base Set"))
         .andExpect(jsonPath("$.items[0].cardNumber").value("4/102"))
         .andExpect(jsonPath("$.items[0].language").value("한국어"))
-        .andExpect(jsonPath("$.items[0].rarity").value("MINT"))
+        .andExpect(jsonPath("$.items[0].rarity").value("레어 홀로"))
         .andExpect(jsonPath("$.items[0].imageUrl").value("https://image.example.com/9.png"));
 
     then(cardService)

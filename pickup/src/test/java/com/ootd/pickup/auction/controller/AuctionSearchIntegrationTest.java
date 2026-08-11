@@ -259,7 +259,7 @@ class AuctionSearchIntegrationTest {
             .cardNumber(cardNumber)
             .setName(setName)
             .language(language)
-            .rarity(Rarity.MINT)
+            .rarity(Rarity.RARE_HOLO)
             .imageUrl("https://image.example.com/" + cardNumber + ".png")
             .build();
     return cardJpaRepository.save(card);
