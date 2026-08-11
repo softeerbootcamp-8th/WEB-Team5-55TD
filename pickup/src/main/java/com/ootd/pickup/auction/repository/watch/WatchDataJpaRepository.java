@@ -9,6 +9,9 @@ import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.domain.Watch;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.HashSet;
 import java.util.List;
@@ -37,7 +40,16 @@ public class WatchDataJpaRepository implements WatchRepository {
 
   @Override
   public int deleteByMemberIdAndAuctionId(Long memberId, Long auctionId) {
-    return watchJpaRepository.deleteByMemberIdAndAuctionId(memberId, auctionId);
+    return (int)
+        queryFactory
+            .delete(watch)
+            .where(watch.member.memberId.eq(memberId), watch.auction.auctionId.eq(auctionId))
+            .execute();
+  }
+
+  @Override
+  public int deleteByAuctionId(Long auctionId) {
+    return (int) queryFactory.delete(watch).where(watch.auction.auctionId.eq(auctionId)).execute();
   }
 
   @Override
@@ -72,6 +84,34 @@ public class WatchDataJpaRepository implements WatchRepository {
             .from(watch)
             .where(watch.member.memberId.eq(memberId), watch.auction.auctionId.in(auctionIds))
             .fetch());
+  }
+
+  @Override
+  public Map<Long, WatchSummary> findWatchSummariesByAuctionIds(
+      Long viewerMemberId, List<Long> auctionIds) {
+    if (auctionIds.isEmpty()) {
+      return Map.of();
+    }
+
+    BooleanExpression isViewer =
+        viewerMemberId == null ? Expressions.FALSE : watch.member.memberId.eq(viewerMemberId);
+    NumberExpression<Long> watchedByViewerCount =
+        new CaseBuilder().when(isViewer).then(1L).otherwise(0L).sum();
+
+    List<Tuple> rows =
+        queryFactory
+            .select(watch.auction.auctionId, watch.count(), watchedByViewerCount)
+            .from(watch)
+            .where(watch.auction.auctionId.in(auctionIds))
+            .groupBy(watch.auction.auctionId)
+            .fetch();
+
+    return rows.stream()
+        .collect(
+            Collectors.toMap(
+                row -> row.get(watch.auction.auctionId),
+                row ->
+                    new WatchSummary(row.get(watch.count()), row.get(watchedByViewerCount) > 0)));
   }
 
   @Override

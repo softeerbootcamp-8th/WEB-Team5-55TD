@@ -82,8 +82,11 @@ public record AuctionDetailResponse(
 
   private static Long nextMinBid(Auction auction, Long currentPrice) {
     // 입찰 이력이 없으면 시작가부터, 있으면 현재가 + 최소 입찰 단위부터 입찰 가능하다.
+    // startingPrice에 상한이 없어 이론상 Long 덧셈이 넘칠 수 있다. 조용히 음수로 랩어라운드되어
+    // 잘못된 값을 200으로 내려보내는 것보다는, addExact로 예외를 던져 500 + Slack 알림으로
+    // 드러나게 하는 편이 안전하다.
     return currentPrice == null
         ? auction.getStartingPrice()
-        : currentPrice + auction.getBidIncrement();
+        : Math.addExact(currentPrice, auction.getBidIncrement());
   }
 }

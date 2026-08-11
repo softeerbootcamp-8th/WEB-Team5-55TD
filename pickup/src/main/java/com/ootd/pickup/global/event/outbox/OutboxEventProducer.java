@@ -25,7 +25,7 @@ public class OutboxEventProducer implements EventProducer {
    */
   private final ObjectMapper objectMapper;
 
-  private final OutboxEventJpaRepository outboxEventJpaRepository;
+  private final OutboxEventRepository outboxEventJpaRepository;
 
   /**
    * 이벤트를 Outbox에 적재한다.
