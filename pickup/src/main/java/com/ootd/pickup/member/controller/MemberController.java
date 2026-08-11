@@ -17,10 +17,14 @@ import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.dto.WithdrawMemberRequest;
 import com.ootd.pickup.member.service.MemberService;
 import com.ootd.pickup.member.service.ProfileApplicationService;
+import com.ootd.pickup.point.dto.request.ChargePointRequest;
 import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointChargeResponse;
 import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
+import com.ootd.pickup.point.service.PointChargeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,6 +43,7 @@ public class MemberController implements MemberApi {
 
   private final MemberService memberService;
   private final ProfileApplicationService profileApplicationService;
+  private final PointChargeService pointChargeService;
 
   @PostMapping
   @Override
@@ -75,6 +80,23 @@ public class MemberController implements MemberApi {
       getMyPointTransactions(
           @MemberId Long memberId, @Valid @ModelAttribute GetPointTransactionsRequest request) {
     return ResponseEntity.ok(memberService.getMyPointTransactions(memberId, request));
+  }
+
+  @PostMapping("/me/point-charges")
+  @Override
+  @RequireAuthentication
+  public ResponseEntity<PointChargeResponse> chargeMyPoint(
+      @MemberId Long memberId, @Valid @RequestBody ChargePointRequest request) {
+    try {
+      PointChargeResponse response =
+          pointChargeService.chargePoint(memberId, request.amount(), request.idempotencyKey());
+      return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    } catch (DataIntegrityViolationException e) {
+      // chargePoint()의 트랜잭션은 이미 롤백된 뒤 이 예외가 전파됐다. 완전히 새 트랜잭션으로
+      // 이미 처리된 결과를 읽어 그대로 돌려준다 — 자세한 이유는 PointChargeService 참고.
+      return ResponseEntity.ok(
+          pointChargeService.getChargeResult(memberId, request.idempotencyKey()));
+    }
   }
 
   @GetMapping("/me/bids")
