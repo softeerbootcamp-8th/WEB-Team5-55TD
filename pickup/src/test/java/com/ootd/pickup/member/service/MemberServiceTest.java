@@ -15,12 +15,14 @@ import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
 import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
+import com.ootd.pickup.bid.service.BidService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -31,6 +33,7 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.service.ImageUrlResolver;
@@ -42,6 +45,7 @@ import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.ProfileImageAction;
 import com.ootd.pickup.member.dto.ProfileImageUpdateRequest;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
+import com.ootd.pickup.member.dto.WithdrawMemberRequest;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.domain.PointTransaction;
@@ -83,6 +87,12 @@ class MemberServiceTest {
   @Mock private WatchRepository watchRepository;
 
   @Mock private ConsignmentImageRepository consignmentImageRepository;
+
+  @Mock private ConsignmentService consignmentService;
+
+  @Mock private BidService bidService;
+
+  @Mock private AuthService authService;
 
   @InjectMocks private MemberService memberService;
 
@@ -679,6 +689,96 @@ class MemberServiceTest {
                 assertThat(((PickUpException) exception).getExceptionCodeName())
                     .isEqualTo(ILLEGAL_ARGUMENT.getClientExceptionCode().name()));
     then(watchRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 올바른_비밀번호로_탈퇴하면_회원_상태가_WITHDRAWN으로_전환된다() {
+    // given
+    String password = "password1234";
+    Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
+    writeMemberId(member, 1L);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(consignmentService.hasActiveConsignment(1L)).willReturn(false);
+    given(bidService.hasActiveBid(1L)).willReturn(false);
+
+    // when
+    memberService.withdrawMember(1L, new WithdrawMemberRequest(password));
+
+    // then
+    assertThat(member.isWithdrawn()).isTrue();
+    assertThat(member.getLoginId()).isNull();
+    assertThat(readPasswordHash(member)).isNull();
+    then(authService).should().revokeAllRefreshTokens(1L);
+  }
+
+  @Test
+  void 비밀번호가_일치하지_않으면_탈퇴하지_않는다() {
+    // given
+    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
+    writeMemberId(member, 1L);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when & then
+    assertThatThrownBy(
+            () -> memberService.withdrawMember(1L, new WithdrawMemberRequest("wrong-password")))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("비밀번호가 일치하지 않습니다.");
+    assertThat(member.isWithdrawn()).isFalse();
+    then(consignmentService).shouldHaveNoInteractions();
+    then(bidService).shouldHaveNoInteractions();
+    then(authService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 이미_탈퇴한_회원이_다시_탈퇴하면_예외가_발생한다() {
+    // given
+    String password = "password1234";
+    Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
+    writeMemberId(member, 1L);
+    member.withdraw();
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when & then
+    assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("이미 탈퇴한 회원입니다.");
+    then(authService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 경매_예정_또는_진행_중인_상품을_등록해_두면_탈퇴할_수_없다() {
+    // given
+    String password = "password1234";
+    Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
+    writeMemberId(member, 1L);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(consignmentService.hasActiveConsignment(1L)).willReturn(true);
+
+    // when & then
+    assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
+    assertThat(member.isWithdrawn()).isFalse();
+    then(bidService).shouldHaveNoInteractions();
+    then(authService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 최고_입찰_중인_경매가_있으면_탈퇴할_수_없다() {
+    // given
+    String password = "password1234";
+    Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
+    writeMemberId(member, 1L);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(consignmentService.hasActiveConsignment(1L)).willReturn(false);
+    given(bidService.hasActiveBid(1L)).willReturn(true);
+
+    // when & then
+    assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
+    assertThat(member.isWithdrawn()).isFalse();
+    then(authService).shouldHaveNoInteractions();
   }
 
   private Watch createWatch(Long watchId, Member member, Auction auction) {

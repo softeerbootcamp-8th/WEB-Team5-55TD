@@ -394,6 +394,30 @@ class BidServiceTest {
     then(bidRepository).shouldHaveNoInteractions();
   }
 
+  @Test
+  void 최고_입찰중인_경매가_있으면_true를_반환한다() {
+    // given
+    given(bidRepository.existsCurrentHighestBidByMemberId(2L)).willReturn(true);
+
+    // when
+    boolean hasActiveBid = bidService.hasActiveBid(2L);
+
+    // then
+    assertThat(hasActiveBid).isTrue();
+  }
+
+  @Test
+  void 최고_입찰중인_경매가_없으면_false를_반환한다() {
+    // given
+    given(bidRepository.existsCurrentHighestBidByMemberId(2L)).willReturn(false);
+
+    // when
+    boolean hasActiveBid = bidService.hasActiveBid(2L);
+
+    // then
+    assertThat(hasActiveBid).isFalse();
+  }
+
   private Bid createBid(Auction auction, Member member, Long bidPrice, Long bidId) {
     Bid bid = Bid.create(auction, member, bidPrice);
     ReflectionTestUtils.setField(bid, "bidId", bidId);

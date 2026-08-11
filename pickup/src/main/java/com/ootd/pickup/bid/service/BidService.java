@@ -126,6 +126,11 @@ public class BidService {
     return CursorPageResponse.from(items, hasNext, nextCursor);
   }
 
+  /** 최고 입찰자인 상태로 탈퇴하면 경매가 종료돼도 낙찰자에게 연락할 수 없게 되므로 탈퇴를 막는다. */
+  public boolean hasActiveBid(Long memberId) {
+    return bidRepository.existsCurrentHighestBidByMemberId(memberId);
+  }
+
   private Long decodeCursor(String cursor) {
     if (!StringUtils.hasText(cursor)) {
       return null;
