@@ -1,10 +1,26 @@
 import { useEffect, useRef } from "react";
-import { Client, ReconnectionTimeMode, type IMessage } from "@stomp/stompjs";
+import { Client, type IMessage } from "@stomp/stompjs";
 
 const HEARTBEAT_INTERVAL_MILLIS = 10_000;
+const INITIAL_RECONNECT_DELAY_MILLIS = 1_000;
 const MAX_RECONNECT_DELAY_MILLIS = 30_000;
+const RECONNECT_JITTER_MILLIS = 1_000;
 const PROCESSED_EVENT_LIMIT = 100;
 const AUCTION_STATUSES = new Set(["SCHEDULED", "ONGOING", "WON", "PASSED"]);
+
+export function calculateReconnectDelay(
+  attempt: number,
+  randomValue = Math.random(),
+) {
+  const baseDelay = Math.min(
+    INITIAL_RECONNECT_DELAY_MILLIS * 2 ** Math.max(attempt - 1, 0),
+    MAX_RECONNECT_DELAY_MILLIS,
+  );
+  const jitter = Math.floor(
+    Math.min(Math.max(randomValue, 0), 0.999999) * RECONNECT_JITTER_MILLIS,
+  );
+  return Math.min(baseDelay + jitter, MAX_RECONNECT_DELAY_MILLIS);
+}
 
 type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
@@ -114,49 +130,72 @@ export function useAuctionBidUpdates({
   useEffect(() => {
     const processedEventIds = new Set<string>();
     const processedEventOrder: string[] = [];
+    let reconnectAttempt = 0;
+    let reconnectTimer: number | undefined;
+    let isReconnecting = false;
+    let isDisposed = false;
+
     const client = new Client({
       brokerURL: resolveBrokerUrl(),
       connectionTimeout: 10_000,
       heartbeatIncoming: HEARTBEAT_INTERVAL_MILLIS,
       heartbeatOutgoing: HEARTBEAT_INTERVAL_MILLIS,
-      reconnectDelay: 1_000 + Math.floor(Math.random() * 1_000),
-      reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
-      maxReconnectDelay: MAX_RECONNECT_DELAY_MILLIS,
+      reconnectDelay: 0,
     });
 
+    const scheduleReconnect = () => {
+      if (isDisposed || reconnectTimer !== undefined || isReconnecting) return;
+
+      reconnectAttempt += 1;
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = undefined;
+        if (isDisposed) return;
+        isReconnecting = true;
+
+        void client.deactivate({ force: true }).then(
+          () => {
+            isReconnecting = false;
+            if (!isDisposed) client.activate();
+          },
+          () => {
+            isReconnecting = false;
+            if (!isDisposed) client.activate();
+          },
+        );
+      }, calculateReconnectDelay(reconnectAttempt));
+    };
+
     client.onConnect = () => {
-      client.subscribe(
-        `/topic/auctions/${auctionId}`,
-        (frame) => {
-          const message = parseMessage(frame);
-          if (!message || String(message.auctionId) !== auctionId) {
-            console.warn("유효하지 않은 경매 WebSocket 메시지를 수신했습니다.");
-            return;
-          }
-          if (processedEventIds.has(message.eventId)) {
-            return;
-          }
+      reconnectAttempt = 0;
+      client.subscribe(`/topic/auctions/${auctionId}`, (frame) => {
+        const message = parseMessage(frame);
+        if (!message || String(message.auctionId) !== auctionId) {
+          console.warn("유효하지 않은 경매 WebSocket 메시지를 수신했습니다.");
+          return;
+        }
+        if (processedEventIds.has(message.eventId)) {
+          return;
+        }
 
-          processedEventIds.add(message.eventId);
-          processedEventOrder.push(message.eventId);
-          if (processedEventOrder.length > PROCESSED_EVENT_LIMIT) {
-            const expiredEventId = processedEventOrder.shift();
-            if (expiredEventId) {
-              processedEventIds.delete(expiredEventId);
-            }
+        processedEventIds.add(message.eventId);
+        processedEventOrder.push(message.eventId);
+        if (processedEventOrder.length > PROCESSED_EVENT_LIMIT) {
+          const expiredEventId = processedEventOrder.shift();
+          if (expiredEventId) {
+            processedEventIds.delete(expiredEventId);
           }
+        }
 
-          if (
-            latestBidIdRef.current !== undefined &&
-            message.latestBid.bidId <= latestBidIdRef.current
-          ) {
-            return;
-          }
+        if (
+          latestBidIdRef.current !== undefined &&
+          message.latestBid.bidId <= latestBidIdRef.current
+        ) {
+          return;
+        }
 
-          latestBidIdRef.current = message.latestBid.bidId;
-          onBidUpdatedRef.current(message);
-        },
-      );
+        latestBidIdRef.current = message.latestBid.bidId;
+        onBidUpdatedRef.current(message);
+      });
       onSubscribedRef.current();
     };
     client.onStompError = (frame) => {
@@ -170,9 +209,16 @@ export function useAuctionBidUpdates({
         "경매 WebSocket 연결에 실패했습니다. REST 조회로 복구를 계속합니다.",
       );
     };
+    client.onWebSocketClose = () => {
+      scheduleReconnect();
+    };
 
     client.activate();
     return () => {
+      isDisposed = true;
+      if (reconnectTimer !== undefined) {
+        window.clearTimeout(reconnectTimer);
+      }
       void client.deactivate();
     };
   }, [auctionId]);

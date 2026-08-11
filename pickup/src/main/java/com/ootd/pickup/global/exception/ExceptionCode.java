@@ -134,7 +134,13 @@ public enum ExceptionCode {
   INVALID_CHARGE_AMOUNT(
       HttpStatus.BAD_REQUEST,
       ClientExceptionCode.INVALID_CHARGE_AMOUNT,
-      "충전 금액은 100,000 이상 10,000,000 이하여야 합니다.");
+      "충전 금액은 100,000 이상 10,000,000 이하여야 합니다."),
+  MEMBER_ALREADY_WITHDRAWN(
+      HttpStatus.CONFLICT, ClientExceptionCode.MEMBER_ALREADY_WITHDRAWN, "이미 탈퇴한 회원입니다."),
+  MEMBER_WITHDRAW_NOT_ALLOWED(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.MEMBER_WITHDRAW_NOT_ALLOWED,
+      "진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

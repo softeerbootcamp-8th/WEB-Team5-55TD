@@ -14,6 +14,7 @@ import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
+import com.ootd.pickup.member.dto.WithdrawMemberRequest;
 import com.ootd.pickup.member.service.MemberService;
 import com.ootd.pickup.member.service.ProfileApplicationService;
 import com.ootd.pickup.point.dto.request.ChargePointRequest;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -119,5 +121,14 @@ public class MemberController implements MemberApi {
   public ResponseEntity<CursorPageResponse<AuctionListItemResponse, String>> getMyWatches(
       @MemberId Long memberId, @Valid @ModelAttribute GetMyWatchesRequest getMyWatchesRequest) {
     return ResponseEntity.ok(memberService.getMyWatches(memberId, getMyWatchesRequest));
+  }
+
+  @DeleteMapping("/me")
+  @Override
+  @RequireAuthentication
+  public ResponseEntity<Void> withdrawMember(
+      @MemberId Long memberId, @Valid @RequestBody WithdrawMemberRequest request) {
+    memberService.withdrawMember(memberId, request);
+    return ResponseEntity.noContent().build();
   }
 }
