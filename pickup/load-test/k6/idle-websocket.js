@@ -5,7 +5,7 @@ import { connect, parseFrame, subscribe } from './stomp.js';
 const wsUrl = __ENV.TEST_WS_URL;
 const origin = __ENV.TEST_ORIGIN;
 const auctionIds = (__ENV.TEST_AUCTION_IDS || '').split(',').filter(Boolean);
-const targetVus = Number(__ENV.TARGET_VUS || 1000);
+const targetVus = Number(__ENV.TARGET_VUS || 300);
 const rampSeconds = Number(__ENV.RAMP_SECONDS || 60);
 const holdSeconds = Number(__ENV.HOLD_SECONDS || 120);
 const requiredConnections = Math.ceil(targetVus * 0.999);

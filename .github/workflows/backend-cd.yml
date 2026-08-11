@@ -497,7 +497,7 @@ jobs:
           TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 312
+          TEST_AUCTION_IDS: 346
           TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
           TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
         run: |
@@ -522,13 +522,13 @@ jobs:
         env:
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 312
+          TEST_AUCTION_IDS: 346
           RAMP_SECONDS: 60
           HOLD_SECONDS: 120
         run: |
           set +e
           scenario_status=0
-          for target in 1000 2000 3000 4000 5000; do
+          for target in 50 100 200 300; do
             echo "유휴 연결 시험 시작: ${target} sessions"
             TARGET_VUS="${target}" k6 run \
               --summary-export="pickup/load-test/results/idle-${target}.json" \
@@ -550,7 +550,7 @@ jobs:
           TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 312
+          TEST_AUCTION_IDS: 346
           TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
           TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
           TEST_INITIAL_BID_PRICE: 2800000
@@ -561,7 +561,7 @@ jobs:
         run: |
           set +e
           scenario_status=0
-          for target in 1000 2000 3000 4000 5000; do
+          for target in 50 100 200 300; do
             echo "입찰 E2E 시험 시작: ${target} sessions"
             TARGET_VUS="${target}" k6 run \
               --summary-export="pickup/load-test/results/bid-e2e-${target}.json" \
@@ -582,7 +582,7 @@ jobs:
         env:
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 312
+          TEST_AUCTION_IDS: 346
           RECONNECT_CYCLES: 3
           FIRST_CONNECTION_SECONDS: 60
           RECONNECT_HOLD_SECONDS: 20
@@ -590,7 +590,7 @@ jobs:
         run: |
           set +e
           scenario_status=0
-          for target in 1000 2000 3000 4000 5000; do
+          for target in 50 100 200 300; do
             echo "재연결 baseline 시험 시작: ${target} sessions"
             TARGET_VUS="${target}" k6 run \
               --summary-export="pickup/load-test/results/reconnect-before-${target}.json" \

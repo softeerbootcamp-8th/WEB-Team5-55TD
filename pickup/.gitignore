@@ -2,7 +2,9 @@ HELP.md
 .gradle
 build/
 application-local.yml
-/docs/realtime-auction/
+/docs/realtime-auction/*
+!/docs/realtime-auction/websocket-multi-tab-load-test-strategy.md
+!/docs/realtime-auction/websocket-multi-tab-scaling.md
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/

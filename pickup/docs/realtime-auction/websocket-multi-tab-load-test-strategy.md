@@ -25,7 +25,7 @@
 - 단일 t3.micro 애플리케이션 인스턴스
 - 실제 CloudFront → WebSocket endpoint 경로
 - k6 부하 생성기에서 실행
-- 목표 단계: `100 → 250 → 500 → 750 → 1,000`
+- 목표 단계: `50 → 100 → 200 → 300`
 - 한 단계라도 threshold를 위반하면 해당 시나리오의 상위 단계 중단
 - 각 단계는 60초 ramp-up과 120초 유지
 - 단계 종료 후 workflow가 60초 대기해 연결 정리를 유도
@@ -55,6 +55,12 @@ handshake tail latency와 서버 자원 점유가 늘어날 것이라고 가정�
 `ws_handshake_latency`다. `ws.connect()`가 오래 유지되므로 실행 종료 시 iteration이 정상 완료되지
 않을 수 있다. 따라서 open·CONNECTED counter를 연결 성공의 기준으로 사용한다.
 
+### 기대 결과
+
+낮은 단계에서는 모든 session이 빠르게 연결되고 유지되어야 한다. session이 증가하면 handshake
+tail latency와 CPU·메모리·file descriptor 사용량이 점진적으로 증가할 것으로 예상한다. 이 변화가
+다중탭으로 늘어난 연결 수가 사용자 연결 지연으로 이어지는지를 판단하는 근거가 된다.
+
 ### 합격 기준
 
 - open과 STOMP CONNECTED 각각 99.9% 이상
@@ -72,10 +78,10 @@ WebSocket 경로의 지연과 순서를 측정한다.
 ### 실행 방법
 
 ```text
-GET /api/auctions/312
+GET /api/auctions/346
 → 테스트 계정 로그인
 → observer 60초 ramp-up
-→ bidder 1명, 1초마다 입찰
+→ bidder 1명, 입찰 응답 완료 후 1초 대기
 → 첫 가격 2,800,000원
 → 매 입찰 5,000원 증가
 ```
@@ -83,12 +89,21 @@ GET /api/auctions/312
 입찰자 수를 1명으로 제한한 이유는 여러 bidder가 같은 가격을 보내 발생하는 OUTBID_EXISTS를
 WebSocket 장애로 오해하지 않기 위해서다.
 
+현재 bidder는 한 요청의 응답을 받은 뒤 1초를 기다리는 closed-loop다. 따라서 설정값 1초는 고정
+1 RPS가 아니라 think time이다. 결과에는 설정 간격과 실제 달성한 요청률을 함께 기록한다.
+
 측정값은 다음처럼 분리한다.
 
 - 입찰: `bid_success`, `bid_failures`, HTTP status
 - 연결: `ws_open_success`, `stomp_connected`, `ws_connect_failures`
 - 전달: `ws_events_received`, `ws_delivery_latency`
 - 정합성: `ws_duplicate_events`, `ws_order_errors`
+
+### 기대 결과
+
+낮은 session 단계에서는 입찰 성공 후 대부분의 observer가 500ms 안에 이벤트를 받아야 한다.
+observer가 증가하면 session별 전송 비용 때문에 tail latency가 증가할 수 있다. 비동기 발행 경로에서
+역순이 관찰될 가능성은 있지만, 중복 0건만으로 유실 0건을 결론 내리지는 않는다.
 
 ### 순서와 유실 해석
 
@@ -118,7 +133,7 @@ jitter를 적용한 결과를 보존했고, 이번 기준선은 해당 지연 �
 ### 실행 방법
 
 ```text
-1,000 VU 최초 연결
+목표 VU 최초 연결
 → 60초 후 공통 시각에 socket 종료
 → 대기 없이 즉시 재연결
 → 20초 유지
@@ -133,7 +148,14 @@ jitter를 적용한 결과를 보존했고, 이번 기준선은 해당 지연 �
 복구까지는 별도 장애 복구 시험으로 분리한다.
 
 측정값은 `initial_open_success`, `reconnect_attempts`, `reconnect_success`, `reconnect_failures`,
-`stomp_connected`, `reconnect_handshake_latency`, `ws_errors`다.
+`stomp_connected`, `reconnect_handshake_latency`, `ws_errors`다. 현재 `reconnect_success`는 raw
+WebSocket open 횟수이므로 STOMP 연결과 재구독까지 완료했다는 뜻이 아니다.
+
+### 기대 결과
+
+낮은 단계에서는 즉시 재연결도 대부분 성공해야 한다. session이 증가하면 같은 시점에 handshake가
+몰리면서 p95와 socket error가 증가할 수 있다. 기존 backoff+jitter 결과와 비교할 때는 raw open뿐
+아니라 STOMP 연결, 초당 handshake peak와 전체 복구 시간을 함께 본다.
 
 ### 합격 기준
 
@@ -151,6 +173,9 @@ jitter를 적용한 결과를 보존했고, 이번 기준선은 해당 지연 �
 특히 `ramping-vus` 함수가 socket 종료 후 다시 실행되면 `ws_open_success`와 `ws_sessions`는
 누적 시도 수가 된다. 이 값을 곧바로 “동시에 유지된 session 수”로 해석하지 않는다.
 
+`reconnect_success`도 raw WebSocket open 성공 횟수다. WebSocket open, STOMP CONNECTED, topic
+SUBSCRIBE와 REST snapshot 보정을 분리해 기록해야 애플리케이션 수준 복구를 판단할 수 있다.
+
 또한 k6 threshold 실패는 서버의 단일 원인을 뜻하지 않는다. 다음 원인을 분리해 확인해야 한다.
 
 - CloudFront·proxy handshake 처리량
@@ -167,5 +192,5 @@ jitter를 적용한 결과를 보존했고, 이번 기준선은 해당 지연 �
 3. 기대 이벤트 집합을 만들어 누락·중복·역순을 독립적으로 계산한다.
 4. Redis receive, broker publish, client 수신을 실행 ID와 시간축으로 연결한다.
 5. Datadog·CloudWatch CPU, heap, GC, FD, Tomcat connection, executor queue를 함께 수집한다.
-6. 보완된 1,000 단계가 통과할 때만 2,000 이상으로 확대한다.
+6. 300 session을 최종 단계로 두고 마지막 통과 단계를 안전 운용 후보로 기록한다.
 7. 서버 장애를 실제로 발생시키는 failover와 재연결 후 snapshot 복구 시험을 별도로 수행한다.

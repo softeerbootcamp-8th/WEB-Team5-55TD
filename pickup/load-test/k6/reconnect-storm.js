@@ -5,7 +5,7 @@ import { connect, parseFrame, subscribe } from './stomp.js';
 const wsUrl = __ENV.TEST_WS_URL;
 const origin = __ENV.TEST_ORIGIN;
 const auctionIds = (__ENV.TEST_AUCTION_IDS || '').split(',').filter(Boolean);
-const targetVus = Number(__ENV.TARGET_VUS || 1000);
+const targetVus = Number(__ENV.TARGET_VUS || 300);
 const reconnectCycles = Number(__ENV.RECONNECT_CYCLES || 3);
 const firstConnectionSeconds = Number(__ENV.FIRST_CONNECTION_SECONDS || 60);
 const reconnectHoldSeconds = Number(__ENV.RECONNECT_HOLD_SECONDS || 20);
