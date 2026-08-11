@@ -251,6 +251,7 @@ class AuctionControllerTest {
         .andExpect(jsonPath("$.consignmentId").value(100L))
         .andExpect(jsonPath("$.grade").value("PSA 10"))
         .andExpect(jsonPath("$.cardState").value("Gem Mint"))
+        .andExpect(jsonPath("$.sellerId").value(42L))
         .andExpect(jsonPath("$.sellerNickname").value("카드마스터샵"))
         .andExpect(jsonPath("$.certificate.serialNumber").value("PSA-84213907"))
         .andExpect(jsonPath("$.images[0].imageUrl").value("https://img-front"))
@@ -285,6 +286,7 @@ class AuctionControllerTest {
         0L,
         false,
         "https://img-front",
+        42L,
         "카드마스터샵",
         new CertificateResponse(
             1L, "PSA-84213907", CertificationBody.PSA, "10", LocalDate.of(2026, 6, 30)),
