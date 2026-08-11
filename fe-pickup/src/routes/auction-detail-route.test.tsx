@@ -21,6 +21,9 @@ vi.mock("@/components/domain/image-lightbox", () => ({
     <div role="dialog">{alt} 확대</div>
   ),
 }));
+vi.mock("@/components/domain/market-price-chart", () => ({
+  MarketPriceChart: () => null,
+}));
 
 const base = {
   id: "1",
