@@ -37,6 +37,7 @@ import { refreshAccessToken } from "@/api/mutator/custom-instance";
 import {
   useAuctionBidUpdates,
   type AuctionBidUpdatedMessage,
+  type BidRequestFailedMessage,
 } from "@/hooks/use-auction-bid-updates";
 import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
 import { formatWon } from "@/lib/format";
@@ -261,10 +262,21 @@ function LiveAuctionPage() {
     [auction.id, queryClient],
   );
 
+  const handleBidRequestFailed = useCallback(
+    (message: BidRequestFailedMessage) => {
+      if (message.bidRequestId !== pendingBidRequestIdRef.current) return;
+      pendingBidRequestIdRef.current = null;
+      setIsBidRequestPending(false);
+      toast.error("입찰 실패", { description: message.failureMessage });
+    },
+    [],
+  );
+
   useAuctionBidUpdates({
     auctionId: auction.id,
     latestBidId,
     onBidUpdated: applyBidUpdate,
+    onBidRequestFailed: handleBidRequestFailed,
     onSubscribed: refreshSnapshot,
   });
 
