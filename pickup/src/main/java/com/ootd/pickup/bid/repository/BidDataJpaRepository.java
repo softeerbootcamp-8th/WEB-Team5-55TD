@@ -95,8 +95,25 @@ public class BidDataJpaRepository implements BidRepository {
     return cursorBidId == null ? null : bid.bidId.lt(cursorBidId);
   }
 
+  /**
+   * bid_status는 팀 내 다른 작업에서 정리될 예정이라(추월/낙찰 처리를 그쪽에서 재구성), 여기서는 bid_status에 의존하지 않고 "해당 회원의 입찰가가 같은
+   * 경매의 최고 입찰가와 같다"는 조건으로 최고 입찰자 여부를 직접 계산한다. 종료(WON/PASSED)된 경매는 이미 결과가 확정돼 탈퇴를 막을 이유가 없으므로 제외한다.
+   */
   @Override
-  public boolean existsByMemberIdAndBidStatus(Long memberId, BidStatus bidStatus) {
-    return bidJpaRepository.existsByMember_MemberIdAndBidStatus(memberId, bidStatus);
+  public boolean existsCurrentHighestBidByMemberId(Long memberId) {
+    QBid subBid = new QBid("subBid");
+    return queryFactory
+            .selectOne()
+            .from(bid)
+            .join(bid.auction, auction)
+            .where(
+                bid.member.memberId.eq(memberId),
+                auction.auctionStatus.notIn(AuctionStatus.terminalStatuses()),
+                bid.bidPrice.eq(
+                    JPAExpressions.select(subBid.bidPrice.max())
+                        .from(subBid)
+                        .where(subBid.auction.auctionId.eq(bid.auction.auctionId))))
+            .fetchFirst()
+        != null;
   }
 }

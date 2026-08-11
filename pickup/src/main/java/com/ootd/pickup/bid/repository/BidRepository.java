@@ -16,5 +16,5 @@ public interface BidRepository {
 
   List<Bid> findAllByAuctionId(Long auctionId, Long cursorBidId, int limit);
 
-  boolean existsByMemberIdAndBidStatus(Long memberId, BidStatus bidStatus);
+  boolean existsCurrentHighestBidByMemberId(Long memberId);
 }
