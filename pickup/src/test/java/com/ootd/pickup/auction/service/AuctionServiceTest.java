@@ -217,11 +217,14 @@ class AuctionServiceTest {
     Auction auction =
         createAuction(
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
-    given(auctionRepository.searchAuctions(any(), any(), any(), isNull(), eq(3)))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), isNull(), eq(3), any(), any(), any()))
         .willReturn(List.of(auction));
     stubEmptyAssemblyDependencies();
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, "POPULAR", 3, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, "POPULAR", 3, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -243,11 +246,14 @@ class AuctionServiceTest {
     Auction second =
         createAuction(
             2L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(2), null);
-    given(auctionRepository.searchAuctions(any(), any(), any(), isNull(), eq(2)))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), isNull(), eq(2), any(), any(), any()))
         .willReturn(List.of(first, second));
     stubEmptyAssemblyDependencies();
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, "RECENT", null, null, 1);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, "RECENT", null, null, 1, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -266,11 +272,14 @@ class AuctionServiceTest {
     Auction auction =
         createAuction(
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
-    given(auctionRepository.searchAuctions(any(), any(), any(), isNull(), eq(21)))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), isNull(), eq(21), any(), any(), any()))
         .willReturn(List.of(auction));
     stubEmptyAssemblyDependencies();
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, null, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, null, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -285,7 +294,7 @@ class AuctionServiceTest {
   void 잘못된_정렬값이면_예외가_발생한다() {
     // given
     SearchAuctionsRequest request =
-        new SearchAuctionsRequest(null, null, "INVALID_SORT", null, null, 20);
+        new SearchAuctionsRequest(null, null, "INVALID_SORT", null, null, 20, null, null, null);
 
     // when & then
     assertThatThrownBy(() -> auctionService.searchAuctions(null, request))
@@ -297,7 +306,7 @@ class AuctionServiceTest {
   void 잘못된_상태값이면_예외가_발생한다() {
     // given
     SearchAuctionsRequest request =
-        new SearchAuctionsRequest(null, List.of("INVALID"), null, null, null, 20);
+        new SearchAuctionsRequest(null, List.of("INVALID"), null, null, null, 20, null, null, null);
 
     // when & then
     assertThatThrownBy(() -> auctionService.searchAuctions(null, request))
@@ -308,7 +317,8 @@ class AuctionServiceTest {
   @Test
   void size가_1보다_작으면_예외가_발생한다() {
     // given
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, null, null, 0);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, null, null, 0, null, null, null);
 
     // when & then
     assertThatThrownBy(() -> auctionService.searchAuctions(null, request))
@@ -319,7 +329,8 @@ class AuctionServiceTest {
   @Test
   void limit이_1보다_작으면_예외가_발생한다() {
     // given
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 0, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, 0, null, null, null, null, null);
 
     // when & then
     assertThatThrownBy(() -> auctionService.searchAuctions(null, request))
@@ -340,7 +351,14 @@ class AuctionServiceTest {
             LocalDateTime.now().plusHours(1));
     given(
             auctionRepository.searchAuctions(
-                isNull(), eq(List.of(AuctionStatus.ONGOING)), any(), isNull(), eq(1)))
+                isNull(),
+                eq(List.of(AuctionStatus.ONGOING)),
+                any(),
+                isNull(),
+                eq(1),
+                isNull(),
+                isNull(),
+                isNull()))
         .willReturn(List.of(auction));
     given(watchRepository.findWatchSummariesByAuctionIds(any(), any()))
         .willReturn(Map.of(1L, new WatchSummary(10L, false)));
@@ -362,7 +380,9 @@ class AuctionServiceTest {
   @Test
   void 진행중인_경매가_없으면_대표_경매_조회시_예외가_발생한다() {
     // given
-    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), any(), anyInt(), any(), any(), any()))
         .willReturn(List.of());
 
     // when & then
@@ -385,7 +405,9 @@ class AuctionServiceTest {
             AuctionStatus.ONGOING,
             LocalDateTime.now().minusHours(1),
             LocalDateTime.now().plusHours(1));
-    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), any(), anyInt(), any(), any(), any()))
         .willReturn(List.of(auction));
     given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
@@ -395,7 +417,8 @@ class AuctionServiceTest {
     given(watchRepository.findWatchSummariesByAuctionIds(eq(9L), any()))
         .willReturn(Map.of(1L, new WatchSummary(3L, true)));
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, 5, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -414,7 +437,9 @@ class AuctionServiceTest {
     Auction auction =
         createAuction(
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
-    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), any(), anyInt(), any(), any(), any()))
         .willReturn(List.of(auction));
     given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
@@ -423,7 +448,8 @@ class AuctionServiceTest {
         .willReturn(List.of());
     given(watchRepository.findWatchSummariesByAuctionIds(isNull(), any())).willReturn(Map.of());
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, 5, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -441,11 +467,14 @@ class AuctionServiceTest {
     Auction auction =
         createAuction(
             1L, consignment, AuctionStatus.ONGOING, LocalDateTime.now().minusHours(1), endedAt);
-    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), any(), anyInt(), any(), any(), any()))
         .willReturn(List.of(auction));
     stubEmptyAssemblyDependencies();
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, 5, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -470,7 +499,9 @@ class AuctionServiceTest {
             LocalDateTime.now().minusHours(1),
             LocalDateTime.now().plusHours(1));
     auction.updateWinningBid(50L, 12000L);
-    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), any(), anyInt(), any(), any(), any()))
         .willReturn(List.of(auction));
     given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
@@ -479,7 +510,8 @@ class AuctionServiceTest {
         .willReturn(List.of());
     given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, 5, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -496,11 +528,14 @@ class AuctionServiceTest {
     Auction auction =
         createAuction(
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
-    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), any(), anyInt(), any(), any(), any()))
         .willReturn(List.of(auction));
     stubEmptyAssemblyDependencies();
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, 5, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -518,7 +553,9 @@ class AuctionServiceTest {
     Auction auction =
         createAuction(
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
-    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), any(), anyInt(), any(), any(), any()))
         .willReturn(List.of(auction));
     given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
@@ -530,7 +567,8 @@ class AuctionServiceTest {
                 createConsignmentImage(consignment, 2, "https://image.example.com/back.png")));
     given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, 5, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -548,11 +586,14 @@ class AuctionServiceTest {
     Auction auction =
         createAuction(
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
-    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), any(), anyInt(), any(), any(), any()))
         .willReturn(List.of(auction));
     stubEmptyAssemblyDependencies();
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, 5, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -569,7 +610,9 @@ class AuctionServiceTest {
     Auction auction =
         createAuction(
             1L, consignment, AuctionStatus.SCHEDULED, LocalDateTime.now().plusDays(1), null);
-    given(auctionRepository.searchAuctions(any(), any(), any(), any(), anyInt()))
+    given(
+            auctionRepository.searchAuctions(
+                any(), any(), any(), any(), anyInt(), any(), any(), any()))
         .willReturn(List.of(auction));
     given(certificateManageService.getCertificatesByConsignmentId(any()))
         .willReturn(
@@ -582,7 +625,8 @@ class AuctionServiceTest {
         .willReturn(List.of());
     given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
 
-    SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
+    SearchAuctionsRequest request =
+        new SearchAuctionsRequest(null, null, null, 5, null, null, null, null, null);
 
     // when
     CursorPageResponse<AuctionListItemResponse, String> response =
@@ -622,6 +666,7 @@ class AuctionServiceTest {
     assertThat(response.consignmentId()).isEqualTo(100L);
     assertThat(response.grade()).isEqualTo("PSA 10");
     assertThat(response.cardState()).isEqualTo("Gem Mint");
+    assertThat(response.sellerId()).isEqualTo(1L);
     assertThat(response.sellerNickname()).isEqualTo("닉네임");
     assertThat(response.thumbnailUrl()).isEqualTo("https://image.example.com/front.png");
     assertThat(response.watchCount()).isEqualTo(4L);

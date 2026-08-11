@@ -17,7 +17,14 @@ public interface AuctionRepository {
   long countBySellerMemberIdAndStatus(Long sellerMemberId, AuctionStatus status);
 
   List<Auction> searchAuctions(
-      String q, List<AuctionStatus> statuses, AuctionSort sort, AuctionCursor cursor, int limit);
+      String q,
+      List<AuctionStatus> statuses,
+      AuctionSort sort,
+      AuctionCursor cursor,
+      int limit,
+      Long sellerId,
+      Long cardId,
+      Long excludeAuctionId);
 
   Optional<Auction> findByIdWithConsignmentAndCard(Long auctionId);
 

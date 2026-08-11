@@ -10,6 +10,7 @@ import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
 import { WatchButton } from "@/components/domain/heart-button";
+import { RelatedAuctionsBanner } from "@/components/domain/related-auctions-banner";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -226,6 +227,8 @@ function AuctionDetailPage() {
           )}
         </div>
       </div>
+
+      <RelatedAuctionsBanner auction={auction} />
 
       {lightboxIndex !== null && (
         <ImageLightbox

@@ -65,17 +65,42 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
   @Override
   public List<Auction> searchAuctions(
-      String q, List<AuctionStatus> statuses, AuctionSort sort, AuctionCursor cursor, int limit) {
+      String q,
+      List<AuctionStatus> statuses,
+      AuctionSort sort,
+      AuctionCursor cursor,
+      int limit,
+      Long sellerId,
+      Long cardId,
+      Long excludeAuctionId) {
     return queryFactory
         .selectFrom(auction)
         .join(auction.consignment, consignment)
         .fetchJoin()
         .join(consignment.card, card)
         .fetchJoin()
-        .where(keywordMatches(q), statusIn(statuses), keysetPredicate(sort, cursor))
+        .where(
+            keywordMatches(q),
+            statusIn(statuses),
+            sellerIdEq(sellerId),
+            cardIdEq(cardId),
+            auctionIdNotEq(excludeAuctionId),
+            keysetPredicate(sort, cursor))
         .orderBy(orderSpecifiers(sort))
         .limit(limit)
         .fetch();
+  }
+
+  private BooleanExpression sellerIdEq(Long sellerId) {
+    return sellerId == null ? null : consignment.sellerMember.memberId.eq(sellerId);
+  }
+
+  private BooleanExpression cardIdEq(Long cardId) {
+    return cardId == null ? null : card.cardId.eq(cardId);
+  }
+
+  private BooleanExpression auctionIdNotEq(Long excludeAuctionId) {
+    return excludeAuctionId == null ? null : auction.auctionId.ne(excludeAuctionId);
   }
 
   private BooleanExpression keywordMatches(String q) {

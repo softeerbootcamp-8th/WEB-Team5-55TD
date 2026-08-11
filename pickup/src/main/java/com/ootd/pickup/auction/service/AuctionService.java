@@ -93,7 +93,15 @@ public class AuctionService {
     if (request.limit() != null) {
       int limit = validatePositiveLimit(request.limit());
       List<Auction> auctions =
-          auctionRepository.searchAuctions(request.q(), statuses, sort, null, limit);
+          auctionRepository.searchAuctions(
+              request.q(),
+              statuses,
+              sort,
+              null,
+              limit,
+              request.sellerId(),
+              request.cardId(),
+              request.excludeAuctionId());
       Assembled assembled = assemble(auctions, viewerMemberId);
       return CursorPageResponse.from(assembled.items(), false, null);
     }
@@ -101,7 +109,15 @@ public class AuctionService {
     int size = CursorPageSize.resolve(request.size());
     AuctionCursor decodedCursor = AuctionCursor.decode(request.cursor(), sort);
     List<Auction> fetched =
-        auctionRepository.searchAuctions(request.q(), statuses, sort, decodedCursor, size + 1);
+        auctionRepository.searchAuctions(
+            request.q(),
+            statuses,
+            sort,
+            decodedCursor,
+            size + 1,
+            request.sellerId(),
+            request.cardId(),
+            request.excludeAuctionId());
 
     boolean hasNext = fetched.size() > size;
     List<Auction> page = hasNext ? fetched.subList(0, size) : fetched;
@@ -124,7 +140,7 @@ public class AuctionService {
   public AuctionListItemResponse getFeaturedAuction(Long viewerMemberId) {
     List<Auction> candidates =
         auctionRepository.searchAuctions(
-            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1);
+            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1, null, null, null);
     Auction featured =
         candidates.stream()
             .findFirst()
