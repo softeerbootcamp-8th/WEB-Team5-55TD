@@ -48,4 +48,14 @@ class RarityTest {
     // when & then
     assertThatThrownBy(() -> Rarity.from("시크릿 레어")).isInstanceOf(PickUpException.class);
   }
+
+  @Test
+  void EX_GX_V_세대의_홀로_레어도도_표시명으로_조회할_수_있다() {
+    // when & then
+    assertThat(Rarity.from("레어 홀로 EX")).isEqualTo(Rarity.RARE_HOLO_EX);
+    assertThat(Rarity.from("레어 홀로 GX")).isEqualTo(Rarity.RARE_HOLO_GX);
+    assertThat(Rarity.from("레어 홀로 V")).isEqualTo(Rarity.RARE_HOLO_V);
+    assertThat(Rarity.from("레어 홀로 VMAX")).isEqualTo(Rarity.RARE_HOLO_VMAX);
+    assertThat(Rarity.from("레어 홀로 VSTAR")).isEqualTo(Rarity.RARE_HOLO_VSTAR);
+  }
 }

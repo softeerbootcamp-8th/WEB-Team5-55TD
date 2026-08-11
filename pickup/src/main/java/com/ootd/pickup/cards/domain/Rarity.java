@@ -11,7 +11,12 @@ public enum Rarity {
   COMMON("커먼"),
   UNCOMMON("언커먼"),
   RARE("레어"),
-  RARE_HOLO("레어 홀로");
+  RARE_HOLO("레어 홀로"),
+  RARE_HOLO_EX("레어 홀로 EX"),
+  RARE_HOLO_GX("레어 홀로 GX"),
+  RARE_HOLO_V("레어 홀로 V"),
+  RARE_HOLO_VMAX("레어 홀로 VMAX"),
+  RARE_HOLO_VSTAR("레어 홀로 VSTAR");
 
   private final String displayName;
 
