@@ -81,6 +81,7 @@ public class BidService {
     Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
     pointReservationService.reserveHighestBid(auction, preparedReservation, savedBid, member);
 
+    Long previousHighestBidId = auction.getWinningBidId();
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
     if (auction.extendEndAtForSoftClose(bidAt)) {
       log.info("마감 임박 입찰로 경매를 연장했습니다 - auctionId={}, endedAt={}", auctionId, auction.getEndedAt());
@@ -95,7 +96,7 @@ public class BidService {
         savedBid.getBidId(),
         memberId,
         savedBid.getBidPrice(),
-        currentHighestBid.map(Bid::getBidId).orElse(null));
+        previousHighestBidId);
 
     return PlaceBidResponse.from(savedBid);
   }
