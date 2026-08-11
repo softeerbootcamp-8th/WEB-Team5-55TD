@@ -14,3 +14,11 @@ image:
     region: ${IMAGE_STORAGE_REGION:}
     media-base-url: ${IMAGE_MEDIA_BASE_URL:}
     upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}
+
+scheduler:
+  outbox:
+    enabled: ${SCHEDULER_OUTBOX_ENABLED:true}
+
+event:
+  sqs:
+    enabled: ${EVENT_SQS_ENABLED:true}
