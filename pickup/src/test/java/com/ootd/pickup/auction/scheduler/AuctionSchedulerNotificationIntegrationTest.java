@@ -16,15 +16,17 @@ import com.ootd.pickup.cards.repository.CardJpaRepository;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaRepository;
-import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.event.NotificationEvent;
+import com.ootd.pickup.global.event.NotificationEventSender;
 import com.ootd.pickup.global.event.outbox.OutboxEventJpaRepository;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +42,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * {@code afterCommit} 훅이 아예 실행되지 않는다. 검증 대상이 그 훅이므로 실제로 커밋시켜야 한다.
  *
  * <p>커밋되는 만큼 뒷정리를 직접 한다. H2가 JVM 안에서 공유되므로 남겨두면 다른 테스트가 이 경매를 집어간다.
+ *
+ * <p>알림 실행기는 호출 스레드에서 바로 돌도록 바꾼다. 실제 실행기는 별도 스레드로 넘겨서, 전이가 끝난 직후에 단언하면 아직 전송 전일 수 있다.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -61,12 +65,26 @@ class AuctionSchedulerNotificationIntegrationTest {
 
   @Autowired private TransactionTemplate transactionTemplate;
 
-  @MockitoBean private EventPublisher eventPublisher;
+  @MockitoBean private NotificationEventSender notificationEventSender;
+
+  @MockitoBean(name = "notificationEventExecutor")
+  private Executor notificationEventExecutor;
 
   private final List<Long> createdAuctionIds = new ArrayList<>();
   private final List<Long> createdConsignmentIds = new ArrayList<>();
   private final List<Long> createdCardIds = new ArrayList<>();
   private final List<Long> createdMemberIds = new ArrayList<>();
+
+  @BeforeEach
+  void 알림_실행기를_동기로_바꾼다() {
+    willAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(0).run();
+              return null;
+            })
+        .given(notificationEventExecutor)
+        .execute(any(Runnable.class));
+  }
 
   @AfterEach
   void 커밋된_데이터를_지운다() {
@@ -112,8 +130,8 @@ class AuctionSchedulerNotificationIntegrationTest {
               }
               return null;
             })
-        .given(eventPublisher)
-        .publish(any());
+        .given(notificationEventSender)
+        .send(any());
 
     // when
     auctionScheduler.transitionDueAuctions();
@@ -183,7 +201,7 @@ class AuctionSchedulerNotificationIntegrationTest {
   void 알림_발행이_실패해도_전이는_유지된다() {
     // given — 알림은 유실이 허용된다. 발행 실패가 이미 커밋된 전이를 되돌리면 안 된다
     Auction due = createAuction(AuctionStatus.SCHEDULED, past(1), future(1));
-    willThrow(new IllegalStateException("Redis 장애")).given(eventPublisher).publish(any());
+    willThrow(new IllegalStateException("Redis 장애")).given(notificationEventSender).send(any());
 
     // when
     auctionScheduler.transitionDueAuctions();
@@ -199,7 +217,7 @@ class AuctionSchedulerNotificationIntegrationTest {
    */
   private List<NotificationEvent> publishedFor(Long auctionId) {
     ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
-    then(eventPublisher).should(atLeast(0)).publish(captor.capture());
+    then(notificationEventSender).should(atLeast(0)).send(captor.capture());
     return captor.getAllValues().stream()
         .filter(event -> auctionId.equals(event.aggregateId()))
         .toList();

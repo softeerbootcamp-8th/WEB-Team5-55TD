@@ -30,7 +30,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 실제 봉투 규격을 지키는가"이지 "Mock이 어떻게 응답하는가"가 아니라서, 봉투를 목으로 대체하면 검증 의미가 없어진다.
  */
 @ExtendWith(MockitoExtension.class)
-class RedisEventPublisherTest {
+class RedisNotificationEventSenderTest {
 
   @Mock private StringRedisTemplate redisTemplate;
 
@@ -42,13 +42,13 @@ class RedisEventPublisherTest {
   private final RealtimeNotificationMetrics metrics =
       new RealtimeNotificationMetrics(meterRegistry);
 
-  private RedisEventPublisher redisEventPublisher;
+  private RedisNotificationEventSender redisNotificationEventSender;
 
   @BeforeEach
   void setUp() {
     given(redisTemplate.convertAndSend(anyString(), anyString())).willReturn(1L);
-    redisEventPublisher =
-        new RedisEventPublisher(redisTemplate, objectMapper, channelResolver, metrics);
+    redisNotificationEventSender =
+        new RedisNotificationEventSender(redisTemplate, objectMapper, channelResolver, metrics);
   }
 
   @Test
@@ -57,7 +57,7 @@ class RedisEventPublisherTest {
     NotificationEvent event = createEvent(42L);
 
     // when
-    redisEventPublisher.publish(event);
+    redisNotificationEventSender.send(event);
 
     // then
     ArgumentCaptor<String> channelCaptor = ArgumentCaptor.forClass(String.class);
@@ -72,7 +72,7 @@ class RedisEventPublisherTest {
     NotificationEvent event = createEvent(42L);
 
     // when
-    redisEventPublisher.publish(event);
+    redisNotificationEventSender.send(event);
 
     // then
     ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
@@ -89,8 +89,8 @@ class RedisEventPublisherTest {
     NotificationEvent second = createEvent(2L);
 
     // when
-    redisEventPublisher.publish(first);
-    redisEventPublisher.publish(second);
+    redisNotificationEventSender.send(first);
+    redisNotificationEventSender.send(second);
 
     // then
     ArgumentCaptor<String> channelCaptor = ArgumentCaptor.forClass(String.class);
@@ -104,7 +104,7 @@ class RedisEventPublisherTest {
     given(redisTemplate.convertAndSend(anyString(), anyString()))
         .willThrow(new IllegalStateException("redis unavailable"));
 
-    assertThatThrownBy(() -> redisEventPublisher.publish(event))
+    assertThatThrownBy(() -> redisNotificationEventSender.send(event))
         .isInstanceOf(IllegalStateException.class);
     assertThat(publishCount("failure")).isEqualTo(1);
   }
@@ -114,7 +114,7 @@ class RedisEventPublisherTest {
     NotificationEvent event = createEvent(42L);
     given(redisTemplate.convertAndSend(anyString(), anyString())).willReturn(0L);
 
-    redisEventPublisher.publish(event);
+    redisNotificationEventSender.send(event);
 
     assertThat(publishCount("no_subscribers")).isEqualTo(1);
   }

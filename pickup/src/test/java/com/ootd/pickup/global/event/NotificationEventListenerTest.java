@@ -16,14 +16,15 @@ import org.junit.jupiter.api.Test;
 
 class NotificationEventListenerTest {
 
-  private final EventPublisher eventPublisher = mock(EventPublisher.class);
+  private final NotificationEventSender notificationEventSender =
+      mock(NotificationEventSender.class);
   private final AtomicReference<Runnable> submittedTask = new AtomicReference<>();
   private final Executor executor = submittedTask::set;
   private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
   private final RealtimeNotificationMetrics metrics =
       new RealtimeNotificationMetrics(meterRegistry);
   private final NotificationEventListener listener =
-      new NotificationEventListener(eventPublisher, executor, metrics);
+      new NotificationEventListener(notificationEventSender, executor, metrics);
 
   @Test
   void 커밋_리스너는_Redis_발행을_executor에_위임한다() {
@@ -31,11 +32,11 @@ class NotificationEventListenerTest {
 
     listener.publish(event);
 
-    then(eventPublisher).shouldHaveNoInteractions();
+    then(notificationEventSender).shouldHaveNoInteractions();
 
     submittedTask.get().run();
 
-    then(eventPublisher).should().publish(event);
+    then(notificationEventSender).should().send(event);
   }
 
   @Test
@@ -45,10 +46,10 @@ class NotificationEventListenerTest {
           throw new RejectedExecutionException("queue full");
         };
     NotificationEventListener rejectingListener =
-        new NotificationEventListener(eventPublisher, rejectingExecutor, metrics);
+        new NotificationEventListener(notificationEventSender, rejectingExecutor, metrics);
 
     assertThatCode(() -> rejectingListener.publish(testEvent())).doesNotThrowAnyException();
-    then(eventPublisher).shouldHaveNoInteractions();
+    then(notificationEventSender).shouldHaveNoInteractions();
     assertThat(
             meterRegistry
                 .get("pickup.redis.notification.publish")
@@ -61,7 +62,9 @@ class NotificationEventListenerTest {
   @Test
   void 비동기_Redis_발행_실패를_호출자에게_전파하지_않는다() {
     NotificationEvent event = testEvent();
-    willThrow(new IllegalStateException("redis unavailable")).given(eventPublisher).publish(event);
+    willThrow(new IllegalStateException("redis unavailable"))
+        .given(notificationEventSender)
+        .send(event);
 
     listener.publish(event);
 

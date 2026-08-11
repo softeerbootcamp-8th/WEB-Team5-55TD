@@ -10,20 +10,26 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
+/**
+ * {@link EventPublisher}에 넘긴 알림이 언제 전송 계층까지 도달하는지 확인한다.
+ *
+ * <p>진입점부터 {@link NotificationEventSender}까지 실제 배선을 그대로 태운다. 커밋 시점을 맞추는 책임이 도메인이 아니라 이 경로에 있기 때문이다.
+ *
+ * <p>알림 실행기는 호출 스레드에서 바로 돌도록 바꾼다. 실제 실행기는 별도 스레드로 넘겨서, 커밋 직후에 단언하면 아직 전송 전일 수 있다.
+ */
 @SpringBootTest
 @ActiveProfiles("test")
 class NotificationEventAfterCommitListenerTest {
 
-  @Autowired private ApplicationEventPublisher applicationEventPublisher;
+  @Autowired private EventPublisher eventPublisher;
 
   @Autowired private TransactionTemplate transactionTemplate;
 
-  @MockitoBean private EventPublisher eventPublisher;
+  @MockitoBean private NotificationEventSender notificationEventSender;
 
   @MockitoBean(name = "notificationEventExecutor")
   private Executor notificationEventExecutor;
@@ -45,13 +51,13 @@ class NotificationEventAfterCommitListenerTest {
 
     transactionTemplate.executeWithoutResult(
         status -> {
-          applicationEventPublisher.publishEvent(event);
-          then(eventPublisher).shouldHaveNoInteractions();
+          eventPublisher.publish(event);
+          then(notificationEventSender).shouldHaveNoInteractions();
           then(notificationEventExecutor).shouldHaveNoInteractions();
         });
 
     then(notificationEventExecutor).should().execute(any(Runnable.class));
-    then(eventPublisher).should().publish(event);
+    then(notificationEventSender).should().send(event);
   }
 
   @Test
@@ -60,12 +66,21 @@ class NotificationEventAfterCommitListenerTest {
 
     transactionTemplate.executeWithoutResult(
         status -> {
-          applicationEventPublisher.publishEvent(event);
+          eventPublisher.publish(event);
           status.setRollbackOnly();
         });
 
     then(notificationEventExecutor).shouldHaveNoInteractions();
-    then(eventPublisher).shouldHaveNoInteractions();
+    then(notificationEventSender).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 트랜잭션_없이_발행하면_기다리지_않고_전송한다() {
+    TestNotificationEvent event = testEvent();
+
+    eventPublisher.publish(event);
+
+    then(notificationEventSender).should().send(event);
   }
 
   private TestNotificationEvent testEvent() {
