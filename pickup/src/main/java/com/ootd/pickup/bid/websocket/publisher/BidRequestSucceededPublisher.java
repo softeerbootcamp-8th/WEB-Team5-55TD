@@ -1,7 +1,7 @@
 package com.ootd.pickup.bid.websocket.publisher;
 
-import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
-import com.ootd.pickup.bid.websocket.dto.AuctionBidUpdatedMessage;
+import com.ootd.pickup.auction.event.BidRequestSucceededNotificationEvent;
+import com.ootd.pickup.bid.websocket.dto.BidRequestSucceededMessage;
 import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,15 +11,15 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AuctionBidUpdatedPublisher {
+public class BidRequestSucceededPublisher {
 
   private static final String AUCTION_TOPIC_PREFIX = "/topic/auctions/";
 
   private final SimpMessagingTemplate messagingTemplate;
   private final RealtimeNotificationMetrics metrics;
 
-  public void publish(AuctionBidUpdatedNotificationEvent event) {
-    AuctionBidUpdatedMessage message = AuctionBidUpdatedMessage.fromEvent(event);
+  public void publish(BidRequestSucceededNotificationEvent event) {
+    BidRequestSucceededMessage message = BidRequestSucceededMessage.fromEvent(event);
     try {
       messagingTemplate.convertAndSend(AUCTION_TOPIC_PREFIX + event.auctionId(), message);
       // 이 성공은 Broker channel 전달 성공일 뿐, 브라우저의 실제 수신·렌더링까지 보장하지 않는다.

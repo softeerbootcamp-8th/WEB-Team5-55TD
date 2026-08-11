@@ -46,15 +46,28 @@ public class Bid {
   @Getter
   private LocalDateTime createdAt;
 
-  private Bid(Auction auction, Member member, Long bidPrice) {
+  /**
+   * 이 입찰을 만들어낸 비동기 입찰 요청의 id. 기존 동기 엔드포인트(POST .../bids)를 통한 입찰은 {@code null}이다.
+   *
+   * <p>DB 유니크 제약(uk_bid_bid_request_id)과 짝을 이뤄, SQS 재전달로 같은 입찰 요청이 두 번 처리되는 것을 막는다.
+   */
+  @Column(name = "bid_request_id")
+  private Long bidRequestId;
+
+  private Bid(Auction auction, Member member, Long bidPrice, Long bidRequestId) {
     this.auction = auction;
     this.member = member;
     this.bidPrice = bidPrice;
     this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
+    this.bidRequestId = bidRequestId;
   }
 
   public static Bid create(Auction auction, Member member, Long bidPrice) {
-    return new Bid(auction, member, bidPrice);
+    return new Bid(auction, member, bidPrice, null);
+  }
+
+  public static Bid create(Auction auction, Member member, Long bidPrice, Long bidRequestId) {
+    return new Bid(auction, member, bidPrice, bidRequestId);
   }
 
   /**

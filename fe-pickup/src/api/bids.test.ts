@@ -20,4 +20,20 @@ describe("bids api", () => {
     });
     expect(post).toHaveBeenCalledWith("/auctions/1/bids", { bidPrice: 1000 });
   });
+
+  it("입찰 요청을 접수하고 접수 결과를 그대로 반환한다", async () => {
+    const { createBidRequest } = await import("@/api/bids");
+    post.mockResolvedValue({
+      data: { bidRequestId: 1, bidPrice: 1000, status: "PENDING" },
+    });
+
+    await expect(createBidRequest("1", 1000)).resolves.toEqual({
+      bidRequestId: 1,
+      bidPrice: 1000,
+      status: "PENDING",
+    });
+    expect(post).toHaveBeenCalledWith("/auctions/1/bid-requests", {
+      bidPrice: 1000,
+    });
+  });
 });
