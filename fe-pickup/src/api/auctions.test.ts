@@ -55,7 +55,7 @@ describe("auctions api", () => {
         consignmentId: "3",
         startingPrice: 1000,
         reserve: 1500,
-        scheduledStartAt: "2026-08-01T10:00:00",
+        scheduledStartAt: "2026-08-01T01:00:00Z",
       }),
     ).resolves.toEqual({ auctionId: "9", bidIncrement: 500 });
     expect(post).toHaveBeenCalledWith(

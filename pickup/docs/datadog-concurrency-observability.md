@@ -8,12 +8,13 @@ MySQL DB 락, HikariCP, Tomcat 요청 스레드와 JVM 프로파일에 더해 We
 
 ## 설치
 
-백엔드 CD가 애플리케이션 JAR과 같은 리비전의 JMX 설정 3종 및 `pickup-datadog.conf`를 S3에 올린다. EC2의 `deploy.sh`는 기존 설정을 백업하고 다음 경로에 원자적으로 설치하며, 헬스체크 실패로 애플리케이션을 롤백할 때 설정도 함께 복구한다.
+백엔드 CD가 애플리케이션 JAR과 같은 리비전의 JMX 설정 3종을 S3에 올린다. EC2의 `deploy.sh`는 기존 설정을 백업하고 다음 경로에 원자적으로 설치하며, 헬스체크 실패로 애플리케이션을 롤백할 때 설정도 함께 복구한다.
 
 - `deploy/hikaricp-jmx.yaml` → `/opt/datadog/jmx/hikaricp.yaml`
 - `deploy/tomcat-jmx.yaml` → `/opt/datadog/jmx/tomcat.yaml`
 - `deploy/websocket-jmx.yaml` → `/opt/datadog/jmx/websocket.yaml`
-- `deploy/pickup-datadog.conf` → `/etc/systemd/system/pickup.service.d/datadog.conf`
+
+`DD_PROFILING_ENABLED`, `DD_LOGS_INJECTION`, `DD_JMXFETCH_CONFIG` 같은 dd-java-agent 설정은 systemd 드롭인이 아니라 다른 애플리케이션 환경변수와 함께 `/home/ubuntu/pickup/.env` 로 들어간다. 정적인 값은 `deploy/datadog.env` 에, 리비전마다 바뀌는 `DD_VERSION` 과 `DD_SERVICE`·`DD_ENV` 는 `.github/workflows/backend-cd.yml` 의 `APP_ENV_` 블록에 있다. `DD_JMXFETCH_CONFIG` 가 가리키는 파일이 `/opt/datadog/jmx` 에 실제로 깔렸는지는 `deploy.sh` 가 확인해 어긋나면 경고를 남긴다.
 
 MySQL DBM 설정은 애플리케이션 배포와 분리한다. `deploy/mysql-dbm.yaml`을 `/etc/datadog-agent/conf.d/mysql.d/conf.yaml`로 설치하고, Datadog Agent 서비스에 `DB_HOST`, `DB_PASSWORD`를 제공한다. MySQL에는 Datadog 전용 계정과 공식 DBM 권한을 부여하고 `performance_schema` statement/wait consumer를 활성화한다.
 

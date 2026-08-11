@@ -6,7 +6,7 @@ spring:
     group:
       local: dev
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/pickup?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/pickup?serverTimezone=UTC&characterEncoding=UTF-8}
     username: ${DB_USERNAME:pickup}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver

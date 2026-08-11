@@ -35,10 +35,12 @@ describe("format utilities", () => {
     expect(formatCountdown(3_661_000)).toBe("01 : 01 : 01");
   });
 
-  it("formats dates and handles missing dates", () => {
+  it("formats dates in KST regardless of the runner's local timezone", () => {
     expect(formatDateTime()).toBe("-");
-    const date = new Date("2026-07-22T15:04:00");
-    expect(formatDateTime(date.toISOString())).toMatch(/2026\.07\.22 \d{2}:04/);
+    // 서버는 UTC(Z 접미사)로 내려주고, 화면에는 KST(UTC+9)로 보여준다.
+    expect(formatDateTime("2026-07-22T06:04:00Z")).toBe("2026.07.22 15:04");
+    // KST로 변환하면 다음 날로 넘어가는 경계도 올바르게 처리한다.
+    expect(formatDateTime("2026-07-22T15:30:00Z")).toBe("2026.07.23 00:30");
   });
 
   it("formats relative times at each boundary", () => {
