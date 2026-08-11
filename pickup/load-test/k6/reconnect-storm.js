@@ -13,7 +13,7 @@ export const reconnectLatency = new Trend('reconnect_latency');
 
 export const options = {
   vus: Number(__ENV.RECONNECT_VUS || 1000),
-  duration: `${attempts * 45 + 30}s`,
+  duration: `${Number(__ENV.RECONNECT_DURATION_SECONDS || 300)}s`,
   thresholds: {
     reconnectSuccess: ['count>0'],
     checks: ['rate>0.99'],

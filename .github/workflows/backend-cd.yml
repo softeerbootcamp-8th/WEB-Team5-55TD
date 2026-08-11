@@ -526,6 +526,7 @@ jobs:
           TEST_AUCTION_IDS: 37,32
           RECONNECT_VUS: 1000
           RECONNECT_ATTEMPTS: 3
+          RECONNECT_DURATION_SECONDS: 300
         run: |
           k6 run --summary-export=pickup/load-test/results/reconnect-storm.json \
             pickup/load-test/k6/reconnect-storm.js
