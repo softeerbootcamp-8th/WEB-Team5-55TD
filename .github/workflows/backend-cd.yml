@@ -517,7 +517,34 @@ jobs:
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
 
-      - name: Run bid to WebSocket test
+      - name: Run idle WebSocket capacity test
+        continue-on-error: true
+        env:
+          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
+          TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
+          TEST_AUCTION_IDS: 312
+          RAMP_SECONDS: 60
+          HOLD_SECONDS: 120
+        run: |
+          set +e
+          scenario_status=0
+          for target in 1000 2000 3000 4000 5000; do
+            echo "유휴 연결 시험 시작: ${target} sessions"
+            TARGET_VUS="${target}" k6 run \
+              --summary-export="pickup/load-test/results/idle-${target}.json" \
+              pickup/load-test/k6/idle-websocket.js
+            result=$?
+            echo "자원 회수를 위해 60초 대기"
+            sleep 60
+            if [ ${result} -ne 0 ]; then
+              scenario_status=${result}
+              echo "유휴 연결 ${target} 단계 실패 — 상위 단계 중단"
+              break
+            fi
+          done
+          exit ${scenario_status}
+
+      - name: Run bid to WebSocket capacity test
         continue-on-error: true
         env:
           TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
@@ -526,24 +553,63 @@ jobs:
           TEST_AUCTION_IDS: 312
           TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
           TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
-          TEST_INITIAL_BID_PRICE: 100000
-          TEST_BID_INCREMENT: 10000
+          TEST_INITIAL_BID_PRICE: 2500000
+          TEST_BID_INCREMENT: 5000
+          BID_INTERVAL_SECONDS: 2
+          RAMP_SECONDS: 60
+          HOLD_SECONDS: 120
         run: |
-          k6 run --summary-export=pickup/load-test/results/bid-websocket-e2e.json \
-            pickup/load-test/k6/bid-websocket-e2e.js
+          set +e
+          scenario_status=0
+          for target in 1000 2000 3000 4000 5000; do
+            echo "입찰 E2E 시험 시작: ${target} sessions"
+            TARGET_VUS="${target}" k6 run \
+              --summary-export="pickup/load-test/results/bid-e2e-${target}.json" \
+              pickup/load-test/k6/bid-websocket-e2e.js
+            result=$?
+            echo "자원 회수를 위해 60초 대기"
+            sleep 60
+            if [ ${result} -ne 0 ]; then
+              scenario_status=${result}
+              echo "입찰 E2E ${target} 단계 실패 — 상위 단계 중단"
+              break
+            fi
+          done
+          exit ${scenario_status}
+
+      - name: Run reconnect capacity test
+        continue-on-error: true
+        env:
+          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
+          TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
+          TEST_AUCTION_IDS: 312
+          RECONNECT_CYCLES: 3
+          FIRST_CONNECTION_SECONDS: 60
+          RECONNECT_HOLD_SECONDS: 20
+        run: |
+          set +e
+          scenario_status=0
+          for target in 1000 2000 3000 4000 5000; do
+            echo "재연결 시험 시작: ${target} sessions"
+            TARGET_VUS="${target}" k6 run \
+              --summary-export="pickup/load-test/results/reconnect-${target}.json" \
+              pickup/load-test/k6/reconnect-storm.js
+            result=$?
+            echo "자원 회수를 위해 60초 대기"
+            sleep 60
+            if [ ${result} -ne 0 ]; then
+              scenario_status=${result}
+              echo "재연결 ${target} 단계 실패 — 상위 단계 중단"
+              break
+            fi
+          done
+          exit ${scenario_status}
 
       - name: Create report
         if: always()
         run: |
           mkdir -p pickup/load-test/results
-          {
-            echo '# WebSocket load test report'
-            echo
-            echo "- Commit: \`${GITHUB_SHA}\`"
-            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            echo
-            echo 'Detailed k6 summaries are attached as JSON artifacts.'
-          } > pickup/load-test/results/websocket-load-test-report.md
+          node pickup/load-test/k6/create-capacity-report.mjs pickup/load-test/results
 
       - name: Upload load-test results
         if: always()
