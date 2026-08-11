@@ -879,6 +879,22 @@ class ConsignmentServiceTest {
     then(consignmentRepository).should(never()).deleteById(any());
   }
 
+  @Test
+  void 경매중인_상품이_있으면_활성_상품이_있다고_판단한다() {
+    // given
+    Long sellerMemberId = 1L;
+    given(
+            consignmentRepository.existsBySellerMemberIdAndStatus(
+                sellerMemberId, ConsignmentStatus.IN_AUCTION))
+        .willReturn(true);
+
+    // when
+    boolean hasActiveConsignment = consignmentService.hasActiveConsignment(sellerMemberId);
+
+    // then
+    assertThat(hasActiveConsignment).isTrue();
+  }
+
   private Card createCard(Long cardId) {
     Card card =
         Card.builder()

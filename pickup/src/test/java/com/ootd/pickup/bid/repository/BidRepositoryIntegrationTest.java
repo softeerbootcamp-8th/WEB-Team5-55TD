@@ -43,7 +43,7 @@ class BidRepositoryIntegrationTest {
     Member seller = createMember("bid-highest-seller");
     Member member = createMember("bid-highest");
     Auction auction = createAuction(seller, AuctionStatus.ONGOING);
-    bidRepository.save(Bid.create(auction, member, 10_000L));
+    placeHighestBid(auction, member, 10_000L);
 
     // when
     boolean hasCurrentHighestBid =
@@ -61,7 +61,7 @@ class BidRepositoryIntegrationTest {
     Member higherMember = createMember("bid-higher");
     Auction auction = createAuction(seller, AuctionStatus.ONGOING);
     bidRepository.save(Bid.create(auction, outbidMember, 10_000L));
-    bidRepository.save(Bid.create(auction, higherMember, 10_500L));
+    placeHighestBid(auction, higherMember, 10_500L);
 
     // when
     boolean outbidMemberHasCurrentHighestBid =
@@ -80,7 +80,7 @@ class BidRepositoryIntegrationTest {
     Member seller = createMember("bid-ended-seller");
     Member member = createMember("bid-ended");
     Auction auction = createAuction(seller, AuctionStatus.WON);
-    bidRepository.save(Bid.create(auction, member, 10_000L));
+    placeHighestBid(auction, member, 10_000L);
 
     // when
     boolean hasCurrentHighestBid =
@@ -107,6 +107,13 @@ class BidRepositoryIntegrationTest {
     return memberJpaRepository.save(Member.create(loginId, "password", loginId + "-nickname"));
   }
 
+  private Bid placeHighestBid(Auction auction, Member member, Long bidPrice) {
+    Bid bid = bidRepository.save(Bid.create(auction, member, bidPrice));
+    auction.updateWinningBid(bid.getBidId(), bid.getBidPrice());
+    auctionJpaRepository.save(auction);
+    return bid;
+  }
+
   private Auction createAuction(Member sellerMember, AuctionStatus auctionStatus) {
     Card card =
         cardJpaRepository.save(
@@ -123,7 +130,7 @@ class BidRepositoryIntegrationTest {
             Consignment.builder()
                 .card(card)
                 .sellerMember(sellerMember)
-                .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                .status(ConsignmentStatus.IN_AUCTION)
                 .build());
     return auctionJpaRepository.save(
         Auction.builder()

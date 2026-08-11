@@ -292,8 +292,8 @@ public class ConsignmentService {
 
   /** 경매가 예정/진행 중인 상품을 셀러로 등록해 두면, 탈퇴 후 그 경매를 아무도 관리할 수 없게 되므로 탈퇴를 막는다. */
   public boolean hasActiveConsignment(Long sellerMemberId) {
-    return consignmentRepository.existsBySellerMemberIdAndStatusIn(
-        sellerMemberId, ConsignmentStatus.activeInAuctionStatuses());
+    return consignmentRepository.existsBySellerMemberIdAndStatus(
+        sellerMemberId, ConsignmentStatus.IN_AUCTION);
   }
 
   private Certificate getCertificate(Consignment consignment) {

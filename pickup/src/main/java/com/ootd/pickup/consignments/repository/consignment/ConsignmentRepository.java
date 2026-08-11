@@ -19,5 +19,5 @@ public interface ConsignmentRepository {
   List<Consignment> findAllBySellerMemberIdAndStatusAndCursor(
       Long sellerMemberId, ConsignmentStatus status, Long cursor, int size);
 
-  boolean existsBySellerMemberIdAndStatusIn(Long sellerMemberId, List<ConsignmentStatus> statuses);
+  boolean existsBySellerMemberIdAndStatus(Long sellerMemberId, ConsignmentStatus consignmentStatus);
 }
