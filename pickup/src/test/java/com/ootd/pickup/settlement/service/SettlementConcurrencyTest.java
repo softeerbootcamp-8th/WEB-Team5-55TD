@@ -224,7 +224,7 @@ class SettlementConcurrencyTest {
             Consignment.builder()
                 .card(card)
                 .sellerMember(consignmentSeller)
-                .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                .status(ConsignmentStatus.IN_AUCTION)
                 .build());
     Auction auction =
         Auction.builder()

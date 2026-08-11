@@ -238,11 +238,9 @@ public class MemberService {
   }
 
   private List<MyBidListItemResponse> assembleMyBids(List<Bid> myLastBids) {
-    List<Long> auctionIds = myLastBids.stream().map(b -> b.getAuction().getAuctionId()).toList();
     List<Long> consignmentIds =
         myLastBids.stream().map(b -> b.getAuction().getConsignment().getConsignmentId()).toList();
 
-    Map<Long, Long> currentPrices = bidRepository.findCurrentPricesByAuctionIds(auctionIds);
     Map<Long, Certificate> certificatesByConsignmentId =
         certificateRepository.findAllByConsignmentIds(consignmentIds).stream()
             .collect(Collectors.toMap(c -> c.getConsignment().getConsignmentId(), c -> c));
@@ -250,12 +248,11 @@ public class MemberService {
     return myLastBids.stream()
         .map(
             myLastBid -> {
-              Long auctionId = myLastBid.getAuction().getAuctionId();
               Long consignmentId = myLastBid.getAuction().getConsignment().getConsignmentId();
               return MyBidListItemResponse.of(
                   myLastBid,
                   certificatesByConsignmentId.get(consignmentId),
-                  currentPrices.getOrDefault(auctionId, myLastBid.getAuction().getStartingPrice()));
+                  myLastBid.getAuction().getCurrentPrice());
             })
         .toList();
   }

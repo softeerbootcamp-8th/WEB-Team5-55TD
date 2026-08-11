@@ -138,8 +138,7 @@ class PointReservationServiceTest {
   }
 
   private Auction createAuction(Long auctionId) {
-    Consignment consignment =
-        Consignment.builder().status(ConsignmentStatus.AUCTION_SCHEDULED).build();
+    Consignment consignment = Consignment.builder().status(ConsignmentStatus.IN_AUCTION).build();
     Auction auction =
         Auction.builder()
             .consignment(consignment)

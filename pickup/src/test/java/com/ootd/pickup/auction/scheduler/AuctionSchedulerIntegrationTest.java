@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.*;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
+import com.ootd.pickup.bid.domain.Bid;
+import com.ootd.pickup.bid.domain.BidStatus;
+import com.ootd.pickup.bid.repository.BidJpaRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -38,6 +41,8 @@ class AuctionSchedulerIntegrationTest {
 
   @Autowired private ConsignmentJpaRepository consignmentJpaRepository;
 
+  @Autowired private BidJpaRepository bidJpaRepository;
+
   @Test
   void 시작_시각이_지난_예정_경매는_진행중으로_전이된다() {
     // given
@@ -48,6 +53,76 @@ class AuctionSchedulerIntegrationTest {
 
     // then
     assertThat(findStatus(due)).isEqualTo(AuctionStatus.ONGOING);
+  }
+
+  @Test
+  void 경매가_시작되어도_위탁_상품_상태는_그대로_유지된다() {
+    // given — 위탁 상품은 경매 신청 시점에 이미 IN_AUCTION으로 전이되어 있다
+    Auction due = createAuction(AuctionStatus.SCHEDULED, past(1), future(1));
+
+    // when
+    auctionScheduler.transitionDueAuctions();
+
+    // then
+    assertThat(findConsignmentStatus(due)).isEqualTo(ConsignmentStatus.IN_AUCTION);
+  }
+
+  @Test
+  void 경매가_낙찰되면_위탁_상품도_판매_완료로_전이된다() {
+    // given
+    Auction due = createAuction(AuctionStatus.ONGOING, past(2), past(1));
+    due.updateWinningBid(777L, RESERVE_PRICE);
+    auctionJpaRepository.saveAndFlush(due);
+
+    // when
+    auctionScheduler.transitionDueAuctions();
+
+    // then
+    assertThat(findConsignmentStatus(due)).isEqualTo(ConsignmentStatus.SOLD);
+  }
+
+  @Test
+  void 경매가_유찰되면_위탁_상품도_재등록_가능_상태로_전이된다() {
+    // given
+    Auction due = createAuction(AuctionStatus.ONGOING, past(2), past(1));
+    due.updateWinningBid(777L, RESERVE_PRICE - 1);
+    auctionJpaRepository.saveAndFlush(due);
+
+    // when
+    auctionScheduler.transitionDueAuctions();
+
+    // then
+    assertThat(findConsignmentStatus(due)).isEqualTo(ConsignmentStatus.REGISTERABLE);
+  }
+
+  @Test
+  void 경매가_낙찰되면_낙찰_입찰의_상태도_WON으로_전이된다() {
+    // given
+    Auction due = createAuction(AuctionStatus.ONGOING, past(2), past(1));
+    Bid winningBid = saveBid(due, RESERVE_PRICE);
+    due.updateWinningBid(winningBid.getBidId(), RESERVE_PRICE);
+    auctionJpaRepository.saveAndFlush(due);
+
+    // when
+    auctionScheduler.transitionDueAuctions();
+
+    // then
+    assertThat(findBidStatus(winningBid)).isEqualTo(BidStatus.WON);
+  }
+
+  @Test
+  void 경매가_유찰되면_입찰의_상태는_바뀌지_않는다() {
+    // given
+    Auction due = createAuction(AuctionStatus.ONGOING, past(2), past(1));
+    Bid outbidBid = saveBid(due, RESERVE_PRICE - 1);
+    due.updateWinningBid(outbidBid.getBidId(), RESERVE_PRICE - 1);
+    auctionJpaRepository.saveAndFlush(due);
+
+    // when
+    auctionScheduler.transitionDueAuctions();
+
+    // then
+    assertThat(findBidStatus(outbidBid)).isEqualTo(BidStatus.HIGHEST);
   }
 
   @Test
@@ -155,6 +230,37 @@ class AuctionSchedulerIntegrationTest {
     return auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow().getAuctionStatus();
   }
 
+  private ConsignmentStatus findConsignmentStatus(Auction auction) {
+    Long consignmentId =
+        auctionJpaRepository
+            .findById(auction.getAuctionId())
+            .orElseThrow()
+            .getConsignment()
+            .getConsignmentId();
+    return consignmentJpaRepository.findById(consignmentId).orElseThrow().getStatus();
+  }
+
+  private BidStatus findBidStatus(Bid bid) {
+    return bidJpaRepository.findById(bid.getBidId()).orElseThrow().getBidStatus();
+  }
+
+  private Bid saveBid(Auction auction, long bidPrice) {
+    String unique = "auction-scheduler-bidder-" + System.nanoTime();
+    Member bidder =
+        memberJpaRepository.save(Member.create(unique, "password", unique + "-nickname"));
+    return bidJpaRepository.save(Bid.create(auction, bidder, bidPrice));
+  }
+
+  /** 위탁 상품 상태는 항상 경매 상태와 짝을 이룬다. 테스트가 만드는 초기 상태도 이 불변조건을 지켜야 한다. */
+  private ConsignmentStatus matchingConsignmentStatus(AuctionStatus auctionStatus) {
+    return switch (auctionStatus) {
+      case SCHEDULED -> ConsignmentStatus.IN_AUCTION;
+      case ONGOING -> ConsignmentStatus.IN_AUCTION;
+      case WON -> ConsignmentStatus.SOLD;
+      case PASSED -> ConsignmentStatus.REGISTERABLE;
+    };
+  }
+
   private Auction createAuction(
       AuctionStatus auctionStatus, LocalDateTime startedAt, LocalDateTime endedAt) {
     String unique = "auction-scheduler-" + System.nanoTime();
@@ -175,7 +281,7 @@ class AuctionSchedulerIntegrationTest {
             Consignment.builder()
                 .card(card)
                 .sellerMember(sellerMember)
-                .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                .status(matchingConsignmentStatus(auctionStatus))
                 .build());
     return auctionJpaRepository.saveAndFlush(
         Auction.builder()

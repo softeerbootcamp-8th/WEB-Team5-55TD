@@ -56,8 +56,7 @@ class AuctionBidUpdatedNotificationEventTest {
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status) {
-    Consignment consignment =
-        Consignment.builder().status(ConsignmentStatus.AUCTION_SCHEDULED).build();
+    Consignment consignment = Consignment.builder().status(ConsignmentStatus.IN_AUCTION).build();
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
         Auction.builder()
