@@ -13,7 +13,6 @@ const auction = {
 };
 
 let onBidUpdated: ((message: Record<string, unknown>) => void) | undefined;
-let onBidRequestFailed: ((message: Record<string, unknown>) => void) | undefined;
 const toastWarning = vi.fn();
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
@@ -75,10 +74,8 @@ vi.mock("@/api/bids", () => ({
 vi.mock("@/hooks/use-auction-bid-updates", () => ({
   useAuctionBidUpdates: (options: {
     onBidUpdated: (message: Record<string, unknown>) => void;
-    onBidRequestFailed: (message: Record<string, unknown>) => void;
   }) => {
     onBidUpdated = options.onBidUpdated;
-    onBidRequestFailed = options.onBidRequestFailed;
   },
 }));
 vi.mock("@/lib/auth", () => ({ useIsAuthenticated: () => true }));
@@ -131,9 +128,7 @@ describe("실시간 경매 추월 알림", () => {
   });
 
   it("내_입찰_요청이_성공하면_성공_토스트를_보여주고_추월_토스트는_뜨지_않는다", async () => {
-    const { Route } = await import(
-      "@/routes/_buyer/auctions/$auctionId/live"
-    );
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
     submitBidRequest("10500");
@@ -156,30 +151,27 @@ describe("실시간 경매 추월 알림", () => {
     expect(toastWarning).not.toHaveBeenCalled();
   });
 
-  it("내_입찰_요청이_실패하면_실패_토스트를_실패_사유와_함께_보여준다", async () => {
-    const { Route } = await import(
-      "@/routes/_buyer/auctions/$auctionId/live"
-    );
+  it("입찰_결과를_받지_못하면_처리중_상태를_해제한다", async () => {
+    vi.useFakeTimers();
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
     submitBidRequest("10500");
 
+    expect(screen.getByRole("button", { name: "처리 중…" })).toBeDisabled();
+
     act(() => {
-      onBidRequestFailed?.({
-        bidRequestId: 42,
-        auctionId: 1,
-        bidPrice: 10500,
-        failureCode: "OUTBID_EXISTS",
-        failureMessage: "이미 더 높은 입찰이 존재합니다.",
-      });
+      vi.advanceTimersByTime(10_000);
     });
 
     expect(toastError).toHaveBeenCalledWith(
-      "입찰 실패",
+      "입찰 결과 확인 지연",
       expect.objectContaining({
-        description: "이미 더 높은 입찰이 존재합니다.",
+        description: expect.stringContaining("입찰 내역을 확인"),
       }),
     );
+    expect(screen.getByRole("button", { name: "입찰하기" })).toBeEnabled();
+    vi.useRealTimers();
   });
 });
 

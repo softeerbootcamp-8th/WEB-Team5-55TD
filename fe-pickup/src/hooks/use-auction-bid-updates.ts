@@ -6,7 +6,6 @@ const INITIAL_RECONNECT_DELAY_MILLIS = 1_000;
 const MAX_RECONNECT_DELAY_MILLIS = 30_000;
 const RECONNECT_JITTER_MILLIS = 1_000;
 const PROCESSED_EVENT_LIMIT = 100;
-const BID_REQUESTS_USER_QUEUE = "/user/queue/bid-requests";
 const AUCTION_STATUSES = new Set(["SCHEDULED", "ONGOING", "WON", "PASSED"]);
 
 export function calculateReconnectDelay(
@@ -43,22 +42,10 @@ export interface AuctionBidUpdatedMessage {
   occurredAt: string;
 }
 
-export interface BidRequestFailedMessage {
-  eventId: string;
-  type: "BID_REQUEST_FAILED";
-  auctionId: number;
-  bidRequestId: number;
-  bidPrice: number;
-  failureCode: string;
-  failureMessage: string;
-  occurredAt: string;
-}
-
 interface UseAuctionBidUpdatesOptions {
   auctionId: string;
   latestBidId?: number;
   onBidUpdated: (message: AuctionBidUpdatedMessage) => void;
-  onBidRequestFailed?: (message: BidRequestFailedMessage) => void;
   onSubscribed: () => void;
 }
 
@@ -113,44 +100,14 @@ function parseMessage(frame: IMessage): AuctionBidUpdatedMessage | null {
   return isValid ? (value as unknown as AuctionBidUpdatedMessage) : null;
 }
 
-function parseBidRequestFailedMessage(frame: IMessage): BidRequestFailedMessage | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(frame.body);
-  } catch {
-    return null;
-  }
-
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const isValid =
-    typeof value.eventId === "string" &&
-    value.eventId.length > 0 &&
-    value.type === "BID_REQUEST_FAILED" &&
-    typeof value.auctionId === "number" &&
-    value.auctionId > 0 &&
-    typeof value.bidRequestId === "number" &&
-    typeof value.bidPrice === "number" &&
-    Number.isFinite(value.bidPrice) &&
-    typeof value.failureCode === "string" &&
-    typeof value.failureMessage === "string" &&
-    typeof value.occurredAt === "string";
-
-  return isValid ? (value as unknown as BidRequestFailedMessage) : null;
-}
-
 export function useAuctionBidUpdates({
   auctionId,
   latestBidId,
   onBidUpdated,
-  onBidRequestFailed,
   onSubscribed,
 }: UseAuctionBidUpdatesOptions) {
   const latestBidIdRef = useRef(latestBidId);
   const onBidUpdatedRef = useRef(onBidUpdated);
-  const onBidRequestFailedRef = useRef(onBidRequestFailed);
   const onSubscribedRef = useRef(onSubscribed);
 
   useEffect(() => {
@@ -169,9 +126,8 @@ export function useAuctionBidUpdates({
 
   useEffect(() => {
     onBidUpdatedRef.current = onBidUpdated;
-    onBidRequestFailedRef.current = onBidRequestFailed;
     onSubscribedRef.current = onSubscribed;
-  }, [onBidUpdated, onBidRequestFailed, onSubscribed]);
+  }, [onBidUpdated, onSubscribed]);
 
   useEffect(() => {
     const processedEventIds = new Set<string>();
@@ -228,40 +184,25 @@ export function useAuctionBidUpdates({
 
     client.onConnect = () => {
       reconnectAttempt = 0;
-      client.subscribe(
-        `/topic/auctions/${auctionId}`,
-        (frame) => {
-          const message = parseMessage(frame);
-          if (!message || String(message.auctionId) !== auctionId) {
-            console.warn("유효하지 않은 경매 WebSocket 메시지를 수신했습니다.");
-            return;
-          }
-          if (!markProcessed(message.eventId)) {
-            return;
-          }
-
-          if (
-            latestBidIdRef.current !== undefined &&
-            message.latestBid.bidId <= latestBidIdRef.current
-          ) {
-            return;
-          }
-
-          latestBidIdRef.current = message.latestBid.bidId;
-          onBidUpdatedRef.current(message);
-        },
-      );
-      // 로그인하지 않은 사용자는 핸드셰이크에서 Principal이 없어 이 구독으로 오는 메시지가 없다.
-      client.subscribe(BID_REQUESTS_USER_QUEUE, (frame) => {
-        const message = parseBidRequestFailedMessage(frame);
-        if (!message) {
-          console.warn("유효하지 않은 입찰 요청 실패 메시지를 수신했습니다.");
+      client.subscribe(`/topic/auctions/${auctionId}`, (frame) => {
+        const message = parseMessage(frame);
+        if (!message || String(message.auctionId) !== auctionId) {
+          console.warn("유효하지 않은 경매 WebSocket 메시지를 수신했습니다.");
           return;
         }
         if (!markProcessed(message.eventId)) {
           return;
         }
-        onBidRequestFailedRef.current?.(message);
+
+        if (
+          latestBidIdRef.current !== undefined &&
+          message.latestBid.bidId <= latestBidIdRef.current
+        ) {
+          return;
+        }
+
+        latestBidIdRef.current = message.latestBid.bidId;
+        onBidUpdatedRef.current(message);
       });
       onSubscribedRef.current();
     };
