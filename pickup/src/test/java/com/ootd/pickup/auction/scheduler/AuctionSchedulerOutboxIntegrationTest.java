@@ -229,7 +229,7 @@ class AuctionSchedulerOutboxIntegrationTest {
                 .cardNumber(unique)
                 .setName("Outbox 적재 테스트 세트")
                 .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
+                .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/outbox.png")
                 .build());
     Consignment consignment =

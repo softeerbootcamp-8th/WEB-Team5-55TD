@@ -79,7 +79,7 @@ public interface ConsignmentApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberId": 1,
@@ -151,7 +151,7 @@ public interface ConsignmentApi {
                                     "setName": "Base Set",
                                     "cardNumber": "4/102",
                                     "language": "일본어",
-                                    "rarity": "MINT",
+                                    "rarity": "레어 홀로",
                                     "imageUrl": "https://example.com/cards/10.png"
                                   },
                                   "sellerMemberId": 1,
@@ -205,7 +205,7 @@ public interface ConsignmentApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberNickname": "피카츄",
@@ -290,7 +290,7 @@ public interface ConsignmentApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberNickname": "피카츄",

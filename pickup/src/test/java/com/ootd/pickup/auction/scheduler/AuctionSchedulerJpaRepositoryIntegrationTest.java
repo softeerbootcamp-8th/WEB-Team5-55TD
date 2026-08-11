@@ -268,7 +268,7 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
                 .cardNumber(unique)
                 .setName("스케줄러 테스트 세트")
                 .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
+                .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/scheduler.png")
                 .build());
     Consignment consignment =

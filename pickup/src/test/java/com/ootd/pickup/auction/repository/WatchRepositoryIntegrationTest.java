@@ -230,7 +230,7 @@ class WatchRepositoryIntegrationTest {
                 .cardNumber(cardName)
                 .setName("관심 테스트 세트")
                 .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
+                .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/watch.png")
                 .build());
     Consignment consignment =
