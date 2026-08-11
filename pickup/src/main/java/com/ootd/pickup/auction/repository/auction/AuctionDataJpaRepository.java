@@ -220,7 +220,8 @@ public class AuctionDataJpaRepository implements AuctionRepository {
     }
 
     // 재신청 시 같은 위탁 상품에 새 경매가 또 생성되므로, 위탁 상품 하나에 경매가 여러 건 연결될 수 있다.
-    // 그중 가장 최근(auctionId가 가장 큰) 경매 하나만 대표로 남긴다.
+    // 그중 가장 최근(auctionId가 가장 큰) 경매 하나만 대표로 남긴다. 위탁 상품별 최댓값을 서브쿼리로 먼저
+    // 구해 그 auctionId만 조인하면, 상품당 과거 경매를 전부 내려받아 애플리케이션에서 추리지 않아도 된다.
     List<Tuple> rows =
         queryFactory
             .select(
@@ -230,8 +231,12 @@ public class AuctionDataJpaRepository implements AuctionRepository {
                 auction.startedAt,
                 auction.endedAt)
             .from(auction)
-            .where(auction.consignment.in(consignments))
-            .orderBy(auction.auctionId.desc())
+            .where(
+                auction.auctionId.in(
+                    JPAExpressions.select(auction.auctionId.max())
+                        .from(auction)
+                        .where(auction.consignment.in(consignments))
+                        .groupBy(auction.consignment.consignmentId)))
             .fetch();
 
     return rows.stream()
@@ -243,8 +248,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
                         row.get(auction.auctionId),
                         row.get(auction.auctionStatus),
                         row.get(auction.startedAt),
-                        row.get(auction.endedAt)),
-                (first, second) -> first));
+                        row.get(auction.endedAt))));
   }
 
   @Override
