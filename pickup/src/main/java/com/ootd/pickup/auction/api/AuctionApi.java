@@ -25,7 +25,7 @@ public interface AuctionApi {
       description =
           """
             위탁상품에 대한 경매 개최를 신청합니다. 신청이 접수되면 경매 상태는
-            SCHEDULED(예정)로 생성되고, 위탁상품 상태는 AUCTION_SCHEDULED로 전환됩니다.
+            SCHEDULED(예정)로 생성되고, 위탁상품 상태는 IN_AUCTION으로 전환됩니다.
             bidIncrement(입찰 단위)는 시작가의 5%로 시스템이 결정합니다.
             """,
       requestBody =

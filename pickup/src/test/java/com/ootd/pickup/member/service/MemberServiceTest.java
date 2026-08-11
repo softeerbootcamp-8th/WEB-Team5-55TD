@@ -373,8 +373,6 @@ class MemberServiceTest {
     Certificate certificate = createCertificate(consignment, Grade.MINT, CertificationBody.PSA);
 
     given(bidRepository.findLastBidsByMemberId(1L, null, 21)).willReturn(List.of(lastBid));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
-        .willReturn(Map.of(10L, 11_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L)))
         .willReturn(List.of(certificate));
 
@@ -404,11 +402,11 @@ class MemberServiceTest {
     Card card = createCard();
     Consignment consignment = createConsignment(2L, card);
     Auction auction = createAuction(10L, consignment, AuctionStatus.ONGOING, 10_000L);
+    // 내 입찰(100L) 대신 다른 회원의 입찰(999L)이 현재 최고가로 등록된 상태를 시뮬레이션한다.
+    auction.updateWinningBid(999L, 12_000L);
     Bid lastBid = createBid(auction, member, 11_000L, BidStatus.OUTBID, 100L);
 
     given(bidRepository.findLastBidsByMemberId(1L, null, 21)).willReturn(List.of(lastBid));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
-        .willReturn(Map.of(10L, 12_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
 
     // when
@@ -435,8 +433,6 @@ class MemberServiceTest {
     Bid bidB = createBid(auctionB, member, 21_000L, BidStatus.HIGHEST, 100L);
 
     given(bidRepository.findLastBidsByMemberId(1L, null, 2)).willReturn(List.of(bidA, bidB));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
-        .willReturn(Map.of(10L, 11_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
 
     // when
@@ -484,8 +480,6 @@ class MemberServiceTest {
     Certificate certificate = createCertificate(consignment, Grade.NM, CertificationBody.CGC);
 
     given(bidRepository.findWonBidsByMemberId(1L, null, 21)).willReturn(List.of(wonBid));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(11L)))
-        .willReturn(Map.of(11L, 330_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L)))
         .willReturn(List.of(certificate));
 
@@ -516,8 +510,6 @@ class MemberServiceTest {
     Bid bidB = createBid(auctionB, member, 21_000L, BidStatus.WON, 100L);
 
     given(bidRepository.findWonBidsByMemberId(1L, null, 2)).willReturn(List.of(bidA, bidB));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
-        .willReturn(Map.of(10L, 11_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
 
     // when
@@ -702,7 +694,7 @@ class MemberServiceTest {
         Consignment.builder()
             .card(card)
             .sellerMember(createMember(999L))
-            .status(ConsignmentStatus.AUCTION_ONGOING)
+            .status(ConsignmentStatus.IN_AUCTION)
             .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", consignmentId);
     return consignment;
@@ -724,16 +716,18 @@ class MemberServiceTest {
     return auction;
   }
 
+  /**
+   * bidStatus는 저장된 값이 아니라 auction.winningBidId/auctionStatus로 계산된다({@link Bid#getBidStatus()}).
+   * HIGHEST/WON을 시뮬레이션하려면 이 Bid를 Auction의 winningBid로 지정해야 하고, OUTBID는 그냥 지정하지 않으면(다른 누군가가
+   * winningBid로 남아 있으면) 자연히 성립한다.
+   */
   private Bid createBid(
       Auction auction, Member member, Long bidPrice, BidStatus bidStatus, Long bidId) {
     Bid bid = Bid.create(auction, member, bidPrice);
-    if (bidStatus == BidStatus.OUTBID) {
-      bid.outbid();
-    } else if (bidStatus == BidStatus.WON) {
-      // Bid 도메인에 WON 전환 뮤테이터가 아직 없어(경매 종료 배치 미구현) 테스트에서 직접 필드를 설정한다.
-      ReflectionTestUtils.setField(bid, "bidStatus", BidStatus.WON);
-    }
     ReflectionTestUtils.setField(bid, "bidId", bidId);
+    if (bidStatus != BidStatus.OUTBID) {
+      auction.updateWinningBid(bidId, bidPrice);
+    }
     return bid;
   }
 

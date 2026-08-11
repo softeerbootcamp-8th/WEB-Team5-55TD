@@ -213,23 +213,38 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   }
 
   @Override
-  public Map<Long, Long> findAuctionIdsByConsignmentIn(List<Consignment> consignments) {
+  public Map<Long, AuctionSummary> findAuctionSummariesByConsignmentIn(
+      List<Consignment> consignments) {
     if (consignments.isEmpty()) {
       return Map.of();
     }
 
+    // 재신청 시 같은 위탁 상품에 새 경매가 또 생성되므로, 위탁 상품 하나에 경매가 여러 건 연결될 수 있다.
+    // 그중 가장 최근(auctionId가 가장 큰) 경매 하나만 대표로 남긴다.
     List<Tuple> rows =
         queryFactory
-            .select(auction.consignment.consignmentId, auction.auctionId)
+            .select(
+                auction.consignment.consignmentId,
+                auction.auctionId,
+                auction.auctionStatus,
+                auction.startedAt,
+                auction.endedAt)
             .from(auction)
             .where(auction.consignment.in(consignments))
+            .orderBy(auction.auctionId.desc())
             .fetch();
 
     return rows.stream()
         .collect(
             Collectors.toMap(
                 row -> row.get(auction.consignment.consignmentId),
-                row -> row.get(auction.auctionId)));
+                row ->
+                    new AuctionSummary(
+                        row.get(auction.auctionId),
+                        row.get(auction.auctionStatus),
+                        row.get(auction.startedAt),
+                        row.get(auction.endedAt)),
+                (first, second) -> first));
   }
 
   @Override
