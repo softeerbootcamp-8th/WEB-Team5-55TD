@@ -182,6 +182,34 @@ class AuctionServiceTest {
   }
 
   @Test
+  void 시작가가_너무_커서_최소_다음_입찰가_계산이_Long_범위를_넘으면_예외가_발생한다() {
+    // given
+    Long memberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, memberId, ConsignmentStatus.REGISTERABLE, null);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            consignmentId,
+            9_223_372_036_000_000_000L,
+            9_223_372_036_000_000_000L,
+            LocalDateTime.now().plusDays(1));
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            e ->
+                assertThat(((PickUpException) e).getMessage())
+                    .isEqualTo(ExceptionCode.STARTING_PRICE_TOO_LARGE.getMessage()));
+    assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.REGISTERABLE);
+    then(auctionRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
   void limit이_있으면_커서_없이_상위_N개만_반환한다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
@@ -635,6 +663,37 @@ class AuctionServiceTest {
     // then
     assertThat(response.currentPrice()).isEqualTo(12000L);
     assertThat(response.nextMinBid()).isEqualTo(12500L);
+  }
+
+  @Test
+  void 현재가와_최소_입찰_단위를_더했을_때_Long_범위를_넘으면_예외가_발생한다() {
+    // given
+    // startingPrice에 상한이 없어 이런 값도 등록 자체는 막히지 않는다. 조용히 음수로
+    // 랩어라운드된 nextMinBid를 200으로 내려보내는 대신, addExact가 던지는 예외로
+    // 드러나야 한다.
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction auction =
+        Auction.builder()
+            .consignment(consignment)
+            .startedAt(LocalDateTime.now().minusHours(1))
+            .endedAt(LocalDateTime.now().plusHours(1))
+            .auctionStatus(AuctionStatus.ONGOING)
+            .startingPrice(9_223_372_036_000_000_000L)
+            .reservePrice(9_223_372_036_000_000_000L)
+            .bidIncrement(461_168_601_800_000_000L)
+            .build();
+    ReflectionTestUtils.setField(auction, "auctionId", 1L);
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of());
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.getAuctionDetail(null, 1L))
+        .isInstanceOf(ArithmeticException.class);
   }
 
   @Test

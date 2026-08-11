@@ -2,6 +2,7 @@ package com.ootd.pickup.global.handler;
 
 import com.ootd.pickup.global.exception.ClientExceptionCode;
 import com.ootd.pickup.global.exception.ExceptionResponseFactory;
+import com.ootd.pickup.global.exception.JacksonFieldPathResolver;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
 import com.ootd.pickup.global.slack.ErrorRequestContext;
@@ -70,6 +71,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     if (message.isBlank()) {
       message = "유효하지 않은 입력입니다.";
     }
+    return handleExceptionInternal(e, message, headers, status, request);
+  }
+
+  /**
+   * {@code @ExceptionHandler(HttpMessageNotReadableException.class)}을 새로 선언하면 {@link
+   * ResponseEntityExceptionHandler#handleException}도 같은 타입을 처리해 "Ambiguous @ExceptionHandler" 예외로
+   * 기동이 실패한다. 그 대신 이 예외 전용으로 이미 열려 있는 protected 훅을 재정의해, 어느 필드에서 읽기가 실패했는지 {@link
+   * JacksonFieldPathResolver}로 짚어내고 {@link #handleExceptionInternal}의 일반 메시지보다 구체적인 안내를 준다.
+   */
+  @Override
+  protected ResponseEntity<Object> handleHttpMessageNotReadable(
+      HttpMessageNotReadableException e,
+      HttpHeaders headers,
+      HttpStatusCode status,
+      WebRequest request) {
+    String invalidField = JacksonFieldPathResolver.resolve(e);
+    log.warn("요청 본문을 읽을 수 없음 - path={}, field={}", resolvePath(request), invalidField, e);
+
+    String message =
+        invalidField == null
+            ? "요청 본문 형식이 올바르지 않습니다. 입력값을 확인해주세요."
+            : "요청 필드 '%s' 값이 올바르지 않습니다. 입력값을 확인해주세요.".formatted(invalidField);
+
     return handleExceptionInternal(e, message, headers, status, request);
   }
 
