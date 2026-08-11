@@ -75,11 +75,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   }
 
   /**
-   * {@code @ExceptionHandler(HttpMessageNotReadableException.class)}을 새로 선언하면
-   * {@link ResponseEntityExceptionHandler#handleException}도 같은 타입을 처리해 "Ambiguous
-   * @ExceptionHandler" 예외로 기동이 실패한다. 그 대신 이 예외 전용으로 이미 열려 있는 protected 훅을
-   * 재정의해, 어느 필드에서 읽기가 실패했는지 {@link JacksonFieldPathResolver}로 짚어내고 {@link
-   * #handleExceptionInternal}의 일반 메시지보다 구체적인 안내를 준다.
+   * {@code @ExceptionHandler(HttpMessageNotReadableException.class)}을 새로 선언하면 {@link
+   * ResponseEntityExceptionHandler#handleException}도 같은 타입을 처리해 "Ambiguous @ExceptionHandler" 예외로
+   * 기동이 실패한다. 그 대신 이 예외 전용으로 이미 열려 있는 protected 훅을 재정의해, 어느 필드에서 읽기가 실패했는지 {@link
+   * JacksonFieldPathResolver}로 짚어내고 {@link #handleExceptionInternal}의 일반 메시지보다 구체적인 안내를 준다.
    */
   @Override
   protected ResponseEntity<Object> handleHttpMessageNotReadable(
