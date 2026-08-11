@@ -41,17 +41,19 @@ import {
 import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
 import { formatWon } from "@/lib/format";
 import { AuctionStatus } from "@/lib/types";
+import {
+  mergeLatestBid,
+  type AuctionBidsSnapshot,
+} from "@/lib/auction-live-state";
 
 const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
-const HIDDEN_POLLING_INTERVAL_MILLIS = 60_000;
 const POLLING_JITTER_MILLIS = 3_000;
 
 function pollingInterval() {
-  const baseInterval =
-    document.visibilityState === "hidden"
-      ? HIDDEN_POLLING_INTERVAL_MILLIS
-      : ACTIVE_POLLING_INTERVAL_MILLIS;
-  return baseInterval + Math.floor(Math.random() * POLLING_JITTER_MILLIS);
+  return (
+    ACTIVE_POLLING_INTERVAL_MILLIS +
+    Math.floor(Math.random() * POLLING_JITTER_MILLIS)
+  );
 }
 
 function laterEndTime(
@@ -96,10 +98,11 @@ function LiveAuctionPage() {
     initialData: initialAuction,
     staleTime: 0,
     refetchInterval: (query) =>
-      query.state.data?.status === AuctionStatus.LIVE
+      query.state.data?.status === AuctionStatus.LIVE &&
+      document.visibilityState !== "hidden"
         ? pollingInterval()
         : false,
-    refetchIntervalInBackground: true,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
   const auction = auctionQuery.data;
@@ -144,8 +147,11 @@ function LiveAuctionPage() {
     queryFn: () => getAuctionBids(auction.id, { size: BID_PREVIEW_SIZE }),
     staleTime: 0,
     refetchInterval: () =>
-      auction.status === AuctionStatus.LIVE ? pollingInterval() : false,
-    refetchIntervalInBackground: true,
+      auction.status === AuctionStatus.LIVE &&
+      document.visibilityState !== "hidden"
+        ? pollingInterval()
+        : false,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
   const allBidsQuery = useQuery({
@@ -159,9 +165,7 @@ function LiveAuctionPage() {
 
   // 실시간 화면에서 추월당했는지 판단하려면 "내가 최고 입찰자였는지"를 알아야 한다.
   // 페이지를 새로 열었을 때는 입찰 내역에서, 직접 입찰했을 때는 그 결과에서 채운다.
-  const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(
-    null,
-  );
+  const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(null);
   const topPreviewBid = previewBidsQuery.data?.items[0];
   useEffect(() => {
     if (topPreviewBid?.isMine) {
@@ -180,6 +184,18 @@ function LiveAuctionPage() {
       queryKey: ["auction-bids", auction.id],
     });
   }, [auction.id, queryClient]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshSnapshot();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [refreshSnapshot]);
 
   const applyBidUpdate = useCallback(
     (message: AuctionBidUpdatedMessage) => {
@@ -206,9 +222,18 @@ function LiveAuctionPage() {
             ? laterEndTime(current.endsAt, message.endedAt)
             : (message.endedAt ?? undefined),
       }));
-      void queryClient.invalidateQueries({
-        queryKey: ["auction-bids", auction.id],
-      });
+
+      const isMine = myHighestBid?.bidId === message.latestBid.bidId;
+      queryClient.setQueryData<AuctionBidsSnapshot | undefined>(
+        ["auction-bids", auction.id, "preview"],
+        (snapshot) =>
+          mergeLatestBid(snapshot, message.latestBid, isMine, BID_PREVIEW_SIZE),
+      );
+      queryClient.setQueryData<AuctionBidsSnapshot | undefined>(
+        ["auction-bids", auction.id, "all"],
+        (snapshot) =>
+          mergeLatestBid(snapshot, message.latestBid, isMine, BID_MODAL_SIZE),
+      );
     },
     [auction.id, queryClient],
   );
@@ -237,7 +262,10 @@ function LiveAuctionPage() {
     setConfirmOpen(false);
     bidMutation.mutate(parsedAmount, {
       onSuccess: (placed) => {
-        myHighestBidRef.current = { bidId: placed.bidId, price: placed.bidPrice };
+        myHighestBidRef.current = {
+          bidId: placed.bidId,
+          price: placed.bidPrice,
+        };
         queryClient.invalidateQueries({
           queryKey: ["auction-bids", auction.id],
         });
