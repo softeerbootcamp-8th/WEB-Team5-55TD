@@ -15,13 +15,14 @@ import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
-import com.ootd.pickup.auth.repository.RefreshTokenRepository;
+import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
 import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
+import com.ootd.pickup.bid.service.BidService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -31,8 +32,8 @@ import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
-import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.service.ImageUrlResolver;
@@ -87,9 +88,11 @@ class MemberServiceTest {
 
   @Mock private ConsignmentImageRepository consignmentImageRepository;
 
-  @Mock private ConsignmentRepository consignmentRepository;
+  @Mock private ConsignmentService consignmentService;
 
-  @Mock private RefreshTokenRepository refreshTokenRepository;
+  @Mock private BidService bidService;
+
+  @Mock private AuthService authService;
 
   @InjectMocks private MemberService memberService;
 
@@ -680,8 +683,8 @@ class MemberServiceTest {
     Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
     writeMemberId(member, 1L);
     given(memberManageService.getMemberById(1L)).willReturn(member);
-    given(consignmentRepository.existsBySellerMemberIdAndStatusIn(eq(1L), any())).willReturn(false);
-    given(bidRepository.existsByMemberIdAndBidStatus(1L, BidStatus.HIGHEST)).willReturn(false);
+    given(consignmentService.hasActiveConsignment(1L)).willReturn(false);
+    given(bidService.hasActiveBid(1L)).willReturn(false);
 
     // when
     memberService.withdrawMember(1L, new WithdrawMemberRequest(password));
@@ -690,7 +693,7 @@ class MemberServiceTest {
     assertThat(member.isWithdrawn()).isTrue();
     assertThat(member.getLoginId()).isNull();
     assertThat(readPasswordHash(member)).isNull();
-    then(refreshTokenRepository).should().deleteByMemberId(1L);
+    then(authService).should().revokeAllRefreshTokens(1L);
   }
 
   @Test
@@ -706,9 +709,9 @@ class MemberServiceTest {
         .isInstanceOf(PickUpException.class)
         .hasMessage("비밀번호가 일치하지 않습니다.");
     assertThat(member.isWithdrawn()).isFalse();
-    then(consignmentRepository).shouldHaveNoInteractions();
-    then(bidRepository).shouldHaveNoInteractions();
-    then(refreshTokenRepository).shouldHaveNoInteractions();
+    then(consignmentService).shouldHaveNoInteractions();
+    then(bidService).shouldHaveNoInteractions();
+    then(authService).shouldHaveNoInteractions();
   }
 
   @Test
@@ -724,7 +727,7 @@ class MemberServiceTest {
     assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
         .isInstanceOf(PickUpException.class)
         .hasMessage("이미 탈퇴한 회원입니다.");
-    then(refreshTokenRepository).shouldHaveNoInteractions();
+    then(authService).shouldHaveNoInteractions();
   }
 
   @Test
@@ -734,15 +737,15 @@ class MemberServiceTest {
     Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
     writeMemberId(member, 1L);
     given(memberManageService.getMemberById(1L)).willReturn(member);
-    given(consignmentRepository.existsBySellerMemberIdAndStatusIn(eq(1L), any())).willReturn(true);
+    given(consignmentService.hasActiveConsignment(1L)).willReturn(true);
 
     // when & then
     assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
         .isInstanceOf(PickUpException.class)
         .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
     assertThat(member.isWithdrawn()).isFalse();
-    then(bidRepository).shouldHaveNoInteractions();
-    then(refreshTokenRepository).shouldHaveNoInteractions();
+    then(bidService).shouldHaveNoInteractions();
+    then(authService).shouldHaveNoInteractions();
   }
 
   @Test
@@ -752,15 +755,15 @@ class MemberServiceTest {
     Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
     writeMemberId(member, 1L);
     given(memberManageService.getMemberById(1L)).willReturn(member);
-    given(consignmentRepository.existsBySellerMemberIdAndStatusIn(eq(1L), any())).willReturn(false);
-    given(bidRepository.existsByMemberIdAndBidStatus(1L, BidStatus.HIGHEST)).willReturn(true);
+    given(consignmentService.hasActiveConsignment(1L)).willReturn(false);
+    given(bidService.hasActiveBid(1L)).willReturn(true);
 
     // when & then
     assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
         .isInstanceOf(PickUpException.class)
         .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
     assertThat(member.isWithdrawn()).isFalse();
-    then(refreshTokenRepository).shouldHaveNoInteractions();
+    then(authService).shouldHaveNoInteractions();
   }
 
   private Watch createWatch(Long watchId, Member member, Auction auction) {

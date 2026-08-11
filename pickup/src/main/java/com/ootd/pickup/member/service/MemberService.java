@@ -15,19 +15,18 @@ import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
-import com.ootd.pickup.auth.repository.RefreshTokenRepository;
+import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.bid.domain.Bid;
-import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
 import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
+import com.ootd.pickup.bid.service.BidService;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
-import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
-import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.service.ImageUrlResolver;
@@ -69,8 +68,9 @@ public class MemberService {
   private final CertificateRepository certificateRepository;
   private final WatchRepository watchRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
-  private final ConsignmentRepository consignmentRepository;
-  private final RefreshTokenRepository refreshTokenRepository;
+  private final ConsignmentService consignmentService;
+  private final BidService bidService;
+  private final AuthService authService;
 
   public MemberResponse createMember(MemberRequest memberRequest) {
     if (memberRepository.existsByLoginId(memberRequest.loginId())) {
@@ -322,24 +322,13 @@ public class MemberService {
     if (!member.isPasswordMatched(withdrawMemberRequest.password())) {
       throw new PickUpException(INVALID_PASSWORD);
     }
-    if (hasActiveConsignment(memberId) || hasActiveBid(memberId)) {
+    if (consignmentService.hasActiveConsignment(memberId) || bidService.hasActiveBid(memberId)) {
       throw new PickUpException(MEMBER_WITHDRAW_NOT_ALLOWED);
     }
 
     member.withdraw();
-    refreshTokenRepository.deleteByMemberId(memberId);
+    authService.revokeAllRefreshTokens(memberId);
     log.info("회원이 탈퇴했습니다 - memberId={}", memberId);
-  }
-
-  /** 경매가 예정/진행 중인 상품을 셀러로 등록해 두면, 탈퇴 후 그 경매를 아무도 관리할 수 없게 되므로 탈퇴를 막는다. */
-  private boolean hasActiveConsignment(Long memberId) {
-    return consignmentRepository.existsBySellerMemberIdAndStatusIn(
-        memberId, ConsignmentStatus.activeInAuctionStatuses());
-  }
-
-  /** 최고 입찰자인 상태로 탈퇴하면 경매가 종료돼도 낙찰자에게 연락할 수 없게 되므로 탈퇴를 막는다. */
-  private boolean hasActiveBid(Long memberId) {
-    return bidRepository.existsByMemberIdAndBidStatus(memberId, BidStatus.HIGHEST);
   }
 
   public record ProfileUpdateResult(MyProfileResponse response, String previousObjectKey) {}
