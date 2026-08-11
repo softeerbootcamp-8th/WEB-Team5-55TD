@@ -70,6 +70,6 @@ public class Consignment {
     if (this.status != REGISTERABLE) {
       throw new PickUpException(CONSIGNMENT_NOT_REGISTERABLE);
     }
-    this.status = AUCTION_SCHEDULED;
+    this.status = IN_AUCTION;
   }
 }

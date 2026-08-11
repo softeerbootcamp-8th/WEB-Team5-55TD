@@ -8,6 +8,7 @@ import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
 import com.ootd.pickup.auction.repository.watch.WatchJpaRepository;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.auction.repository.watch.WatchSummary;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -19,6 +20,7 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -83,6 +85,50 @@ class WatchRepositoryIntegrationTest {
         .containsExactlyInAnyOrder(
             tuple(firstMember.getMemberId(), secondAuction.getAuctionId()),
             tuple(secondMember.getMemberId(), firstAuction.getAuctionId()));
+  }
+
+  @Test
+  void 관심요약조회는_경매별_전체수와_조회자_본인의_관심여부를_한번에_반환한다() {
+    // given
+    Member viewer = createMember("watch-summary-viewer");
+    Member other = createMember("watch-summary-other");
+    Auction watchedByViewer = createAuction(viewer, "조회자가 관심등록한 카드");
+    Auction watchedByOther = createAuction(viewer, "다른 회원만 관심등록한 카드");
+    Auction notWatched = createAuction(viewer, "관심없는 카드");
+    watchJpaRepository.save(Watch.builder().member(viewer).auction(watchedByViewer).build());
+    watchJpaRepository.save(Watch.builder().member(other).auction(watchedByViewer).build());
+    watchJpaRepository.save(Watch.builder().member(other).auction(watchedByOther).build());
+    watchJpaRepository.flush();
+
+    // when
+    Map<Long, WatchSummary> summaries =
+        watchRepository.findWatchSummariesByAuctionIds(
+            viewer.getMemberId(),
+            List.of(
+                watchedByViewer.getAuctionId(),
+                watchedByOther.getAuctionId(),
+                notWatched.getAuctionId()));
+
+    // then
+    assertThat(summaries.get(watchedByViewer.getAuctionId())).isEqualTo(new WatchSummary(2L, true));
+    assertThat(summaries.get(watchedByOther.getAuctionId())).isEqualTo(new WatchSummary(1L, false));
+    assertThat(summaries).doesNotContainKey(notWatched.getAuctionId());
+  }
+
+  @Test
+  void 관심요약조회는_비로그인_조회자면_본인관심여부가_항상_false다() {
+    // given
+    Member other = createMember("watch-summary-anonymous-other");
+    Auction auction = createAuction(other, "비로그인 관심요약 카드");
+    watchJpaRepository.save(Watch.builder().member(other).auction(auction).build());
+    watchJpaRepository.flush();
+
+    // when
+    Map<Long, WatchSummary> summaries =
+        watchRepository.findWatchSummariesByAuctionIds(null, List.of(auction.getAuctionId()));
+
+    // then
+    assertThat(summaries.get(auction.getAuctionId())).isEqualTo(new WatchSummary(1L, false));
   }
 
   @Test
@@ -192,7 +238,7 @@ class WatchRepositoryIntegrationTest {
             Consignment.builder()
                 .card(card)
                 .sellerMember(sellerMember)
-                .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                .status(ConsignmentStatus.IN_AUCTION)
                 .build());
     return auctionJpaRepository.save(
         Auction.builder()

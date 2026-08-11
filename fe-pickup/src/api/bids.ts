@@ -6,6 +6,10 @@ import { axiosInstance } from "@/api/mutator/custom-instance";
 type BidStatus = "HIGHEST" | "OUTBID" | "WON";
 type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
+/** 입찰 내역 미리보기(최근 N건) / 전체보기 모달에서 공통으로 쓰는 조회 크기. */
+export const BID_PREVIEW_SIZE = 6;
+export const BID_MODAL_SIZE = 100;
+
 export interface PlacedBid {
   bidId: number;
   auctionId: number;
@@ -121,11 +125,7 @@ function parseGrade(value?: string | null): Grade | undefined {
   return { agency: agency as Grade["agency"], score: score.join(" ") };
 }
 
-/**
- * 경매가 이미 종료된 뒤에는 OUTBID를 "추월됨"이 아니라 "미낙찰"로 보여준다.
- * 백엔드가 아직 경매 종료 시 낙찰 입찰을 WON으로 전환하는 배치를 구현하지 않아
- * 실제로는 status에 WON이 관측되지 않지만, 화면은 계약된 값을 그대로 대비한다.
- */
+/** 경매가 이미 종료된 뒤에는 OUTBID를 "추월됨"이 아니라 "미낙찰"로 보여준다. */
 function toUiBidStatus(
   status: BidStatus,
   auctionStatus: ApiAuctionStatus,
