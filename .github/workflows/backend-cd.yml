@@ -526,6 +526,8 @@ jobs:
           TEST_AUCTION_IDS: 37,32
           TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
           TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
+          TEST_INITIAL_BID_PRICE: 500000
+          TEST_BID_INCREMENT: 10000
         run: |
           k6 run --summary-export=pickup/load-test/results/bid-websocket-e2e.json \
             pickup/load-test/k6/bid-websocket-e2e.js
