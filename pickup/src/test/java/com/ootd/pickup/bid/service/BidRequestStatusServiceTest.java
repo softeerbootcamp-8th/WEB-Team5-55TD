@@ -63,7 +63,8 @@ class BidRequestStatusServiceTest {
 
     // then
     assertThat(bidRequest.getStatus()).isEqualTo(BidRequestStatus.FAILED);
-    assertThat(bidRequest.getFailureCode()).isEqualTo(OUTBID_EXISTS.getClientExceptionCode().name());
+    assertThat(bidRequest.getFailureCode())
+        .isEqualTo(OUTBID_EXISTS.getClientExceptionCode().name());
 
     ArgumentCaptor<BidRequestFailedNotificationEvent> eventCaptor =
         ArgumentCaptor.forClass(BidRequestFailedNotificationEvent.class);

@@ -75,8 +75,7 @@ class BidRequestSucceededPublisherTest {
     BidRequestSucceededNotificationEvent event = createEvent();
     willThrow(new IllegalStateException("broker unavailable"))
         .given(messagingTemplate)
-        .convertAndSend(
-            eq("/topic/auctions/42"), eq(BidRequestSucceededMessage.fromEvent(event)));
+        .convertAndSend(eq("/topic/auctions/42"), eq(BidRequestSucceededMessage.fromEvent(event)));
 
     assertThatThrownBy(() -> publisher.publish(event)).isInstanceOf(IllegalStateException.class);
     assertThat(brokerPublishCount("failure")).isEqualTo(1);

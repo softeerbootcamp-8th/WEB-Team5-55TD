@@ -31,7 +31,8 @@ public class BidRequestService {
   public CreateBidRequestResponse createBidRequest(Long auctionId, Long memberId, Long bidPrice) {
     auctionRepository.findById(auctionId).orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
 
-    BidRequest bidRequest = bidRequestRepository.save(BidRequest.create(auctionId, memberId, bidPrice));
+    BidRequest bidRequest =
+        bidRequestRepository.save(BidRequest.create(auctionId, memberId, bidPrice));
     eventProducer.produce(BidRequestCreatedMessageQueueEvent.fromEntity(bidRequest));
 
     return CreateBidRequestResponse.from(bidRequest);

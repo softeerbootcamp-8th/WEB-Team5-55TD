@@ -38,7 +38,8 @@ class BidRequestServiceTest {
 
   @BeforeEach
   void setUp() {
-    bidRequestService = new BidRequestService(auctionRepository, bidRequestRepository, eventProducer);
+    bidRequestService =
+        new BidRequestService(auctionRepository, bidRequestRepository, eventProducer);
   }
 
   @Test

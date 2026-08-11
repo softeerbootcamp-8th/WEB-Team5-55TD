@@ -60,7 +60,8 @@ class BidRequestFailedPublisherTest {
     BidRequestFailedNotificationEvent event = createEvent();
     willThrow(new IllegalStateException("broker unavailable"))
         .given(messagingTemplate)
-        .convertAndSendToUser(eq("2"), eq("/queue/bid-requests"), eq(BidRequestFailedMessage.fromEvent(event)));
+        .convertAndSendToUser(
+            eq("2"), eq("/queue/bid-requests"), eq(BidRequestFailedMessage.fromEvent(event)));
 
     // when & then
     assertThatThrownBy(() -> publisher.publish(event)).isInstanceOf(IllegalStateException.class);
@@ -68,6 +69,13 @@ class BidRequestFailedPublisherTest {
 
   private BidRequestFailedNotificationEvent createEvent() {
     return new BidRequestFailedNotificationEvent(
-        "event-id", 1L, 2L, 10L, 10_500L, "OUTBID_EXISTS", "이미 더 높은 입찰이 존재합니다.", LocalDateTime.now());
+        "event-id",
+        1L,
+        2L,
+        10L,
+        10_500L,
+        "OUTBID_EXISTS",
+        "이미 더 높은 입찰이 존재합니다.",
+        LocalDateTime.now());
   }
 }

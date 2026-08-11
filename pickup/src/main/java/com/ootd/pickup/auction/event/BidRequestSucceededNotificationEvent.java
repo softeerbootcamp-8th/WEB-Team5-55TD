@@ -16,9 +16,8 @@ import java.util.UUID;
  * <p>구독 중인 모든 App 서버가 각자 WebSocket 세션에 전달해야 하므로 {@link NotificationEvent}로 분류한다. 유실이 허용되며 Outbox를
  * 거치지 않고 Redis Pub/Sub으로 즉시 발행된다.
  *
- * <p>{@link #bidRequestId()}는 비동기 입찰 요청(POST .../bid-requests)을 통해 처리된 경우에만 값이 있다. 기존 동기
- * 엔드포인트(POST .../bids)를 통한 입찰은 이 값이 {@code null}이며, 요청자 본인은 이미 REST 응답으로 결과를 알기 때문에 화면에서 별도 처리가
- * 필요 없다.
+ * <p>{@link #bidRequestId()}는 비동기 입찰 요청(POST .../bid-requests)을 통해 처리된 경우에만 값이 있다. 기존 동기 엔드포인트(POST
+ * .../bids)를 통한 입찰은 이 값이 {@code null}이며, 요청자 본인은 이미 REST 응답으로 결과를 알기 때문에 화면에서 별도 처리가 필요 없다.
  */
 public record BidRequestSucceededNotificationEvent(
     String eventId,

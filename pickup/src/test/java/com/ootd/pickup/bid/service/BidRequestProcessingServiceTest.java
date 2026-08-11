@@ -10,7 +10,6 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 import com.ootd.pickup.bid.domain.BidRequest;
-import com.ootd.pickup.bid.domain.BidRequestStatus;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
 import com.ootd.pickup.bid.event.BidRequestCreatedMessageQueueEvent;
 import com.ootd.pickup.bid.repository.BidRequestRepository;

@@ -23,7 +23,8 @@ class RealtimeNotificationMetricsTest {
         .isEqualTo(1);
     assertThat(count("pickup.redis.notification.publish", "failure", "BID_REQUEST_SUCCEEDED"))
         .isEqualTo(1);
-    assertThat(count("pickup.redis.notification.publish", "no_subscribers", "BID_REQUEST_SUCCEEDED"))
+    assertThat(
+            count("pickup.redis.notification.publish", "no_subscribers", "BID_REQUEST_SUCCEEDED"))
         .isEqualTo(1);
     assertThat(count("pickup.redis.notification.publish", "rejected", "BID_REQUEST_SUCCEEDED"))
         .isEqualTo(1);
