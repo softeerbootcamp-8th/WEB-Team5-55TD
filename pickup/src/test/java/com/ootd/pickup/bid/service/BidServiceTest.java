@@ -81,8 +81,6 @@ class BidServiceTest {
     Member bidder = createMember(2L);
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.empty());
     given(bidRepository.save(any(Bid.class)))
         .willAnswer(
             invocation -> {
@@ -124,10 +122,9 @@ class BidServiceTest {
     Member newBidder = createMember(3L);
     Bid previousHighestBid = Bid.create(auction, previousBidder, 10_500L);
     ReflectionTestUtils.setField(previousHighestBid, "bidId", 10L);
+    auction.updateWinningBid(previousHighestBid.getBidId(), previousHighestBid.getBidPrice());
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(3L)).willReturn(Optional.of(newBidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.of(previousHighestBid));
     given(bidRepository.save(any(Bid.class)))
         .willAnswer(
             invocation -> {
@@ -157,10 +154,9 @@ class BidServiceTest {
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
     Member bidder = createMember(2L);
     Bid previousHighestBid = Bid.create(auction, createMember(3L), 10_500L);
+    auction.updateWinningBid(previousHighestBid.getBidId(), previousHighestBid.getBidPrice());
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.of(previousHighestBid));
 
     // when & then
     assertExceptionCode(
@@ -175,10 +171,9 @@ class BidServiceTest {
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
     Member bidder = createMember(2L);
     Bid previousHighestBid = Bid.create(auction, createMember(3L), 10_500L);
+    auction.updateWinningBid(previousHighestBid.getBidId(), previousHighestBid.getBidPrice());
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.of(previousHighestBid));
 
     // when & then
     assertExceptionCode(
@@ -193,8 +188,6 @@ class BidServiceTest {
     Member bidder = createMember(2L);
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.empty());
     willThrow(new PickUpException(INSUFFICIENT_BID_LIMIT))
         .given(pointReservationService)
         .prepareReservation(eq(auction), eq(bidder), eq(10_500L));
@@ -213,8 +206,6 @@ class BidServiceTest {
     Member bidder = createMember(2L);
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.empty());
     given(bidRepository.save(any(Bid.class)))
         .willAnswer(
             invocation -> {
@@ -423,7 +414,7 @@ class BidServiceTest {
     Consignment consignment =
         Consignment.builder()
             .sellerMember(createMember(sellerMemberId))
-            .status(ConsignmentStatus.AUCTION_SCHEDULED)
+            .status(ConsignmentStatus.IN_AUCTION)
             .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =

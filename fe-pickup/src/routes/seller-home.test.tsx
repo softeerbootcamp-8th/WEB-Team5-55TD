@@ -21,7 +21,14 @@ describe("셀러 홈", () => {
       {
         isPending: false,
         isError: false,
-        data: [{ id: "1", cardName: "Mewtwo", auctionId: "9" }],
+        data: [
+          {
+            id: "1",
+            cardName: "Mewtwo",
+            auctionId: "9",
+            status: "AUCTION_LIVE",
+          },
+        ],
       },
       {
         isPending: false,

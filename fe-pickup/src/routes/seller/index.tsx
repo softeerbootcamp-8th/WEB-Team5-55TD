@@ -11,6 +11,7 @@ import { getMyConsignments } from "@/api/consignments";
 import { getMySalesHistory } from "@/api/sales";
 import { getMySellerStats } from "@/api/seller-stats";
 import { formatWon } from "@/lib/format";
+import { ProductStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/seller/")({
   component: SellerHome,
@@ -31,14 +32,17 @@ function SellerHome() {
   ];
 
   const {
-    data: liveProducts,
+    data: inAuctionProducts,
     isPending: isLiveLoading,
     isError: isLiveError,
   } = useQuery({
-    queryKey: ["consignments", "my", "AUCTION_ONGOING"],
+    queryKey: ["consignments", "my", "IN_AUCTION"],
     queryFn: () =>
-      getMyConsignments({ status: "AUCTION_ONGOING" }).then((r) => r.items),
+      getMyConsignments({ status: "IN_AUCTION" }).then((r) => r.items),
   });
+  const liveProducts = inAuctionProducts?.filter(
+    (item) => item.status === ProductStatus.AUCTION_LIVE,
+  );
 
   const {
     data: recentSales,

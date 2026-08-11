@@ -64,12 +64,14 @@ function AuctionApplyPage() {
 
   const startValue = parsePositivePrice(startPrice);
   const reserveValue = parsePositivePrice(reserve);
+  const priceRangeValid =
+    startValue !== null && reserveValue !== null && startValue <= reserveValue;
   const unit = startValue ? minBidUnit(startValue) : 0;
   const scheduleValue = schedule ? new Date(schedule).getTime() : Number.NaN;
   const scheduleValid =
     Number.isFinite(scheduleValue) &&
     scheduleValue > new Date(minimumSchedule).getTime();
-  const valid = startValue !== null && reserveValue !== null && scheduleValid;
+  const valid = priceRangeValid && scheduleValid;
 
   const { mutate: submitApply, isPending: isSubmitting } = useMutation({
     mutationFn: () =>
@@ -106,7 +108,10 @@ function AuctionApplyPage() {
     );
   }
 
-  if (product.status !== ProductStatus.REGISTERABLE) {
+  if (
+    product.status !== ProductStatus.REGISTERABLE &&
+    product.status !== ProductStatus.REAPPLICABLE
+  ) {
     return (
       <PageContainer className="flex flex-col gap-6">
         <EmptyState
@@ -195,6 +200,13 @@ function AuctionApplyPage() {
               최소 희망 낙찰가는 0보다 큰 안전한 범위의 정수로 입력해 주세요.
             </p>
           )}
+          {startValue !== null &&
+            reserveValue !== null &&
+            !priceRangeValid && (
+              <p className="text-xs text-[var(--color-danger)]">
+                최소 희망 낙찰가는 희망 시작가 이상으로 입력해 주세요.
+              </p>
+            )}
         </div>
 
         <div className="flex flex-col gap-1.5">

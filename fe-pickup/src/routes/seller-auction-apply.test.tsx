@@ -50,6 +50,16 @@ describe("셀러 경매 신청", () => {
       screen.getByText("지금은 경매를 신청할 수 없는 상품이에요."),
     ).toBeInTheDocument();
   });
+  it("재신청_가능_상품은_경매_신청_폼을_보여준다", async () => {
+    query = { isPending: false, data: { ...product, status: "REAPPLICABLE" } };
+    const { Route } = await import("@/routes/seller/apply.$productId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    expect(screen.getByRole("button", { name: "경매 신청" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("지금은 경매를 신청할 수 없는 상품이에요."),
+    ).not.toBeInTheDocument();
+  });
   it("가격·일정을 입력하고 신청 확인을 연다", async () => {
     query = { isPending: false, data: product };
     const { Route } = await import("@/routes/seller/apply.$productId");
@@ -75,5 +85,32 @@ describe("셀러 경매 신청", () => {
     expect(screen.getByText("경매를 신청할까요?")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "취소" }));
     expect(screen.queryByText("경매를 신청할까요?")).not.toBeInTheDocument();
+  });
+  it("희망 시작가가 최소 희망 낙찰가보다 크면 신청할 수 없다", async () => {
+    query = { isPending: false, data: product };
+    const { Route } = await import("@/routes/seller/apply.$productId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    fireEvent.change(screen.getByPlaceholderText("1,000,000"), {
+      target: { value: "20000" },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText("구매자에게 공개되지 않습니다"),
+      { target: { value: "15000" } },
+    );
+    fireEvent.change(
+      document.querySelector(
+        'input[type="datetime-local"]',
+      ) as HTMLInputElement,
+      { target: { value: "2099-01-01T10:00" } },
+    );
+
+    expect(
+      screen.getByText(
+        "최소 희망 낙찰가는 희망 시작가 이상으로 입력해 주세요.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "경매 신청" })).toBeDisabled();
   });
 });
