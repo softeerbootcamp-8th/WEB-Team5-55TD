@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/domain/status-badge";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
+import { MarketPriceChart } from "@/components/domain/market-price-chart";
 import { WatchButton } from "@/components/domain/heart-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -208,6 +209,14 @@ function AuctionDetailPage() {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          <MarketPriceChart
+            cardName={auction.cardName}
+            setName={auction.card?.setName}
+            cardNumber={auction.card?.cardNumber}
+            preferredAgency={auction.grade?.agency}
+            preferredScore={auction.grade?.score}
+          />
 
           {/* CTA */}
           {auction.status !== AuctionStatus.ENDED && (
