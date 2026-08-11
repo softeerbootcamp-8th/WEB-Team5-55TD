@@ -1145,6 +1145,60 @@ paths:
                 $ref: "#/components/schemas/ExceptionResponse"
       security:
       - access-token-cookie: []
+  /members/me/point-charges:
+    post:
+      tags:
+      - Member
+      summary: 포인트 충전
+      description: |
+        실제 결제 연동 없이 목업으로 포인트를 즉시 적립합니다. 같은 idempotencyKey로 재요청하면
+        중복 적립되지 않고 이전 결과를 그대로 반환합니다.
+      operationId: chargeMyPoint
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChargePointRequest"
+            examples:
+              포인트 충전 요청:
+                description: 포인트 충전 요청
+                value:
+                  amount: 300000
+                  idempotencyKey: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        required: true
+      responses:
+        "201":
+          description: 포인트 충전 성공
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointChargeResponse"
+        "200":
+          description: 이미 처리된 충전 요청(같은 idempotencyKey 재요청)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointChargeResponse"
+        "400":
+          description: 유효하지 않은 충전 금액
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 인증 필요
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 회원 없음
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+      security:
+      - access-token-cookie: []
   /members/me/bids:
     get:
       tags:
@@ -2167,6 +2221,7 @@ components:
           - OPENING_BALANCE
           - AUCTION_PAYMENT
           - AUCTION_PAYOUT
+          - CHARGE
         amount:
           type: integer
           format: int64
@@ -2199,6 +2254,45 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PointTransactionItemResponse"
+    ChargePointRequest:
+      type: object
+      required:
+      - amount
+      - idempotencyKey
+      properties:
+        amount:
+          type: integer
+          format: int64
+        idempotencyKey:
+          type: string
+    PointChargeResponse:
+      type: object
+      required:
+      - pointTransactionId
+      - chargedAmount
+      - pointBalance
+      - reservedPointBalance
+      - availablePointBalance
+      - createdAt
+      properties:
+        pointTransactionId:
+          type: integer
+          format: int64
+        chargedAmount:
+          type: integer
+          format: int64
+        pointBalance:
+          type: integer
+          format: int64
+        reservedPointBalance:
+          type: integer
+          format: int64
+        availablePointBalance:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
     GetMyBidsRequest:
       type: object
       properties:

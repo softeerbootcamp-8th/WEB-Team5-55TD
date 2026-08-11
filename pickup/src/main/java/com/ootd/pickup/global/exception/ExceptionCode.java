@@ -130,7 +130,11 @@ public enum ExceptionCode {
   STARTING_PRICE_TOO_LARGE(
       HttpStatus.BAD_REQUEST,
       ClientExceptionCode.STARTING_PRICE_TOO_LARGE,
-      "입력한 시작가가 너무 커서 처리할 수 없습니다.");
+      "입력한 시작가가 너무 커서 처리할 수 없습니다."),
+  INVALID_CHARGE_AMOUNT(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.INVALID_CHARGE_AMOUNT,
+      "충전 금액은 100,000 이상 10,000,000 이하여야 합니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

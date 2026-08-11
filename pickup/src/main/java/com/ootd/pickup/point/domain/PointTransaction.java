@@ -76,8 +76,23 @@ public class PointTransaction {
         keyOf(PointTransactionType.AUCTION_PAYOUT, auction.getAuctionId()));
   }
 
-  private static String keyOf(PointTransactionType transactionType, Long auctionId) {
-    return transactionType.name() + ":" + auctionId;
+  public static String chargeIdempotencyKey(String clientRequestId) {
+    return keyOf(PointTransactionType.CHARGE, clientRequestId);
+  }
+
+  public static PointTransaction forCharge(
+      Member member, long amount, long balanceAfter, String clientRequestId) {
+    return create(
+        member,
+        PointTransactionType.CHARGE,
+        amount,
+        balanceAfter,
+        null,
+        keyOf(PointTransactionType.CHARGE, clientRequestId));
+  }
+
+  private static String keyOf(PointTransactionType transactionType, Object id) {
+    return transactionType.name() + ":" + id;
   }
 
   private static PointTransaction create(
