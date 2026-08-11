@@ -42,7 +42,10 @@ vi.mock("@tanstack/react-query", () => ({
     return { data: options.initialData, isPending: false };
   },
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+  }),
 }));
 vi.mock("@/api/auctions", () => ({ getAuctionDetail: vi.fn() }));
 vi.mock("@/api/bids", () => ({
@@ -68,9 +71,7 @@ describe("실시간 경매 추월 알림", () => {
   });
 
   it("내가_최고_입찰자였다가_다른_회원에게_추월당하면_알림을_보여준다", async () => {
-    const { Route } = await import(
-      "@/routes/_buyer/auctions/$auctionId/live"
-    );
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
 
@@ -91,9 +92,7 @@ describe("실시간 경매 추월 알림", () => {
   });
 
   it("자신의_입찰이_그대로_최고가면_알림을_보여주지_않는다", async () => {
-    const { Route } = await import(
-      "@/routes/_buyer/auctions/$auctionId/live"
-    );
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
 
