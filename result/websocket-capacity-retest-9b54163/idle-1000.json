@@ -1,0 +1,88 @@
+{
+    "metrics": {
+        "data_sent": {
+            "count": 2598440,
+            "rate": 12370.222450211257
+        },
+        "data_received": {
+            "count": 6977050,
+            "rate": 33215.18316614832
+        },
+        "stomp_connected": {
+            "count": 1000,
+            "rate": 4.760634246013476,
+            "thresholds": {
+                "count>=999": false
+            }
+        },
+        "ws_connect_failures": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "ws_connecting": {
+            "max": 14335.398201,
+            "p(90)": 8244.009030500001,
+            "p(95)": 11243.572987349999,
+            "avg": 1494.210863027,
+            "min": 356.325432,
+            "med": 372.62610199999995
+        },
+        "vus_max": {
+            "value": 1000,
+            "min": 1000,
+            "max": 1000
+        },
+        "ws_msgs_received": {
+            "rate": 83.7966839983292,
+            "count": 17602
+        },
+        "ws_handshake_latency": {
+            "p(90)": 8243.7,
+            "p(95)": 11244.35,
+            "avg": 1494.357,
+            "min": 357,
+            "med": 373,
+            "max": 14336,
+            "thresholds": {
+                "p(95)<5000": true
+            }
+        },
+        "ws_sessions": {
+            "count": 1000,
+            "rate": 4.760634246013476
+        },
+        "ws_msgs_sent": {
+            "count": 19360,
+            "rate": 92.1658790028209
+        },
+        "vus": {
+            "max": 1000,
+            "value": 1000,
+            "min": 11
+        },
+        "ws_errors": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "ws_open_success": {
+            "rate": 4.760634246013476,
+            "count": 1000,
+            "thresholds": {
+                "count>=999": false
+            }
+        }
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {}
+    }
+}

@@ -553,9 +553,9 @@ jobs:
           TEST_AUCTION_IDS: 312
           TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
           TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
-          TEST_INITIAL_BID_PRICE: 2500000
+          TEST_INITIAL_BID_PRICE: 2800000
           TEST_BID_INCREMENT: 5000
-          BID_INTERVAL_SECONDS: 2
+          BID_INTERVAL_SECONDS: 1
           RAMP_SECONDS: 60
           HOLD_SECONDS: 120
         run: |
@@ -591,9 +591,9 @@ jobs:
           set +e
           scenario_status=0
           for target in 1000 2000 3000 4000 5000; do
-            echo "재연결 시험 시작: ${target} sessions"
+            echo "재연결 baseline 시험 시작: ${target} sessions"
             TARGET_VUS="${target}" k6 run \
-              --summary-export="pickup/load-test/results/reconnect-${target}.json" \
+              --summary-export="pickup/load-test/results/reconnect-before-${target}.json" \
               pickup/load-test/k6/reconnect-storm.js
             result=$?
             echo "자원 회수를 위해 60초 대기"

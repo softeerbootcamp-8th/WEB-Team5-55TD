@@ -21,11 +21,12 @@ function hasFailedThreshold(metrics) {
 function scenarioName(fileName) {
   if (fileName.startsWith('idle-')) return '유휴 연결';
   if (fileName.startsWith('bid-e2e-')) return '입찰 E2E';
+  if (fileName.startsWith('reconnect-before-')) return '재연결 baseline';
   return '재연결';
 }
 
 const files = (await readdir(resultsDirectory))
-  .filter((fileName) => /^(idle|bid-e2e|reconnect)-\d+\.json$/.test(fileName))
+  .filter((fileName) => /^(idle|bid-e2e|reconnect|reconnect-before)-\d+\.json$/.test(fileName))
   .sort((left, right) => left.localeCompare(right, 'en', { numeric: true }));
 
 const rows = [];
@@ -83,12 +84,12 @@ const lines = [
   '',
   '## 재연결',
   '',
-  '| 목표 session | 재연결 성공 | 재연결 실패 | handshake p95 |',
-  '| ---: | ---: | ---: | ---: |',
+  '| 기준 | 목표 session | 재연결 성공 | 재연결 실패 | handshake p95 |',
+  '| --- | ---: | ---: | ---: | ---: |',
   ...rows
-    .filter((row) => row.scenario === '재연결')
+    .filter((row) => row.scenario === '재연결' || row.scenario === '재연결 baseline')
     .map((row) =>
-      `| ${row.target} | ${row.reconnectSuccess} | ${row.reconnectFailures} | ${row.handshakeP95} |`,
+      `| ${row.scenario} | ${row.target} | ${row.reconnectSuccess} | ${row.reconnectFailures} | ${row.handshakeP95} |`,
     ),
   '',
   '> 이 파일은 k6 요약이다. 최종 용량 판정에는 같은 시간대의 Datadog과 CloudWatch 지표를 함께 사용한다.',
