@@ -24,7 +24,11 @@ vi.mock("@/api/generated/member/member", () => ({
     isError: false,
   }),
   useGetMyPointBalance: () => ({
-    data: { pointBalance: 12345 },
+    data: {
+      pointBalance: 12345,
+      reservedPointBalance: 0,
+      availablePointBalance: 12345,
+    },
     isLoading: false,
     isError: false,
   }),

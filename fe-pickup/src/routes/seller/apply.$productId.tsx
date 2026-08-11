@@ -23,7 +23,7 @@ import { registerAuction } from "@/api/auctions";
 import { getMyConsignmentDetail } from "@/api/consignments";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
-import { formatWon, minBidUnit } from "@/lib/format";
+import { formatDateTime, formatWon, minBidUnit } from "@/lib/format";
 
 export const Route = createFileRoute("/seller/apply/$productId")({
   component: AuctionApplyPage,
@@ -54,7 +54,8 @@ function AuctionApplyPage() {
   const [schedule, setSchedule] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [minimumSchedule] = useState(() => {
-    const now = new Date();
+    // 요청이 서버에 도착하는 사이에 과거 시각이 되지 않도록 1분의 여유를 둔다.
+    const now = new Date(Date.now() + 60_000);
     return new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
       .toISOString()
       .slice(0, 16);
@@ -197,7 +198,7 @@ function AuctionApplyPage() {
 
         <div className="flex flex-col gap-1.5">
           <Label>
-            희망 일정 <span className="text-[var(--color-danger)]">*</span>
+            희망 시작 일시 <span className="text-[var(--color-danger)]">*</span>
           </Label>
           <Input
             type="datetime-local"
@@ -207,14 +208,18 @@ function AuctionApplyPage() {
           />
           {schedule && !scheduleValid && (
             <p className="text-xs text-[var(--color-danger)]">
-              현재보다 이후의 일정을 선택해 주세요.
+              현재보다 이후의 일시를 선택해 주세요.
             </p>
           )}
+          <p className="text-xs text-[var(--color-text-muted)]">
+            선택한 일시에 시작하며 7일간 진행됩니다.
+          </p>
         </div>
       </div>
 
       <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
-        신청 후에는 수정·삭제할 수 없습니다. 유찰 시 재신청이 가능합니다.
+        신청 후에는 수정·삭제할 수 없습니다. 종료 5분 내 입찰이 발생하면 마지막 입찰부터
+        5분간 자동 연장되며, 유찰 시 재신청이 가능합니다.
       </p>
 
       <Button
@@ -239,6 +244,12 @@ function AuctionApplyPage() {
               <dt className="text-[var(--color-text-sub)]">희망 시작가</dt>
               <dd className="tabular font-semibold">
                 {formatWon(startValue ?? 0)}
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-[var(--color-text-sub)]">경매 일정</dt>
+              <dd className="tabular text-right">
+                {schedule ? `${formatDateTime(schedule)}부터 7일` : "-"}
               </dd>
             </div>
             <div className="flex justify-between">

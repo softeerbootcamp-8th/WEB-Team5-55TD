@@ -37,6 +37,20 @@ spring:
     scheduling:
       pool:
         size: 2
+management:
+  statsd:
+    metrics:
+      export:
+        enabled: true
+        flavor: datadog
+        host: ${DD_AGENT_HOST:localhost}
+        port: ${DD_DOGSTATSD_PORT:8125}
+        protocol: udp
+  metrics:
+    tags:
+      service: ${DD_SERVICE:pickup-api}
+      env: ${DD_ENV:production}
+      version: ${DD_VERSION:unknown}
 auth:
   token:
     issuer: ${JWT_ISSUER:pickup}

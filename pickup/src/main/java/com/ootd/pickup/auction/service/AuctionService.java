@@ -13,6 +13,7 @@ import com.ootd.pickup.auction.repository.auction.AuctionCursor;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.auction.AuctionSort;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.auction.repository.watch.WatchSummary;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
@@ -27,7 +28,6 @@ import com.ootd.pickup.global.util.CursorPageSize;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -57,12 +57,28 @@ public class AuctionService {
       throw new PickUpException(CONSIGNMENT_AUCTION_OWNER_MISMATCH);
     }
 
-    consignment.scheduleAuction();
+    Long bidIncrement = calculateBidIncrement(request.startingPrice());
 
-    Long bidIncrement = Math.round(request.startingPrice() * BID_INCREMENT_RATIO);
+    consignment.scheduleAuction();
     Auction auction = auctionRepository.save(request.toEntity(consignment, bidIncrement));
 
     return CreateAuctionResponse.from(auction);
+  }
+
+  /**
+   * startingPrice에 업계 기준 상한을 두는 대신, 이후 계산(예: {@code AuctionDetailResponse.nextMinBid()}의
+   * currentPrice + bidIncrement)이 Long 범위를 넘지 않는지만 기술적으로 검증한다. 여기서 걸러지지 않고 저장된 뒤에는 addExact가
+   * ArithmeticException으로 막아 500 + Slack 알림으로 이어지지만, 그건 "저장되면 안 됐던 값이 저장된" 마지막 방어선이지 사용자에게 보여줄 응답이
+   * 아니다. 정상 입력이라면 여기서 400으로 끝나야 한다.
+   */
+  private Long calculateBidIncrement(Long startingPrice) {
+    long bidIncrement = Math.round(startingPrice * BID_INCREMENT_RATIO);
+    try {
+      Math.addExact(startingPrice, bidIncrement);
+    } catch (ArithmeticException e) {
+      throw new PickUpException(STARTING_PRICE_TOO_LARGE);
+    }
+    return bidIncrement;
   }
 
   public CursorPageResponse<AuctionListItemResponse, String> searchAuctions(
@@ -94,7 +110,8 @@ public class AuctionService {
     String nextCursor = null;
     if (hasNext) {
       Auction last = page.getLast();
-      long lastWatchCount = assembled.watchCounts().getOrDefault(last.getAuctionId(), 0L);
+      long lastWatchCount =
+          assembled.watchSummaries().getOrDefault(last.getAuctionId(), WatchSummary.EMPTY).count();
       nextCursor =
           AuctionCursor.encode(
               sort, AuctionCursor.sortValueOf(sort, last, lastWatchCount), last.getAuctionId());
@@ -123,16 +140,22 @@ public class AuctionService {
     List<ConsignmentImage> images =
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
 
-    long watchCount =
-        watchRepository.countByAuctionIds(List.of(auctionId)).getOrDefault(auctionId, 0L);
-    boolean watched =
-        !watchRepository.findWatchedAuctionIds(viewerMemberId, List.of(auctionId)).isEmpty();
+    WatchSummary watchSummary =
+        watchRepository
+            .findWatchSummariesByAuctionIds(viewerMemberId, List.of(auctionId))
+            .getOrDefault(auctionId, WatchSummary.EMPTY);
     Long currentPrice =
         resolveCurrentPrice(
             auction, bidRepository.findCurrentPricesByAuctionIds(List.of(auctionId)));
 
     return AuctionDetailResponse.of(
-        auction, certificate, images, watchCount, watched, currentPrice, imageUrlResolver);
+        auction,
+        certificate,
+        images,
+        watchSummary.count(),
+        watchSummary.watchedByViewer(),
+        currentPrice,
+        imageUrlResolver);
   }
 
   private Consignment getConsignment(Long consignmentId) {
@@ -153,15 +176,16 @@ public class AuctionService {
         .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
   }
 
-  private record Assembled(List<AuctionListItemResponse> items, Map<Long, Long> watchCounts) {}
+  private record Assembled(
+      List<AuctionListItemResponse> items, Map<Long, WatchSummary> watchSummaries) {}
 
   private Assembled assemble(List<Auction> auctions, Long viewerMemberId) {
     List<Long> auctionIds = auctions.stream().map(Auction::getAuctionId).toList();
     List<Long> consignmentIds =
         auctions.stream().map(a -> a.getConsignment().getConsignmentId()).toList();
 
-    Map<Long, Long> watchCounts = watchRepository.countByAuctionIds(auctionIds);
-    Set<Long> watchedIds = watchRepository.findWatchedAuctionIds(viewerMemberId, auctionIds);
+    Map<Long, WatchSummary> watchSummaries =
+        watchRepository.findWatchSummariesByAuctionIds(viewerMemberId, auctionIds);
     Map<Long, Long> currentPrices = bidRepository.findCurrentPricesByAuctionIds(auctionIds);
 
     Map<Long, Certificate> certificatesByConsignmentId =
@@ -172,17 +196,20 @@ public class AuctionService {
     List<AuctionListItemResponse> items =
         auctions.stream()
             .map(
-                a ->
-                    AuctionListItemResponse.of(
-                        a,
-                        certificatesByConsignmentId.get(a.getConsignment().getConsignmentId()),
-                        thumbnailsByConsignmentId.get(a.getConsignment().getConsignmentId()),
-                        watchCounts.getOrDefault(a.getAuctionId(), 0L),
-                        watchedIds.contains(a.getAuctionId()),
-                        resolveCurrentPrice(a, currentPrices)))
+                a -> {
+                  WatchSummary watchSummary =
+                      watchSummaries.getOrDefault(a.getAuctionId(), WatchSummary.EMPTY);
+                  return AuctionListItemResponse.of(
+                      a,
+                      certificatesByConsignmentId.get(a.getConsignment().getConsignmentId()),
+                      thumbnailsByConsignmentId.get(a.getConsignment().getConsignmentId()),
+                      watchSummary.count(),
+                      watchSummary.watchedByViewer(),
+                      resolveCurrentPrice(a, currentPrices));
+                })
             .toList();
 
-    return new Assembled(items, watchCounts);
+    return new Assembled(items, watchSummaries);
   }
 
   /** 경매 시작 전에는 현재가 개념이 없으므로 null, 그 외에는 최고 입찰가(없으면 시작가)를 반환한다. */

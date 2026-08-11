@@ -9,11 +9,9 @@ import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_STARTED
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_SELLER_BID_FORBIDDEN;
 import static com.ootd.pickup.global.exception.ExceptionCode.BELOW_MIN_INCREMENT;
 import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
-import static com.ootd.pickup.global.exception.ExceptionCode.INSUFFICIENT_BID_LIMIT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
-import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
@@ -28,17 +26,20 @@ import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
-import com.ootd.pickup.point.repository.PointRepository;
+import com.ootd.pickup.point.service.PointReservationService;
+import com.ootd.pickup.point.service.PointReservationService.PreparedBidReservation;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BidService {
@@ -49,7 +50,7 @@ public class BidService {
   private final AuctionRepository auctionRepository;
   private final BidRepository bidRepository;
   private final MemberRepository memberRepository;
-  private final PointRepository pointRepository;
+  private final PointReservationService pointReservationService;
   private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
@@ -59,7 +60,8 @@ public class BidService {
             .findByIdForUpdate(auctionId)
             .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
 
-    validateAuction(auction, memberId);
+    LocalDateTime bidAt = LocalDateTime.now();
+    validateAuction(auction, memberId, bidAt);
 
     Member member =
         memberRepository
@@ -71,7 +73,10 @@ public class BidService {
         currentHighestBid.map(Bid::getBidPrice).orElseGet(auction::getStartingPrice);
 
     validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
-    validateBidLimit(memberId, request.bidPrice());
+    PreparedBidReservation preparedReservation =
+        pointReservationService.prepareReservation(auction, member, request.bidPrice());
+    Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
+    pointReservationService.reserveHighestBid(auction, preparedReservation, savedBid, member);
 
     currentHighestBid.ifPresent(
         bid -> {
@@ -79,9 +84,10 @@ public class BidService {
           bidRepository.save(bid);
         });
 
-    Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
-
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
+    if (auction.extendEndAtForSoftClose(bidAt)) {
+      log.info("마감 임박 입찰로 경매를 연장했습니다 - auctionId={}, endedAt={}", auctionId, auction.getEndedAt());
+    }
     auctionRepository.save(auction);
     applicationEventPublisher.publishEvent(
         AuctionBidUpdatedNotificationEvent.fromEntity(auction, savedBid));
@@ -89,12 +95,12 @@ public class BidService {
     return PlaceBidResponse.from(savedBid);
   }
 
-  private void validateAuction(Auction auction, Long memberId) {
+  private void validateAuction(Auction auction, Long memberId, LocalDateTime bidAt) {
     if (auction.getAuctionStatus() == SCHEDULED) {
       throw new PickUpException(AUCTION_NOT_STARTED);
     }
     if (auction.getAuctionStatus() != ONGOING
-        || (auction.getEndedAt() != null && !auction.getEndedAt().isAfter(LocalDateTime.now()))) {
+        || (auction.getEndedAt() != null && !auction.getEndedAt().isAfter(bidAt))) {
       throw new PickUpException(AUCTION_ENDED);
     }
     if (auction.getConsignment().getSellerMember().getMemberId().equals(memberId)) {
@@ -108,18 +114,6 @@ public class BidService {
     }
     if (bidPrice - currentPrice < bidIncrement) {
       throw new PickUpException(BELOW_MIN_INCREMENT);
-    }
-  }
-
-  /** 입찰 한도(보유 포인트)를 넘는 입찰을 막는다. 낙찰 시 전액이 포인트에서 차감되므로 잔액 이상은 입찰할 수 없다. */
-  private void validateBidLimit(Long memberId, Long bidPrice) {
-    long balance =
-        pointRepository
-            .findByMemberId(memberId)
-            .orElseThrow(() -> new PickUpException(POINT_NOT_FOUND))
-            .getBalance();
-    if (bidPrice > balance) {
-      throw new PickUpException(INSUFFICIENT_BID_LIMIT);
     }
   }
 

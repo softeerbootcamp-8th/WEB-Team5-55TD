@@ -45,4 +45,9 @@ public class WatchService {
   public void deleteWatch(Long memberId, Long auctionId) {
     watchRepository.deleteByMemberIdAndAuctionId(memberId, auctionId);
   }
+
+  @Transactional
+  public void deleteWatchesByAuctionId(Long auctionId) {
+    watchRepository.deleteByAuctionId(auctionId);
+  }
 }
