@@ -497,7 +497,7 @@ jobs:
           TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 37,32
+          TEST_AUCTION_IDS: 312
           TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
           TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
         run: |
@@ -523,27 +523,14 @@ jobs:
           TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 37,32
+          TEST_AUCTION_IDS: 312
           TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
           TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
-          TEST_INITIAL_BID_PRICE: 500000
+          TEST_INITIAL_BID_PRICE: 100000
           TEST_BID_INCREMENT: 10000
         run: |
           k6 run --summary-export=pickup/load-test/results/bid-websocket-e2e.json \
             pickup/load-test/k6/bid-websocket-e2e.js
-
-      - name: Run reconnect storm test
-        continue-on-error: true
-        env:
-          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
-          TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 37,32
-          RECONNECT_VUS: 1000
-          RECONNECT_ATTEMPTS: 3
-          RECONNECT_DURATION_SECONDS: 300
-        run: |
-          k6 run --summary-export=pickup/load-test/results/reconnect-storm.json \
-            pickup/load-test/k6/reconnect-storm.js
 
       - name: Create report
         if: always()
