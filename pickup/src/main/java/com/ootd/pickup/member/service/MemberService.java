@@ -38,12 +38,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional
 public class MemberService {
@@ -81,6 +83,8 @@ public class MemberService {
     }
 
     pointRepository.save(Point.create(savedMember.getMemberId()));
+    log.info(
+        "회원가입했습니다 - memberId={}, loginId={}", savedMember.getMemberId(), savedMember.getLoginId());
     return new MemberResponse(
         savedMember.getMemberId(), savedMember.getLoginId(), savedMember.getNickname(), null);
   }
@@ -116,6 +120,9 @@ public class MemberService {
     member.updateProfile(nickname, passwordHash);
     String previousObjectKey = member.getProfileImageObjectKey();
     updateProfileImage(member, updateMyProfileRequest, finalizedProfileObjectKey);
+    if (passwordHash != null) {
+      log.info("비밀번호를 변경했습니다 - memberId={}", memberId);
+    }
     return new ProfileUpdateResult(toMyProfileResponse(member), previousObjectKey);
   }
 

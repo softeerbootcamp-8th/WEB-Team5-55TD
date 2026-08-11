@@ -30,10 +30,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuctionService {
@@ -58,10 +60,21 @@ public class AuctionService {
     }
 
     Long bidIncrement = calculateBidIncrement(request.startingPrice());
+    log.debug(
+        "최소 입찰 단위를 계산했습니다 - startingPrice={}, bidIncrement={}",
+        request.startingPrice(),
+        bidIncrement);
 
     consignment.scheduleAuction();
     Auction auction = auctionRepository.save(request.toEntity(consignment, bidIncrement));
 
+    log.info(
+        "경매를 등록했습니다 - auctionId={}, consignmentId={}, sellerMemberId={}, startingPrice={}, startedAt={}",
+        auction.getAuctionId(),
+        consignment.getConsignmentId(),
+        memberId,
+        request.startingPrice(),
+        auction.getStartedAt());
     return CreateAuctionResponse.from(auction);
   }
 

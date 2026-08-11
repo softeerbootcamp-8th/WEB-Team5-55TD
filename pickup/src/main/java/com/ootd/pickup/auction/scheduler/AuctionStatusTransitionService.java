@@ -59,6 +59,7 @@ public class AuctionStatusTransitionService {
         auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
             SCHEDULED, BATCH_LIMIT);
     if (auctionIds.isEmpty()) {
+      log.debug("시작 대상 경매가 없습니다");
       return;
     }
 
@@ -136,6 +137,7 @@ public class AuctionStatusTransitionService {
         auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
             ONGOING, BATCH_LIMIT);
     if (auctionIds.isEmpty()) {
+      log.debug("종료 대상 경매가 없습니다");
       return;
     }
 

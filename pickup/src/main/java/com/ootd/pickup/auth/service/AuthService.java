@@ -16,9 +16,11 @@ import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AuthService {
 
@@ -52,6 +54,7 @@ public class AuthService {
             member.getNickname(),
             imageUrlResolver.resolve(member.getProfileImageObjectKey()));
 
+    log.info("로그인했습니다 - memberId={}", member.getMemberId());
     return new LoginResponse(body, accessToken, refreshToken.value());
   }
 
@@ -62,6 +65,7 @@ public class AuthService {
 
     String tokenHash = refreshTokenGenerator.hash(refreshToken);
     refreshTokenRepository.delete(tokenHash);
+    log.info("로그아웃했습니다");
   }
 
   public RefreshResponse refresh(String refreshToken) {
@@ -81,6 +85,7 @@ public class AuthService {
 
     AccessToken newAccessToken = accessTokenGenerator.generate(memberId);
     RefreshResponseBody body = new RefreshResponseBody(newAccessToken.expiresAt());
+    log.info("토큰을 재발급했습니다 - memberId={}", memberId);
     return new RefreshResponse(body, newAccessToken, newRefreshToken.value());
   }
 }

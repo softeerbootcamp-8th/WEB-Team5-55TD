@@ -73,6 +73,12 @@ public class BidService {
     Long currentPrice =
         currentHighestBid.map(Bid::getBidPrice).orElseGet(auction::getStartingPrice);
 
+    log.debug(
+        "입찰가 검증 시작 - auctionId={}, requestedBidPrice={}, currentPrice={}, bidIncrement={}",
+        auctionId,
+        request.bidPrice(),
+        currentPrice,
+        auction.getBidIncrement());
     validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
     PreparedBidReservation preparedReservation =
         pointReservationService.prepareReservation(auction, member, request.bidPrice());
@@ -92,6 +98,14 @@ public class BidService {
     auctionRepository.save(auction);
     applicationEventPublisher.publishEvent(
         AuctionBidUpdatedNotificationEvent.fromEntity(auction, savedBid));
+
+    log.info(
+        "입찰이 접수됐습니다 - auctionId={}, bidId={}, memberId={}, bidPrice={}, previousHighestBidId={}",
+        auctionId,
+        savedBid.getBidId(),
+        memberId,
+        savedBid.getBidPrice(),
+        currentHighestBid.map(Bid::getBidId).orElse(null));
 
     return PlaceBidResponse.from(savedBid);
   }
