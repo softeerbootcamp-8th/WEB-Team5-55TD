@@ -44,6 +44,8 @@ public enum ExceptionCode {
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_PASSWORD, "비밀번호가 일치하지 않습니다."),
   INVALID_REFRESH_TOKEN(
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_REFRESH_TOKEN, "유효하지 않은 리프레시 토큰입니다."),
+  KAKAO_AUTHENTICATION_FAILED(
+      HttpStatus.UNAUTHORIZED, ClientExceptionCode.KAKAO_AUTHENTICATION_FAILED, "카카오 인증에 실패했습니다."),
   REFRESH_TOKEN_STORE_UNAVAILABLE(
       HttpStatus.UNAUTHORIZED,
       ClientExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE,

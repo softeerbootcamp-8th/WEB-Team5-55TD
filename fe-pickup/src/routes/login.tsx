@@ -9,6 +9,7 @@ import { login } from "@/api/generated/authentication/authentication";
 import type { ExceptionResponse, LoginRequest } from "@/api/generated/model";
 import { setAuthenticated, setNickname } from "@/lib/auth";
 import { Logo } from "@/components/logo";
+import { startKakaoLogin } from "@/lib/kakao-auth";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -100,6 +101,18 @@ function LoginPage() {
           {isPending ? "로그인 중..." : "로그인"}
         </Button>
       </form>
+
+      <div className="flex items-center gap-3 text-xs text-[var(--color-text-sub)]">
+        <span className="h-px flex-1 bg-border" /><span>또는</span><span className="h-px flex-1 bg-border" />
+      </div>
+      <Button
+        type="button"
+        size="lg"
+        className="w-full bg-[#FEE500] text-[#191919] hover:bg-[#F4DC00]"
+        onClick={() => { try { startKakaoLogin(); } catch (error) { setErrorMessage(error instanceof Error ? error.message : DEFAULT_ERROR_MESSAGE); } }}
+      >
+        카카오로 계속하기
+      </Button>
 
       <p className="text-center text-sm text-[var(--color-text-sub)]">
         아직 회원이 아니신가요?{" "}
