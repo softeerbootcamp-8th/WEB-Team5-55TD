@@ -104,7 +104,7 @@ public class MemberService {
     }
 
     if (nickname != null
-        && !nickname.equals(member.getNickname())
+        && !nickname.equalsIgnoreCase(member.getNickname())
         && memberRepository.existsByNickname(nickname)) {
       throw new PickUpException(MEMBER_NICKNAME_ALREADY_EXISTS);
     }
