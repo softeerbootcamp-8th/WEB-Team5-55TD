@@ -25,7 +25,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getAuctionDetail } from "@/api/auctions";
-import { createBidRequest, getAuctionBids, getBidErrorMessage } from "@/api/bids";
+import {
+  BID_MODAL_SIZE,
+  BID_PREVIEW_SIZE,
+  createBidRequest,
+  getAuctionBids,
+  getBidErrorMessage,
+} from "@/api/bids";
 import { getGetMyPointBalanceQueryKey } from "@/api/generated/member/member";
 import { refreshAccessToken } from "@/api/mutator/custom-instance";
 import {
@@ -37,8 +43,6 @@ import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
 import { formatWon } from "@/lib/format";
 import { AuctionStatus } from "@/lib/types";
 
-const BID_PREVIEW_SIZE = 6;
-const BID_MODAL_SIZE = 100;
 const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
 const HIDDEN_POLLING_INTERVAL_MILLIS = 60_000;
 const POLLING_JITTER_MILLIS = 3_000;

@@ -1,6 +1,7 @@
 package com.ootd.pickup.consignments.controller;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.BDDMockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -170,6 +171,76 @@ class ConsignmentControllerTest {
         .andExpect(status().isBadRequest());
 
     then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 카드ID가_BIGINT_범위를_초과하면_500이_아닌_400을_반환한다() throws Exception {
+    // given
+    String requestBody =
+        """
+        {
+          "cardId": 99999999999999999999,
+          "majorDefect": null,
+          "certificate": {
+            "serialNumber": "PSA-84213907",
+            "certificationBody": "PSA",
+            "grade": "10",
+            "inspectedAt": "2026-06-30"
+          },
+          "images": [
+            {"temporaryObjectKey": "https://image.example.com/front.png"},
+            {"temporaryObjectKey": "https://image.example.com/back.png"}
+          ]
+        }
+        """;
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(containsString("cardId")));
+
+    then(consignmentApplicationService).shouldHaveNoInteractions();
+    then(slackErrorNotifier).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 배열_안의_필드가_BIGINT_범위를_초과하면_어떤_이미지인지_메시지에_포함한다() throws Exception {
+    // given
+    String requestBody =
+        """
+        {
+          "cardId": 10,
+          "majorDefect": null,
+          "certificate": {
+            "serialNumber": "PSA-84213907",
+            "certificationBody": "PSA",
+            "grade": "10",
+            "inspectedAt": "2026-06-30"
+          },
+          "images": [
+            {"temporaryObjectKey": "https://image.example.com/front.png"},
+            {"consignmentImageId": 99999999999999999999, "temporaryObjectKey": null}
+          ]
+        }
+        """;
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(containsString("images[1].consignmentImageId")));
+
+    then(consignmentApplicationService).shouldHaveNoInteractions();
+    then(slackErrorNotifier).shouldHaveNoInteractions();
   }
 
   @Test

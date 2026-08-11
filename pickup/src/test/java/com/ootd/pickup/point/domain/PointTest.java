@@ -67,6 +67,17 @@ class PointTest {
   }
 
   @Test
+  void 증가시켰을_때_잔액이_Long_범위를_넘으면_예외가_발생하고_잔액은_그대로다() {
+    // given
+    Point point = Point.create(1L);
+    point.increaseBalance(Long.MAX_VALUE - 1);
+
+    // when & then
+    assertThatThrownBy(() -> point.increaseBalance(2L)).isInstanceOf(ArithmeticException.class);
+    assertThat(point.getBalance()).isEqualTo(Long.MAX_VALUE - 1);
+  }
+
+  @Test
   void 포인트를_예약하고_해제하면_사용가능잔액이_변한다() {
     // given
     Point point = Point.create(1L);

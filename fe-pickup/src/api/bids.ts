@@ -6,6 +6,10 @@ import { axiosInstance } from "@/api/mutator/custom-instance";
 type BidStatus = "HIGHEST" | "OUTBID" | "WON";
 type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
+/** 입찰 내역 미리보기(최근 N건) / 전체보기 모달에서 공통으로 쓰는 조회 크기. */
+export const BID_PREVIEW_SIZE = 6;
+export const BID_MODAL_SIZE = 100;
+
 export interface PlacedBid {
   bidId: number;
   auctionId: number;

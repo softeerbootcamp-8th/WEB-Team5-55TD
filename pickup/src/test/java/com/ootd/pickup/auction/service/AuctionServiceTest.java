@@ -12,6 +12,7 @@ import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.auction.repository.watch.WatchSummary;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
@@ -36,7 +37,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -182,6 +182,34 @@ class AuctionServiceTest {
   }
 
   @Test
+  void 시작가가_너무_커서_최소_다음_입찰가_계산이_Long_범위를_넘으면_예외가_발생한다() {
+    // given
+    Long memberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, memberId, ConsignmentStatus.REGISTERABLE, null);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            consignmentId,
+            9_223_372_036_000_000_000L,
+            9_223_372_036_000_000_000L,
+            LocalDateTime.now().plusDays(1));
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            e ->
+                assertThat(((PickUpException) e).getMessage())
+                    .isEqualTo(ExceptionCode.STARTING_PRICE_TOO_LARGE.getMessage()));
+    assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.REGISTERABLE);
+    then(auctionRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
   void limit이_있으면_커서_없이_상위_N개만_반환한다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
@@ -313,8 +341,8 @@ class AuctionServiceTest {
             auctionRepository.searchAuctions(
                 isNull(), eq(List.of(AuctionStatus.ONGOING)), any(), isNull(), eq(1)))
         .willReturn(List.of(auction));
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of(1L, 10L));
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any()))
+        .willReturn(Map.of(1L, new WatchSummary(10L, false)));
     given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
@@ -363,8 +391,8 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of(1L, 3L));
-    given(watchRepository.findWatchedAuctionIds(eq(9L), any())).willReturn(Set.of(1L));
+    given(watchRepository.findWatchSummariesByAuctionIds(eq(9L), any()))
+        .willReturn(Map.of(1L, new WatchSummary(3L, true)));
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -393,8 +421,7 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(isNull(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -450,8 +477,7 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of(1L, 12000L));
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -503,8 +529,7 @@ class AuctionServiceTest {
             List.of(
                 createConsignmentImage(consignment, 1, "https://image.example.com/front.png"),
                 createConsignmentImage(consignment, 2, "https://image.example.com/back.png")));
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -557,8 +582,7 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -590,8 +614,8 @@ class AuctionServiceTest {
         .willReturn(Optional.of(certificate));
     given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
         .willReturn(List.of(front));
-    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 4L));
-    given(watchRepository.findWatchedAuctionIds(9L, List.of(1L))).willReturn(Set.of(1L));
+    given(watchRepository.findWatchSummariesByAuctionIds(9L, List.of(1L)))
+        .willReturn(Map.of(1L, new WatchSummary(4L, true)));
     given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of());
 
     // when
@@ -629,8 +653,8 @@ class AuctionServiceTest {
         .willReturn(Optional.of(certificate));
     given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(isNull(), eq(List.of(1L)))).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), eq(List.of(1L))))
+        .willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 12000L));
 
     // when
@@ -639,6 +663,37 @@ class AuctionServiceTest {
     // then
     assertThat(response.currentPrice()).isEqualTo(12000L);
     assertThat(response.nextMinBid()).isEqualTo(12500L);
+  }
+
+  @Test
+  void 현재가와_최소_입찰_단위를_더했을_때_Long_범위를_넘으면_예외가_발생한다() {
+    // given
+    // startingPrice에 상한이 없어 이런 값도 등록 자체는 막히지 않는다. 조용히 음수로
+    // 랩어라운드된 nextMinBid를 200으로 내려보내는 대신, addExact가 던지는 예외로
+    // 드러나야 한다.
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.AUCTION_ONGOING, null);
+    Auction auction =
+        Auction.builder()
+            .consignment(consignment)
+            .startedAt(LocalDateTime.now().minusHours(1))
+            .endedAt(LocalDateTime.now().plusHours(1))
+            .auctionStatus(AuctionStatus.ONGOING)
+            .startingPrice(9_223_372_036_000_000_000L)
+            .reservePrice(9_223_372_036_000_000_000L)
+            .bidIncrement(461_168_601_800_000_000L)
+            .build();
+    ReflectionTestUtils.setField(auction, "auctionId", 1L);
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of());
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.getAuctionDetail(null, 1L))
+        .isInstanceOf(ArithmeticException.class);
   }
 
   @Test
@@ -654,8 +709,8 @@ class AuctionServiceTest {
         .willReturn(Optional.of(certificate));
     given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(isNull(), eq(List.of(1L)))).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), eq(List.of(1L))))
+        .willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of());
 
     // when
@@ -708,8 +763,7 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
   }
 
