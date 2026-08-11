@@ -26,6 +26,12 @@ public class Card {
   @Column(name = "card_id", nullable = false)
   private Long cardId;
 
+  @Column(name = "tcgdex_id", unique = true)
+  private String tcgdexId;
+
+  @Column(name = "tcgdex_set_id")
+  private String tcgdexSetId;
+
   @Column(name = "is_deleted", nullable = false)
   private boolean deleted;
 
@@ -62,6 +68,35 @@ public class Card {
     this.setName = setName;
     this.language = language;
     this.rarity = rarity;
+    this.imageUrl = imageUrl;
+  }
+
+  public static Card fromTcgdex(
+      String tcgdexId,
+      String tcgdexSetId,
+      String cardName,
+      String cardNumber,
+      String setName,
+      String imageUrl) {
+    Card card =
+        Card.builder()
+            .cardName(cardName)
+            .cardNumber(cardNumber)
+            .setName(setName)
+            .language(Language.ENGLISH)
+            .rarity(Rarity.MINT)
+            .imageUrl(imageUrl)
+            .build();
+    card.tcgdexId = tcgdexId;
+    card.tcgdexSetId = tcgdexSetId;
+    return card;
+  }
+
+  public void updateFromTcgdex(
+      String cardName, String cardNumber, String setName, String imageUrl) {
+    this.cardName = cardName;
+    this.cardNumber = cardNumber;
+    this.setName = setName;
     this.imageUrl = imageUrl;
   }
 }
