@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: pickup-qa
+  namespace: argocd
+spec:
+  description: Pickup QA workloads
+  sourceRepos:
+    - https://github.com/softeerbootcamp-8th/WEB-Team5-55TD.git
+  destinations:
+    - namespace: pickup-qa
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

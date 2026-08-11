@@ -1,0 +1,83 @@
+name: QA GitOps
+
+on:
+  push:
+    branches: [for-qa]
+    paths:
+      - pickup/**
+      - fe-pickup/**
+      - .github/workflows/qa-gitops.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: qa-gitops
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: pickup-api
+            context: pickup
+          - image: pickup-web
+            context: fe-pickup
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize GHCR image name
+        id: image-name
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: echo "value=ghcr.io/${GITHUB_REPOSITORY,,}/${IMAGE}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.image-name.outputs.value }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  update-gitops:
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: for-qa
+      - name: Update immutable image tags
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          python3 - "$IMAGE_TAG" <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          path = Path("k8s/overlays/qa/kustomization.yaml")
+          contents = path.read_text()
+          updated, count = re.subn(r"(?m)^(\s*newTag:)\s*\S+$", rf"\1 {sys.argv[1]}", contents)
+          if count != 2:
+              raise SystemExit(f"expected 2 image tags, updated {count}")
+          path.write_text(updated)
+          PY
+      - name: Commit GitOps revision
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add k8s/overlays/qa/kustomization.yaml
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(qa): deploy ${GITHUB_SHA::7} [skip ci]"
+          git push origin HEAD:for-qa

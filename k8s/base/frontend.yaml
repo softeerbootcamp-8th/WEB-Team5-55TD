@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pickup-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pickup-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pickup-web
+    spec:
+      containers:
+        - name: web
+          image: pickup-web
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pickup-web
+spec:
+  selector:
+    app.kubernetes.io/name: pickup-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
