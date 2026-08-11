@@ -8,7 +8,8 @@ const baseUrl = __ENV.TEST_BASE_URL;
 const wsUrl = __ENV.TEST_WS_URL;
 const origin = __ENV.TEST_ORIGIN;
 const auctionIds = (__ENV.TEST_AUCTION_IDS || '').split(',').filter(Boolean);
-const tokens = (__ENV.TEST_ACCESS_TOKENS || '').split(',').filter(Boolean);
+const loginId = __ENV.TEST_LOGIN_ID;
+const loginPassword = __ENV.TEST_LOGIN_PASSWORD;
 const initialPrices = Number(__ENV.TEST_INITIAL_BID_PRICE || 100000);
 const bidIncrement = Number(__ENV.TEST_BID_INCREMENT || 1000);
 
@@ -58,6 +59,19 @@ export const options = {
   },
 };
 
+export function setup() {
+  const response = http.post(
+    `${baseUrl}/auth`,
+    JSON.stringify({ loginId, password: loginPassword }),
+    { headers: { 'Content-Type': 'application/json', Origin: origin } },
+  );
+  const cookieHeader = response.headers['Set-Cookie'] || response.headers['set-cookie'] || '';
+  const accessToken = cookieHeader.match(/(?:^|[,; ])access-token=([^;]+)/)?.[1];
+  check(response, { 'test account login succeeded': (r) => r.status === 200 && Boolean(accessToken) });
+  if (!accessToken) throw new Error(`test account login failed with status ${response.status}`);
+  return { accessToken };
+}
+
 export function observer() {
   const auctionId = auctionIds[(__VU - 1) % auctionIds.length];
   let previousBidId = 0;
@@ -81,13 +95,12 @@ export function observer() {
   });
 }
 
-export function bidder() {
+export function bidder({ accessToken }) {
   const index = (__VU - 1) % auctionIds.length;
   const auctionId = auctionIds[index];
-  const token = tokens[index % tokens.length];
   const price = initialPrices + (__ITER + 1) * bidIncrement;
   const response = http.post(`${baseUrl}/auctions/${auctionId}/bids`, JSON.stringify({ bidPrice: price }), {
-    headers: { 'Content-Type': 'application/json', Origin: origin, Cookie: `access-token=${token}` },
+    headers: { 'Content-Type': 'application/json', Origin: origin, Cookie: `access-token=${accessToken}` },
   });
   const ok = check(response, { 'bid accepted': (r) => r.status === 201 });
   if (ok) bidSuccess.add(1);
