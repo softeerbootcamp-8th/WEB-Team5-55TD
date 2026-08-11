@@ -8,6 +8,7 @@ import type {
   WatchItemResponse,
   WatchItemResponseAuctionStatus,
 } from "@/api/generated/model";
+import { computeEndsAt } from "@/api/auctions";
 import { AuctionStatus, type AuctionSummary, type Grade } from "@/lib/types";
 
 function toUiStatus(status?: WatchItemResponseAuctionStatus): AuctionStatus {
@@ -32,7 +33,7 @@ function toAuctionSummary(item: WatchItemResponse): AuctionSummary {
     grade: parseGrade(item.grade),
     currentPrice: item.currentPrice ?? undefined,
     startPrice: item.startingPrice,
-    endsAt: item.endedAt ?? undefined,
+    endsAt: computeEndsAt(item),
     startsAt: item.startedAt ?? undefined,
     watchCount: item.watchCount,
     watched: item.watched,

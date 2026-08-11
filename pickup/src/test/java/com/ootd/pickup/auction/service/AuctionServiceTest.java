@@ -12,6 +12,7 @@ import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.auction.repository.watch.WatchSummary;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
@@ -36,7 +37,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,7 +100,7 @@ class AuctionServiceTest {
               return auction;
             });
 
-    LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1);
+    LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1).withHour(13).withMinute(30);
     CreateAuctionRequest request =
         new CreateAuctionRequest(consignmentId, 10000L, 15000L, scheduledStartAt);
 
@@ -114,7 +114,7 @@ class AuctionServiceTest {
     assertThat(response.startingPrice()).isEqualTo(10000L);
     assertThat(response.bidIncrement()).isEqualTo(500L);
     assertThat(response.startedAt()).isEqualTo(scheduledStartAt);
-    assertThat(response.endedAt()).isNull();
+    assertThat(response.endedAt()).isEqualTo(scheduledStartAt.plusDays(7));
     assertThat(response.winningBidId()).isNull();
     assertThat(response.winningPrice()).isNull();
     assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.AUCTION_SCHEDULED);
@@ -341,8 +341,8 @@ class AuctionServiceTest {
             auctionRepository.searchAuctions(
                 isNull(), eq(List.of(AuctionStatus.ONGOING)), any(), isNull(), eq(1)))
         .willReturn(List.of(auction));
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of(1L, 10L));
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any()))
+        .willReturn(Map.of(1L, new WatchSummary(10L, false)));
     given(certificateManageService.getCertificatesByConsignmentId(any())).willReturn(Map.of());
     given(
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
@@ -391,8 +391,8 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of(1L, 3L));
-    given(watchRepository.findWatchedAuctionIds(eq(9L), any())).willReturn(Set.of(1L));
+    given(watchRepository.findWatchSummariesByAuctionIds(eq(9L), any()))
+        .willReturn(Map.of(1L, new WatchSummary(3L, true)));
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -421,8 +421,7 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(isNull(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -478,8 +477,7 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of(1L, 12000L));
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -531,8 +529,7 @@ class AuctionServiceTest {
             List.of(
                 createConsignmentImage(consignment, 1, "https://image.example.com/front.png"),
                 createConsignmentImage(consignment, 2, "https://image.example.com/back.png")));
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -585,8 +582,7 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
 
     SearchAuctionsRequest request = new SearchAuctionsRequest(null, null, null, 5, null, null);
@@ -618,8 +614,8 @@ class AuctionServiceTest {
         .willReturn(Optional.of(certificate));
     given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
         .willReturn(List.of(front));
-    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 4L));
-    given(watchRepository.findWatchedAuctionIds(9L, List.of(1L))).willReturn(Set.of(1L));
+    given(watchRepository.findWatchSummariesByAuctionIds(9L, List.of(1L)))
+        .willReturn(Map.of(1L, new WatchSummary(4L, true)));
     given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of());
 
     // when
@@ -657,8 +653,8 @@ class AuctionServiceTest {
         .willReturn(Optional.of(certificate));
     given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(isNull(), eq(List.of(1L)))).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), eq(List.of(1L))))
+        .willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of(1L, 12000L));
 
     // when
@@ -693,8 +689,6 @@ class AuctionServiceTest {
         .willReturn(Optional.of(certificate));
     given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(isNull(), eq(List.of(1L)))).willReturn(Set.of());
     given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of());
 
     // when & then
@@ -715,8 +709,8 @@ class AuctionServiceTest {
         .willReturn(Optional.of(certificate));
     given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(List.of(1L))).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(isNull(), eq(List.of(1L)))).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), eq(List.of(1L))))
+        .willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(List.of(1L))).willReturn(Map.of());
 
     // when
@@ -769,8 +763,7 @@ class AuctionServiceTest {
             consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
                 any()))
         .willReturn(List.of());
-    given(watchRepository.countByAuctionIds(any())).willReturn(Map.of());
-    given(watchRepository.findWatchedAuctionIds(any(), any())).willReturn(Set.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(any(), any())).willReturn(Map.of());
     given(bidRepository.findCurrentPricesByAuctionIds(any())).willReturn(Map.of());
   }
 

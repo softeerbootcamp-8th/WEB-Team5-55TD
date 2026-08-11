@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { ChevronLeft, Lock, Radio } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
@@ -10,9 +12,15 @@ import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
 import { BidList } from "@/components/domain/bid-list";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getAuctionDetail } from "@/api/auctions";
+import { BID_MODAL_SIZE, BID_PREVIEW_SIZE, getAuctionBids } from "@/api/bids";
 import { useNickname } from "@/lib/auth";
-import type { Bid } from "@/lib/types";
 
 export const Route = createFileRoute("/seller/auctions/$auctionId")({
   loader: async ({ params }) => {
@@ -28,35 +36,6 @@ export const Route = createFileRoute("/seller/auctions/$auctionId")({
   component: SellerAuctionPage,
 });
 
-// 입찰 내역 조회 API가 아직 없어 모니터링 화면용 샘플 데이터로 대체한다.
-const now = Date.now();
-const SAMPLE_BIDS: Bid[] = [
-  {
-    id: "m1",
-    maskedNickname: "col***88",
-    amount: 620_000,
-    createdAt: new Date(now - 40_000).toISOString(),
-  },
-  {
-    id: "m2",
-    maskedNickname: "psa***01",
-    amount: 590_000,
-    createdAt: new Date(now - 120_000).toISOString(),
-  },
-  {
-    id: "m3",
-    maskedNickname: "kan***12",
-    amount: 560_000,
-    createdAt: new Date(now - 300_000).toISOString(),
-  },
-  {
-    id: "m4",
-    maskedNickname: "bid***23",
-    amount: 530_000,
-    createdAt: new Date(now - 600_000).toISOString(),
-  },
-];
-
 /** DESIGN.md · seller-auction.html — 입찰 기능 제외, 모니터링 전용 */
 function SellerAuctionPage() {
   const { auction } = Route.useLoaderData();
@@ -64,6 +43,23 @@ function SellerAuctionPage() {
   // 서버가 아직 소유자 검증을 하지 않아 프런트에서 우선 가드한다 — 진짜 인가는 백엔드에서 처리돼야 한다.
   const isOwner =
     !myNickname || !auction.sellerNickname || myNickname === auction.sellerNickname;
+  const [allBidsOpen, setAllBidsOpen] = useState(false);
+
+  // 실시간 경매 화면(live.tsx)의 "최근 N건 미리보기 + 전체보기 모달" 구조를 쓰지만,
+  // 여기서는 미리보기용으로 따로 6건만 조회하지 않고 모달과 같은 쿼리를 재사용한다 —
+  // 6건만 받아오면 입찰 횟수도 6건을 넘는 순간 전부 "6+"처럼 뭉개져 표시되므로,
+  // 한 번에 최대 100건을 받아 그중 앞 6건만 미리보기로 자른다. 이 화면은 종료된
+  // 경매도 다루는 읽기 전용 모니터링이라 live.tsx의 폴링·웹소켓 갱신은 필요 없다.
+  const bidsQuery = useQuery({
+    queryKey: ["auction-bids", auction.id],
+    queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
+    enabled: isOwner,
+  });
+  const bids = bidsQuery.data?.items ?? [];
+  // 100건을 넘겨 실제로 잘렸을 때만 "100+"처럼 표시한다.
+  const bidCount = bidsQuery.data
+    ? `${bids.length}${bidsQuery.data.hasNext ? "+" : ""}`
+    : undefined;
 
   if (!isOwner) {
     return (
@@ -116,7 +112,7 @@ function SellerAuctionPage() {
                   입찰 횟수
                 </span>
                 <span className="tabular text-lg font-bold">
-                  {SAMPLE_BIDS.length}
+                  {bidCount ?? "-"}
                 </span>
               </div>
               <div className="flex flex-col items-start gap-0.5">
@@ -139,11 +135,50 @@ function SellerAuctionPage() {
         </div>
       </div>
 
-      {/* 입찰 내역 (읽기 전용, 아직 API 없음 — 샘플 데이터) */}
+      {/* 입찰 내역 (읽기 전용, 최근 6건 미리보기 + 전체보기 모달) */}
       <aside className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
-        <h2 className="text-base font-semibold">입찰 내역</h2>
-        <BidList bids={SAMPLE_BIDS} />
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold">입찰 내역</h2>
+          <button
+            type="button"
+            onClick={() => setAllBidsOpen(true)}
+            className="text-sm font-semibold text-primary hover:underline"
+          >
+            전체
+          </button>
+        </div>
+        {bidsQuery.isError ? (
+          <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+            입찰 내역을 불러오지 못했습니다.
+          </p>
+        ) : bidsQuery.isPending ? (
+          <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+            불러오는 중입니다.
+          </p>
+        ) : (
+          <BidList bids={bids.slice(0, BID_PREVIEW_SIZE)} />
+        )}
       </aside>
+
+      {/* 전체 입찰 모달 — 미리보기와 같은 쿼리 결과를 그대로 재사용한다. */}
+      <Dialog open={allBidsOpen} onOpenChange={setAllBidsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>전체 입찰 내역</DialogTitle>
+          </DialogHeader>
+          {bidsQuery.isError ? (
+            <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+              입찰 내역을 불러오지 못했습니다.
+            </p>
+          ) : bidsQuery.isPending ? (
+            <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+              불러오는 중입니다.
+            </p>
+          ) : (
+            <BidList bids={bids} className="max-h-96 overflow-y-auto" />
+          )}
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }

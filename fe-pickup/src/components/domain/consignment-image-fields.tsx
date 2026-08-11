@@ -89,7 +89,10 @@ export function ConsignmentImageFields({
                   {image.kind === "new" ? image.file.name : "등록된 이미지"}
                 </p>
               </div>
-              <div className="mt-auto flex gap-2">
+              {/* 교체/삭제 버튼은 둘 다 shrink-0(Button 기본값)이라 좁은 컬럼에서
+                  줄어들지 못하고 박스 밖으로 삐져나갈 수 있다 — flex-wrap으로
+                  공간이 부족하면 다음 줄로 떨어지게 한다. */}
+              <div className="mt-auto flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="secondary"

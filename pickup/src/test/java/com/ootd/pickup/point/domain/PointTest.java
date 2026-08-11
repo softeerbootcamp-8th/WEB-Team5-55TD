@@ -78,16 +78,52 @@ class PointTest {
   }
 
   @Test
-  void 감소시켰을_때_잔액이_Long_범위를_넘으면_예외가_발생하고_잔액은_그대로다() {
+  void 포인트를_예약하고_해제하면_사용가능잔액이_변한다() {
     // given
-    // decreaseBalance는 잔액이 음수가 되는 것 자체는 막지 않는다(마지막 방어선은 DB의
-    // chk_member_point_balance_non_negative 제약). 잔액을 Long.MIN_VALUE 근처까지
-    // 내려서 한 번 더 빼면 Long 범위를 넘도록 만든다.
     Point point = Point.create(1L);
-    point.decreaseBalance(Long.MAX_VALUE);
+    point.increaseBalance(1_000L);
+
+    // when
+    point.reserve(700L);
+
+    // then
+    assertThat(point.getBalance()).isEqualTo(1_000L);
+    assertThat(point.getReservedBalance()).isEqualTo(700L);
+    assertThat(point.getAvailableBalance()).isEqualTo(300L);
+
+    // when
+    point.release(200L);
+
+    // then
+    assertThat(point.getReservedBalance()).isEqualTo(500L);
+    assertThat(point.getAvailableBalance()).isEqualTo(500L);
+  }
+
+  @Test
+  void 예약포인트를_포착하면_총액과_예약액이_함께_감소한다() {
+    // given
+    Point point = Point.create(1L);
+    point.increaseBalance(1_000L);
+    point.reserve(700L);
+
+    // when
+    point.capture(700L);
+
+    // then
+    assertThat(point.getBalance()).isEqualTo(300L);
+    assertThat(point.getReservedBalance()).isZero();
+    assertThat(point.getAvailableBalance()).isEqualTo(300L);
+  }
+
+  @Test
+  void 사용가능잔액보다_큰_예약과_차감을_거부한다() {
+    // given
+    Point point = Point.create(1L);
+    point.increaseBalance(1_000L);
+    point.reserve(700L);
 
     // when & then
-    assertThatThrownBy(() -> point.decreaseBalance(2L)).isInstanceOf(ArithmeticException.class);
-    assertThat(point.getBalance()).isEqualTo(-Long.MAX_VALUE);
+    assertThatThrownBy(() -> point.reserve(301L)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> point.decreaseBalance(301L)).isInstanceOf(IllegalStateException.class);
   }
 }

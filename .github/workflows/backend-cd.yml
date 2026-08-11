@@ -45,6 +45,10 @@ jobs:
       IMAGE_STORAGE_REGION: ${{ secrets.IMAGE_STORAGE_REGION }}
       IMAGE_MEDIA_BASE_URL: ${{ secrets.IMAGE_MEDIA_BASE_URL }}
       IMAGE_UPLOAD_URL_TTL: ${{ secrets.IMAGE_UPLOAD_URL_TTL }}
+      WEBSOCKET_ALLOWED_ORIGINS: https://${{ vars.CLOUDFRONT_DOMAIN }}
+      DD_SERVICE: pickup-api
+      DD_ENV: production
+      DD_VERSION: ${{ github.sha }}
       # 커밋별 디렉터리에 jar 과 deploy.sh 를 짝으로 올린다.
       # deploy.sh 를 고정 경로에 두면 옛 jar 을 최신 배포 로직으로 배포하게 된다.
       S3_PREFIX: pickup/${{ github.sha }}
@@ -66,6 +70,10 @@ jobs:
           [ -n "${IMAGE_STORAGE_REGION}" ] || missing+=("secrets.IMAGE_STORAGE_REGION")
           [ -n "${IMAGE_MEDIA_BASE_URL}" ] || missing+=("secrets.IMAGE_MEDIA_BASE_URL")
           [ -n "${IMAGE_UPLOAD_URL_TTL}" ] || missing+=("secrets.IMAGE_UPLOAD_URL_TTL")
+          [ -n "${WEBSOCKET_ALLOWED_ORIGINS}" ] || missing+=("vars.CLOUDFRONT_DOMAIN")
+          [ -n "${DD_SERVICE}" ]        || missing+=("DD_SERVICE")
+          [ -n "${DD_ENV}" ]            || missing+=("DD_ENV")
+          [ -n "${DD_VERSION}" ]        || missing+=("DD_VERSION")
           [ -n "${ROLE_ARN}" ]         || missing+=("secrets.AWS_DEPLOY_ROLE_ARN")
 
           if [ ${#missing[@]} -gt 0 ]; then
@@ -82,6 +90,11 @@ jobs:
             || invalid+=("secrets.IMAGE_MEDIA_BASE_URL")
           [[ "${IMAGE_UPLOAD_URL_TTL}" =~ ^[1-9][0-9]*[smhd]$ ]] \
             || invalid+=("secrets.IMAGE_UPLOAD_URL_TTL")
+          [[ "${WEBSOCKET_ALLOWED_ORIGINS}" =~ ^https://[A-Za-z0-9.-]+$ ]] \
+            || invalid+=("vars.CLOUDFRONT_DOMAIN")
+          [ "${DD_SERVICE}" = "pickup-api" ] || invalid+=("DD_SERVICE")
+          [ "${DD_ENV}" = "production" ] || invalid+=("DD_ENV")
+          [[ "${DD_VERSION}" =~ ^[0-9a-f]{40}$ ]] || invalid+=("DD_VERSION")
 
           if [ ${#invalid[@]} -gt 0 ]; then
             echo "::error::다음 설정의 형식이 올바르지 않습니다: ${invalid[*]}"
@@ -163,10 +176,14 @@ jobs:
 
           aws s3 cp "${jars[0]}"            "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/app.jar"
           aws s3 cp pickup/deploy/deploy.sh "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/deploy.sh"
+          aws s3 cp pickup/deploy/hikaricp-jmx.yaml "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/hikaricp-jmx.yaml"
+          aws s3 cp pickup/deploy/tomcat-jmx.yaml "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/tomcat-jmx.yaml"
+          aws s3 cp pickup/deploy/websocket-jmx.yaml "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/websocket-jmx.yaml"
+          aws s3 cp pickup/deploy/pickup-datadog.conf "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/pickup-datadog.conf"
           echo "업로드 완료: s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/"
 
-      - name: Prepare image runtime configuration
-        id: image-runtime-config
+      - name: Prepare runtime configuration
+        id: runtime-config
         run: |
           set -euo pipefail
 
@@ -175,6 +192,10 @@ jobs:
             "IMAGE_STORAGE_REGION=${IMAGE_STORAGE_REGION}" \
             "IMAGE_MEDIA_BASE_URL=${IMAGE_MEDIA_BASE_URL}" \
             "IMAGE_UPLOAD_URL_TTL=${IMAGE_UPLOAD_URL_TTL}" \
+            "WEBSOCKET_ALLOWED_ORIGINS=${WEBSOCKET_ALLOWED_ORIGINS}" \
+            "DD_SERVICE=${DD_SERVICE}" \
+            "DD_ENV=${DD_ENV}" \
+            "DD_VERSION=${DD_VERSION}" \
             | base64 -w 0)
           echo "encoded=${encoded}" >> "$GITHUB_OUTPUT"
 
@@ -194,7 +215,7 @@ jobs:
               "set -e",
               "aws s3 cp s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/deploy.sh /tmp/pickup-deploy.sh --quiet",
               "chmod +x /tmp/pickup-deploy.sh",
-              "/tmp/pickup-deploy.sh s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/app.jar '${{ steps.image-runtime-config.outputs.encoded }}'"
+              "/tmp/pickup-deploy.sh s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/app.jar '${{ steps.runtime-config.outputs.encoded }}'"
             ],
             "executionTimeout": ["600"]
           }

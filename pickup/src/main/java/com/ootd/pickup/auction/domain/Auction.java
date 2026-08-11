@@ -58,6 +58,9 @@ public class Auction {
   @Column(name = "winning_price")
   private Long winningPrice;
 
+  @Column(name = "legacy_unreserved_bid", nullable = false)
+  private boolean legacyUnreservedBid;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -77,6 +80,7 @@ public class Auction {
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
+    this.legacyUnreservedBid = false;
     this.createdAt = LocalDateTime.now();
   }
 
@@ -90,6 +94,25 @@ public class Auction {
   public void updateWinningBid(Long winningBidId, Long winningPrice) {
     this.winningBidId = winningBidId;
     this.winningPrice = winningPrice;
+  }
+
+  /** 종료 5분 이내의 유효 입찰이면 해당 입찰 시각부터 다시 5분을 보장한다. */
+  public boolean extendEndAtForSoftClose(LocalDateTime bidAt) {
+    if (auctionStatus != AuctionStatus.ONGOING || endedAt == null || !endedAt.isAfter(bidAt)) {
+      return false;
+    }
+
+    LocalDateTime softCloseBoundary = bidAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+    if (endedAt.isAfter(softCloseBoundary)) {
+      return false;
+    }
+
+    endedAt = softCloseBoundary;
+    return true;
+  }
+
+  public void markBidReserved() {
+    this.legacyUnreservedBid = false;
   }
 
   public Long getCurrentPrice() {

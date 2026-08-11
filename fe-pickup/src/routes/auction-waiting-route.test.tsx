@@ -26,7 +26,11 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/api/generated/member/member", () => ({
   useGetMyPointBalance: () => ({
     isLoading: false,
-    data: { pointBalance: 50000 },
+    data: {
+      pointBalance: 50000,
+      reservedPointBalance: 0,
+      availablePointBalance: 50000,
+    },
   }),
 }));
 vi.mock("@/lib/auth", () => ({ useIsAuthenticated: () => true }));

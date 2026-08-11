@@ -1,5 +1,6 @@
 import {
   formatWon,
+  formatWonCompact,
   formatPoint,
   formatCountdown,
   formatDateTime,
@@ -15,6 +16,18 @@ describe("format utilities", () => {
     expect(formatWon(1280000)).toBe("1,280,000원");
     expect(formatPoint()).toBe("-");
     expect(formatPoint(1280000)).toBe("1,280,000P");
+  });
+
+  it("keeps amounts under 100만원 exact, abbreviates above into 억/만 units", () => {
+    expect(formatWonCompact()).toBe("-");
+    expect(formatWonCompact(3_400)).toBe("3,400원");
+    expect(formatWonCompact(340_000)).toBe("340,000원");
+    expect(formatWonCompact(999_999)).toBe("999,999원");
+    expect(formatWonCompact(1_280_000)).toBe("128만원");
+    expect(formatWonCompact(9_600_000)).toBe("960만원");
+    expect(formatWonCompact(100_000_000)).toBe("1억원");
+    expect(formatWonCompact(123_450_000)).toBe("1억 2,345만원");
+    expect(formatWonCompact(-123_450_000)).toBe("-1억 2,345만원");
   });
 
   it("clamps and pads countdown values", () => {

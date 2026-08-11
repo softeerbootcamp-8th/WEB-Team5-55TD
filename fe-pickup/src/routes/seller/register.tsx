@@ -1,3 +1,4 @@
+import { CardThumb } from "@/components/domain/card-thumb";
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
@@ -187,13 +188,12 @@ function RegisterWizard() {
                         onClick={() => setSelectedCard(card)}
                         className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border p-3 text-left transition-colors hover:border-primary"
                       >
-                        {card.imageUrl && (
-                          <img
-                            src={card.imageUrl}
-                            alt={card.cardName}
-                            className="size-12 rounded-[var(--radius-sm)] object-cover"
-                          />
-                        )}
+                        <CardThumb
+                          cardName={card.cardName ?? ""}
+                          imageUrl={card.imageUrl ?? undefined}
+                          className="size-12 rounded-[var(--radius-sm)]"
+                          aspect="aspect-square"
+                        />
                         <div className="flex flex-col">
                           <span className="text-sm font-semibold">
                             {card.cardName}
@@ -211,13 +211,12 @@ function RegisterWizard() {
             ) : (
               <div className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-primary bg-[var(--primary-weak)] p-4">
                 <div className="flex items-center gap-3">
-                  {selectedCard.imageUrl && (
-                    <img
-                      src={selectedCard.imageUrl}
-                      alt={selectedCard.cardName}
-                      className="size-14 rounded-[var(--radius-sm)] object-cover"
-                    />
-                  )}
+                  <CardThumb
+                    cardName={selectedCard.cardName ?? ""}
+                    imageUrl={selectedCard.imageUrl ?? undefined}
+                    className="size-14 rounded-[var(--radius-sm)]"
+                    aspect="aspect-square"
+                  />
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold">
                       {selectedCard.cardName}

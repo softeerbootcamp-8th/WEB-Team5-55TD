@@ -3,6 +3,10 @@ package com.ootd.pickup.global.exception;
 public enum ClientExceptionCode {
   INTERNAL_SERVER_ERROR,
   ILLEGAL_ARGUMENT,
+  BAD_REQUEST,
+  RESOURCE_NOT_FOUND,
+  METHOD_NOT_ALLOWED,
+  UNSUPPORTED_MEDIA_TYPE,
   PIKACHU_NOT_FOUND,
   CARD_NOT_FOUND,
   INVALID_GRADE,
