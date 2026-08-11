@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - OOTD-412-웹소켓-부하테스트
     paths:
       - 'fe-pickup/**'
       - '.github/workflows/frontend-cd.yml'
