@@ -21,11 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
  * 실제 결제 연동 없이 클릭 즉시 포인트를 적립하는 목업 충전 서비스.
  *
  * <p>같은 idempotencyKey로 재요청(더블 클릭, 네트워크 재시도)해도 중복 적립되지 않도록 {@code point_transaction}의 유니크 제약({@code
- * idempotency_key})을 최종 안전장치로 쓴다. {@link #chargePoint}는 사전 조회로 대부분의 중복 요청을 락 없이 걸러내지만, 드문 경쟁
- * 상황에서 두 요청이 모두 사전 조회를 통과하면 뒤늦게 저장을 시도하는 쪽이 {@code GenerationType.IDENTITY}의 즉시 flush로 유니크 제약 위반을
- * 받는다. {@code SettlementService}와 같은 이유로 이 예외를 여기서 잡지 않고 그대로 던진다 — flush 실패는 트랜잭션을 rollback-only로
- * 확정시키므로, 같은 트랜잭션 안에서 잡아도 결국 커밋 시점에 {@code UnexpectedRollbackException}으로 터진다. 트랜잭션 경계 밖의 호출자(컨트롤러)가
- * 이 예외를 "이미 처리됨"으로 해석해 {@link #getChargeResult}로 기존 결과를 반환해야 한다.
+ * idempotency_key})을 최종 안전장치로 쓴다. {@link #chargePoint}는 사전 조회로 대부분의 중복 요청을 락 없이 걸러내지만, 드문 경쟁 상황에서 두
+ * 요청이 모두 사전 조회를 통과하면 뒤늦게 저장을 시도하는 쪽이 {@code GenerationType.IDENTITY}의 즉시 flush로 유니크 제약 위반을 받는다.
+ * {@code SettlementService}와 같은 이유로 이 예외를 여기서 잡지 않고 그대로 던진다 — flush 실패는 트랜잭션을 rollback-only로
+ * 확정시키므로, 같은 트랜잭션 안에서 잡아도 결국 커밋 시점에 {@code UnexpectedRollbackException}으로 터진다. 트랜잭션 경계 밖의
+ * 호출자(컨트롤러)가 이 예외를 "이미 처리됨"으로 해석해 {@link #getChargeResult}로 기존 결과를 반환해야 한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -71,7 +71,9 @@ public class PointChargeService {
             .findByIdempotencyKey(PointTransaction.chargeIdempotencyKey(idempotencyKeySuffix))
             .orElseThrow(() -> new PickUpException(POINT_NOT_FOUND));
     Point point =
-        pointRepository.findByMemberId(memberId).orElseThrow(() -> new PickUpException(POINT_NOT_FOUND));
+        pointRepository
+            .findByMemberId(memberId)
+            .orElseThrow(() -> new PickUpException(POINT_NOT_FOUND));
     return PointChargeResponse.fromEntity(transaction, point);
   }
 
