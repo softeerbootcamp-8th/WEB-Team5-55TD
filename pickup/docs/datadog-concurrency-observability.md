@@ -16,6 +16,8 @@ MySQL DB 락, HikariCP, Tomcat 요청 스레드와 JVM 프로파일에 더해 We
 
 `DD_PROFILING_ENABLED`, `DD_LOGS_INJECTION`, `DD_JMXFETCH_CONFIG` 같은 dd-java-agent 설정은 systemd 드롭인이 아니라 다른 애플리케이션 환경변수와 함께 `/home/ubuntu/pickup/.env` 로 들어간다. 정적인 값은 `deploy/datadog.env` 에, 리비전마다 바뀌는 `DD_VERSION` 과 `DD_SERVICE`·`DD_ENV` 는 `.github/workflows/backend-cd.yml` 의 `APP_ENV_` 블록에 있다. `DD_JMXFETCH_CONFIG` 가 가리키는 파일이 `/opt/datadog/jmx` 에 실제로 깔렸는지는 `deploy.sh` 가 확인해 어긋나면 경고를 남긴다.
 
+`pickup.service` 의 `ExecStart` 에는 `-Ddd.*` 를 두지 않는다. dd-java-agent 는 시스템 프로퍼티를 환경변수보다 우선하므로, 남아 있으면 `.env` 값이 조용히 무시된다. `-javaagent` 만 남기고 나머지 `-Ddd.*` 는 지운다.
+
 MySQL DBM 설정은 애플리케이션 배포와 분리한다. `deploy/mysql-dbm.yaml`을 `/etc/datadog-agent/conf.d/mysql.d/conf.yaml`로 설치하고, Datadog Agent 서비스에 `DB_HOST`, `DB_PASSWORD`를 제공한다. MySQL에는 Datadog 전용 계정과 공식 DBM 권한을 부여하고 `performance_schema` statement/wait consumer를 활성화한다.
 
 Profiler와 JMX 수집에는 메모리 오버헤드가 있으므로 운영 적용 전에 인스턴스의 메모리와 스왑 여유를 확인한다. 이 설정은 별도의 allocation/heap profiler를 강제로 켜지 않는다.
