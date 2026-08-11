@@ -586,6 +586,7 @@ jobs:
           RECONNECT_CYCLES: 3
           FIRST_CONNECTION_SECONDS: 60
           RECONNECT_HOLD_SECONDS: 20
+          RECONNECT_BACKOFF_ENABLED: false
         run: |
           set +e
           scenario_status=0

@@ -1,5 +1,4 @@
 import ws from 'k6/ws';
-import { sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 import { connect, parseFrame, subscribe } from './stomp.js';
 
@@ -10,6 +9,7 @@ const targetVus = Number(__ENV.TARGET_VUS || 1000);
 const reconnectCycles = Number(__ENV.RECONNECT_CYCLES || 3);
 const firstConnectionSeconds = Number(__ENV.FIRST_CONNECTION_SECONDS || 60);
 const reconnectHoldSeconds = Number(__ENV.RECONNECT_HOLD_SECONDS || 20);
+const reconnectBackoffEnabled = __ENV.RECONNECT_BACKOFF_ENABLED === 'true';
 const requiredReconnects = Math.ceil(targetVus * reconnectCycles * 0.999);
 const requiredStompConnections = Math.ceil(targetVus * (reconnectCycles + 1) * 0.999);
 
@@ -84,7 +84,9 @@ export default function ({ firstCloseAt }) {
   connectSession(auctionId, firstCloseAt, false);
 
   for (let attempt = 1; attempt <= reconnectCycles; attempt += 1) {
-    sleep(Math.min(30, 2 ** (attempt - 1)) + Math.random());
+    if (reconnectBackoffEnabled) {
+      sleep(Math.min(30, 2 ** (attempt - 1)) + Math.random());
+    }
     reconnectAttempts.add(1, { attempt: String(attempt) });
     connectSession(auctionId, null, true);
   }
