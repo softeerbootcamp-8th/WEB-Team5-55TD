@@ -15,6 +15,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -62,7 +63,7 @@ public class PointReservation {
     reservation.member = member;
     reservation.amount = amount;
     reservation.reservationStatus = PointReservationStatus.ACTIVE;
-    reservation.createdAt = LocalDateTime.now();
+    reservation.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     reservation.updatedAt = reservation.createdAt;
     return reservation;
   }
@@ -72,19 +73,19 @@ public class PointReservation {
     this.bid = bid;
     this.member = member;
     this.amount = amount;
-    this.updatedAt = LocalDateTime.now();
+    this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public void release() {
     requireActive();
     this.reservationStatus = PointReservationStatus.RELEASED;
-    this.updatedAt = LocalDateTime.now();
+    this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public void capture() {
     requireActive();
     this.reservationStatus = PointReservationStatus.CAPTURED;
-    this.updatedAt = LocalDateTime.now();
+    this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   private void requireActive() {

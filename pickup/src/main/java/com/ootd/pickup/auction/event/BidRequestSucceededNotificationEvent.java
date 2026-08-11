@@ -7,6 +7,7 @@ import com.ootd.pickup.global.event.AggregateType;
 import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.NotificationEvent;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
@@ -50,7 +51,7 @@ public record BidRequestSucceededNotificationEvent(
         auction.getCreatedAt(),
         WinningBidSnapshot.fromEntity(winningBid),
         bidRequestId,
-        LocalDateTime.now());
+        LocalDateTime.now(ZoneOffset.UTC));
   }
 
   @Override

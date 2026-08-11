@@ -7,6 +7,7 @@ import com.ootd.pickup.global.slack.ErrorRequestContext;
 import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -52,7 +53,9 @@ public class GlobalExceptionHandler {
         request.getRequestURI(),
         runtimeException);
 
-    ErrorRequestContext context = ErrorRequestContext.from(request, LocalDateTime.now());
+    // Slack 알림은 온콜 담당자가 바로 읽을 수 있어야 하므로 여기만 예외적으로 KST를 쓴다.
+    ErrorRequestContext context =
+        ErrorRequestContext.from(request, LocalDateTime.now(ZoneId.of("Asia/Seoul")));
     slackErrorNotifier.notifyError(runtimeException, context);
 
     ExceptionResponse response =

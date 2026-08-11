@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -81,14 +82,14 @@ public class Auction {
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
     this.legacyUnreservedBid = false;
-    this.createdAt = LocalDateTime.now();
+    this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public Long getRemainingSeconds() {
     if (auctionStatus != AuctionStatus.ONGOING || endedAt == null) {
       return null;
     }
-    return Math.max(Duration.between(LocalDateTime.now(), endedAt).getSeconds(), 0);
+    return Math.max(Duration.between(LocalDateTime.now(ZoneOffset.UTC), endedAt).getSeconds(), 0);
   }
 
   public void updateWinningBid(Long winningBidId, Long winningPrice) {

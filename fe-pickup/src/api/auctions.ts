@@ -108,7 +108,7 @@ export interface CreateAuctionPayload {
   consignmentId: string;
   startingPrice: number;
   reserve: number;
-  /** LocalDateTime 형식 (타임존 없이) — 예: "2026-08-01T10:00:00" */
+  /** UTC ISO-8601(Z 접미사) — 예: "2026-08-01T01:00:00Z". KST 입력값 변환은 lib/timezone.ts 참고 */
   scheduledStartAt: string;
 }
 
