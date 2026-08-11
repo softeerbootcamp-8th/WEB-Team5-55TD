@@ -39,6 +39,14 @@ public class Member {
   @Column(name = "profile_image_object_key", length = 512)
   private String profileImageObjectKey;
 
+  @Column(length = 32)
+  private String oauthProvider;
+
+  private String oauthSubject;
+
+  @Column(length = 2048)
+  private String externalProfileImageUrl;
+
   public static Member create(String loginId, String password, String nickname) {
     Member member = new Member();
     member.loginId = loginId;
@@ -47,6 +55,19 @@ public class Member {
     member.joinedAt = LocalDateTime.now(ZoneOffset.UTC);
     member.updatedAt = member.joinedAt;
     return member;
+  }
+
+  public static Member createOAuth(
+      String provider, String subject, String nickname, String profileImageUrl) {
+    Member member = create(provider.toLowerCase() + "_" + subject, null, nickname);
+    member.oauthProvider = provider;
+    member.oauthSubject = subject;
+    member.externalProfileImageUrl = profileImageUrl;
+    return member;
+  }
+
+  public void setExternalProfileImageUrl(String profileImageUrl) {
+    this.externalProfileImageUrl = profileImageUrl;
   }
 
   public void updateProfile(String nickname, String passwordHash) {
@@ -61,11 +82,13 @@ public class Member {
 
   public void updateProfileImage(String profileImageObjectKey) {
     this.profileImageObjectKey = profileImageObjectKey;
+    this.externalProfileImageUrl = null;
     updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public void removeProfileImage() {
     profileImageObjectKey = null;
+    externalProfileImageUrl = null;
     updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 

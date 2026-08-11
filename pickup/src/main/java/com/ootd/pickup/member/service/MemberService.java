@@ -72,6 +72,7 @@ public class MemberService {
 
     String passwordHash = hashPassword(memberRequest.password());
     Member member = Member.create(memberRequest.loginId(), passwordHash, memberRequest.nickname());
+    member.setExternalProfileImageUrl(memberRequest.profileImage());
 
     Member savedMember;
     try {
@@ -82,7 +83,10 @@ public class MemberService {
 
     pointRepository.save(Point.create(savedMember.getMemberId()));
     return new MemberResponse(
-        savedMember.getMemberId(), savedMember.getLoginId(), savedMember.getNickname(), null);
+        savedMember.getMemberId(),
+        savedMember.getLoginId(),
+        savedMember.getNickname(),
+        savedMember.getExternalProfileImageUrl());
   }
 
   @Transactional(readOnly = true)
@@ -299,7 +303,10 @@ public class MemberService {
 
   private MyProfileResponse toMyProfileResponse(Member member) {
     return MyProfileResponse.from(
-        member, imageUrlResolver.resolve(member.getProfileImageObjectKey()));
+        member,
+        member.getExternalProfileImageUrl() != null
+            ? member.getExternalProfileImageUrl()
+            : imageUrlResolver.resolve(member.getProfileImageObjectKey()));
   }
 
   public record ProfileUpdateResult(MyProfileResponse response, String previousObjectKey) {}

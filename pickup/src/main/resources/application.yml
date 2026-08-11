@@ -52,6 +52,9 @@ management:
       env: ${DD_ENV:production}
       version: ${DD_VERSION:unknown}
 auth:
+  kakao:
+    client-id: ${KAKAO_CLIENT_ID:}
+    client-secret: ${KAKAO_CLIENT_SECRET:}
   token:
     issuer: ${JWT_ISSUER:pickup}
     secret: ${JWT_SECRET:}

@@ -39,6 +39,10 @@ public class AuthService {
       throw new PickUpException(INVALID_PASSWORD);
     }
 
+    return issueLogin(member);
+  }
+
+  public LoginResponse issueLogin(Member member) {
     AccessToken accessToken = accessTokenGenerator.generate(member.getMemberId());
     RefreshToken refreshToken = refreshTokenGenerator.generate();
 
@@ -50,7 +54,9 @@ public class AuthService {
             member.getMemberId(),
             member.getLoginId(),
             member.getNickname(),
-            imageUrlResolver.resolve(member.getProfileImageObjectKey()));
+            member.getExternalProfileImageUrl() != null
+                ? member.getExternalProfileImageUrl()
+                : imageUrlResolver.resolve(member.getProfileImageObjectKey()));
 
     return new LoginResponse(body, accessToken, refreshToken.value());
   }
