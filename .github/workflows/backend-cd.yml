@@ -457,3 +457,93 @@ jobs:
                 elements:
                   - type: mrkdwn
                     text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그>"
+
+  websocket-load-test:
+    name: k6 WebSocket load test
+    needs: deploy
+    if: ${{ success() && github.ref_name == 'OOTD-412-웹소켓-부하테스트' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate load-test secrets
+        env:
+          TEST_BASE_URL: ${{ secrets.TEST_BASE_URL }}
+          TEST_WS_URL: ${{ secrets.TEST_WS_URL }}
+          TEST_ORIGIN: ${{ secrets.TEST_ORIGIN }}
+          TEST_AUCTION_IDS: ${{ secrets.TEST_AUCTION_IDS }}
+          TEST_ACCESS_TOKENS: ${{ secrets.TEST_ACCESS_TOKENS }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "${TEST_BASE_URL}" ] || missing+=(TEST_BASE_URL)
+          [ -n "${TEST_WS_URL}" ] || missing+=(TEST_WS_URL)
+          [ -n "${TEST_ORIGIN}" ] || missing+=(TEST_ORIGIN)
+          [ -n "${TEST_AUCTION_IDS}" ] || missing+=(TEST_AUCTION_IDS)
+          [ -n "${TEST_ACCESS_TOKENS}" ] || missing+=(TEST_ACCESS_TOKENS)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::부하테스트 Secret이 없습니다: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Prepare results directory
+        run: mkdir -p pickup/load-test/results
+
+      - name: Run idle WebSocket test
+        env:
+          TEST_WS_URL: ${{ secrets.TEST_WS_URL }}
+          TEST_ORIGIN: ${{ secrets.TEST_ORIGIN }}
+          TEST_AUCTION_IDS: ${{ secrets.TEST_AUCTION_IDS }}
+          HOLD_SECONDS: 600
+        run: |
+          k6 run --summary-export=pickup/load-test/results/idle-websocket.json \
+            pickup/load-test/k6/idle-websocket.js
+
+      - name: Run bid to WebSocket test
+        env:
+          TEST_BASE_URL: ${{ secrets.TEST_BASE_URL }}
+          TEST_WS_URL: ${{ secrets.TEST_WS_URL }}
+          TEST_ORIGIN: ${{ secrets.TEST_ORIGIN }}
+          TEST_AUCTION_IDS: ${{ secrets.TEST_AUCTION_IDS }}
+          TEST_ACCESS_TOKENS: ${{ secrets.TEST_ACCESS_TOKENS }}
+        run: |
+          k6 run --summary-export=pickup/load-test/results/bid-websocket-e2e.json \
+            pickup/load-test/k6/bid-websocket-e2e.js
+
+      - name: Run reconnect storm test
+        env:
+          TEST_WS_URL: ${{ secrets.TEST_WS_URL }}
+          TEST_ORIGIN: ${{ secrets.TEST_ORIGIN }}
+          TEST_AUCTION_IDS: ${{ secrets.TEST_AUCTION_IDS }}
+          RECONNECT_VUS: 1000
+          RECONNECT_ATTEMPTS: 3
+        run: |
+          k6 run --summary-export=pickup/load-test/results/reconnect-storm.json \
+            pickup/load-test/k6/reconnect-storm.js
+
+      - name: Create report
+        if: always()
+        run: |
+          {
+            echo '# WebSocket load test report'
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo 'Detailed k6 summaries are attached as JSON artifacts.'
+          } > pickup/load-test/results/websocket-load-test-report.md
+
+      - name: Upload load-test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: websocket-load-test-${{ github.sha }}
+          path: pickup/load-test/results
+          if-no-files-found: error
+          retention-days: 14
