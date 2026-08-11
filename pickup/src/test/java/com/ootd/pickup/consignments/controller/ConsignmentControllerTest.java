@@ -281,6 +281,9 @@ class ConsignmentControllerTest {
             1L,
             "모서리에 약간의 마모",
             ConsignmentStatus.REGISTERABLE,
+            null,
+            null,
+            null,
             new CertificateResponse(
                 200L,
                 "PSA-84213907",
@@ -383,6 +386,9 @@ class ConsignmentControllerTest {
             "피카츄",
             "모서리에 약간의 마모",
             ConsignmentStatus.REGISTERABLE,
+            null,
+            null,
+            null,
             new CertificateResponse(
                 200L,
                 "PSA-84213907",
@@ -444,6 +450,9 @@ class ConsignmentControllerTest {
             "피카츄",
             "새로운 흠집 설명",
             ConsignmentStatus.REGISTERABLE,
+            null,
+            null,
+            null,
             new CertificateResponse(
                 201L,
                 "PSA-84213907",

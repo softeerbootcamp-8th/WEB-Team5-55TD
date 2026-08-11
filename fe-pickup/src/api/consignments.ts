@@ -3,8 +3,13 @@ import type { Grade } from "@/lib/types";
 import { ProductStatus } from "@/lib/types";
 import { axiosInstance } from "@/api/mutator/custom-instance";
 
-export type ApiConsignmentStatus =
-  "REGISTERABLE" | "AUCTION_SCHEDULED" | "AUCTION_ONGOING" | "WON" | "PASSED";
+export type ApiConsignmentStatus = "REGISTERABLE" | "IN_AUCTION" | "SOLD";
+
+/**
+ * 연결된 경매의 상태. ConsignmentStatus는 신청~진행 중을 IN_AUCTION 하나로만 표현하므로,
+ * "예정"/"진행 중" 탭 구분과 재신청 가능 여부는 이 값으로 판단한다.
+ */
+export type ApiAuctionSubStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
 interface ConsignmentCardResponse {
   cardId: number;
@@ -32,6 +37,9 @@ interface ConsignmentListItemResponse {
   sellerMemberId: number;
   majorDefect?: string | null;
   status: ApiConsignmentStatus;
+  auctionStatus?: ApiAuctionSubStatus | null;
+  auctionStartedAt?: string | null;
+  auctionEndedAt?: string | null;
   certificate: ConsignmentCertificateResponse;
   thumbnailUrl?: string | null;
 }
@@ -81,23 +89,29 @@ interface ConsignmentDetailResponse {
   sellerMemberNickname: string;
   majorDefect?: string | null;
   status: ApiConsignmentStatus;
+  auctionStatus?: ApiAuctionSubStatus | null;
+  auctionStartedAt?: string | null;
+  auctionEndedAt?: string | null;
   certificate: ConsignmentCertificateResponse;
   images: ConsignmentImageResponse[];
   auctionRegistered: boolean;
 }
 
-function toUiStatus(status: ApiConsignmentStatus): ProductStatus {
+function toUiStatus(
+  status: ApiConsignmentStatus,
+  auctionStatus?: ApiAuctionSubStatus | null,
+): ProductStatus {
   switch (status) {
-    case "REGISTERABLE":
-      return ProductStatus.REGISTERABLE;
-    case "AUCTION_SCHEDULED":
-      return ProductStatus.AUCTION_UPCOMING;
-    case "AUCTION_ONGOING":
-      return ProductStatus.AUCTION_LIVE;
-    case "WON":
+    case "SOLD":
       return ProductStatus.SOLD;
-    case "PASSED":
-      return ProductStatus.REAPPLICABLE;
+    case "IN_AUCTION":
+      return auctionStatus === "ONGOING"
+        ? ProductStatus.AUCTION_LIVE
+        : ProductStatus.AUCTION_UPCOMING;
+    case "REGISTERABLE":
+      return auctionStatus === "PASSED"
+        ? ProductStatus.REAPPLICABLE
+        : ProductStatus.REGISTERABLE;
     default:
       // 백엔드가 아직 FE에 반영되지 않은 상태값을 내려줄 경우를 대비한 안전한 기본값.
       return ProductStatus.REGISTERABLE;
@@ -115,7 +129,7 @@ function toSummary(item: ConsignmentListItemResponse): ConsignmentSummary {
       score: item.certificate.grade,
       serial: item.certificate.serialNumber,
     },
-    status: toUiStatus(item.status),
+    status: toUiStatus(item.status, item.auctionStatus),
   };
 }
 
@@ -130,7 +144,7 @@ function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
       score: item.certificate.grade,
       serial: item.certificate.serialNumber,
     },
-    status: toUiStatus(item.status),
+    status: toUiStatus(item.status, item.auctionStatus),
     setName: item.card.setName,
     cardNumber: item.card.cardNumber,
     language: item.card.language,

@@ -94,7 +94,9 @@ function ProductDetailPage() {
   }
 
   const meta = PRODUCT_STATUS_META[product.status];
-  const canApply = product.status === ProductStatus.REGISTERABLE;
+  const canApply =
+    product.status === ProductStatus.REGISTERABLE ||
+    product.status === ProductStatus.REAPPLICABLE;
   const isAuctionUpcoming = product.status === ProductStatus.AUCTION_UPCOMING;
   // 경매 등록 완료 이후 상태는 수정·삭제 불가 (DESIGN.md §6, ConsignmentStatus.isModifiable)
   const canModify =

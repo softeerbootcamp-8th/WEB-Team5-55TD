@@ -106,4 +106,16 @@ describe("셀러 상품 상세", () => {
     render(<Component />);
     expect(screen.getByText("상품을 찾을 수 없습니다.")).toBeInTheDocument();
   });
+
+  it("재신청_가능_상품도_경매_신청_버튼을_보여준다", async () => {
+    queryState = {
+      data: { ...product, status: "REAPPLICABLE" },
+      isPending: false,
+      isError: false,
+    };
+    const { Route } = await import("@/routes/seller/products/$productId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    expect(screen.getByText("경매 신청")).toBeInTheDocument();
+  });
 });

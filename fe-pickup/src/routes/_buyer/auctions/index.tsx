@@ -70,7 +70,7 @@ function AuctionListPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">경매</h1>
         <p className="text-sm text-[var(--color-text-sub)]">
-          카드셋 · 카드명 · 언어로 경매를 탐색하세요.
+          카드명으로 경매를 탐색하세요.
         </p>
       </div>
 

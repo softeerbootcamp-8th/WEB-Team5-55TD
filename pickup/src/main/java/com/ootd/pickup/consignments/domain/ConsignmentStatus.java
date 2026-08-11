@@ -6,19 +6,15 @@ import com.ootd.pickup.global.exception.PickUpException;
 import java.util.Arrays;
 
 public enum ConsignmentStatus {
-  // 위탁 등록 완료, 경매 등록 가능
+  // 위탁 등록 완료, 경매 등록 가능(신규 등록 또는 유찰 후 재등록)
   REGISTERABLE,
-  // 경매 등록 완료, 시작 대기 중
-  AUCTION_SCHEDULED,
-  // 경매 진행 중
-  AUCTION_ONGOING,
+  // 경매 신청부터 종료 전까지(시작 대기 중이든 진행 중이든)
+  IN_AUCTION,
   // 낙찰되어 판매 완료
-  WON,
-  // 유찰되어 재등록 가능
-  PASSED;
+  SOLD;
 
   public boolean isModifiable() {
-    return this == REGISTERABLE || this == PASSED;
+    return this == REGISTERABLE;
   }
 
   public boolean isDeletable() {
