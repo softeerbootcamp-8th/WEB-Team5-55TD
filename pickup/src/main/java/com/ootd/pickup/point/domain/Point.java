@@ -47,7 +47,7 @@ public class Point {
     if (amount > getAvailableBalance()) {
       throw new IllegalStateException("사용 가능한 포인트가 부족합니다 - amount=" + amount);
     }
-    this.balance -= amount;
+    this.balance = Math.subtractExact(this.balance, amount);
   }
 
   public void reserve(long amount) {
