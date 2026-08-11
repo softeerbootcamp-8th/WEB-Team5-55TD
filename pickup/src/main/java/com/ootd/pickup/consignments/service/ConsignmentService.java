@@ -36,11 +36,13 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ConsignmentService {
@@ -92,6 +94,11 @@ public class ConsignmentService {
     }
     consignmentImageRepository.saveAll(images);
 
+    log.info(
+        "위탁 상품을 등록했습니다 - consignmentId={}, sellerMemberId={}, cardId={}",
+        consignment.getConsignmentId(),
+        sellerMemberId,
+        card.getCardId());
     return RegisterConsignmentResponse.of(consignment, certificate);
   }
 
@@ -287,6 +294,7 @@ public class ConsignmentService {
     certificateRepository.deleteByConsignment(consignment);
     consignmentImageRepository.deleteAllByConsignment(consignment);
     consignmentRepository.deleteById(consignmentId);
+    log.info("위탁 상품을 삭제했습니다 - consignmentId={}, sellerMemberId={}", consignmentId, sellerMemberId);
     return imageObjectKeys;
   }
 
