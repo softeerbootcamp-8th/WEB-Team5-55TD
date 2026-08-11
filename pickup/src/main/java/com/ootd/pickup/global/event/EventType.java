@@ -1,9 +1,11 @@
 package com.ootd.pickup.global.event;
 
-import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.auction.event.AuctionEndedNotificationEvent;
 import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
+import com.ootd.pickup.auction.event.BidRequestSucceededNotificationEvent;
+import com.ootd.pickup.bid.event.BidRequestCreatedMessageQueueEvent;
+import com.ootd.pickup.bid.event.BidRequestFailedNotificationEvent;
 
 /**
  * 일어난 사건의 종류. {@code outbox_event.event_type}에 이름 그대로 저장되고, Redis 채널 메시지에도 같은 값이 실린다.
@@ -24,8 +26,12 @@ public enum EventType {
   AUCTION_STARTED(null, AuctionStartedNotificationEvent.class),
   /** 경매가 종료 시각에 도달해 낙찰/유찰이 확정됐다. 정산(메시지 큐)과 화면 갱신(알림)이 모두 필요하다. */
   AUCTION_ENDED(AuctionEndedMessageQueueEvent.class, AuctionEndedNotificationEvent.class),
-  /** 입찰로 현재가가 갱신됐다. 화면 갱신만 필요하다. */
-  AUCTION_BID_UPDATED(null, AuctionBidUpdatedNotificationEvent.class);
+  /** 입찰 요청이 접수됐다. 실제 처리가 정확히 한 번만 일어나야 하므로 메시지 큐 계열만 둔다. */
+  BID_REQUEST_CREATED(BidRequestCreatedMessageQueueEvent.class, null),
+  /** 입찰 요청 처리가 성공해 현재가가 갱신됐다. 화면 갱신만 필요하다. */
+  BID_REQUEST_SUCCEEDED(null, BidRequestSucceededNotificationEvent.class),
+  /** 입찰 요청 처리가 실패했다. 요청한 회원 본인에게만 알려야 하므로 화면 갱신만 필요하다. */
+  BID_REQUEST_FAILED(null, BidRequestFailedNotificationEvent.class);
 
   private final Class<? extends MessageQueueEvent> messageQueueEventClass;
   private final Class<? extends NotificationEvent> notificationEventClass;

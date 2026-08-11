@@ -14,7 +14,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 
 import com.ootd.pickup.auction.domain.Auction;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
+import com.ootd.pickup.auction.event.BidRequestSucceededNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
@@ -55,6 +55,12 @@ public class BidService {
 
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
+    return placeBid(auctionId, memberId, request, null);
+  }
+
+  @Transactional
+  public PlaceBidResponse placeBid(
+      Long auctionId, Long memberId, PlaceBidRequest request, Long bidRequestId) {
     Auction auction =
         auctionRepository
             .findByIdForUpdate(auctionId)
@@ -75,7 +81,8 @@ public class BidService {
     validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
     PreparedBidReservation preparedReservation =
         pointReservationService.prepareReservation(auction, member, request.bidPrice());
-    Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
+    Bid savedBid =
+        bidRepository.save(Bid.create(auction, member, request.bidPrice(), bidRequestId));
     pointReservationService.reserveHighestBid(auction, preparedReservation, savedBid, member);
 
     currentHighestBid.ifPresent(
@@ -90,7 +97,7 @@ public class BidService {
     }
     auctionRepository.save(auction);
     applicationEventPublisher.publishEvent(
-        AuctionBidUpdatedNotificationEvent.fromEntity(auction, savedBid));
+        BidRequestSucceededNotificationEvent.fromEntity(auction, savedBid, bidRequestId));
 
     return PlaceBidResponse.from(savedBid);
   }
