@@ -3,8 +3,8 @@ package com.ootd.pickup.global.event;
 /**
  * 알림 이벤트 발행 진입점.
  *
- * <p>도메인 서비스는 이 인터페이스만 알고 커밋 시점도 Redis도 모른다. 구현체가 트랜잭션 커밋 이후에 전송 계층으로 넘기는 것까지 책임진다 — 호출자가 {@code
- * afterCommit} 훅을 직접 걸지 않는다.
+ * <p>도메인 서비스는 이 인터페이스만 알고 커밋 시점도 Redis도 모른다. 구현과 전송 계층은 {@code global.event.notification} 아래에 있고,
+ * 트랜잭션 커밋 이후에 내보내는 것까지 그쪽이 책임진다 — 호출자가 {@code afterCommit} 훅을 직접 걸지 않는다.
  *
  * <p>발행 실패는 호출자에게 전파되지 않는다.
  *
