@@ -2,7 +2,6 @@ package com.ootd.pickup.bid.service;
 
 import static com.ootd.pickup.auction.domain.AuctionStatus.ONGOING;
 import static com.ootd.pickup.auction.domain.AuctionStatus.SCHEDULED;
-import static com.ootd.pickup.bid.domain.BidStatus.HIGHEST;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_ENDED;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_STARTED;
@@ -30,7 +29,6 @@ import com.ootd.pickup.point.service.PointReservationService;
 import com.ootd.pickup.point.service.PointReservationService.PreparedBidReservation;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -67,22 +65,14 @@ public class BidService {
         memberRepository
             .findById(memberId)
             .orElseThrow(() -> new PickUpException(MEMBER_NOT_FOUND));
-    Optional<Bid> currentHighestBid =
-        bidRepository.findFirstByAuctionIdAndBidStatus(auctionId, HIGHEST);
-    Long currentPrice =
-        currentHighestBid.map(Bid::getBidPrice).orElseGet(auction::getStartingPrice);
+    // validateAuction이 이미 SCHEDULED를 걸러냈으므로 이 시점의 auction은 항상 ONGOING이라 null이 아니다.
+    Long currentPrice = auction.getCurrentPrice();
 
     validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
     PreparedBidReservation preparedReservation =
         pointReservationService.prepareReservation(auction, member, request.bidPrice());
     Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
     pointReservationService.reserveHighestBid(auction, preparedReservation, savedBid, member);
-
-    currentHighestBid.ifPresent(
-        bid -> {
-          bid.outbid();
-          bidRepository.save(bid);
-        });
 
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
     if (auction.extendEndAtForSoftClose(bidAt)) {

@@ -56,15 +56,15 @@ class AuctionSchedulerIntegrationTest {
   }
 
   @Test
-  void 경매가_시작되면_위탁_상품도_경매_진행_중으로_전이된다() {
-    // given
+  void 경매가_시작되어도_위탁_상품_상태는_그대로_유지된다() {
+    // given — 위탁 상품은 경매 신청 시점에 이미 IN_AUCTION으로 전이되어 있다
     Auction due = createAuction(AuctionStatus.SCHEDULED, past(1), future(1));
 
     // when
     auctionScheduler.transitionDueAuctions();
 
     // then
-    assertThat(findConsignmentStatus(due)).isEqualTo(ConsignmentStatus.AUCTION_ONGOING);
+    assertThat(findConsignmentStatus(due)).isEqualTo(ConsignmentStatus.IN_AUCTION);
   }
 
   @Test
@@ -78,7 +78,7 @@ class AuctionSchedulerIntegrationTest {
     auctionScheduler.transitionDueAuctions();
 
     // then
-    assertThat(findConsignmentStatus(due)).isEqualTo(ConsignmentStatus.WON);
+    assertThat(findConsignmentStatus(due)).isEqualTo(ConsignmentStatus.SOLD);
   }
 
   @Test
@@ -92,7 +92,7 @@ class AuctionSchedulerIntegrationTest {
     auctionScheduler.transitionDueAuctions();
 
     // then
-    assertThat(findConsignmentStatus(due)).isEqualTo(ConsignmentStatus.PASSED);
+    assertThat(findConsignmentStatus(due)).isEqualTo(ConsignmentStatus.REGISTERABLE);
   }
 
   @Test
@@ -254,10 +254,10 @@ class AuctionSchedulerIntegrationTest {
   /** 위탁 상품 상태는 항상 경매 상태와 짝을 이룬다. 테스트가 만드는 초기 상태도 이 불변조건을 지켜야 한다. */
   private ConsignmentStatus matchingConsignmentStatus(AuctionStatus auctionStatus) {
     return switch (auctionStatus) {
-      case SCHEDULED -> ConsignmentStatus.AUCTION_SCHEDULED;
-      case ONGOING -> ConsignmentStatus.AUCTION_ONGOING;
-      case WON -> ConsignmentStatus.WON;
-      case PASSED -> ConsignmentStatus.PASSED;
+      case SCHEDULED -> ConsignmentStatus.IN_AUCTION;
+      case ONGOING -> ConsignmentStatus.IN_AUCTION;
+      case WON -> ConsignmentStatus.SOLD;
+      case PASSED -> ConsignmentStatus.REGISTERABLE;
     };
   }
 

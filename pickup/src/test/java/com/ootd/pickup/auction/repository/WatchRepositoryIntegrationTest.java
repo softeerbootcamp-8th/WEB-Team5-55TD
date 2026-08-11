@@ -238,7 +238,7 @@ class WatchRepositoryIntegrationTest {
             Consignment.builder()
                 .card(card)
                 .sellerMember(sellerMember)
-                .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                .status(ConsignmentStatus.IN_AUCTION)
                 .build());
     return auctionJpaRepository.save(
         Auction.builder()

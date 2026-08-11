@@ -17,25 +17,22 @@ class ConsignmentTest {
     consignment.scheduleAuction();
 
     // then
-    assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.AUCTION_SCHEDULED);
-  }
-
-  @Test
-  void 유찰된_상품은_재신청하면_예정_상태가_된다() {
-    // given
-    Consignment consignment = consignmentOf(ConsignmentStatus.PASSED);
-
-    // when
-    consignment.scheduleAuction();
-
-    // then
-    assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.AUCTION_SCHEDULED);
+    assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.IN_AUCTION);
   }
 
   @Test
   void 이미_경매가_진행중인_상품은_다시_신청할_수_없다() {
     // given
-    Consignment consignment = consignmentOf(ConsignmentStatus.AUCTION_ONGOING);
+    Consignment consignment = consignmentOf(ConsignmentStatus.IN_AUCTION);
+
+    // when & then
+    assertThatThrownBy(consignment::scheduleAuction).isInstanceOf(PickUpException.class);
+  }
+
+  @Test
+  void 판매완료된_상품은_다시_신청할_수_없다() {
+    // given
+    Consignment consignment = consignmentOf(ConsignmentStatus.SOLD);
 
     // when & then
     assertThatThrownBy(consignment::scheduleAuction).isInstanceOf(PickUpException.class);

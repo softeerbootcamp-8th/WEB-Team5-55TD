@@ -172,7 +172,7 @@ class SalesHistoryIntegrationTest {
         Consignment.builder()
             .card(card)
             .sellerMember(seller)
-            .status(ConsignmentStatus.AUCTION_ONGOING)
+            .status(ConsignmentStatus.IN_AUCTION)
             .build();
     return consignmentJpaRepository.save(consignment);
   }

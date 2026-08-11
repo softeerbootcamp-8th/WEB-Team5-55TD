@@ -55,26 +55,28 @@ function ProductListPage() {
   const activeTab = tab ?? "registerable";
 
   const registerableQuery = useQuery({
-    queryKey: ["consignments", "my", "REGISTERABLE", "PASSED"],
-    // PASSED(유찰)도 재등록 가능한 상태라 등록 가능 탭에 함께 노출한다.
-    queryFn: () => fetchByStatuses(["REGISTERABLE", "PASSED"]),
+    queryKey: ["consignments", "my", "REGISTERABLE"],
+    // 유찰(재신청 가능)도 이제 REGISTERABLE 하나로 합쳐져 함께 내려온다.
+    queryFn: () => fetchByStatuses(["REGISTERABLE"]),
   });
-  const upcomingQuery = useQuery({
-    queryKey: ["consignments", "my", "AUCTION_SCHEDULED"],
-    queryFn: () => fetchByStatuses(["AUCTION_SCHEDULED"]),
-  });
-  const ongoingQuery = useQuery({
-    queryKey: ["consignments", "my", "AUCTION_ONGOING"],
-    queryFn: () => fetchByStatuses(["AUCTION_ONGOING"]),
+  // 경매 예정/진행 중은 모두 IN_AUCTION이라 한 번에 조회하고, 연결된 경매 상태로 화면에서 나눈다.
+  const inAuctionQuery = useQuery({
+    queryKey: ["consignments", "my", "IN_AUCTION"],
+    queryFn: () => fetchByStatuses(["IN_AUCTION"]),
   });
   const soldQuery = useQuery({
-    queryKey: ["consignments", "my", "WON"],
-    queryFn: () => fetchByStatuses(["WON"]),
+    queryKey: ["consignments", "my", "SOLD"],
+    queryFn: () => fetchByStatuses(["SOLD"]),
   });
 
   const registerable = registerableQuery.data ?? [];
-  const upcoming = upcomingQuery.data ?? [];
-  const ongoing = ongoingQuery.data ?? [];
+  const inAuction = inAuctionQuery.data ?? [];
+  const upcoming = inAuction.filter(
+    (item) => item.status === ProductStatus.AUCTION_UPCOMING,
+  );
+  const ongoing = inAuction.filter(
+    (item) => item.status === ProductStatus.AUCTION_LIVE,
+  );
   const sold = soldQuery.data ?? [];
 
   return (
@@ -119,15 +121,15 @@ function ProductListPage() {
         <TabsContent value="upcoming">
           <ProductGrid
             items={upcoming}
-            isLoading={upcomingQuery.isPending}
-            isError={upcomingQuery.isError}
+            isLoading={inAuctionQuery.isPending}
+            isError={inAuctionQuery.isError}
           />
         </TabsContent>
         <TabsContent value="ongoing">
           <ProductGrid
             items={ongoing}
-            isLoading={ongoingQuery.isPending}
-            isError={ongoingQuery.isError}
+            isLoading={inAuctionQuery.isPending}
+            isError={inAuctionQuery.isError}
           />
         </TabsContent>
         <TabsContent value="sold">

@@ -69,10 +69,7 @@ class AuctionEndedMessageQueueEventTest {
 
   private Auction createAuction(Long auctionId, AuctionStatus status, Member seller) {
     Consignment consignment =
-        Consignment.builder()
-            .sellerMember(seller)
-            .status(ConsignmentStatus.AUCTION_SCHEDULED)
-            .build();
+        Consignment.builder().sellerMember(seller).status(ConsignmentStatus.IN_AUCTION).build();
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
         Auction.builder()

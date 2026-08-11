@@ -75,8 +75,6 @@ public class AuctionStatusTransitionService {
       return;
     }
 
-    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToAuctionOngoingByAuctionIdIn(
-        auctionIds);
     publishStartedAfterCommit(auctionIds);
     log.info("경매를 시작했습니다 - count={}, auctionIds={}", updated, auctionIds);
   }
@@ -158,14 +156,13 @@ public class AuctionStatusTransitionService {
       return;
     }
 
-    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToWonByAuctionIdIn(auctionIds);
-    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToPassedByAuctionIdIn(auctionIds);
+    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToSoldByAuctionIdIn(auctionIds);
+    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToRegisterableByAuctionIdIn(
+        auctionIds);
 
     // 낙찰 입찰은 두 계열이 모두 필요로 한다. 한 번만 조회해 함께 쓴다.
     List<Auction> closedAuctions = findClosedAuctions(auctionIds);
     Map<Long, Bid> winningBidsById = findWinningBidsById(closedAuctions);
-
-    markWinningBidsAsWon(closedAuctions);
 
     int appended = appendClosedEventsToOutbox(closedAuctions, winningBidsById);
     publishAfterCommit(
@@ -227,21 +224,6 @@ public class AuctionStatusTransitionService {
 
     events.forEach(eventProducer::produce);
     return events.size();
-  }
-
-  /** 낙찰로 전이된 경매의 최고 입찰을 {@code WON}으로 전이시킨다. */
-  private void markWinningBidsAsWon(List<Auction> closedAuctions) {
-    List<Long> winningBidIds =
-        closedAuctions.stream()
-            .filter(auction -> auction.getAuctionStatus() == WON)
-            .map(Auction::getWinningBidId)
-            .filter(Objects::nonNull)
-            .toList();
-    if (winningBidIds.isEmpty()) {
-      return;
-    }
-
-    auctionSchedulerStatusUpdateRepository.updateBidStatusToWonByIdIn(winningBidIds);
   }
 
   /** 유찰된 경매는 낙찰 입찰이 없다. 빈 맵에 null 키로 조회하면 예외가 나므로 먼저 걸러낸다. */
