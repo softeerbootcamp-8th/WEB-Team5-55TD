@@ -10,6 +10,8 @@ spec:
   destinations:
     - namespace: pickup-qa
       server: https://kubernetes.default.svc
+    - namespace: cloudflare
+      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
