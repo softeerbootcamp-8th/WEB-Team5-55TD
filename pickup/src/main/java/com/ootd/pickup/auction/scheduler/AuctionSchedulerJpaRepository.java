@@ -14,8 +14,8 @@ import org.springframework.data.repository.query.Param;
  * <p>{@code JpaRepository}가 아니라 {@link Repository}를 상속하는 이유는 여기 선언한 메서드만 존재하게 하기 위해서다. {@code
  * save}나 {@code findAll}이 노출되지 않아 경매를 한 건씩 저장하는 경로가 타입 차원에서 막힌다. 상태 전이는 반드시 bulk update로만 일어난다.
  *
- * <p>조회만 이 인터페이스가 담당하고, bulk update는 {@link AuctionSchedulerRepository}가 QueryDSL로 직접 실행한다 —
- * {@code winningPrice}·{@code reservePrice} 비교를 조건에 넣으려면 JPQL 문자열보다 타입 안전한 QueryDSL이 낫다.
+ * <p>조회만 이 인터페이스가 담당하고, bulk update는 {@link AuctionSchedulerRepository}가 QueryDSL로 직접 실행한다 — {@code
+ * winningPrice}·{@code reservePrice} 비교를 조건에 넣으려면 JPQL 문자열보다 타입 안전한 QueryDSL이 낫다.
  */
 public interface AuctionSchedulerJpaRepository extends Repository<Auction, Long> {
 
