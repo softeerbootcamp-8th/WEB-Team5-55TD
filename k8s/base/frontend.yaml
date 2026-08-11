@@ -42,9 +42,11 @@ kind: Service
 metadata:
   name: pickup-web
 spec:
+  type: NodePort
   selector:
     app.kubernetes.io/name: pickup-web
   ports:
     - name: http
       port: 80
       targetPort: http
+      nodePort: 30174
