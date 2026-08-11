@@ -1,0 +1,16 @@
+{
+  "runId": "idle-1000-01",
+  "wsUrl": "wss://test.example.com/ws",
+  "origin": "https://test.example.com",
+  "auctionIds": [42],
+  "connections": 1000,
+  "rampSeconds": 60,
+  "stabilizationSeconds": 30,
+  "durationSeconds": 600,
+  "heartbeatMillis": 10000,
+  "connectTimeoutMillis": 15000,
+  "deliveryGraceMillis": 2000,
+  "minimumConnectedRatio": 0.999,
+  "abruptCloseRatio": 0.1,
+  "resultPath": "./results/idle-1000.json"
+}

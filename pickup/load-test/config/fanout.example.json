@@ -1,0 +1,20 @@
+{
+  "runId": "fanout-1000-5eps-01",
+  "wsUrl": "wss://test.example.com/ws",
+  "origin": "https://test.example.com",
+  "redisUrl": "rediss://test-redis.example.com:6379",
+  "auctionIds": [42],
+  "connections": 1000,
+  "rampSeconds": 60,
+  "stabilizationSeconds": 30,
+  "durationSeconds": 600,
+  "heartbeatMillis": 10000,
+  "connectTimeoutMillis": 15000,
+  "deliveryGraceMillis": 2000,
+  "minimumConnectedRatio": 0.999,
+  "abruptCloseRatio": 0,
+  "eventsPerSecond": 5,
+  "bidIdBase": 1000000000,
+  "publishEvents": true,
+  "resultPath": "./results/fanout-1000-5eps.json"
+}

@@ -1,2 +1,5 @@
 .idea/
 .DS_Store
+pickup/load-test/config/*.local.json
+pickup/load-test/node_modules/
+pickup/load-test/results/

@@ -1,0 +1,19 @@
+{
+  "mode": "distributed-auctions",
+  "runId": "bid-baseline-01",
+  "baseUrl": "https://test-api.example.com",
+  "origin": "https://test.example.com",
+  "auctions": [
+    {
+      "auctionId": 42,
+      "initialBidPrice": 100000,
+      "bidIncrement": 1000
+    }
+  ],
+  "accessTokens": ["replace-with-short-lived-test-access-token"],
+  "requestsPerSecond": 5,
+  "durationSeconds": 600,
+  "maxInFlight": 100,
+  "requestTimeoutMillis": 5000,
+  "resultPath": "./results/bid-baseline.json"
+}
