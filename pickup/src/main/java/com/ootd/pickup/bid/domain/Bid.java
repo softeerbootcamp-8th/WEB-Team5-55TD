@@ -58,7 +58,6 @@ public class Bid {
     this.auction = auction;
     this.member = member;
     this.bidPrice = bidPrice;
-    this.bidStatus = BidStatus.HIGHEST;
     this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     this.bidRequestId = bidRequestId;
   }
