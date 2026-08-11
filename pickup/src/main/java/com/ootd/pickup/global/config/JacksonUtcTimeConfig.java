@@ -18,9 +18,9 @@ import tools.jackson.databind.module.SimpleModule;
 /**
  * 도메인의 {@code LocalDateTime}은 항상 UTC 벽시계 값이라는 서버 내부 규약을 API 경계에서 명시적으로 드러낸다.
  *
- * <p>도메인 코드는 여전히 시간대 정보가 없는 {@code LocalDateTime}을 쓰지만("서버는 UTC로 통일"), 클라이언트가 이 값을 오해 없이
- * KST로 변환할 수 있어야 하므로 JSON 상에서는 {@code Instant}처럼 {@code Z} 접미사가 붙은 문자열로 주고받는다. 요청 바디도 같은 규약으로
- * 역직렬화한다(예: {@code CreateAuctionRequest.scheduledStartAt}).
+ * <p>도메인 코드는 여전히 시간대 정보가 없는 {@code LocalDateTime}을 쓰지만("서버는 UTC로 통일"), 클라이언트가 이 값을 오해 없이 KST로 변환할 수
+ * 있어야 하므로 JSON 상에서는 {@code Instant}처럼 {@code Z} 접미사가 붙은 문자열로 주고받는다. 요청 바디도 같은 규약으로 역직렬화한다(예: {@code
+ * CreateAuctionRequest.scheduledStartAt}).
  */
 @Configuration
 public class JacksonUtcTimeConfig {
