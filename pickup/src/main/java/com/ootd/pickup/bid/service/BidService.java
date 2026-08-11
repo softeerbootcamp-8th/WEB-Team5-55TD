@@ -29,6 +29,7 @@ import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.service.PointReservationService;
 import com.ootd.pickup.point.service.PointReservationService.PreparedBidReservation;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -60,7 +61,7 @@ public class BidService {
             .findByIdForUpdate(auctionId)
             .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
 
-    LocalDateTime bidAt = LocalDateTime.now();
+    LocalDateTime bidAt = LocalDateTime.now(ZoneOffset.UTC);
     validateAuction(auction, memberId, bidAt);
 
     Member member =
