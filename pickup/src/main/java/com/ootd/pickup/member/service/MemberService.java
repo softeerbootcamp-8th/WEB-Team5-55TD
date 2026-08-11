@@ -28,10 +28,12 @@ import com.ootd.pickup.consignments.repository.certificate.CertificateRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.dto.*;
+import com.ootd.pickup.member.event.MemberRegisteredMessageQueueEvent;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.domain.PointTransaction;
@@ -71,6 +73,7 @@ public class MemberService {
   private final ConsignmentService consignmentService;
   private final BidService bidService;
   private final AuthService authService;
+  private final EventProducer eventProducer;
 
   public MemberResponse createMember(MemberRequest memberRequest) {
     if (memberRepository.existsByLoginId(memberRequest.loginId())) {
@@ -91,7 +94,7 @@ public class MemberService {
       throw new PickUpException(MEMBER_LOGIN_ID_ALREADY_EXISTS);
     }
 
-    pointRepository.save(Point.create(savedMember.getMemberId()));
+    eventProducer.produce(MemberRegisteredMessageQueueEvent.fromEntity(savedMember));
     return new MemberResponse(
         savedMember.getMemberId(), savedMember.getLoginId(), savedMember.getNickname(), null);
   }

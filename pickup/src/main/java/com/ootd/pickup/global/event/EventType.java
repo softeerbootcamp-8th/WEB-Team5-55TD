@@ -4,6 +4,7 @@ import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.auction.event.AuctionEndedNotificationEvent;
 import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
+import com.ootd.pickup.member.event.MemberRegisteredMessageQueueEvent;
 
 /**
  * 일어난 사건의 종류. {@code outbox_event.event_type}에 이름 그대로 저장되고, Redis 채널 메시지에도 같은 값이 실린다.
@@ -25,7 +26,9 @@ public enum EventType {
   /** 경매가 종료 시각에 도달해 낙찰/유찰이 확정됐다. 정산(메시지 큐)과 화면 갱신(알림)이 모두 필요하다. */
   AUCTION_ENDED(AuctionEndedMessageQueueEvent.class, AuctionEndedNotificationEvent.class),
   /** 입찰로 현재가가 갱신됐다. 화면 갱신만 필요하다. */
-  AUCTION_BID_UPDATED(null, AuctionBidUpdatedNotificationEvent.class);
+  AUCTION_BID_UPDATED(null, AuctionBidUpdatedNotificationEvent.class),
+  /** 회원이 가입했다. 포인트 계좌 생성이 반드시 한 번 일어나야 하므로 메시지 큐 계열만 둔다. */
+  MEMBER_REGISTERED(MemberRegisteredMessageQueueEvent.class, null);
 
   private final Class<? extends MessageQueueEvent> messageQueueEventClass;
   private final Class<? extends NotificationEvent> notificationEventClass;

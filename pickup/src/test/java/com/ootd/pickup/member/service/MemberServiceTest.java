@@ -35,6 +35,7 @@ import com.ootd.pickup.consignments.repository.certificate.CertificateRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
@@ -46,6 +47,7 @@ import com.ootd.pickup.member.dto.ProfileImageAction;
 import com.ootd.pickup.member.dto.ProfileImageUpdateRequest;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.dto.WithdrawMemberRequest;
+import com.ootd.pickup.member.event.MemberRegisteredMessageQueueEvent;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.domain.PointTransaction;
@@ -94,6 +96,8 @@ class MemberServiceTest {
 
   @Mock private AuthService authService;
 
+  @Mock private EventProducer eventProducer;
+
   @InjectMocks private MemberService memberService;
 
   @Test
@@ -128,10 +132,11 @@ class MemberServiceTest {
                 .verified)
         .isTrue();
 
-    ArgumentCaptor<Point> pointCaptor = ArgumentCaptor.forClass(Point.class);
-    then(pointRepository).should().save(pointCaptor.capture());
-    assertThat(pointCaptor.getValue().getMemberId()).isEqualTo(1L);
-    assertThat(pointCaptor.getValue().getBalance()).isZero();
+    ArgumentCaptor<MemberRegisteredMessageQueueEvent> eventCaptor =
+        ArgumentCaptor.forClass(MemberRegisteredMessageQueueEvent.class);
+    then(eventProducer).should().produce(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().memberId()).isEqualTo(1L);
+    then(pointRepository).shouldHaveNoInteractions();
   }
 
   @Test

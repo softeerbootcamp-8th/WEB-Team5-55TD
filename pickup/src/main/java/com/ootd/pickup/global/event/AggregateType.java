@@ -10,5 +10,6 @@ package com.ootd.pickup.global.event;
  * <p>이벤트를 발행하는 애그리거트가 늘어나면 여기에 추가한다.
  */
 public enum AggregateType {
-  AUCTION
+  AUCTION,
+  MEMBER
 }
