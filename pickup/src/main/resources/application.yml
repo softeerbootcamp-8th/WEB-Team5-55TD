@@ -71,6 +71,15 @@ scheduler:
   outbox:
     enabled: ${SCHEDULER_OUTBOX_ENABLED:false}
     fixed-delay: ${SCHEDULER_OUTBOX_FIXED_DELAY:200ms}
+  card-sync:
+    enabled: ${SCHEDULER_CARD_SYNC_ENABLED:true}
+    cron: ${SCHEDULER_CARD_SYNC_CRON:0 0 */6 * * *}
+    recent-days: ${SCHEDULER_CARD_SYNC_RECENT_DAYS:90}
+    max-sets-per-run: ${SCHEDULER_CARD_SYNC_MAX_SETS_PER_RUN:10}
+
+tcgdex:
+  base-url: ${TCGDEX_BASE_URL:https://api.tcgdex.net/v2/en}
+  timeout: ${TCGDEX_TIMEOUT:10s}
 
 event:
   sqs:
