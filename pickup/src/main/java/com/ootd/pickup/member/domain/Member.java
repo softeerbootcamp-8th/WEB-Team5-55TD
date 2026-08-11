@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -43,7 +44,7 @@ public class Member {
     member.loginId = loginId;
     member.password = password;
     member.nickname = nickname;
-    member.joinedAt = LocalDateTime.now();
+    member.joinedAt = LocalDateTime.now(ZoneOffset.UTC);
     member.updatedAt = member.joinedAt;
     return member;
   }
@@ -55,17 +56,17 @@ public class Member {
     if (passwordHash != null) {
       this.password = passwordHash;
     }
-    updatedAt = LocalDateTime.now();
+    updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public void updateProfileImage(String profileImageObjectKey) {
     this.profileImageObjectKey = profileImageObjectKey;
-    updatedAt = LocalDateTime.now();
+    updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public void removeProfileImage() {
     profileImageObjectKey = null;
-    updatedAt = LocalDateTime.now();
+    updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public boolean isPasswordMatched(String rawPassword) {

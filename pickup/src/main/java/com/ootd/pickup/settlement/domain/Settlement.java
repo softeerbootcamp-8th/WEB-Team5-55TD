@@ -16,6 +16,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -70,7 +71,7 @@ public class Settlement {
     this.settlementType = settlementType;
     this.amount = amount;
     this.settlementStatus = SettlementStatus.COMPLETED;
-    this.createdAt = LocalDateTime.now();
+    this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public static Settlement create(

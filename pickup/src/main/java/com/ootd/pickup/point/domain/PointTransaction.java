@@ -14,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -96,7 +97,7 @@ public class PointTransaction {
     transaction.balanceAfter = balanceAfter;
     transaction.auction = auction;
     transaction.idempotencyKey = idempotencyKey;
-    transaction.createdAt = LocalDateTime.now();
+    transaction.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     return transaction;
   }
 }

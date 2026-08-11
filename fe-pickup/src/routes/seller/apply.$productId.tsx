@@ -24,6 +24,7 @@ import { getMyConsignmentDetail } from "@/api/consignments";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
 import { formatDateTime, formatWon, minBidUnit } from "@/lib/format";
+import { kstLocalInputToUtcIso } from "@/lib/timezone";
 
 export const Route = createFileRoute("/seller/apply/$productId")({
   component: AuctionApplyPage,
@@ -76,7 +77,7 @@ function AuctionApplyPage() {
         consignmentId: productId,
         startingPrice: startValue!,
         reserve: reserveValue!,
-        scheduledStartAt: `${schedule}:00`,
+        scheduledStartAt: kstLocalInputToUtcIso(schedule),
       }),
     onSuccess: () => {
       toast.success("경매 신청이 완료되었습니다.");
