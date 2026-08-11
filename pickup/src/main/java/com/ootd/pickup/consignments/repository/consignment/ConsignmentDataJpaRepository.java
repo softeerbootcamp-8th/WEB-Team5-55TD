@@ -87,4 +87,11 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
 
     return consignment.consignmentId.lt(cursor);
   }
+
+  @Override
+  public boolean existsBySellerMemberIdAndStatus(
+      Long sellerMemberId, ConsignmentStatus consignmentStatus) {
+    return consignmentJpaRepository.existsBySellerMember_MemberIdAndStatus(
+        sellerMemberId, consignmentStatus);
+  }
 }
