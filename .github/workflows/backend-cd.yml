@@ -517,17 +517,6 @@ jobs:
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
 
-      - name: Run idle WebSocket test
-        continue-on-error: true
-        env:
-          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
-          TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 37,32
-          HOLD_SECONDS: 600
-        run: |
-          k6 run --summary-export=pickup/load-test/results/idle-websocket.json \
-            pickup/load-test/k6/idle-websocket.js
-
       - name: Run bid to WebSocket test
         continue-on-error: true
         env:
@@ -544,7 +533,7 @@ jobs:
       - name: Run reconnect storm test
         continue-on-error: true
         env:
-          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/ws
+          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
           TEST_AUCTION_IDS: 37,32
           RECONNECT_VUS: 1000
