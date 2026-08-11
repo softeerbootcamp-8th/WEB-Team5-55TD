@@ -22,11 +22,14 @@ function scenarioName(fileName) {
   if (fileName.startsWith('idle-')) return '유휴 연결';
   if (fileName.startsWith('bid-e2e-')) return '입찰 E2E';
   if (fileName.startsWith('reconnect-before-')) return '재연결 baseline';
+  if (fileName.startsWith('reconnect-after-')) return '재연결 backoff+jitter';
   return '재연결';
 }
 
 const files = (await readdir(resultsDirectory))
-  .filter((fileName) => /^(idle|bid-e2e|reconnect|reconnect-before)-\d+\.json$/.test(fileName))
+  .filter((fileName) =>
+    /^(idle|bid-e2e|reconnect|reconnect-before|reconnect-after)-\d+\.json$/.test(fileName),
+  )
   .sort((left, right) => left.localeCompare(right, 'en', { numeric: true }));
 
 const rows = [];
@@ -87,7 +90,7 @@ const lines = [
   '| 기준 | 목표 session | 재연결 성공 | 재연결 실패 | handshake p95 |',
   '| --- | ---: | ---: | ---: | ---: |',
   ...rows
-    .filter((row) => row.scenario === '재연결' || row.scenario === '재연결 baseline')
+    .filter((row) => row.scenario.startsWith('재연결'))
     .map((row) =>
       `| ${row.scenario} | ${row.target} | ${row.reconnectSuccess} | ${row.reconnectFailures} | ${row.handshakeP95} |`,
     ),

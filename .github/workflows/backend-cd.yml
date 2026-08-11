@@ -494,21 +494,15 @@ jobs:
 
       - name: Validate load-test secrets
         env:
-          TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
           TEST_AUCTION_IDS: 346
-          TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
-          TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
         run: |
           set -euo pipefail
           missing=()
-          [ -n "${TEST_BASE_URL}" ] || missing+=(TEST_BASE_URL)
           [ -n "${TEST_WS_URL}" ] || missing+=(TEST_WS_URL)
           [ -n "${TEST_ORIGIN}" ] || missing+=(TEST_ORIGIN)
           [ -n "${TEST_AUCTION_IDS}" ] || missing+=(TEST_AUCTION_IDS)
-          [ -n "${TEST_LOGIN_ID}" ] || missing+=(TEST_LOGIN_ID)
-          [ -n "${TEST_LOGIN_PASSWORD}" ] || missing+=(TEST_LOGIN_PASSWORD)
           if [ ${#missing[@]} -gt 0 ]; then
             echo "::error::부하테스트 Secret이 없습니다: ${missing[*]}"
             exit 1
@@ -517,53 +511,7 @@ jobs:
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
 
-      - name: Run idle WebSocket capacity test
-        continue-on-error: true
-        env:
-          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
-          TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 346
-          TARGET_VUS: 300
-          RAMP_SECONDS: 60
-          HOLD_SECONDS: 120
-        run: |
-          set +e
-          echo "유휴 연결 시험 시작: ${TARGET_VUS} sessions"
-          k6 run \
-            --summary-export="pickup/load-test/results/idle-${TARGET_VUS}.json" \
-            pickup/load-test/k6/idle-websocket.js
-          result=$?
-          echo "자원 회수를 위해 60초 대기"
-          sleep 60
-          exit ${result}
-
-      - name: Run bid to WebSocket capacity test
-        continue-on-error: true
-        env:
-          TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
-          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
-          TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
-          TEST_AUCTION_IDS: 346
-          TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
-          TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
-          TEST_INITIAL_BID_PRICE: 1500000
-          TEST_BID_INCREMENT: 43000
-          BID_INTERVAL_SECONDS: 1
-          TARGET_VUS: 300
-          RAMP_SECONDS: 60
-          HOLD_SECONDS: 120
-        run: |
-          set +e
-          echo "입찰 E2E 시험 시작: ${TARGET_VUS} sessions"
-          k6 run \
-            --summary-export="pickup/load-test/results/bid-e2e-${TARGET_VUS}.json" \
-            pickup/load-test/k6/bid-websocket-e2e.js
-          result=$?
-          echo "자원 회수를 위해 60초 대기"
-          sleep 60
-          exit ${result}
-
-      - name: Run reconnect capacity test
+      - name: Run reconnect test with exponential backoff and jitter
         continue-on-error: true
         env:
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
@@ -572,13 +520,13 @@ jobs:
           RECONNECT_CYCLES: 3
           FIRST_CONNECTION_SECONDS: 60
           RECONNECT_HOLD_SECONDS: 20
-          RECONNECT_BACKOFF_ENABLED: false
+          RECONNECT_BACKOFF_ENABLED: true
           TARGET_VUS: 300
         run: |
           set +e
-          echo "재연결 baseline 시험 시작: ${TARGET_VUS} sessions"
+          echo "지수 backoff와 jitter 적용 후 재연결 시험 시작: ${TARGET_VUS} sessions"
           k6 run \
-            --summary-export="pickup/load-test/results/reconnect-before-${TARGET_VUS}.json" \
+            --summary-export="pickup/load-test/results/reconnect-after-${TARGET_VUS}.json" \
             pickup/load-test/k6/reconnect-storm.js
           result=$?
           echo "자원 회수를 위해 60초 대기"
