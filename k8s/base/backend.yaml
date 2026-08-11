@@ -12,6 +12,8 @@ spec:
       labels:
         app.kubernetes.io/name: pickup-api
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: api
           image: pickup-api
