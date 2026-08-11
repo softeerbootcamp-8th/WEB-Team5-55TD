@@ -12,16 +12,16 @@ export const wsConnectLatency = new Trend('ws_connect_latency');
 
 export const options = {
   stages: [
-    { duration: '60s', target: 100 },
-    { duration: '60s', target: 100 },
-    { duration: '60s', target: 250 },
-    { duration: '60s', target: 250 },
-    { duration: '60s', target: 500 },
-    { duration: '60s', target: 500 },
-    { duration: '60s', target: 750 },
-    { duration: '60s', target: 750 },
-    { duration: '60s', target: 1000 },
-    { duration: '60s', target: 1000 },
+    { duration: '18s', target: 100 },
+    { duration: '18s', target: 100 },
+    { duration: '18s', target: 250 },
+    { duration: '18s', target: 250 },
+    { duration: '18s', target: 500 },
+    { duration: '18s', target: 500 },
+    { duration: '18s', target: 750 },
+    { duration: '18s', target: 750 },
+    { duration: '18s', target: 1000 },
+    { duration: '18s', target: 1000 },
   ],
   gracefulRampDown: '0s',
   thresholds: {

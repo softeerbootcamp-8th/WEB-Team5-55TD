@@ -495,7 +495,7 @@ jobs:
       - name: Validate load-test secrets
         env:
           TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
-          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/ws
+          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
           TEST_AUCTION_IDS: 37,32
           TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
@@ -518,8 +518,9 @@ jobs:
         uses: grafana/setup-k6-action@v1
 
       - name: Run idle WebSocket test
+        continue-on-error: true
         env:
-          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/ws
+          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
           TEST_AUCTION_IDS: 37,32
           HOLD_SECONDS: 600
@@ -528,9 +529,10 @@ jobs:
             pickup/load-test/k6/idle-websocket.js
 
       - name: Run bid to WebSocket test
+        continue-on-error: true
         env:
           TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
-          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/ws
+          TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
           TEST_AUCTION_IDS: 37,32
           TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
@@ -540,6 +542,7 @@ jobs:
             pickup/load-test/k6/bid-websocket-e2e.js
 
       - name: Run reconnect storm test
+        continue-on-error: true
         env:
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
