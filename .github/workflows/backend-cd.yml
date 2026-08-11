@@ -523,26 +523,19 @@ jobs:
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_ORIGIN: https://d38qqh1zkovln3.cloudfront.net
           TEST_AUCTION_IDS: 346
+          TARGET_VUS: 300
           RAMP_SECONDS: 60
           HOLD_SECONDS: 120
         run: |
           set +e
-          scenario_status=0
-          for target in 50 100 200 300; do
-            echo "유휴 연결 시험 시작: ${target} sessions"
-            TARGET_VUS="${target}" k6 run \
-              --summary-export="pickup/load-test/results/idle-${target}.json" \
-              pickup/load-test/k6/idle-websocket.js
-            result=$?
-            echo "자원 회수를 위해 60초 대기"
-            sleep 60
-            if [ ${result} -ne 0 ]; then
-              scenario_status=${result}
-              echo "유휴 연결 ${target} 단계 실패 — 상위 단계 중단"
-              break
-            fi
-          done
-          exit ${scenario_status}
+          echo "유휴 연결 시험 시작: ${TARGET_VUS} sessions"
+          k6 run \
+            --summary-export="pickup/load-test/results/idle-${TARGET_VUS}.json" \
+            pickup/load-test/k6/idle-websocket.js
+          result=$?
+          echo "자원 회수를 위해 60초 대기"
+          sleep 60
+          exit ${result}
 
       - name: Run bid to WebSocket capacity test
         continue-on-error: true
@@ -556,26 +549,19 @@ jobs:
           TEST_INITIAL_BID_PRICE: 2800000
           TEST_BID_INCREMENT: 5000
           BID_INTERVAL_SECONDS: 1
+          TARGET_VUS: 300
           RAMP_SECONDS: 60
           HOLD_SECONDS: 120
         run: |
           set +e
-          scenario_status=0
-          for target in 50 100 200 300; do
-            echo "입찰 E2E 시험 시작: ${target} sessions"
-            TARGET_VUS="${target}" k6 run \
-              --summary-export="pickup/load-test/results/bid-e2e-${target}.json" \
-              pickup/load-test/k6/bid-websocket-e2e.js
-            result=$?
-            echo "자원 회수를 위해 60초 대기"
-            sleep 60
-            if [ ${result} -ne 0 ]; then
-              scenario_status=${result}
-              echo "입찰 E2E ${target} 단계 실패 — 상위 단계 중단"
-              break
-            fi
-          done
-          exit ${scenario_status}
+          echo "입찰 E2E 시험 시작: ${TARGET_VUS} sessions"
+          k6 run \
+            --summary-export="pickup/load-test/results/bid-e2e-${TARGET_VUS}.json" \
+            pickup/load-test/k6/bid-websocket-e2e.js
+          result=$?
+          echo "자원 회수를 위해 60초 대기"
+          sleep 60
+          exit ${result}
 
       - name: Run reconnect capacity test
         continue-on-error: true
@@ -587,24 +573,17 @@ jobs:
           FIRST_CONNECTION_SECONDS: 60
           RECONNECT_HOLD_SECONDS: 20
           RECONNECT_BACKOFF_ENABLED: false
+          TARGET_VUS: 300
         run: |
           set +e
-          scenario_status=0
-          for target in 50 100 200 300; do
-            echo "재연결 baseline 시험 시작: ${target} sessions"
-            TARGET_VUS="${target}" k6 run \
-              --summary-export="pickup/load-test/results/reconnect-before-${target}.json" \
-              pickup/load-test/k6/reconnect-storm.js
-            result=$?
-            echo "자원 회수를 위해 60초 대기"
-            sleep 60
-            if [ ${result} -ne 0 ]; then
-              scenario_status=${result}
-              echo "재연결 ${target} 단계 실패 — 상위 단계 중단"
-              break
-            fi
-          done
-          exit ${scenario_status}
+          echo "재연결 baseline 시험 시작: ${TARGET_VUS} sessions"
+          k6 run \
+            --summary-export="pickup/load-test/results/reconnect-before-${TARGET_VUS}.json" \
+            pickup/load-test/k6/reconnect-storm.js
+          result=$?
+          echo "자원 회수를 위해 60초 대기"
+          sleep 60
+          exit ${result}
 
       - name: Create report
         if: always()
