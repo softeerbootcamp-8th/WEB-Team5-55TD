@@ -6,6 +6,12 @@ const { searchAuctionsMock } = vi.hoisted(() => ({
   searchAuctionsMock: vi.fn(),
 }));
 
+let infiniteQueryResult: Record<string, unknown>;
+const fetchNextPage = vi.fn();
+let observedCallback: IntersectionObserverCallback | undefined;
+const observe = vi.fn();
+const disconnect = vi.fn();
+
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({ options }),
   Link: ({ children, ...props }: { children: ReactNode }) => (
@@ -13,17 +19,35 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: ({ queryFn }: { queryFn: () => unknown }) => {
-    queryFn();
-    return {
-      data: undefined,
-      isPending: true,
-      isError: false,
-      refetch: vi.fn(),
-    };
+  useInfiniteQuery: ({
+    queryFn,
+  }: {
+    queryFn: (context: { pageParam: unknown }) => unknown;
+  }) => {
+    queryFn({ pageParam: undefined });
+    return infiniteQueryResult;
   },
 }));
 vi.mock("@/api/auctions", () => ({ searchAuctions: searchAuctionsMock }));
+vi.mock("@/components/domain/auction-card", () => ({
+  AuctionCard: ({ auction }: { auction: { cardName: string } }) => (
+    <article>{auction.cardName}</article>
+  ),
+}));
+
+class MockIntersectionObserver implements IntersectionObserver {
+  readonly root = null;
+  readonly rootMargin = "";
+  readonly thresholds = [];
+  constructor(callback: IntersectionObserverCallback) {
+    observedCallback = callback;
+  }
+  observe = observe;
+  disconnect = disconnect;
+  unobserve = vi.fn();
+  takeRecords = vi.fn(() => []);
+}
+vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
 
 const SORT_CASES = [
   { label: "인기순", apiSort: "POPULAR" },
@@ -34,11 +58,24 @@ const SORT_CASES = [
   { label: "최신순", apiSort: "RECENT" },
 ] as const;
 
-beforeEach(() => {
-  searchAuctionsMock.mockClear();
-});
-
 describe("경매 목록 라우트", () => {
+  beforeEach(() => {
+    searchAuctionsMock.mockClear();
+    fetchNextPage.mockClear();
+    observe.mockClear();
+    disconnect.mockClear();
+    observedCallback = undefined;
+    infiniteQueryResult = {
+      data: undefined,
+      isPending: true,
+      isError: false,
+      refetch: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    };
+  });
+
   it("검색·정렬·필터 UI와 로딩 상태를 표시한다", async () => {
     const { Route } = await import("@/routes/_buyer/auctions/index");
     const Component = Route.options.component as React.ComponentType;
@@ -56,7 +93,7 @@ describe("경매 목록 라우트", () => {
   });
 
   it.each(SORT_CASES)(
-    "$label 선택 시 $apiSort 정렬로 조회한다",
+    "$label 선택 시 $apiSort 정렬 · size 20으로 조회한다",
     async ({ label, apiSort }) => {
       const { Route } = await import("@/routes/_buyer/auctions/index");
       const Component = Route.options.component as React.ComponentType;
@@ -73,9 +110,61 @@ describe("경매 목록 라우트", () => {
           q: undefined,
           status: ["ONGOING"],
           sort: apiSort,
-          size: 100,
+          cursor: undefined,
+          size: 20,
         }),
       );
     },
   );
+
+  it("다음 페이지가 있으면 스크롤 감시 영역을 관찰하고, 화면에 보이면 다음 페이지를 요청한다", async () => {
+    const auction = {
+      id: "1",
+      cardName: "Mewtwo",
+      status: "LIVE",
+      currentPrice: 10000,
+      watchCount: 2,
+      endsAt: new Date(Date.now() + 3600000).toISOString(),
+    };
+    infiniteQueryResult = {
+      data: { pages: [{ items: [auction] }] },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    };
+    const { Route } = await import("@/routes/_buyer/auctions/index");
+    const Component = Route.options.component as React.ComponentType;
+    render(<Component />);
+
+    expect(screen.getByText("Mewtwo")).toBeInTheDocument();
+    // "더 보기" 버튼 없이 스크롤 감시(IntersectionObserver)만으로 다음 페이지를 트리거한다.
+    expect(screen.queryByText("경매 더 보기")).not.toBeInTheDocument();
+    expect(observe).toHaveBeenCalledTimes(1);
+
+    expect(fetchNextPage).not.toHaveBeenCalled();
+    observedCallback?.(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+    expect(fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("다음 페이지가 없으면 스크롤 감시 영역을 렌더링하지 않는다", async () => {
+    infiniteQueryResult = {
+      data: { pages: [{ items: [] }] },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    };
+    const { Route } = await import("@/routes/_buyer/auctions/index");
+    const Component = Route.options.component as React.ComponentType;
+    render(<Component />);
+    expect(observe).not.toHaveBeenCalled();
+  });
 });
