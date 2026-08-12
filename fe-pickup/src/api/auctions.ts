@@ -62,6 +62,9 @@ export interface AuctionSearchParams {
   sort: AuctionSort;
   cursor?: string;
   size?: number;
+  sellerId?: number;
+  cardId?: number;
+  excludeAuctionId?: number;
 }
 
 function toUiStatus(status: ApiAuctionStatus): AuctionStatus {
@@ -152,6 +155,9 @@ async function fetchAuctionPage(
       sort: params.sort,
       cursor: params.cursor,
       size: params.size ?? 20,
+      sellerId: params.sellerId,
+      cardId: params.cardId,
+      excludeAuctionId: params.excludeAuctionId,
     },
     paramsSerializer: {
       indexes: null,
@@ -209,6 +215,7 @@ interface ConsignmentImageResponse {
 }
 
 interface AuctionDetailResponse extends AuctionListItemResponse {
+  sellerId?: number | null;
   sellerNickname?: string | null;
   certificate?: CertificateResponse | null;
   images?: ConsignmentImageResponse[] | null;
@@ -249,6 +256,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
   return {
     ...summary,
     grade,
+    sellerId: item.sellerId != null ? String(item.sellerId) : undefined,
     sellerNickname: item.sellerNickname ?? undefined,
     minBidUnit: item.bidIncrement ?? Math.round(item.startingPrice * 0.05),
     images: (item.images ?? []).map((image) => image.imageUrl),
