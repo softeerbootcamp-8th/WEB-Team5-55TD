@@ -40,12 +40,17 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: (options: { queryKey: unknown[]; initialData?: unknown }) => {
-    if (options.queryKey.includes("preview")) {
-      return { data: { items: [] }, isPending: false };
-    }
-    return { data: options.initialData, isPending: false };
-  },
+  useQuery: (options: { initialData?: unknown }) => ({
+    data: options.initialData,
+    isPending: false,
+  }),
+  useInfiniteQuery: () => ({
+    data: { pages: [{ items: [], hasNext: false }] },
+    isPending: false,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+  }),
   useMutation: () => ({ mutate, isPending: false }),
   useQueryClient: () => ({
     invalidateQueries: vi.fn(),

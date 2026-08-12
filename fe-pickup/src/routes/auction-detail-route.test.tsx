@@ -21,6 +21,9 @@ vi.mock("@/components/domain/image-lightbox", () => ({
     <div role="dialog">{alt} 확대</div>
   ),
 }));
+vi.mock("@/components/domain/related-auctions-banner", () => ({
+  RelatedAuctionsBanner: () => null,
+}));
 
 const base = {
   id: "1",
