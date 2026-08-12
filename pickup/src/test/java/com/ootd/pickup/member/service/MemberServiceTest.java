@@ -309,6 +309,21 @@ class MemberServiceTest {
   }
 
   @Test
+  void 자신의_닉네임을_대소문자만_바꿔_수정하면_중복검사없이_변경된다() {
+    // given
+    Member member = Member.create("pickup-user", "password-hash", "PickupUser");
+    UpdateMyProfileRequest request = new UpdateMyProfileRequest("pickupuser", null, null, null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when
+    MyProfileResponse response = memberService.updateMyProfile(1L, request, null).response();
+
+    // then
+    assertThat(response.nickname()).isEqualTo("pickupuser");
+    then(memberRepository).should(never()).existsByNickname(anyString());
+  }
+
+  @Test
   void 존재하는_회원의_포인트를_조회하면_잔액을_반환한다() {
     // given
     Point point = Point.create(1L);
