@@ -50,6 +50,9 @@ for (const fileName of files) {
     orderErrors: metricValue(metrics, 'ws_order_errors', 'count'),
     reconnectSuccess: metricValue(metrics, 'reconnect_success', 'count'),
     reconnectFailures: metricValue(metrics, 'reconnect_failures', 'count'),
+    initialHandshakeP95: milliseconds(
+      metricValue(metrics, 'initial_handshake_latency', 'p(95)', null),
+    ),
     handshakeP95: milliseconds(
       metricValue(
         metrics,
@@ -59,6 +62,12 @@ for (const fileName of files) {
       ),
     ),
     deliveryP95: milliseconds(metricValue(metrics, 'ws_delivery_latency', 'p(95)', null)),
+    openRecoveryP95: milliseconds(
+      metricValue(metrics, 'reconnect_open_recovery_latency', 'p(95)', null),
+    ),
+    stompRecoveryP95: milliseconds(
+      metricValue(metrics, 'reconnect_stomp_recovery_latency', 'p(95)', null),
+    ),
   });
 }
 
@@ -87,12 +96,12 @@ const lines = [
   '',
   '## 재연결',
   '',
-  '| 기준 | 목표 session | 재연결 성공 | 재연결 실패 | handshake p95 |',
-  '| --- | ---: | ---: | ---: | ---: |',
+  '| 기준 | 목표 session | 최초 handshake p95 | 재연결 성공 | 재연결 실패 | 재연결 handshake p95 | open 복구 p95 | STOMP 복구 p95 |',
+  '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ...rows
     .filter((row) => row.scenario.startsWith('재연결'))
     .map((row) =>
-      `| ${row.scenario} | ${row.target} | ${row.reconnectSuccess} | ${row.reconnectFailures} | ${row.handshakeP95} |`,
+      `| ${row.scenario} | ${row.target} | ${row.initialHandshakeP95} | ${row.reconnectSuccess} | ${row.reconnectFailures} | ${row.handshakeP95} | ${row.openRecoveryP95} | ${row.stompRecoveryP95} |`,
     ),
   '',
   '> 이 파일은 k6 요약이다. 최종 용량 판정에는 같은 시간대의 Datadog과 CloudWatch 지표를 함께 사용한다.',

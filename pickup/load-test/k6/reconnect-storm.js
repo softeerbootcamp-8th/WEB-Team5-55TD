@@ -20,7 +20,10 @@ export const reconnectSuccess = new Counter('reconnect_success');
 export const reconnectFailures = new Counter('reconnect_failures');
 export const stompConnected = new Counter('stomp_connected');
 export const wsErrors = new Counter('ws_errors');
+export const initialHandshakeLatency = new Trend('initial_handshake_latency');
 export const reconnectHandshakeLatency = new Trend('reconnect_handshake_latency');
+export const reconnectOpenRecoveryLatency = new Trend('reconnect_open_recovery_latency');
+export const reconnectStompRecoveryLatency = new Trend('reconnect_stomp_recovery_latency');
 
 export const options = {
   scenarios: {
@@ -37,6 +40,7 @@ export const options = {
     reconnect_failures: ['count==0'],
     stomp_connected: [`count>=${requiredStompConnections}`],
     ws_errors: ['count==0'],
+    initial_handshake_latency: ['p(95)<5000'],
     reconnect_handshake_latency: ['p(95)<5000'],
   },
 };
@@ -45,7 +49,7 @@ export function setup() {
   return { firstCloseAt: Date.now() + firstConnectionSeconds * 1000 };
 }
 
-function connectSession(auctionId, closeAt, isReconnect) {
+function connectSession(auctionId, closeAt, isReconnect, recoveryStartedAt) {
   const startedAt = Date.now();
   let isStompConnected = false;
 
@@ -54,8 +58,10 @@ function connectSession(auctionId, closeAt, isReconnect) {
       if (isReconnect) {
         reconnectSuccess.add(1);
         reconnectHandshakeLatency.add(Date.now() - startedAt);
+        reconnectOpenRecoveryLatency.add(Date.now() - recoveryStartedAt);
       } else {
         initialOpenSuccess.add(1);
+        initialHandshakeLatency.add(Date.now() - startedAt);
       }
       connect(socket);
       socket.setInterval(() => socket.send('\n'), 10000);
@@ -69,6 +75,9 @@ function connectSession(auctionId, closeAt, isReconnect) {
       if (!message || message.command !== 'CONNECTED' || isStompConnected) return;
       isStompConnected = true;
       stompConnected.add(1);
+      if (isReconnect) {
+        reconnectStompRecoveryLatency.add(Date.now() - recoveryStartedAt);
+      }
       subscribe(socket, auctionId);
     });
     socket.on('error', () => wsErrors.add(1));
@@ -82,13 +91,14 @@ export default function ({ firstCloseAt }) {
   reconnectFailures.add(0);
   wsErrors.add(0);
 
-  connectSession(auctionId, firstCloseAt, false);
+  connectSession(auctionId, firstCloseAt, false, null);
 
   for (let attempt = 1; attempt <= reconnectCycles; attempt += 1) {
+    const recoveryStartedAt = Date.now();
     if (reconnectBackoffEnabled) {
-      sleep(Math.min(30, 2 ** (attempt - 1)) + Math.random());
+      sleep(1 + Math.random());
     }
     reconnectAttempts.add(1, { attempt: String(attempt) });
-    connectSession(auctionId, null, true);
+    connectSession(auctionId, null, true, recoveryStartedAt);
   }
 }
