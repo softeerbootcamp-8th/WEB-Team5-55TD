@@ -7,6 +7,7 @@ import java.util.List;
 
 public record RegisterConsignmentRequest(
     @NotNull Long cardId,
+    String cardState,
     String majorDefect,
     @NotNull @Valid CertificateRequest certificate,
     @NotNull @Size(min = 2, max = 5) @Valid List<ConsignmentImageRequest> images) {}

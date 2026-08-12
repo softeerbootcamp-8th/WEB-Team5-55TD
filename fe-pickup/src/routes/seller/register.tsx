@@ -83,6 +83,7 @@ function RegisterWizard() {
   const [grade, setGrade] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
   const [inspectedAt, setInspectedAt] = useState("");
+  const [cardState, setCardState] = useState("");
   const [majorDefect, setMajorDefect] = useState("");
 
   const [images, setImages] = useState<ConsignmentImageValue[]>([]);
@@ -117,6 +118,7 @@ function RegisterWizard() {
 
       return registerConsignment({
         cardId,
+        cardState: cardState.trim() || undefined,
         majorDefect: majorDefect.trim() || undefined,
         certificate: {
           serialNumber: serialNumber.trim(),
@@ -294,6 +296,13 @@ function RegisterWizard() {
                 />
               </Field>
             </div>
+            <Field label="카드 상태">
+              <Input
+                value={cardState}
+                onChange={(e) => setCardState(e.target.value)}
+                placeholder="예: 민트, 모서리 미세 마모"
+              />
+            </Field>
             <Field label="주요 결함 (손상 상세)">
               <Input
                 value={majorDefect}
@@ -334,6 +343,7 @@ function RegisterWizard() {
               />
               <Summary label="일련번호" value={serialNumber} />
               <Summary label="감정일" value={inspectedAt} />
+              <Summary label="카드 상태" value={cardState || "-"} />
               <Summary label="주요 결함" value={majorDefect || "-"} />
               <Summary label="이미지" value={`${images.length}장`} />
             </dl>

@@ -68,7 +68,7 @@ public record AuctionDetailResponse(
         images.stream()
             .map(image -> ConsignmentImageResponse.from(image, imageUrlResolver))
             .toList(),
-        certificate.getGrade().getDisplayName(),
+        consignment.getCardState(),
         consignment.getMajorDefect(),
         auction.getBidIncrement(),
         nextMinBid(auction, currentPrice),

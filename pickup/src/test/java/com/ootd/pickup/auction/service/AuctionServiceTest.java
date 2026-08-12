@@ -49,6 +49,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class AuctionServiceTest {
 
+  private static final String CARD_STATE = "모서리 미세 스크래치";
+
   @Mock private ConsignmentRepository consignmentRepository;
 
   @Mock private AuctionRepository auctionRepository;
@@ -665,7 +667,9 @@ class AuctionServiceTest {
     assertThat(response.auctionId()).isEqualTo(1L);
     assertThat(response.consignmentId()).isEqualTo(100L);
     assertThat(response.grade()).isEqualTo("PSA 10");
-    assertThat(response.cardState()).isEqualTo("Gem Mint");
+    // 카드 실물 상태는 감정 등급과 별개의 값이어야 한다.
+    assertThat(response.cardState()).isEqualTo(CARD_STATE);
+    assertThat(response.cardState()).isNotEqualTo(response.grade());
     assertThat(response.sellerId()).isEqualTo(1L);
     assertThat(response.sellerNickname()).isEqualTo("닉네임");
     assertThat(response.thumbnailUrl()).isEqualTo("https://image.example.com/front.png");
@@ -898,6 +902,7 @@ class AuctionServiceTest {
         Consignment.builder()
             .card(card != null ? card : createCard(10L))
             .sellerMember(createMember(sellerMemberId))
+            .cardState(CARD_STATE)
             .status(status)
             .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", consignmentId);

@@ -251,7 +251,7 @@ public interface AuctionApi {
                                   "imageUrl": "https://example.com/consignments/100-front.png"
                                 }
                               ],
-                              "cardState": "Gem Mint",
+                              "cardState": "모서리 미세 스크래치",
                               "majorDefect": null,
                               "bidIncrement": 500,
                               "nextMinBid": 10000,

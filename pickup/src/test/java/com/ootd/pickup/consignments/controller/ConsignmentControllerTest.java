@@ -66,6 +66,7 @@ class ConsignmentControllerTest {
                 "홀로 레어",
                 "https://image.example.com/card.png"),
             1L,
+            "모서리 미세 스크래치",
             "모서리에 약간의 마모",
             ConsignmentStatus.REGISTERABLE,
             new CertificateResponse(
@@ -105,6 +106,7 @@ class ConsignmentControllerTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             null,
+            "모서리 미세 스크래치",
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -129,6 +131,7 @@ class ConsignmentControllerTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             10L,
+            "모서리 미세 스크래치",
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(new ConsignmentImageRequest("https://image.example.com/front.png")));
@@ -151,6 +154,7 @@ class ConsignmentControllerTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             10L,
+            "모서리 미세 스크래치",
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -279,6 +283,7 @@ class ConsignmentControllerTest {
                 "레어 홀로",
                 "https://image.example.com/card.png"),
             1L,
+            "모서리 미세 스크래치",
             "모서리에 약간의 마모",
             ConsignmentStatus.REGISTERABLE,
             null,
@@ -384,6 +389,7 @@ class ConsignmentControllerTest {
                 "레어 홀로",
                 "https://image.example.com/card.png"),
             "피카츄",
+            "모서리 미세 스크래치",
             "모서리에 약간의 마모",
             ConsignmentStatus.REGISTERABLE,
             null,
@@ -448,6 +454,7 @@ class ConsignmentControllerTest {
                 "레어 홀로",
                 "https://image.example.com/card.png"),
             "피카츄",
+            "모서리 미세 스크래치",
             "새로운 흠집 설명",
             ConsignmentStatus.REGISTERABLE,
             null,
@@ -488,6 +495,7 @@ class ConsignmentControllerTest {
     Long consignmentId = 100L;
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            "모서리 미세 스크래치",
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(new ConsignmentImageRequest("https://image.example.com/front.png")));
@@ -665,6 +673,7 @@ class ConsignmentControllerTest {
 
   private ModifyConsignmentRequest createModifyRequest() {
     return new ModifyConsignmentRequest(
+        "모서리 미세 스크래치",
         "새로운 흠집 설명",
         new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
         List.of(
@@ -675,6 +684,7 @@ class ConsignmentControllerTest {
   private RegisterConsignmentRequest createRequest() {
     return new RegisterConsignmentRequest(
         10L,
+        "모서리 미세 스크래치",
         "모서리에 약간의 마모",
         new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
         List.of(

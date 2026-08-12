@@ -127,6 +127,7 @@ function EditForm({
   const [grade, setGrade] = useState(product.gradeCode);
   const [serialNumber, setSerialNumber] = useState(product.grade?.serial ?? "");
   const [inspectedAt, setInspectedAt] = useState(product.inspectedAt);
+  const [cardState, setCardState] = useState(product.cardState ?? "");
   const [majorDefect, setMajorDefect] = useState(product.majorDefect ?? "");
   const [images, setImages] = useState<ConsignmentImageValue[]>(
     product.images.map((image) => ({
@@ -153,6 +154,7 @@ function EditForm({
       );
 
       return modifyConsignment(Number(productId), {
+        cardState: cardState.trim() || undefined,
         majorDefect: majorDefect.trim() || undefined,
         certificate: {
           serialNumber: serialNumber.trim(),
@@ -257,6 +259,13 @@ function EditForm({
             />
           </Field>
         </div>
+        <Field label="카드 상태">
+          <Input
+            value={cardState}
+            onChange={(e) => setCardState(e.target.value)}
+            placeholder="예: 민트, 모서리 미세 마모"
+          />
+        </Field>
         <Field label="주요 결함 (손상 상세)">
           <Input
             value={majorDefect}

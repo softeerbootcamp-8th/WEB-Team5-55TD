@@ -1474,7 +1474,7 @@ paths:
                     - consignmentImageId: 1
                       imageOrder: 0
                       imageUrl: https://example.com/consignments/100-front.png
-                    cardState: Gem Mint
+                    cardState: 모서리 미세 스크래치
                     majorDefect: null
                     bidIncrement: 500
                     nextMinBid: 10000
@@ -1645,6 +1645,8 @@ components:
         cardId:
           type: integer
           format: int64
+        cardState:
+          type: string
         majorDefect:
           type: string
         certificate:
@@ -1691,6 +1693,8 @@ components:
         sellerMemberId:
           type: integer
           format: int64
+        cardState:
+          type: string
         majorDefect:
           type: string
         status:
@@ -1948,6 +1952,8 @@ components:
     ModifyConsignmentRequest:
       type: object
       properties:
+        cardState:
+          type: string
         majorDefect:
           type: string
         certificate:
@@ -2000,6 +2006,8 @@ components:
           $ref: "#/components/schemas/GetCardDetailResponse"
         sellerMemberNickname:
           type: string
+        cardState:
+          type: string
         majorDefect:
           type: string
         status:
@@ -2043,6 +2051,8 @@ components:
         sellerMemberId:
           type: integer
           format: int64
+        cardState:
+          type: string
         majorDefect:
           type: string
         status:

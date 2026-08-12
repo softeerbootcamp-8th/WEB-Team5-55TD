@@ -98,6 +98,7 @@ class ConsignmentModifyIntegrationTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            "모서리 미세 스크래치",
             "동일한 일련번호로 재수정",
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 7, 1)),
             List.of(
@@ -166,6 +167,7 @@ class ConsignmentModifyIntegrationTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            "모서리 미세 스크래치",
             null,
             new CertificateRequest("PSA-OTHER-11111111", "PSA", "10", LocalDate.of(2026, 7, 1)),
             List.of(

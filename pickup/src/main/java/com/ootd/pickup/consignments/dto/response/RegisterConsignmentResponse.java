@@ -9,6 +9,7 @@ public record RegisterConsignmentResponse(
     Long consignmentId,
     SearchCardsResponse card,
     Long sellerMemberId,
+    String cardState,
     String majorDefect,
     ConsignmentStatus status,
     CertificateResponse certificate) {
@@ -17,6 +18,7 @@ public record RegisterConsignmentResponse(
         consignment.getConsignmentId(),
         SearchCardsResponse.from(consignment.getCard()),
         consignment.getSellerMember().getMemberId(),
+        consignment.getCardState(),
         consignment.getMajorDefect(),
         consignment.getStatus(),
         CertificateResponse.from(certificate));

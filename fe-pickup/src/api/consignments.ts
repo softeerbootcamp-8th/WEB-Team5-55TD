@@ -65,6 +65,7 @@ export interface ConsignmentDetail extends ConsignmentSummary {
   cardNumber: string;
   language: string;
   rarity: string;
+  cardState?: string;
   majorDefect?: string;
   images: ConsignmentImage[];
   auctionRegistered: boolean;
@@ -87,6 +88,7 @@ interface ConsignmentDetailResponse {
   consignmentId: number;
   card: ConsignmentCardResponse;
   sellerMemberNickname: string;
+  cardState?: string | null;
   majorDefect?: string | null;
   status: ApiConsignmentStatus;
   auctionStatus?: ApiAuctionSubStatus | null;
@@ -134,7 +136,9 @@ function toSummary(item: ConsignmentListItemResponse): ConsignmentSummary {
 }
 
 function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
-  const sortedImages = item.images.slice().sort((a, b) => a.imageOrder - b.imageOrder);
+  const sortedImages = item.images
+    .slice()
+    .sort((a, b) => a.imageOrder - b.imageOrder);
   return {
     id: String(item.consignmentId),
     cardName: item.card.cardName,
@@ -149,6 +153,7 @@ function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
     cardNumber: item.card.cardNumber,
     language: item.card.language,
     rarity: item.card.rarity,
+    cardState: item.cardState ?? undefined,
     majorDefect: item.majorDefect ?? undefined,
     images: sortedImages.map((image) => ({
       consignmentImageId: image.consignmentImageId,
