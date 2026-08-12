@@ -54,17 +54,20 @@ import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import com.ootd.pickup.point.repository.PointRepository;
 import com.ootd.pickup.point.repository.PointTransactionRepository;
 import java.lang.reflect.Field;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -146,6 +149,51 @@ class MemberServiceTest {
         .hasMessage("이미 사용 중인 아이디입니다.");
 
     verify(memberRepository, never()).save(any(Member.class));
+  }
+
+  @Test
+  void 사전확인_이후_닉네임이_선점되면_닉네임_중복으로_안내한다() {
+    // given — 두 요청이 거의 동시에 들어와 사전 확인을 모두 통과한 뒤 INSERT 에서 갈린 상황
+    MemberRequest request = new MemberRequest("pickup-user", "픽업회원", "password1234");
+    given(memberRepository.existsByLoginId(request.loginId())).willReturn(false);
+    given(memberRepository.existsByNickname(request.nickname())).willReturn(false);
+    given(memberRepository.save(any(Member.class)))
+        .willThrow(uniqueViolation("uk_member_nickname"));
+
+    // when & then
+    assertThatThrownBy(() -> memberService.createMember(request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("이미 사용 중인 닉네임입니다.");
+  }
+
+  @Test
+  void 사전확인_이후_아이디가_선점되면_아이디_중복으로_안내한다() {
+    // given
+    MemberRequest request = new MemberRequest("pickup-user", "픽업회원", "password1234");
+    given(memberRepository.existsByLoginId(request.loginId())).willReturn(false);
+    given(memberRepository.existsByNickname(request.nickname())).willReturn(false);
+    given(memberRepository.save(any(Member.class)))
+        .willThrow(uniqueViolation("uk_member_login_id"));
+
+    // when & then
+    assertThatThrownBy(() -> memberService.createMember(request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("이미 사용 중인 아이디입니다.");
+  }
+
+  @Test
+  void 어떤_제약이_깨졌는지_알_수_없으면_아이디_중복으로_안내한다() {
+    // given
+    MemberRequest request = new MemberRequest("pickup-user", "픽업회원", "password1234");
+    given(memberRepository.existsByLoginId(request.loginId())).willReturn(false);
+    given(memberRepository.existsByNickname(request.nickname())).willReturn(false);
+    given(memberRepository.save(any(Member.class)))
+        .willThrow(new DataIntegrityViolationException("제약 이름 없음"));
+
+    // when & then
+    assertThatThrownBy(() -> memberService.createMember(request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("이미 사용 중인 아이디입니다.");
   }
 
   @Test
@@ -785,6 +833,13 @@ class MemberServiceTest {
     Watch watch = Watch.builder().member(member).auction(auction).build();
     ReflectionTestUtils.setField(watch, "watchId", watchId);
     return watch;
+  }
+
+  private DataIntegrityViolationException uniqueViolation(String constraintName) {
+    return new DataIntegrityViolationException(
+        "unique 제약 위반",
+        new ConstraintViolationException(
+            "unique 제약 위반", new SQLException("duplicate key"), constraintName));
   }
 
   private Member createMember(Long memberId) {

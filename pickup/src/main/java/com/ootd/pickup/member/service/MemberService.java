@@ -28,6 +28,7 @@ import com.ootd.pickup.consignments.repository.certificate.CertificateRepository
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
@@ -40,10 +41,12 @@ import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import com.ootd.pickup.point.repository.PointRepository;
 import com.ootd.pickup.point.repository.PointTransactionRepository;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,7 +91,9 @@ public class MemberService {
     try {
       savedMember = memberRepository.save(member);
     } catch (DataIntegrityViolationException exception) {
-      throw new PickUpException(MEMBER_LOGIN_ID_ALREADY_EXISTS);
+      // 사전 확인을 통과했는데도 INSERT가 막혔다면 그 사이에 같은 값으로 가입한 요청이 있었다는 뜻이다.
+      // 어느 값이 겹쳤는지는 위반된 유니크 제약 이름으로 구분한다.
+      throw new PickUpException(resolveDuplicateCode(exception));
     }
 
     pointRepository.save(Point.create(savedMember.getMemberId()));
@@ -96,6 +101,16 @@ public class MemberService {
         "회원가입했습니다 - memberId={}, loginId={}", savedMember.getMemberId(), savedMember.getLoginId());
     return new MemberResponse(
         savedMember.getMemberId(), savedMember.getLoginId(), savedMember.getNickname(), null);
+  }
+
+  private ExceptionCode resolveDuplicateCode(DataIntegrityViolationException exception) {
+    String constraintName =
+        exception.getCause() instanceof ConstraintViolationException violation
+            ? violation.getConstraintName()
+            : null;
+    boolean nicknameViolated =
+        constraintName != null && constraintName.toLowerCase(Locale.ROOT).contains("nickname");
+    return nicknameViolated ? MEMBER_NICKNAME_ALREADY_EXISTS : MEMBER_LOGIN_ID_ALREADY_EXISTS;
   }
 
   @Transactional(readOnly = true)

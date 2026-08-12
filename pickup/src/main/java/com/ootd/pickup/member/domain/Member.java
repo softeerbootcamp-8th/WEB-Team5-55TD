@@ -8,6 +8,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import lombok.AccessLevel;
@@ -15,6 +17,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+// 유니크 제약 이름을 Flyway(V3.1)와 맞춘다. 가입 경합으로 INSERT가 실패했을 때 어느 값이 겹쳤는지
+// 제약 이름으로 구분하는데, 이름이 없으면 테스트용 H2 스키마에서는 자동 생성 이름이 붙어 구분할 수 없다.
+@Table(
+    name = "member",
+    uniqueConstraints = {
+      @UniqueConstraint(name = "uk_member_login_id", columnNames = "login_id"),
+      @UniqueConstraint(name = "uk_member_nickname", columnNames = "nickname")
+    })
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class Member {
@@ -23,13 +33,13 @@ public class Member {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long memberId;
 
-  @Column(nullable = true, unique = true)
+  @Column(nullable = true)
   private String loginId;
 
   @Column(nullable = true)
   private String password;
 
-  @Column(nullable = true, unique = true)
+  @Column(nullable = true)
   private String nickname;
 
   @Column(nullable = true)
