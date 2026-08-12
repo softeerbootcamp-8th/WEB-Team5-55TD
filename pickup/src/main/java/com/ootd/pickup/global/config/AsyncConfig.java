@@ -14,10 +14,11 @@ public class AsyncConfig {
   @Bean(name = "slackNotificationExecutor")
   public Executor slackNotificationExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    executor.setCorePoolSize(2);
-    executor.setMaxPoolSize(4);
-    executor.setQueueCapacity(50);
+    executor.setCorePoolSize(4);
+    executor.setMaxPoolSize(15);
+    executor.setQueueCapacity(30);
     executor.setThreadNamePrefix("slack-notify-");
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
     executor.initialize();
     return executor;
   }
@@ -25,11 +26,11 @@ public class AsyncConfig {
   @Bean(name = "notificationEventExecutor")
   public Executor notificationEventExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    executor.setCorePoolSize(2);
-    executor.setMaxPoolSize(4);
-    executor.setQueueCapacity(100);
+    executor.setCorePoolSize(4);
+    executor.setMaxPoolSize(15);
+    executor.setQueueCapacity(30);
     executor.setThreadNamePrefix("notification-event-");
-    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
     executor.initialize();
     return executor;
   }
