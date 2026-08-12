@@ -192,7 +192,7 @@ class ConsignmentModifyIntegrationTest {
         .cardNumber("4/102")
         .setName("Base Set")
         .language(Language.JAPANESE)
-        .rarity(Rarity.MINT)
+        .rarity(Rarity.RARE_HOLO)
         .imageUrl("https://image.example.com/card.png")
         .build();
   }

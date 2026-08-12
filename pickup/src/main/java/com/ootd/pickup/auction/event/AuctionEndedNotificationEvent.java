@@ -18,7 +18,7 @@ import java.util.UUID;
  *
  * <p>같은 사건을 정산 컨슈머에게 정확히 한 번 전달하는 용도로는 {@link AuctionEndedMessageQueueEvent}를 쓴다. 이 이벤트는 "화면에 경매가
  * 끝났다고 알린다"는 목적만 가지므로, 정산에만 필요한 {@code winnerMemberId}/{@code sellerMemberId}는 담지 않고 {@link
- * AuctionBidUpdatedNotificationEvent}와 같은 모양(스냅샷 + {@link WinningBidSnapshot})을 유지한다.
+ * BidRequestSucceededNotificationEvent}와 같은 모양(스냅샷 + {@link WinningBidSnapshot})을 유지한다.
  */
 public record AuctionEndedNotificationEvent(
     String eventId,

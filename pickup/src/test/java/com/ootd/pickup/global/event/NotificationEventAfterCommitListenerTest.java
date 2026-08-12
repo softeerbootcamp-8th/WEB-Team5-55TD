@@ -87,7 +87,7 @@ class NotificationEventAfterCommitListenerTest {
 
     @Override
     public EventType eventType() {
-      return EventType.AUCTION_BID_UPDATED;
+      return EventType.BID_REQUEST_SUCCEEDED;
     }
   }
 }

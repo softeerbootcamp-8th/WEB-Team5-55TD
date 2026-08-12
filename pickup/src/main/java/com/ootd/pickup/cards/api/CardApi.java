@@ -66,7 +66,7 @@ public interface CardApi {
                                   "setName": "Base Set",
                                   "cardNumber": "4/102",
                                   "language": "한국어",
-                                  "rarity": "MINT",
+                                  "rarity": "레어 홀로",
                                   "imageUrl": "https://example.com/cards/9.png"
                                 }
                               ]
