@@ -75,6 +75,12 @@ public class BidService {
     // validateAuction이 이미 SCHEDULED를 걸러냈으므로 이 시점의 auction은 항상 ONGOING이라 null이 아니다.
     Long currentPrice = auction.getCurrentPrice();
 
+    log.debug(
+        "입찰가 검증 시작 - auctionId={}, requestedBidPrice={}, currentPrice={}, bidIncrement={}",
+        auctionId,
+        request.bidPrice(),
+        currentPrice,
+        auction.getBidIncrement());
     validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
     PreparedBidReservation preparedReservation =
         pointReservationService.prepareReservation(auction, member, request.bidPrice());
@@ -82,6 +88,7 @@ public class BidService {
         bidRepository.save(Bid.create(auction, member, request.bidPrice(), bidRequestId));
     pointReservationService.reserveHighestBid(auction, preparedReservation, savedBid, member);
 
+    Long previousHighestBidId = auction.getWinningBidId();
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
     if (auction.extendEndAtForSoftClose(bidAt)) {
       log.info("마감 임박 입찰로 경매를 연장했습니다 - auctionId={}, endedAt={}", auctionId, auction.getEndedAt());
@@ -89,6 +96,14 @@ public class BidService {
     auctionRepository.save(auction);
     applicationEventPublisher.publishEvent(
         BidRequestSucceededNotificationEvent.fromEntity(auction, savedBid, bidRequestId));
+
+    log.info(
+        "입찰이 접수됐습니다 - auctionId={}, bidId={}, memberId={}, bidPrice={}, previousHighestBidId={}",
+        auctionId,
+        savedBid.getBidId(),
+        memberId,
+        savedBid.getBidPrice(),
+        previousHighestBidId);
 
     return PlaceBidResponse.from(savedBid);
   }

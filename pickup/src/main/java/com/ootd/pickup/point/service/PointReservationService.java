@@ -15,10 +15,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PointReservationService {
@@ -52,6 +54,12 @@ public class PointReservationService {
                 && reservation.getMember().getMemberId().equals(bidder.getMemberId())
             ? reservation.getAmount()
             : 0L;
+    log.debug(
+        "포인트 예약 가능 여부 확인 - memberId={}, requestedAmount={}, availableBalance={}, reusableReservation={}",
+        bidder.getMemberId(),
+        amount,
+        bidderPoint.getAvailableBalance(),
+        reusableReservation);
     if (amount > Math.addExact(bidderPoint.getAvailableBalance(), reusableReservation)) {
       throw new PickUpException(INSUFFICIENT_BID_LIMIT);
     }
@@ -95,6 +103,11 @@ public class PointReservationService {
               reservation.release();
               pointRepository.save(point);
               pointReservationRepository.save(reservation);
+              log.info(
+                  "유찰된 경매의 포인트 예약을 해제했습니다 - auctionId={}, memberId={}, amount={}",
+                  auctionId,
+                  reservation.getMember().getMemberId(),
+                  reservation.getAmount());
             });
   }
 
