@@ -108,7 +108,8 @@ public class AuctionService {
     List<AuctionStatus> statuses =
         request.status() == null
             ? List.of()
-            : request.status().stream().map(AuctionStatus::from).toList();
+            // 같은 상태를 여러 번 보내도 결과가 달라지지 않도록 중복을 걷어낸다.
+            : request.status().stream().map(AuctionStatus::from).distinct().toList();
 
     if (request.limit() != null) {
       int limit = validatePositiveLimit(request.limit());

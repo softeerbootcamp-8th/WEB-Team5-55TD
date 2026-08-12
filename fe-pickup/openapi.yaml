@@ -2469,8 +2469,13 @@ components:
           type: string
         status:
           type: array
+          description: >-
+            조회할 경매 상태. 여러 개를 지정하면 OR로 합쳐진다(예: 종료 탭은 WON·PASSED를 함께 보낸다).
+            상태 종류가 넷뿐이라 그보다 많이 보내면 400을 반환한다.
           items:
             type: string
+            enum: [SCHEDULED, ONGOING, WON, PASSED]
+          maxItems: 4
         sort:
           type: string
         limit:
