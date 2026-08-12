@@ -53,26 +53,13 @@ class AuctionTest {
   }
 
   @Test
-  void 종료_5분_이내_입찰이면_입찰시각부터_5분으로_종료시각을_연장한다() {
-    LocalDateTime bidAt = LocalDateTime.of(2026, 8, 8, 21, 58);
-    Auction auction = ongoingAuction(bidAt.plusMinutes(2));
-
-    boolean extended = auction.extendEndAtForSoftClose(bidAt);
-
-    assertThat(extended).isTrue();
-    assertThat(auction.getEndedAt()).isEqualTo(bidAt.plusMinutes(5));
-  }
-
-  @Test
-  void 종료까지_5분보다_많이_남은_입찰은_종료시각을_바꾸지_않는다() {
-    LocalDateTime bidAt = LocalDateTime.of(2026, 8, 8, 21, 50);
-    LocalDateTime endedAt = bidAt.plusMinutes(6);
+  void 조건부_갱신이_성공하면_기존_종료시각에_5분을_더한다() {
+    LocalDateTime endedAt = LocalDateTime.of(2026, 8, 8, 22, 0);
     Auction auction = ongoingAuction(endedAt);
 
-    boolean extended = auction.extendEndAtForSoftClose(bidAt);
+    auction.extendEndAtBySoftCloseWindow();
 
-    assertThat(extended).isFalse();
-    assertThat(auction.getEndedAt()).isEqualTo(endedAt);
+    assertThat(auction.getEndedAt()).isEqualTo(endedAt.plusMinutes(5));
   }
 
   @Test

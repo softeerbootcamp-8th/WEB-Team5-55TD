@@ -7,6 +7,7 @@ import static com.ootd.pickup.consignments.domain.QConsignment.consignment;
 import static com.ootd.pickup.member.domain.QMember.member;
 
 import com.ootd.pickup.auction.domain.Auction;
+import com.ootd.pickup.auction.domain.AuctionSchedulePolicy;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.consignments.domain.Consignment;
@@ -224,6 +225,31 @@ public class AuctionDataJpaRepository implements AuctionRepository {
                     .where(auction.auctionId.eq(auctionId)))
             .setLockMode(LockModeType.PESSIMISTIC_WRITE)
             .fetchOne());
+  }
+
+  @Override
+  public boolean extendEndAtIfClosingSoon(Auction targetAuction, LocalDateTime bidAt) {
+    LocalDateTime currentEndAt = targetAuction.getEndedAt();
+    if (currentEndAt == null) {
+      return false;
+    }
+
+    LocalDateTime softCloseBoundary = bidAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+    LocalDateTime extendedEndAt = currentEndAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+    int updatedRows =
+        auctionJpaRepository.extendEndAtIfClosingSoon(
+            targetAuction.getAuctionId(),
+            AuctionStatus.ONGOING,
+            currentEndAt,
+            bidAt,
+            softCloseBoundary,
+            extendedEndAt);
+    if (updatedRows != 1) {
+      return false;
+    }
+
+    targetAuction.extendEndAtBySoftCloseWindow();
+    return true;
   }
 
   @Override

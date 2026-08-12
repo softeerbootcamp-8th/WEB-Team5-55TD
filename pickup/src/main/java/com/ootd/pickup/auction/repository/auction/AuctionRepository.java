@@ -3,6 +3,7 @@ package com.ootd.pickup.auction.repository.auction;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.consignments.domain.Consignment;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -13,6 +14,8 @@ public interface AuctionRepository {
   Optional<Auction> findById(Long auctionId);
 
   Optional<Auction> findByIdForUpdate(Long auctionId);
+
+  boolean extendEndAtIfClosingSoon(Auction auction, LocalDateTime bidAt);
 
   long countBySellerMemberIdAndStatus(Long sellerMemberId, AuctionStatus status);
 
