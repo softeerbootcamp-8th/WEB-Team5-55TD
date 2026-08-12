@@ -60,6 +60,11 @@ public class RedisEventSubscriber implements MessageListener {
 
     // receive 성공은 이 인스턴스가 Redis 경계를 통과했다는 뜻이며, 뒤의 Broker 전달 성공은 별도 지표로 확인한다.
     metrics.recordRedisReceiveSuccess(event.eventType());
+    log.debug(
+        "Redis 채널에서 알림 이벤트를 수신했습니다 - channel={}, eventType={}, aggregateId={}",
+        channel,
+        event.eventType(),
+        event.aggregateId());
     eventDispatcher.dispatch(event);
   }
 }

@@ -5,6 +5,7 @@ import com.ootd.pickup.global.event.NotificationEvent;
 import com.ootd.pickup.global.event.notification.NotificationEventSender;
 import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -18,6 +19,7 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>직렬화 실패와 전송 실패는 잡지 않고 그대로 던진다. 호출자가 받아 로그로 남긴다.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RedisNotificationEventSender implements NotificationEventSender {
@@ -35,9 +37,18 @@ public class RedisNotificationEventSender implements NotificationEventSender {
       // Redis PUBLISH는 구독자가 없어도 예외 없이 성공하므로 반환값을 확인해야 실제 알림 유실을 발견할 수 있다.
       if (subscriberCount == 0) {
         metrics.recordRedisPublishNoSubscribers(event.eventType());
+        log.debug(
+            "구독자가 없어 알림 이벤트가 전달되지 않았습니다 - eventType={}, aggregateId={}",
+            event.eventType(),
+            event.aggregateId());
         return;
       }
       metrics.recordRedisPublishSuccess(event.eventType());
+      log.debug(
+          "Redis 채널로 알림 이벤트를 발행했습니다 - eventType={}, aggregateId={}, subscriberCount={}",
+          event.eventType(),
+          event.aggregateId(),
+          subscriberCount);
     } catch (RuntimeException exception) {
       metrics.recordRedisPublishFailure(event.eventType());
       throw exception;

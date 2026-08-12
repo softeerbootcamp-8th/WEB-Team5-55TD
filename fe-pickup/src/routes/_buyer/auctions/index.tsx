@@ -13,10 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  searchAuctions,
-  type AuctionSort,
-} from "@/api/auctions";
+import { searchAuctions, type AuctionSort } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/_buyer/auctions/")({
@@ -24,16 +21,27 @@ export const Route = createFileRoute("/_buyer/auctions/")({
 });
 
 type Filter = "LIVE" | "UPCOMING" | "ENDED";
-type Sort = "popular" | "priceAsc" | "priceDesc" | "endingSoon";
+type Sort =
+  | "popular"
+  | "priceAsc"
+  | "priceDesc"
+  | "endingSoon"
+  | "startingSoon"
+  | "recent";
 
 const SORT_LABEL: Record<Sort, string> = {
   popular: "인기순",
   priceAsc: "가격 낮은순",
   priceDesc: "가격 높은순",
   endingSoon: "종료 임박순",
+  startingSoon: "시작 임박순",
+  recent: "최신순",
 };
 
-const API_STATUS: Record<Filter, ("SCHEDULED" | "ONGOING" | "WON" | "PASSED")[]> = {
+const API_STATUS: Record<
+  Filter,
+  ("SCHEDULED" | "ONGOING" | "WON" | "PASSED")[]
+> = {
   LIVE: ["ONGOING"],
   UPCOMING: ["SCHEDULED"],
   ENDED: ["WON", "PASSED"],
@@ -44,6 +52,8 @@ const API_SORT: Record<Sort, AuctionSort> = {
   priceAsc: "PRICE_ASC",
   priceDesc: "PRICE_DESC",
   endingSoon: "ENDING_SOON",
+  startingSoon: "STARTING_SOON",
+  recent: "RECENT",
 };
 
 /** DESIGN.md · auction list.html — 검색 · 정렬 · 진행/예정/종료 필터 */

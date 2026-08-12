@@ -50,7 +50,7 @@ public class OutboxEventScheduler {
    * 계속 발행한다.
    */
   @Scheduled(fixedDelayString = "${scheduler.outbox.fixed-delay:1s}")
-  @SchedulerLock(name = "outbox-event-relay", lockAtMostFor = "PT30S", lockAtLeastFor = "PT0.5S")
+  @SchedulerLock(name = "outbox-event-relay", lockAtMostFor = "PT30S", lockAtLeastFor = "PT0.1S")
   public void relayUnpublishedEvents() {
     List<RelayedOutboxEvent> pending = findPendingEvents();
     if (pending.isEmpty()) {

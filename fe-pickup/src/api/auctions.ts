@@ -62,6 +62,9 @@ export interface AuctionSearchParams {
   sort: AuctionSort;
   cursor?: string;
   size?: number;
+  sellerId?: number;
+  cardId?: number;
+  excludeAuctionId?: number;
 }
 
 function toUiStatus(status: ApiAuctionStatus): AuctionStatus {
@@ -142,11 +145,9 @@ export async function registerAuction(
   return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
 }
 
-export async function searchAuctions(params: AuctionSearchParams): Promise<{
-  items: AuctionSummary[];
-  hasNext: boolean;
-  cursor?: string;
-}> {
+async function fetchAuctionPage(
+  params: AuctionSearchParams,
+): Promise<AuctionPageResponse> {
   const { data } = await axiosInstance.get<AuctionPageResponse>("/auctions", {
     params: {
       q: params.q || undefined,
@@ -154,11 +155,24 @@ export async function searchAuctions(params: AuctionSearchParams): Promise<{
       sort: params.sort,
       cursor: params.cursor,
       size: params.size ?? 20,
+      sellerId: params.sellerId,
+      cardId: params.cardId,
+      excludeAuctionId: params.excludeAuctionId,
     },
     paramsSerializer: {
       indexes: null,
     },
   });
+
+  return data;
+}
+
+export async function searchAuctions(params: AuctionSearchParams): Promise<{
+  items: AuctionSummary[];
+  hasNext: boolean;
+  cursor?: string;
+}> {
+  const data = await fetchAuctionPage(params);
 
   return {
     items: data.items.map(toSummary),
@@ -201,6 +215,7 @@ interface ConsignmentImageResponse {
 }
 
 interface AuctionDetailResponse extends AuctionListItemResponse {
+  sellerId?: number | null;
   sellerNickname?: string | null;
   certificate?: CertificateResponse | null;
   images?: ConsignmentImageResponse[] | null;
@@ -241,6 +256,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
   return {
     ...summary,
     grade,
+    sellerId: item.sellerId != null ? String(item.sellerId) : undefined,
     sellerNickname: item.sellerNickname ?? undefined,
     minBidUnit: item.bidIncrement ?? Math.round(item.startingPrice * 0.05),
     images: (item.images ?? []).map((image) => image.imageUrl),
@@ -294,22 +310,16 @@ export async function getAuctionDetail(
       throw error;
     }
 
-    const page = await searchAuctions({
+    const page = await fetchAuctionPage({
       status: ["SCHEDULED", "ONGOING", "WON", "PASSED"],
       sort: "RECENT",
       size: 100,
     });
-    const summary = page.items.find((item) => item.id === auctionId);
-    if (!summary) throw error;
+    const item = page.items.find(
+      (listItem) => String(listItem.auctionId) === auctionId,
+    );
+    if (!item) throw error;
 
-    return {
-      ...summary,
-      sellerNickname: "",
-      minBidUnit: Math.round((summary.startPrice ?? 0) * 0.05),
-      images: summary.thumbnailUrl ? [summary.thumbnailUrl] : [],
-      bidCount: 0,
-      won: false,
-      myBidWon: false,
-    };
+    return detailFromListItem(item);
   }
 }

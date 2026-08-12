@@ -31,10 +31,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuctionService {
@@ -59,10 +61,21 @@ public class AuctionService {
     }
 
     Long bidIncrement = calculateBidIncrement(request.startingPrice());
+    log.debug(
+        "최소 입찰 단위를 계산했습니다 - startingPrice={}, bidIncrement={}",
+        request.startingPrice(),
+        bidIncrement);
 
     consignment.scheduleAuction();
     Auction auction = auctionRepository.save(request.toEntity(consignment, bidIncrement));
 
+    log.info(
+        "경매를 등록했습니다 - auctionId={}, consignmentId={}, sellerMemberId={}, startingPrice={}, startedAt={}",
+        auction.getAuctionId(),
+        consignment.getConsignmentId(),
+        memberId,
+        request.startingPrice(),
+        auction.getStartedAt());
     return CreateAuctionResponse.from(auction);
   }
 
@@ -93,7 +106,15 @@ public class AuctionService {
     if (request.limit() != null) {
       int limit = validatePositiveLimit(request.limit());
       List<Auction> auctions =
-          auctionRepository.searchAuctions(request.q(), statuses, sort, null, limit);
+          auctionRepository.searchAuctions(
+              request.q(),
+              statuses,
+              sort,
+              null,
+              limit,
+              request.sellerId(),
+              request.cardId(),
+              request.excludeAuctionId());
       Assembled assembled = assemble(auctions, viewerMemberId);
       return CursorPageResponse.from(assembled.items(), false, null);
     }
@@ -101,7 +122,15 @@ public class AuctionService {
     int size = CursorPageSize.resolve(request.size());
     AuctionCursor decodedCursor = AuctionCursor.decode(request.cursor(), sort);
     List<Auction> fetched =
-        auctionRepository.searchAuctions(request.q(), statuses, sort, decodedCursor, size + 1);
+        auctionRepository.searchAuctions(
+            request.q(),
+            statuses,
+            sort,
+            decodedCursor,
+            size + 1,
+            request.sellerId(),
+            request.cardId(),
+            request.excludeAuctionId());
 
     boolean hasNext = fetched.size() > size;
     List<Auction> page = hasNext ? fetched.subList(0, size) : fetched;
@@ -124,7 +153,7 @@ public class AuctionService {
   public AuctionListItemResponse getFeaturedAuction(Long viewerMemberId) {
     List<Auction> candidates =
         auctionRepository.searchAuctions(
-            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1);
+            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1, null, null, null);
     Auction featured =
         candidates.stream()
             .findFirst()

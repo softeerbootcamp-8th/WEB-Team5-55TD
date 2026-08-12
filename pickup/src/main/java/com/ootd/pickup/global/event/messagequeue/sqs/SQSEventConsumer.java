@@ -189,6 +189,7 @@ public class SQSEventConsumer implements SmartLifecycle {
     if (messages.isEmpty()) {
       return;
     }
+    log.debug("SQS 메시지를 수신했습니다 - count={}", messages.size());
     deleteConsumed(consumeBatch(messages));
   }
 
@@ -260,6 +261,11 @@ public class SQSEventConsumer implements SmartLifecycle {
     for (EventHandler<DomainEvent> handler : handlers) {
       handler.handle(event);
     }
+    log.debug(
+        "SQS 이벤트 처리를 완료했습니다 - eventId={}, eventType={}, messageId={}",
+        event.eventId(),
+        event.eventType(),
+        message.messageId());
   }
 
   /**

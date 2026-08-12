@@ -93,7 +93,7 @@ class TransactionalEventPublisherTest {
     assertThat(warnMessages())
         .singleElement()
         .asString()
-        .contains("AUCTION_BID_UPDATED", "aggregateId=1", "eventId=event-id");
+        .contains("BID_REQUEST_SUCCEEDED", "aggregateId=1", "eventId=event-id");
   }
 
   private List<String> warnMessages() {
@@ -122,7 +122,7 @@ class TransactionalEventPublisherTest {
 
     @Override
     public EventType eventType() {
-      return EventType.AUCTION_BID_UPDATED;
+      return EventType.BID_REQUEST_SUCCEEDED;
     }
   }
 }

@@ -62,11 +62,22 @@ describe("구매자 경매 상세", () => {
     render(<Component />);
     expect(screen.getByText("시작가")).toBeInTheDocument();
     cleanup();
-    auction = { ...base, status: "ENDED", currentPrice: 20000 };
+    auction = { ...base, status: "ENDED", currentPrice: 20000, won: true };
     render(<Component />);
     expect(screen.getByText("낙찰가")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "경매 참여" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("유찰된 경매는 낙찰가 대신 유찰로 표시한다", async () => {
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/index");
+    const Component = Route.options.component as ComponentType;
+    auction = { ...base, status: "ENDED", currentPrice: 20000, won: false };
+    render(<Component />);
+    expect(screen.getByText("결과")).toBeInTheDocument();
+    expect(screen.getByText("유찰")).toBeInTheDocument();
+    expect(screen.queryByText("낙찰가")).not.toBeInTheDocument();
+    expect(screen.queryByText("20,000원")).not.toBeInTheDocument();
   });
 });

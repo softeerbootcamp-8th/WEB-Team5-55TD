@@ -42,6 +42,11 @@ public class NotificationEventDispatcher {
       EventHandler<E> eventHandler, NotificationEvent event) {
     try {
       eventHandler.handle(eventHandler.eventClass().cast(event));
+      log.debug(
+          "알림 이벤트 처리를 완료했습니다 - eventType={}, aggregateId={}, handler={}",
+          event.eventType(),
+          event.aggregateId(),
+          eventHandler.getClass().getSimpleName());
     } catch (RuntimeException exception) {
       log.warn(
           "알림 이벤트 처리에 실패했습니다 - eventType={}, aggregateId={}, handler={}",

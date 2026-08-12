@@ -20,6 +20,9 @@ STOMP frame을 검사하여 필요한 명령만 허용하고, 공개 경매 topi
 public class AuctionSubscriptionInterceptor implements ChannelInterceptor {
 
   private static final Pattern AUCTION_TOPIC = Pattern.compile("^/topic/auctions/[1-9]\\d*$");
+  // 클라이언트가 보내는 SUBSCRIBE destination은 UserDestinationMessageHandler가 세션별 목적지로
+  // 바꾸기 전 원본 문자열이라, 여기서는 항상 이 고정 문자열 그대로 보인다.
+  private static final String BID_REQUESTS_USER_QUEUE = "/user/queue/bid-requests";
   private static final Set<StompCommand> ALLOWED_COMMANDS =
       EnumSet.of(
           StompCommand.CONNECT,
@@ -46,7 +49,12 @@ public class AuctionSubscriptionInterceptor implements ChannelInterceptor {
   }
 
   private void validateSubscription(String destination) {
-    if (destination == null || !AUCTION_TOPIC.matcher(destination).matches()) {
+    if (destination == null) {
+      throw new MessageDeliveryException("허용되지 않은 구독 경로입니다.");
+    }
+    boolean allowed =
+        AUCTION_TOPIC.matcher(destination).matches() || BID_REQUESTS_USER_QUEUE.equals(destination);
+    if (!allowed) {
       throw new MessageDeliveryException("허용되지 않은 구독 경로입니다.");
     }
   }

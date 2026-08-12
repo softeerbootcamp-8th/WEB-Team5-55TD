@@ -3,7 +3,7 @@ package com.ootd.pickup.global.event.notification.redis;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
+import com.ootd.pickup.auction.event.BidRequestSucceededNotificationEvent;
 import com.ootd.pickup.auction.event.WinningBidSnapshot;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.global.event.EventHandler;
@@ -49,13 +49,13 @@ class RedisNotificationRoundTripIntegrationTest {
   @Test
   void 커밋되면_알림이_Redis를_거쳐_핸들러까지_도달한다() throws InterruptedException {
     // given
-    AuctionBidUpdatedNotificationEvent event = testEvent();
+    BidRequestSucceededNotificationEvent event = testEvent();
 
     // when
     transactionTemplate.executeWithoutResult(status -> eventPublisher.publish(event));
 
     // then
-    AuctionBidUpdatedNotificationEvent received = roundTripHandler.awaitFor(AUCTION_ID);
+    BidRequestSucceededNotificationEvent received = roundTripHandler.awaitFor(AUCTION_ID);
     assertThat(received).isNotNull();
     assertThat(received).isEqualTo(event);
   }
@@ -63,13 +63,13 @@ class RedisNotificationRoundTripIntegrationTest {
   @Test
   void 왕복한_알림은_중첩된_낙찰_입찰_스냅샷까지_보존한다() throws InterruptedException {
     // given — 봉투는 payload를 JsonNode로 감싸므로 중첩 record와 enum, 시각이 함께 복원되어야 한다
-    AuctionBidUpdatedNotificationEvent event = testEvent();
+    BidRequestSucceededNotificationEvent event = testEvent();
 
     // when
     transactionTemplate.executeWithoutResult(status -> eventPublisher.publish(event));
 
     // then
-    AuctionBidUpdatedNotificationEvent received = roundTripHandler.awaitFor(AUCTION_ID);
+    BidRequestSucceededNotificationEvent received = roundTripHandler.awaitFor(AUCTION_ID);
     assertThat(received).isNotNull();
     assertThat(received.eventType()).isEqualTo(event.eventType());
     assertThat(received.auctionStatus()).isEqualTo(AuctionStatus.ONGOING);
@@ -77,9 +77,9 @@ class RedisNotificationRoundTripIntegrationTest {
     assertThat(received.winningBid()).isEqualTo(event.winningBid());
   }
 
-  private AuctionBidUpdatedNotificationEvent testEvent() {
+  private BidRequestSucceededNotificationEvent testEvent() {
     LocalDateTime now = LocalDateTime.now().withNano(0);
-    return new AuctionBidUpdatedNotificationEvent(
+    return new BidRequestSucceededNotificationEvent(
         UUID.randomUUID().toString(),
         AUCTION_ID,
         100L,
@@ -91,6 +91,7 @@ class RedisNotificationRoundTripIntegrationTest {
         now.plusHours(1),
         now.minusHours(2),
         new WinningBidSnapshot(10L, 2L, "왕복테스트", 10_500L, BidStatus.HIGHEST, now),
+        null,
         now);
   }
 
@@ -103,26 +104,26 @@ class RedisNotificationRoundTripIntegrationTest {
     }
   }
 
-  static class RoundTripHandler implements EventHandler<AuctionBidUpdatedNotificationEvent> {
+  static class RoundTripHandler implements EventHandler<BidRequestSucceededNotificationEvent> {
 
-    private final BlockingQueue<AuctionBidUpdatedNotificationEvent> received =
+    private final BlockingQueue<BidRequestSucceededNotificationEvent> received =
         new ArrayBlockingQueue<>(16);
 
     @Override
-    public Class<AuctionBidUpdatedNotificationEvent> eventClass() {
-      return AuctionBidUpdatedNotificationEvent.class;
+    public Class<BidRequestSucceededNotificationEvent> eventClass() {
+      return BidRequestSucceededNotificationEvent.class;
     }
 
     @Override
-    public void handle(AuctionBidUpdatedNotificationEvent event) {
+    public void handle(BidRequestSucceededNotificationEvent event) {
       received.offer(event);
     }
 
     /** JVM을 공유하는 다른 테스트의 알림이 섞일 수 있어 이 테스트가 만든 경매의 것만 골라 기다린다. */
-    AuctionBidUpdatedNotificationEvent awaitFor(Long auctionId) throws InterruptedException {
+    BidRequestSucceededNotificationEvent awaitFor(Long auctionId) throws InterruptedException {
       long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
       while (System.nanoTime() < deadline) {
-        AuctionBidUpdatedNotificationEvent event =
+        BidRequestSucceededNotificationEvent event =
             received.poll(TimeUnit.SECONDS.toNanos(5), TimeUnit.NANOSECONDS);
         if (event == null) {
           return null;

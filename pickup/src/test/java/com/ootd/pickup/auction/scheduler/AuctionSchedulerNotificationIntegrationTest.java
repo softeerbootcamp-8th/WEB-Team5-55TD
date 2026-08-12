@@ -250,7 +250,7 @@ class AuctionSchedulerNotificationIntegrationTest {
                       .cardNumber(unique)
                       .setName("알림 테스트 세트")
                       .language(Language.KOREAN)
-                      .rarity(Rarity.MINT)
+                      .rarity(Rarity.RARE_HOLO)
                       .imageUrl("https://example.com/notify.png")
                       .build());
           Consignment consignment =

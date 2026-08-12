@@ -25,6 +25,7 @@ public record AuctionDetailResponse(
     long watchCount,
     boolean watched,
     String thumbnailUrl,
+    Long sellerId,
     String sellerNickname,
     CertificateResponse certificate,
     List<ConsignmentImageResponse> images,
@@ -61,6 +62,7 @@ public record AuctionDetailResponse(
         watchCount,
         watched,
         resolveThumbnailUrl(images, imageUrlResolver),
+        consignment.getSellerMember().getMemberId(),
         consignment.getSellerMember().getNickname(),
         CertificateResponse.from(certificate),
         images.stream()

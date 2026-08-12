@@ -3,6 +3,7 @@ package com.ootd.pickup.global.event.messagequeue.outbox;
 import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.event.MessageQueueEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,7 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>도메인은 이 클래스도, Outbox 테이블도, SQS도 모른다. {@link EventProducer}만 알고 발행을 맡긴다.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class OutboxEventProducer implements EventProducer {
@@ -43,5 +45,10 @@ public class OutboxEventProducer implements EventProducer {
   @Transactional(propagation = Propagation.MANDATORY)
   public void produce(MessageQueueEvent event) {
     outboxEventJpaRepository.save(OutboxEventEntity.create(event, objectMapper));
+    log.debug(
+        "이벤트를 Outbox에 적재했습니다 - eventId={}, eventType={}, aggregateId={}",
+        event.eventId(),
+        event.eventType(),
+        event.aggregateId());
   }
 }
