@@ -1,0 +1,122 @@
+{
+    "metrics": {
+        "ws_sessions": {
+            "count": 1200,
+            "rate": 9.855253975164914
+        },
+        "ws_errors": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "reconnect_attempts": {
+            "count": 900,
+            "rate": 7.391440481373685
+        },
+        "data_received": {
+            "count": 7935600,
+            "rate": 65172.79453776557
+        },
+        "reconnect_failures": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "iteration_duration": {
+            "avg": 121529.84572157,
+            "min": 121036.837078,
+            "med": 121603.6403275,
+            "max": 121735.669183,
+            "p(90)": 121702.26545369999,
+            "p(95)": 121709.1174099
+        },
+        "ws_connecting": {
+            "med": 500.885666,
+            "max": 2619.831007,
+            "p(90)": 2359.3051423,
+            "p(95)": 2412.27317,
+            "avg": 755.0818838516664,
+            "min": 334.987723
+        },
+        "ws_session_duration": {
+            "min": 20336.125105,
+            "med": 20529.730848,
+            "max": 60011.222983,
+            "p(90)": 59995.8358144,
+            "p(95)": 60001.27289,
+            "avg": 30382.425096790797
+        },
+        "vus": {
+            "min": 300,
+            "max": 300,
+            "value": 300
+        },
+        "vus_max": {
+            "value": 300,
+            "min": 300,
+            "max": 300
+        },
+        "ws_msgs_sent": {
+            "count": 4971,
+            "rate": 40.82538959212065
+        },
+        "ws_msgs_received": {
+            "count": 3600,
+            "rate": 29.56576192549474
+        },
+        "stomp_connected": {
+            "count": 1200,
+            "rate": 9.855253975164914,
+            "thresholds": {
+                "count>=1199": false
+            }
+        },
+        "data_sent": {
+            "count": 2588559,
+            "rate": 21259.088645582426
+        },
+        "reconnect_handshake_latency": {
+            "avg": 511.4,
+            "min": 335,
+            "med": 371,
+            "max": 1001,
+            "p(90)": 939,
+            "p(95)": 962.05,
+            "thresholds": {
+                "p(95)<5000": false
+            }
+        },
+        "iterations": {
+            "count": 300,
+            "rate": 2.4638134937912284
+        },
+        "reconnect_success": {
+            "count": 900,
+            "rate": 7.391440481373685,
+            "thresholds": {
+                "count>=900": false
+            }
+        },
+        "initial_open_success": {
+            "count": 300,
+            "rate": 2.4638134937912284,
+            "thresholds": {
+                "count>=300": false
+            }
+        }
+    },
+    "setup_data": {
+        "firstCloseAt": 1786455025898
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {}
+    }
+}

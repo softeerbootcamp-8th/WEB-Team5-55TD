@@ -1,0 +1,88 @@
+{
+    "root_group": {
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {},
+        "name": ""
+    },
+    "metrics": {
+        "stomp_connected": {
+            "count": 300,
+            "rate": 1.428446134785855,
+            "thresholds": {
+                "count>=300": false
+            }
+        },
+        "ws_connect_failures": {
+            "rate": 0,
+            "count": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "ws_connecting": {
+            "p(95)": 452.2582434,
+            "avg": 340.9307045133332,
+            "min": 279.598893,
+            "med": 294.8356235,
+            "max": 2126.772494,
+            "p(90)": 334.12372650000003
+        },
+        "ws_msgs_received": {
+            "count": 5372,
+            "rate": 25.578708786898712
+        },
+        "data_received": {
+            "count": 2095400,
+            "rate": 9977.220102767602
+        },
+        "vus": {
+            "value": 300,
+            "min": 4,
+            "max": 300
+        },
+        "data_sent": {
+            "rate": 3715.8740682638363,
+            "count": 780402
+        },
+        "vus_max": {
+            "max": 300,
+            "value": 300,
+            "min": 300
+        },
+        "ws_sessions": {
+            "count": 300,
+            "rate": 1.428446134785855
+        },
+        "ws_handshake_latency": {
+            "p(90)": 334.20000000000005,
+            "p(95)": 453.15000000000003,
+            "avg": 341.1933333333333,
+            "min": 280,
+            "med": 295,
+            "max": 2127,
+            "thresholds": {
+                "p(95)<5000": false
+            }
+        },
+        "ws_open_success": {
+            "count": 300,
+            "rate": 1.428446134785855,
+            "thresholds": {
+                "count>=300": false
+            }
+        },
+        "ws_msgs_sent": {
+            "count": 5838,
+            "rate": 27.79756178293274
+        },
+        "ws_errors": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        }
+    }
+}
