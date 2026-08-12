@@ -16,6 +16,7 @@ let onBidUpdated: ((message: Record<string, unknown>) => void) | undefined;
 const toastWarning = vi.fn();
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
+const getBidRequestResult = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
@@ -88,6 +89,7 @@ vi.mock("@/api/bids", () => ({
   getAuctionBids: vi.fn(),
   getBidErrorMessage: vi.fn(),
   createBidRequest: vi.fn(),
+  getBidRequestResult,
 }));
 vi.mock("@/hooks/use-auction-bid-updates", () => ({
   useAuctionBidUpdates: (options: {
@@ -106,6 +108,13 @@ describe("실시간 경매 추월 알림", () => {
     toastWarning.mockClear();
     toastSuccess.mockClear();
     toastError.mockClear();
+    getBidRequestResult.mockReset();
+    getBidRequestResult.mockResolvedValue({
+      bidRequestId: 42,
+      auctionId: 1,
+      bidPrice: 10500,
+      status: "PENDING",
+    });
   });
 
   it("내가_최고_입찰자였다가_다른_회원에게_추월당하면_알림을_보여준다", async () => {
@@ -178,8 +187,8 @@ describe("실시간 경매 추월 알림", () => {
 
     expect(screen.getByRole("button", { name: "처리 중…" })).toBeDisabled();
 
-    act(() => {
-      vi.advanceTimersByTime(10_000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
     });
 
     expect(toastError).toHaveBeenCalledWith(
@@ -188,6 +197,60 @@ describe("실시간 경매 추월 알림", () => {
         description: expect.stringContaining("입찰 내역을 확인"),
       }),
     );
+    expect(screen.getByRole("button", { name: "입찰하기" })).toBeEnabled();
+    vi.useRealTimers();
+  });
+
+  it("웹소켓_알림이_유실돼도_REST_조회로_입찰_성공을_확인한다", async () => {
+    vi.useFakeTimers();
+    getBidRequestResult.mockResolvedValue({
+      bidRequestId: 42,
+      auctionId: 1,
+      bidPrice: 10500,
+      status: "SUCCEEDED",
+    });
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    submitBidRequest("10500");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(getBidRequestResult).toHaveBeenCalledWith("1", 42);
+    expect(toastSuccess).toHaveBeenCalledWith(
+      "입찰 성공",
+      expect.objectContaining({
+        description: expect.stringContaining("10,500"),
+      }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "처리 중…" }),
+    ).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("웹소켓_알림이_유실돼도_REST_조회로_입찰_실패를_확인한다", async () => {
+    vi.useFakeTimers();
+    getBidRequestResult.mockResolvedValue({
+      bidRequestId: 42,
+      auctionId: 1,
+      bidPrice: 10500,
+      status: "FAILED",
+      failureMessage: "포인트가 부족합니다.",
+    });
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    submitBidRequest("10500");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(screen.getByText("포인트가 부족합니다.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "확인" }));
     expect(screen.getByRole("button", { name: "입찰하기" })).toBeEnabled();
     vi.useRealTimers();
   });

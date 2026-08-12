@@ -36,4 +36,18 @@ describe("bids api", () => {
       bidPrice: 1000,
     });
   });
+
+  it("입찰 요청 처리 결과를 조회한다", async () => {
+    const { getBidRequestResult } = await import("@/api/bids");
+    get.mockResolvedValue({
+      data: { bidRequestId: 7, bidPrice: 10500, status: "SUCCEEDED" },
+    });
+
+    await expect(getBidRequestResult("1", 7)).resolves.toEqual({
+      bidRequestId: 7,
+      bidPrice: 10500,
+      status: "SUCCEEDED",
+    });
+    expect(get).toHaveBeenCalledWith("/auctions/1/bid-requests/7");
+  });
 });
