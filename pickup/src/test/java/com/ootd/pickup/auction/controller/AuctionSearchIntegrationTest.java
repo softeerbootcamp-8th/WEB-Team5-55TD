@@ -147,6 +147,39 @@ class AuctionSearchIntegrationTest {
   }
 
   @Test
+  void 검색어의_LIKE_와일드카드는_리터럴로_취급된다() throws Exception {
+    // given
+    Card underscoreCard = createCard("리자몽_EX", "4/102", "Base Set", Language.JAPANESE);
+    Card anyCharCard = createCard("리자몽1EX", "5/102", "Base Set", Language.JAPANESE);
+    Auction underscoreAuction =
+        createAuction(createConsignment(underscoreCard), AuctionStatus.SCHEDULED, 1000L, null);
+    createAuction(createConsignment(anyCharCard), AuctionStatus.SCHEDULED, 2000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽_EX"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(underscoreAuction.getAuctionId()));
+  }
+
+  @Test
+  void 검색어가_퍼센트뿐이면_전체가_아니라_아무것도_찾지_못한다() throws Exception {
+    // given
+    createAuction(
+        createConsignment(createCard("리자몽", "4/102", "Base Set", Language.JAPANESE)),
+        AuctionStatus.SCHEDULED,
+        1000L,
+        null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "%"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0));
+  }
+
+  @Test
   void limit이_있으면_커서_없이_상위_N개만_반환한다() throws Exception {
     // given
     Consignment consignment = createConsignment();
