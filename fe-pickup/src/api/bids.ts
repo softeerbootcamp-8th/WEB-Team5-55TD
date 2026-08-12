@@ -6,9 +6,12 @@ import { axiosInstance } from "@/api/mutator/custom-instance";
 type BidStatus = "HIGHEST" | "OUTBID" | "WON";
 type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
-/** 입찰 내역 미리보기(최근 N건) / 전체보기 모달에서 공통으로 쓰는 조회 크기. */
+/** 셀러 경매 상세 등에서 쓰는 미리보기(최근 N건) / 전체보기 모달 조회 크기. */
 export const BID_PREVIEW_SIZE = 6;
 export const BID_MODAL_SIZE = 100;
+
+/** 구매자 실시간 경매 화면의 입찰 목록 — 개수 제한 없이 스크롤로 이어서 불러온다. */
+export const REALTIME_BID_PAGE_SIZE = 20;
 
 export interface PlacedBid {
   bidId: number;
