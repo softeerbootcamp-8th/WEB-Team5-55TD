@@ -158,7 +158,7 @@ function AuctionDetailPage() {
                 </div>
               </div>
             ) : (
-              <Price amount={auction.currentPrice} label="낙찰가" size="lg" />
+              <EndedResult won={auction.won} amount={auction.currentPrice} />
             )}
             {(isLive || isUpcoming) && (
               <p className="mt-3 text-xs text-[var(--color-text-muted)]">
@@ -237,6 +237,22 @@ function AuctionDetailPage() {
         />
       )}
     </PageContainer>
+  );
+}
+
+/** 종료된 경매의 결과 — 낙찰이면 낙찰가를, 유찰이면 금액 대신 유찰을 보여준다. */
+function EndedResult({ won, amount }: { won: boolean; amount?: number }) {
+  if (won) {
+    return <Price amount={amount} label="낙찰가" size="lg" />;
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs text-[var(--color-text-muted)]">결과</span>
+      <span className="text-[28px] leading-9 font-bold text-[var(--color-text-muted)]">
+        유찰
+      </span>
+    </div>
   );
 }
 

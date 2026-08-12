@@ -142,11 +142,9 @@ export async function registerAuction(
   return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
 }
 
-export async function searchAuctions(params: AuctionSearchParams): Promise<{
-  items: AuctionSummary[];
-  hasNext: boolean;
-  cursor?: string;
-}> {
+async function fetchAuctionPage(
+  params: AuctionSearchParams,
+): Promise<AuctionPageResponse> {
   const { data } = await axiosInstance.get<AuctionPageResponse>("/auctions", {
     params: {
       q: params.q || undefined,
@@ -159,6 +157,16 @@ export async function searchAuctions(params: AuctionSearchParams): Promise<{
       indexes: null,
     },
   });
+
+  return data;
+}
+
+export async function searchAuctions(params: AuctionSearchParams): Promise<{
+  items: AuctionSummary[];
+  hasNext: boolean;
+  cursor?: string;
+}> {
+  const data = await fetchAuctionPage(params);
 
   return {
     items: data.items.map(toSummary),
@@ -294,22 +302,16 @@ export async function getAuctionDetail(
       throw error;
     }
 
-    const page = await searchAuctions({
+    const page = await fetchAuctionPage({
       status: ["SCHEDULED", "ONGOING", "WON", "PASSED"],
       sort: "RECENT",
       size: 100,
     });
-    const summary = page.items.find((item) => item.id === auctionId);
-    if (!summary) throw error;
+    const item = page.items.find(
+      (listItem) => String(listItem.auctionId) === auctionId,
+    );
+    if (!item) throw error;
 
-    return {
-      ...summary,
-      sellerNickname: "",
-      minBidUnit: Math.round((summary.startPrice ?? 0) * 0.05),
-      images: summary.thumbnailUrl ? [summary.thumbnailUrl] : [],
-      bidCount: 0,
-      won: false,
-      myBidWon: false,
-    };
+    return detailFromListItem(item);
   }
 }
