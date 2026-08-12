@@ -640,6 +640,8 @@ class AuctionServiceTest {
   void 존재하는_경매를_조회하면_상세정보를_반환한다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.IN_AUCTION, null);
+    ReflectionTestUtils.setField(
+        consignment.getSellerMember(), "profileImageObjectKey", "members/1/profile.png");
     Auction auction =
         createAuction(
             1L,
@@ -668,6 +670,7 @@ class AuctionServiceTest {
     assertThat(response.cardState()).isEqualTo("Gem Mint");
     assertThat(response.sellerId()).isEqualTo(1L);
     assertThat(response.sellerNickname()).isEqualTo("닉네임");
+    assertThat(response.sellerProfileImageUrl()).isEqualTo("members/1/profile.png");
     assertThat(response.thumbnailUrl()).isEqualTo("https://image.example.com/front.png");
     assertThat(response.watchCount()).isEqualTo(4L);
     assertThat(response.watched()).isTrue();

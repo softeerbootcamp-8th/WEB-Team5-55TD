@@ -27,6 +27,7 @@ public record AuctionDetailResponse(
     String thumbnailUrl,
     Long sellerId,
     String sellerNickname,
+    String sellerProfileImageUrl,
     CertificateResponse certificate,
     List<ConsignmentImageResponse> images,
     String cardState,
@@ -64,6 +65,7 @@ public record AuctionDetailResponse(
         resolveThumbnailUrl(images, imageUrlResolver),
         consignment.getSellerMember().getMemberId(),
         consignment.getSellerMember().getNickname(),
+        imageUrlResolver.resolve(consignment.getSellerMember().getProfileImageObjectKey()),
         CertificateResponse.from(certificate),
         images.stream()
             .map(image -> ConsignmentImageResponse.from(image, imageUrlResolver))

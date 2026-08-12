@@ -253,6 +253,8 @@ class AuctionControllerTest {
         .andExpect(jsonPath("$.cardState").value("Gem Mint"))
         .andExpect(jsonPath("$.sellerId").value(42L))
         .andExpect(jsonPath("$.sellerNickname").value("카드마스터샵"))
+        .andExpect(
+            jsonPath("$.sellerProfileImageUrl").value("https://example.com/members/42/profile.png"))
         .andExpect(jsonPath("$.certificate.serialNumber").value("PSA-84213907"))
         .andExpect(jsonPath("$.images[0].imageUrl").value("https://img-front"))
         .andExpect(jsonPath("$.nextMinBid").value(10000L));
@@ -288,6 +290,7 @@ class AuctionControllerTest {
         "https://img-front",
         42L,
         "카드마스터샵",
+        "https://example.com/members/42/profile.png",
         new CertificateResponse(
             1L, "PSA-84213907", CertificationBody.PSA, "10", LocalDate.of(2026, 6, 30)),
         List.of(new ConsignmentImageResponse(1L, 0, "https://img-front")),
