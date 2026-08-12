@@ -13,7 +13,9 @@ public record CreateAuctionRequest(
     @NotNull Long consignmentId,
     @NotNull @Positive Long startingPrice,
     @NotNull @Positive Long reserve,
-    @NotNull @Future LocalDateTime scheduledStartAt) {
+    @NotNull @Future LocalDateTime scheduledStartAt,
+    @NotNull String title,
+    String description) {
 
   public Auction toEntity(Consignment consignment, Long bidIncrement) {
     return Auction.builder()
@@ -24,6 +26,8 @@ public record CreateAuctionRequest(
         .startingPrice(startingPrice)
         .reservePrice(reserve)
         .bidIncrement(bidIncrement)
+        .title(title)
+        .description(description)
         .build();
   }
 }

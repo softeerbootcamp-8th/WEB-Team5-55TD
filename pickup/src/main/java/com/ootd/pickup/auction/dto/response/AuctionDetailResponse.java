@@ -14,6 +14,8 @@ import java.util.List;
 public record AuctionDetailResponse(
     Long auctionId,
     Long consignmentId,
+    String title,
+    String description,
     GetCardDetailResponse card,
     String grade,
     AuctionStatus auctionStatus,
@@ -51,6 +53,8 @@ public record AuctionDetailResponse(
     return new AuctionDetailResponse(
         auction.getAuctionId(),
         consignment.getConsignmentId(),
+        auction.getTitle(),
+        auction.getDescription(),
         GetCardDetailResponse.from(consignment.getCard()),
         certificate.getGradeDisplay(),
         auction.getAuctionStatus(),

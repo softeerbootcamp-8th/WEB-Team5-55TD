@@ -103,7 +103,7 @@ class AuctionServiceTest {
 
     LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1).withHour(13).withMinute(30);
     CreateAuctionRequest request =
-        new CreateAuctionRequest(consignmentId, 10000L, 15000L, scheduledStartAt);
+        new CreateAuctionRequest(consignmentId, 10000L, 15000L, scheduledStartAt, "Title", "Description");
 
     // when
     CreateAuctionResponse response = auctionService.registerAuction(memberId, request);
@@ -131,7 +131,7 @@ class AuctionServiceTest {
 
     CreateAuctionRequest request =
         new CreateAuctionRequest(
-            notExistConsignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1));
+            notExistConsignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
 
     // when & then
     assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
@@ -151,7 +151,7 @@ class AuctionServiceTest {
         .willReturn(Optional.of(consignment));
 
     CreateAuctionRequest request =
-        new CreateAuctionRequest(consignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1));
+        new CreateAuctionRequest(consignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
 
     // when & then
     assertThatThrownBy(() -> auctionService.registerAuction(requesterMemberId, request))
@@ -170,7 +170,7 @@ class AuctionServiceTest {
         .willReturn(Optional.of(consignment));
 
     CreateAuctionRequest request =
-        new CreateAuctionRequest(consignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1));
+        new CreateAuctionRequest(consignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
 
     // when & then
     assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
@@ -197,7 +197,7 @@ class AuctionServiceTest {
             consignmentId,
             9_223_372_036_000_000_000L,
             9_223_372_036_000_000_000L,
-            LocalDateTime.now().plusDays(1));
+            LocalDateTime.now().plusDays(1), "Title", "Description");
 
     // when & then
     assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))

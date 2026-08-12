@@ -1,0 +1,474 @@
+{
+  "title": "[PROD] PickUp JVM & EC2 Memory / GC",
+  "description": "PickUp production API의 JVM heap/non-heap, 세대별 메모리, GC pause/cause, EC2 memory/swap/I/O 및 Hikari/Tomcat 상관관계 분석 대시보드",
+  "layout_type": "ordered",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# PickUp JVM / EC2 메모리 핵심 관측\n**현재 운영 기준**: t3.micro · Java 21 · Xms 256 MiB / Xmx 384 MiB · SerialGC\n\n우선 확인 순서: **GC Pause → Swap in/out → Old Gen/Code Cache → Host usable memory → Hikari pending/API latency**\n\n권장 경계: Heap 80%, Old Gen 75%, host usable 20%, swap 사용 256 MiB, GC pause 1초. GC cause가 `codecache_gc_threshold`이면 Code Cache와 Datadog instrumentation을 함께 확인합니다.",
+        "background_color": "gray",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "tick_pos": "50%",
+        "tick_edge": "left"
+      }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "1. Incident Summary",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "query_value",
+              "title": "Heap 사용률",
+              "requests": [{ "q": "max:jvm.heap_memory{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} / max:jvm.heap_memory_max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} * 100", "aggregator": "max", "conditional_formats": [{ "comparator": ">", "value": 90, "palette": "white_on_red" }, { "comparator": ">", "value": 80, "palette": "black_on_light_yellow" }, { "comparator": "<=", "value": 80, "palette": "white_on_green" }] }],
+              "autoscale": false,
+              "custom_unit": "%",
+              "precision": 1
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "title": "Old Gen 사용률",
+              "requests": [{ "q": "max:jvm.memory.used{env:production,service:pickup-api,host:i-05e05b4ef4e94669c,id:tenured_gen} / max:jvm.memory.max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c,id:tenured_gen} * 100", "aggregator": "max", "conditional_formats": [{ "comparator": ">", "value": 85, "palette": "white_on_red" }, { "comparator": ">", "value": 75, "palette": "black_on_light_yellow" }, { "comparator": "<=", "value": 75, "palette": "white_on_green" }] }],
+              "autoscale": false,
+              "custom_unit": "%",
+              "precision": 1
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "title": "최대 GC Pause",
+              "requests": [{ "q": "max:jvm.gc.pause.max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "aggregator": "max", "conditional_formats": [{ "comparator": ">", "value": 1000, "palette": "white_on_red" }, { "comparator": ">", "value": 200, "palette": "black_on_light_yellow" }, { "comparator": "<=", "value": 200, "palette": "white_on_green" }] }],
+              "autoscale": true,
+              "precision": 0
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "title": "Host 가용 메모리",
+              "requests": [{ "q": "min:system.mem.pct_usable{host:i-05e05b4ef4e94669c} * 100", "aggregator": "min", "conditional_formats": [{ "comparator": "<", "value": 10, "palette": "white_on_red" }, { "comparator": "<", "value": 20, "palette": "black_on_light_yellow" }, { "comparator": ">=", "value": 20, "palette": "white_on_green" }] }],
+              "autoscale": false,
+              "custom_unit": "%",
+              "precision": 1
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "title": "Swap 사용량",
+              "requests": [{ "q": "max:system.swap.used{host:i-05e05b4ef4e94669c}", "aggregator": "max", "conditional_formats": [{ "comparator": ">", "value": 536870912, "palette": "white_on_red" }, { "comparator": ">", "value": 268435456, "palette": "black_on_light_yellow" }, { "comparator": "<=", "value": 268435456, "palette": "white_on_green" }] }],
+              "autoscale": true,
+              "precision": 2
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "title": "Hikari Pending",
+              "requests": [{ "q": "max:hikaricp.connections.pending{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "aggregator": "max", "conditional_formats": [{ "comparator": ">", "value": 0, "palette": "white_on_red" }, { "comparator": "<=", "value": 0, "palette": "white_on_green" }] }],
+              "autoscale": true,
+              "precision": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "2. JVM Heap / Young / Old",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Heap Used / Committed / Max",
+              "requests": [
+                { "q": "max:jvm.heap_memory{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:jvm.heap_memory_committed{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:jvm.heap_memory_max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true,
+              "legend_layout": "auto",
+              "legend_columns": ["avg", "min", "max", "value"]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Heap Pool Used: Eden / Survivor / Tenured",
+              "requests": [{ "q": "max:jvm.memory.used{env:production,service:pickup-api,host:i-05e05b4ef4e94669c,area:heap} by {id}", "display_type": "line" }],
+              "show_legend": true,
+              "legend_layout": "auto",
+              "legend_columns": ["avg", "max", "value"]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Young Generation: Eden / Survivor",
+              "requests": [
+                { "q": "max:jvm.gc.eden_size{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:jvm.gc.survivor_size{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Old Gen Used / Capacity / Live after GC",
+              "requests": [
+                { "q": "max:jvm.memory.used{env:production,service:pickup-api,host:i-05e05b4ef4e94669c,id:tenured_gen}", "display_type": "line" },
+                { "q": "max:jvm.memory.max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c,id:tenured_gen}", "display_type": "line" },
+                { "q": "max:jvm.gc.live.data.size{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Allocation / Promotion Rate",
+              "requests": [
+                { "q": "sum:jvm.gc.memory.allocated{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}.as_rate()", "display_type": "line" },
+                { "q": "sum:jvm.gc.memory.promoted{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}.as_rate()", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Memory Usage after GC by Pool",
+              "requests": [{ "q": "max:jvm.memory.usage.after.gc{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} by {area,id}", "display_type": "line" }],
+              "show_legend": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "3. GC Pause / Cause / Throughput",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "GC Pause Max / p95 / Avg",
+              "requests": [
+                { "q": "max:jvm.gc.pause.max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} by {action,cause}", "display_type": "line" },
+                { "q": "max:jvm.gc.pause.95percentile{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} by {action,cause}", "display_type": "line" },
+                { "q": "avg:jvm.gc.pause.avg{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} by {action,cause}", "display_type": "line" }
+              ],
+              "markers": [{ "value": "y = 200", "display_type": "warning dashed", "label": "200ms" }, { "value": "y = 1000", "display_type": "error dashed", "label": "1s" }],
+              "show_legend": true,
+              "legend_layout": "auto",
+              "legend_columns": ["avg", "max", "value"]
+            }
+          },
+          {
+            "definition": {
+              "type": "toplist",
+              "title": "GC Pause by Cause / Action",
+              "requests": [{ "q": "top(max:jvm.gc.pause.max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} by {cause,action}, 10, 'max', 'desc')" }]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Major / Minor GC Count",
+              "requests": [
+                { "q": "sum:jvm.gc.major_collection_count{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}.as_count()", "display_type": "bars" },
+                { "q": "sum:jvm.gc.minor_collection_count{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}.as_count()", "display_type": "bars" },
+                { "q": "sum:jvm.gc.pause.count{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} by {action,cause}.as_count()", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Major / Minor Collection Time",
+              "requests": [
+                { "q": "sum:jvm.gc.major_collection_time{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}.as_count()", "display_type": "bars" },
+                { "q": "sum:jvm.gc.minor_collection_time{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}.as_count()", "display_type": "bars" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "GC Overhead",
+              "requests": [{ "q": "max:jvm.gc.overhead{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} * 100", "display_type": "line" }],
+              "markers": [{ "value": "y = 5", "display_type": "warning dashed", "label": "5%" }, { "value": "y = 10", "display_type": "error dashed", "label": "10%" }],
+              "yaxis": { "include_zero": true, "min": "0", "max": "100", "scale": "linear", "label": "%" }
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "JVM Process / System CPU Load",
+              "requests": [
+                { "q": "max:jvm.cpu_load.process{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} * 100", "display_type": "line" },
+                { "q": "max:jvm.cpu_load.system{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} * 100", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "4. Non-Heap / Code Cache / Threads",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Non-Heap Used / Committed",
+              "requests": [
+                { "q": "max:jvm.non_heap_memory{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:jvm.non_heap_memory_committed{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Metaspace / Code Cache / Compressed Class Space",
+              "requests": [{ "q": "max:jvm.memory.used{env:production,service:pickup-api,host:i-05e05b4ef4e94669c,area:nonheap} by {id}", "display_type": "line" }],
+              "show_legend": true,
+              "legend_layout": "auto",
+              "legend_columns": ["avg", "max", "value"]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Code Cache Used / Max by Heap",
+              "requests": [
+                { "q": "max:jvm.memory.used{env:production,service:pickup-api,host:i-05e05b4ef4e94669c,area:nonheap,!id:metaspace,!id:compressed_class_space} by {id}", "display_type": "line" },
+                { "q": "max:jvm.memory.max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c,area:nonheap,!id:metaspace,!id:compressed_class_space} by {id}", "display_type": "line", "style": { "line_type": "dashed", "line_width": "normal", "palette": "warm" } }
+              ],
+              "markers": [{ "value": "y = 80", "display_type": "warning dashed", "label": "80%" }, { "value": "y = 90", "display_type": "error dashed", "label": "90%" }],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Direct / Mapped Buffer",
+              "requests": [
+                { "q": "max:jvm.buffer.memory.used{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} by {id}", "display_type": "line" },
+                { "q": "max:jvm.buffer.total.capacity{env:production,service:pickup-api,host:i-05e05b4ef4e94669c} by {id}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Threads: Live / Daemon / Peak",
+              "requests": [
+                { "q": "max:jvm.threads.live{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:jvm.threads.daemon{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:jvm.threads.peak{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:jvm.thread_count{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Loaded Classes / Open File Descriptors",
+              "requests": [
+                { "q": "max:jvm.loaded_classes{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line", "on_right_yaxis": false },
+                { "q": "max:jvm.os.open_file_descriptors{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line", "on_right_yaxis": true }
+              ],
+              "show_legend": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "5. EC2 Host Memory / Swap / Disk I/O",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Host Memory: Used / Usable / Cached / Total",
+              "requests": [
+                { "q": "max:system.mem.used{host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "min:system.mem.usable{host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:system.mem.cached{host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:system.mem.total{host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true,
+              "legend_layout": "auto",
+              "legend_columns": ["avg", "min", "max", "value"]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Host Memory Usable %",
+              "requests": [{ "q": "min:system.mem.pct_usable{host:i-05e05b4ef4e94669c} * 100", "display_type": "line" }],
+              "markers": [{ "value": "y = 20", "display_type": "warning dashed", "label": "20%" }, { "value": "y = 10", "display_type": "error dashed", "label": "10%" }],
+              "yaxis": { "include_zero": true, "min": "0", "max": "100", "scale": "linear", "label": "%" }
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Swap Used / Free / Cached",
+              "requests": [
+                { "q": "max:system.swap.used{host:i-05e05b4ef4e94669c}", "display_type": "area" },
+                { "q": "min:system.swap.free{host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:system.swap.cached{host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Swap In / Out Rate",
+              "requests": [
+                { "q": "max:system.swap.swap_in{host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:system.swap.swap_out{host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Disk I/O Await / Utilization",
+              "requests": [
+                { "q": "max:system.io.await{host:i-05e05b4ef4e94669c} by {device}", "display_type": "line", "on_right_yaxis": false },
+                { "q": "max:system.io.util{host:i-05e05b4ef4e94669c} by {device}", "display_type": "line", "on_right_yaxis": true }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Disk Read / Write Throughput",
+              "requests": [
+                { "q": "sum:system.io.rkb_s{host:i-05e05b4ef4e94669c} by {device}", "display_type": "line" },
+                { "q": "sum:system.io.wkb_s{host:i-05e05b4ef4e94669c} by {device}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Host CPU User / System / IOWait / Steal",
+              "requests": [
+                { "q": "max:system.cpu.user{host:i-05e05b4ef4e94669c} * 100", "display_type": "line" },
+                { "q": "max:system.cpu.system{host:i-05e05b4ef4e94669c} * 100", "display_type": "line" },
+                { "q": "max:system.cpu.iowait{host:i-05e05b4ef4e94669c} * 100", "display_type": "line" },
+                { "q": "max:system.cpu.stolen{host:i-05e05b4ef4e94669c} * 100", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Load Average 1m / 5m / 15m",
+              "requests": [
+                { "q": "max:system.load.1{host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:system.load.5{host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:system.load.15{host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "6. Resource Contention Correlation",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Hikari Active / Idle / Pending / Max",
+              "requests": [
+                { "q": "max:hikaricp.connections.active{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:hikaricp.connections.idle{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:hikaricp.connections.pending{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "bars" },
+                { "q": "max:hikaricp.connections.max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Hikari Acquire / Usage Latency",
+              "requests": [
+                { "q": "max:hikaricp.connections.acquire.95percentile{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:hikaricp.connections.acquire.max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:hikaricp.connections.usage.95percentile{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Tomcat Threads Busy / Current / Max",
+              "requests": [
+                { "q": "max:tomcat.threads.busy{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "bars" },
+                { "q": "max:tomcat.threads.current{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:tomcat.threads.max{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" }
+              ],
+              "show_legend": true
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Open Files / JVM Threads / DB Pending",
+              "requests": [
+                { "q": "max:jvm.os.open_file_descriptors{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:jvm.thread_count{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "line" },
+                { "q": "max:hikaricp.connections.pending{env:production,service:pickup-api,host:i-05e05b4ef4e94669c}", "display_type": "bars" }
+              ],
+              "show_legend": true
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "notify_list": []
+}
