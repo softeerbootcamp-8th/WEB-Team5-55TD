@@ -2,7 +2,6 @@ package com.ootd.pickup.bid.service;
 
 import static com.ootd.pickup.auction.domain.AuctionStatus.ONGOING;
 import static com.ootd.pickup.auction.domain.AuctionStatus.SCHEDULED;
-import static com.ootd.pickup.bid.domain.BidStatus.HIGHEST;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_ENDED;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_STARTED;
@@ -14,7 +13,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 
 import com.ootd.pickup.auction.domain.Auction;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
+import com.ootd.pickup.auction.event.BidRequestSucceededNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
@@ -29,8 +28,8 @@ import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.service.PointReservationService;
 import com.ootd.pickup.point.service.PointReservationService.PreparedBidReservation;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -55,34 +54,33 @@ public class BidService {
 
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
+    return placeBid(auctionId, memberId, request, null);
+  }
+
+  @Transactional
+  public PlaceBidResponse placeBid(
+      Long auctionId, Long memberId, PlaceBidRequest request, Long bidRequestId) {
     Auction auction =
         auctionRepository
             .findByIdForUpdate(auctionId)
             .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
 
-    LocalDateTime bidAt = LocalDateTime.now();
+    LocalDateTime bidAt = LocalDateTime.now(ZoneOffset.UTC);
     validateAuction(auction, memberId, bidAt);
 
     Member member =
         memberRepository
             .findById(memberId)
             .orElseThrow(() -> new PickUpException(MEMBER_NOT_FOUND));
-    Optional<Bid> currentHighestBid =
-        bidRepository.findFirstByAuctionIdAndBidStatus(auctionId, HIGHEST);
-    Long currentPrice =
-        currentHighestBid.map(Bid::getBidPrice).orElseGet(auction::getStartingPrice);
+    // validateAuction이 이미 SCHEDULED를 걸러냈으므로 이 시점의 auction은 항상 ONGOING이라 null이 아니다.
+    Long currentPrice = auction.getCurrentPrice();
 
     validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
     PreparedBidReservation preparedReservation =
         pointReservationService.prepareReservation(auction, member, request.bidPrice());
-    Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
+    Bid savedBid =
+        bidRepository.save(Bid.create(auction, member, request.bidPrice(), bidRequestId));
     pointReservationService.reserveHighestBid(auction, preparedReservation, savedBid, member);
-
-    currentHighestBid.ifPresent(
-        bid -> {
-          bid.outbid();
-          bidRepository.save(bid);
-        });
 
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
     if (auction.extendEndAtForSoftClose(bidAt)) {
@@ -90,7 +88,7 @@ public class BidService {
     }
     auctionRepository.save(auction);
     applicationEventPublisher.publishEvent(
-        AuctionBidUpdatedNotificationEvent.fromEntity(auction, savedBid));
+        BidRequestSucceededNotificationEvent.fromEntity(auction, savedBid, bidRequestId));
 
     return PlaceBidResponse.from(savedBid);
   }
@@ -133,6 +131,11 @@ public class BidService {
 
     String nextCursor = hasNext ? String.valueOf(page.getLast().getBidId()) : null;
     return CursorPageResponse.from(items, hasNext, nextCursor);
+  }
+
+  /** 최고 입찰자인 상태로 탈퇴하면 경매가 종료돼도 낙찰자에게 연락할 수 없게 되므로 탈퇴를 막는다. */
+  public boolean hasActiveBid(Long memberId) {
+    return bidRepository.existsCurrentHighestBidByMemberId(memberId);
   }
 
   private Long decodeCursor(String cursor) {

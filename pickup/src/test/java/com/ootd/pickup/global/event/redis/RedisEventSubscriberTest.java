@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.BDDMockito.given;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
+import com.ootd.pickup.auction.event.BidRequestSucceededNotificationEvent;
 import com.ootd.pickup.auction.event.WinningBidSnapshot;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.global.event.DomainEvent;
@@ -31,7 +31,7 @@ import tools.jackson.databind.json.JsonMapper;
 class RedisEventSubscriberTest {
 
   private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
-  private final List<AuctionBidUpdatedNotificationEvent> receivedEvents = new ArrayList<>();
+  private final List<BidRequestSucceededNotificationEvent> receivedEvents = new ArrayList<>();
   private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
   private final RealtimeNotificationMetrics metrics =
       new RealtimeNotificationMetrics(meterRegistry);
@@ -47,25 +47,25 @@ class RedisEventSubscriberTest {
 
   @Test
   void Redis_메시지를_알림_이벤트로_역직렬화해_처리기에_전달한다() {
-    AuctionBidUpdatedNotificationEvent event = createEvent();
+    BidRequestSucceededNotificationEvent event = createEvent();
     givenMessage("pickup:notification:AUCTION:42", envelopeOf(event));
 
     subscriber.onMessage(message, null);
 
     assertThat(receivedEvents).containsExactly(event);
-    assertThat(receiveCount("success", "AUCTION_BID_UPDATED")).isEqualTo(1);
+    assertThat(receiveCount("success", "BID_REQUEST_SUCCEEDED")).isEqualTo(1);
   }
 
   @Test
   void 한_처리기가_실패해도_다른_처리기는_이벤트를_받는다() {
-    EventHandler<AuctionBidUpdatedNotificationEvent> failingHandler =
+    EventHandler<BidRequestSucceededNotificationEvent> failingHandler =
         new TestEventHandler(
             event -> {
               throw new IllegalStateException("handler failure");
             });
     subscriber =
         createSubscriber(List.of(failingHandler, new TestEventHandler(receivedEvents::add)));
-    AuctionBidUpdatedNotificationEvent event = createEvent();
+    BidRequestSucceededNotificationEvent event = createEvent();
     givenMessage("pickup:notification:AUCTION:42", envelopeOf(event));
 
     assertThatCode(() -> subscriber.onMessage(message, null)).doesNotThrowAnyException();
@@ -88,13 +88,13 @@ class RedisEventSubscriberTest {
 
   @Test
   void 채널과_이벤트의_애그리거트가_다르면_처리기에_전달하지_않는다() {
-    AuctionBidUpdatedNotificationEvent event = createEvent();
+    BidRequestSucceededNotificationEvent event = createEvent();
     givenMessage("pickup:notification:AUCTION:99", envelopeOf(event));
 
     subscriber.onMessage(message, null);
 
     assertThat(receivedEvents).isEmpty();
-    assertThat(receiveCount("channel_mismatch", "AUCTION_BID_UPDATED")).isEqualTo(1);
+    assertThat(receiveCount("channel_mismatch", "BID_REQUEST_SUCCEEDED")).isEqualTo(1);
   }
 
   @Test
@@ -135,7 +135,7 @@ class RedisEventSubscriberTest {
         .count();
   }
 
-  private NotificationEnvelope envelopeOf(AuctionBidUpdatedNotificationEvent event) {
+  private NotificationEnvelope envelopeOf(BidRequestSucceededNotificationEvent event) {
     return new NotificationEnvelope(event.eventType(), objectMapper.valueToTree(event));
   }
 
@@ -144,12 +144,12 @@ class RedisEventSubscriberTest {
     given(message.getChannel()).willReturn(channel.getBytes(StandardCharsets.UTF_8));
   }
 
-  private AuctionBidUpdatedNotificationEvent createEvent() {
+  private BidRequestSucceededNotificationEvent createEvent() {
     LocalDateTime startedAt = LocalDateTime.of(2026, 8, 5, 10, 0);
     LocalDateTime endedAt = LocalDateTime.of(2026, 8, 5, 11, 0);
     LocalDateTime bidCreatedAt = LocalDateTime.of(2026, 8, 5, 10, 30);
     LocalDateTime occurredAt = LocalDateTime.of(2026, 8, 5, 10, 30, 1);
-    return new AuctionBidUpdatedNotificationEvent(
+    return new BidRequestSucceededNotificationEvent(
         "event-id",
         42L,
         100L,
@@ -161,19 +161,20 @@ class RedisEventSubscriberTest {
         endedAt,
         startedAt.minusDays(1),
         new WinningBidSnapshot(7L, 9L, "피카츄마스터", 20_000L, BidStatus.HIGHEST, bidCreatedAt),
+        null,
         occurredAt);
   }
 
-  private record TestEventHandler(Consumer<AuctionBidUpdatedNotificationEvent> consumer)
-      implements EventHandler<AuctionBidUpdatedNotificationEvent> {
+  private record TestEventHandler(Consumer<BidRequestSucceededNotificationEvent> consumer)
+      implements EventHandler<BidRequestSucceededNotificationEvent> {
 
     @Override
-    public Class<AuctionBidUpdatedNotificationEvent> eventClass() {
-      return AuctionBidUpdatedNotificationEvent.class;
+    public Class<BidRequestSucceededNotificationEvent> eventClass() {
+      return BidRequestSucceededNotificationEvent.class;
     }
 
     @Override
-    public void handle(AuctionBidUpdatedNotificationEvent event) {
+    public void handle(BidRequestSucceededNotificationEvent event) {
       consumer.accept(event);
     }
   }

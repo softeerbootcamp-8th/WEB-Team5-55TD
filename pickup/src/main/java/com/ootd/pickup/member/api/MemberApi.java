@@ -13,7 +13,10 @@ import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
+import com.ootd.pickup.member.dto.WithdrawMemberRequest;
+import com.ootd.pickup.point.dto.request.ChargePointRequest;
 import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointChargeResponse;
 import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -129,6 +132,36 @@ public interface MemberApi {
       @Parameter(hidden = true) Long memberId, GetPointTransactionsRequest request);
 
   @Operation(
+      summary = "포인트 충전",
+      description =
+          "실제 결제 연동 없이 목업으로 포인트를 즉시 적립합니다. 같은 idempotencyKey로 재요청하면 중복 적립되지 않고 이전 결과를 그대로 반환합니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(
+            responseCode = "201",
+            description = "포인트 충전 성공",
+            content = @Content(schema = @Schema(implementation = PointChargeResponse.class))),
+        @ApiResponse(
+            responseCode = "200",
+            description = "이미 처리된 충전 요청(같은 idempotencyKey 재요청)",
+            content = @Content(schema = @Schema(implementation = PointChargeResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "유효하지 않은 충전 금액",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 필요",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "회원 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<PointChargeResponse> chargeMyPoint(
+      @Parameter(hidden = true) Long memberId, ChargePointRequest request);
+
+  @Operation(
       summary = "내 입찰 내역 조회",
       description = "회원이 입찰한 경매 목록을 최근 입찰 순으로 조회합니다. 경매당 마지막(최신) 입찰만 반환합니다.",
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
@@ -199,7 +232,7 @@ public interface MemberApi {
                                     "setName": "Base Set",
                                     "cardNumber": "4/102",
                                     "language": "일본어",
-                                    "rarity": "홀로 레어",
+                                    "rarity": "레어 홀로",
                                     "imageUrl": "string"
                                   },
                                   "grade": "PSA 10",
@@ -227,4 +260,32 @@ public interface MemberApi {
       })
   ResponseEntity<CursorPageResponse<AuctionListItemResponse, String>> getMyWatches(
       @Parameter(hidden = true) Long memberId, GetMyWatchesRequest getMyWatchesRequest);
+
+  @Operation(
+      summary = "회원 탈퇴",
+      description =
+          "비밀번호 확인 후 회원을 탈퇴 처리합니다. 로그인 아이디는 비워져 재로그인할 수 없게 되며, 셀러로 등록한 상품이 경매 예정/진행 중이거나 최고 입찰자인"
+              + " 경매가 있으면 탈퇴할 수 없습니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(responseCode = "204", description = "탈퇴 성공"),
+        @ApiResponse(
+            responseCode = "400",
+            description = "요청 값 검증 실패",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 필요 또는 비밀번호 불일치",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "회원 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "409",
+            description = "이미 탈퇴한 회원 또는 진행 중인 경매/입찰이 있어 탈퇴할 수 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<Void> withdrawMember(
+      @Parameter(hidden = true) Long memberId, WithdrawMemberRequest request);
 }

@@ -232,7 +232,7 @@ class AuctionSchedulerNotificationIntegrationTest {
                       .cardNumber(unique)
                       .setName("알림 테스트 세트")
                       .language(Language.KOREAN)
-                      .rarity(Rarity.MINT)
+                      .rarity(Rarity.RARE_HOLO)
                       .imageUrl("https://example.com/notify.png")
                       .build());
           Consignment consignment =
@@ -240,7 +240,7 @@ class AuctionSchedulerNotificationIntegrationTest {
                   Consignment.builder()
                       .card(card)
                       .sellerMember(sellerMember)
-                      .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                      .status(ConsignmentStatus.IN_AUCTION)
                       .build());
           Auction auction =
               auctionJpaRepository.save(

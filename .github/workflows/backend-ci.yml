@@ -121,7 +121,7 @@ jobs:
       - name: Build & Test
         id: build-and-test
         env:
-          JWT_TEST_SECRET: ${{ secrets.JWT_TEST_SECRET }}
+          JWT_TEST_SECRET: ${{ vars.JWT_TEST_SECRET }}
         run: ./gradlew clean build --no-daemon
 
       - name: Upload test results

@@ -247,7 +247,7 @@ class AuctionSearchIntegrationTest {
         Consignment.builder()
             .card(card)
             .sellerMember(seller)
-            .status(ConsignmentStatus.AUCTION_ONGOING)
+            .status(ConsignmentStatus.IN_AUCTION)
             .build();
     return consignmentJpaRepository.save(consignment);
   }
@@ -259,7 +259,7 @@ class AuctionSearchIntegrationTest {
             .cardNumber(cardNumber)
             .setName(setName)
             .language(language)
-            .rarity(Rarity.MINT)
+            .rarity(Rarity.RARE_HOLO)
             .imageUrl("https://image.example.com/" + cardNumber + ".png")
             .build();
     return cardJpaRepository.save(card);

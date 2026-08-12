@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class AuctionBidUpdatedNotificationEventTest {
+class BidRequestSucceededNotificationEventTest {
 
   @Test
   void 경매와_최고입찰로부터_생성하면_최고입찰_정보가_중첩되어_옮겨진다() {
@@ -25,8 +25,8 @@ class AuctionBidUpdatedNotificationEventTest {
     Bid bid = createBid(auction, bidder, 10L, 10_500L);
 
     // when
-    AuctionBidUpdatedNotificationEvent event =
-        AuctionBidUpdatedNotificationEvent.fromEntity(auction, bid);
+    BidRequestSucceededNotificationEvent event =
+        BidRequestSucceededNotificationEvent.fromEntity(auction, bid, 7L);
 
     // then
     assertThat(event.auctionId()).isEqualTo(auction.getAuctionId());
@@ -36,6 +36,22 @@ class AuctionBidUpdatedNotificationEventTest {
     assertThat(event.winningBid().memberNickname()).isEqualTo("닉네임");
     assertThat(event.winningBid().bidPrice()).isEqualTo(10_500L);
     assertThat(event.winningBid().bidStatus()).isEqualTo(bid.getBidStatus());
+    assertThat(event.bidRequestId()).isEqualTo(7L);
+  }
+
+  @Test
+  void 동기_엔드포인트로_생성하면_bidRequestId가_null이다() {
+    // given
+    Auction auction = createAuction(1L, AuctionStatus.ONGOING);
+    Member bidder = createMember(2L, "닉네임");
+    Bid bid = createBid(auction, bidder, 10L, 10_500L);
+
+    // when
+    BidRequestSucceededNotificationEvent event =
+        BidRequestSucceededNotificationEvent.fromEntity(auction, bid, null);
+
+    // then
+    assertThat(event.bidRequestId()).isNull();
   }
 
   @Test
@@ -46,18 +62,17 @@ class AuctionBidUpdatedNotificationEventTest {
     Bid bid = createBid(auction, bidder, 10L, 10_500L);
 
     // when
-    AuctionBidUpdatedNotificationEvent event =
-        AuctionBidUpdatedNotificationEvent.fromEntity(auction, bid);
+    BidRequestSucceededNotificationEvent event =
+        BidRequestSucceededNotificationEvent.fromEntity(auction, bid, null);
 
     // then
     assertThat(event.aggregateType()).isEqualTo(AggregateType.AUCTION);
     assertThat(event.aggregateId()).isEqualTo(auction.getAuctionId());
-    assertThat(event.eventType()).isEqualTo(EventType.AUCTION_BID_UPDATED);
+    assertThat(event.eventType()).isEqualTo(EventType.BID_REQUEST_SUCCEEDED);
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status) {
-    Consignment consignment =
-        Consignment.builder().status(ConsignmentStatus.AUCTION_SCHEDULED).build();
+    Consignment consignment = Consignment.builder().status(ConsignmentStatus.IN_AUCTION).build();
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
         Auction.builder()

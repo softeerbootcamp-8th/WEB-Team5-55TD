@@ -14,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -75,8 +76,23 @@ public class PointTransaction {
         keyOf(PointTransactionType.AUCTION_PAYOUT, auction.getAuctionId()));
   }
 
-  private static String keyOf(PointTransactionType transactionType, Long auctionId) {
-    return transactionType.name() + ":" + auctionId;
+  public static String chargeIdempotencyKey(String clientRequestId) {
+    return keyOf(PointTransactionType.CHARGE, clientRequestId);
+  }
+
+  public static PointTransaction forCharge(
+      Member member, long amount, long balanceAfter, String clientRequestId) {
+    return create(
+        member,
+        PointTransactionType.CHARGE,
+        amount,
+        balanceAfter,
+        null,
+        keyOf(PointTransactionType.CHARGE, clientRequestId));
+  }
+
+  private static String keyOf(PointTransactionType transactionType, Object id) {
+    return transactionType.name() + ":" + id;
   }
 
   private static PointTransaction create(
@@ -96,7 +112,7 @@ public class PointTransaction {
     transaction.balanceAfter = balanceAfter;
     transaction.auction = auction;
     transaction.idempotencyKey = idempotencyKey;
-    transaction.createdAt = LocalDateTime.now();
+    transaction.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     return transaction;
   }
 }

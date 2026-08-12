@@ -142,6 +142,9 @@ paths:
                       sellerMemberId: 1
                       majorDefect: 모서리에 약간의 마모
                       status: REGISTERABLE
+                      auctionStatus: null
+                      auctionStartedAt: null
+                      auctionEndedAt: null
                       certificate:
                         certificateId: 200
                         serialNumber: PSA-84213907
@@ -409,7 +412,7 @@ paths:
       summary: 경매 신청
       description: |
         위탁상품에 대한 경매 개최를 신청합니다. 신청이 접수되면 경매 상태는
-        SCHEDULED(예정)로 생성되고, 위탁상품 상태는 AUCTION_SCHEDULED로 전환됩니다.
+        SCHEDULED(예정)로 생성되고, 위탁상품 상태는 IN_AUCTION으로 전환됩니다.
         bidIncrement(입찰 단위)는 시작가의 5%로 시스템이 결정합니다.
       operationId: registerAuction
       requestBody:
@@ -657,6 +660,73 @@ paths:
                 $ref: "#/components/schemas/ExceptionResponse"
       security:
       - access-token-cookie: []
+  /auctions/{auctionId}/bid-requests:
+    post:
+      tags:
+      - Bid
+      summary: 입찰 요청 생성
+      description: |
+        입찰 요청을 접수합니다. 이 API는 가벼운 검증(경매 존재 여부, 입찰가 형식)만 하고 즉시 202를 반환합니다.
+        실제 입찰 처리(현재가·최소 증가폭·판매자 본인 여부·포인트 한도 검증, 저장)는 비동기로 수행되며,
+        같은 경매의 요청은 접수된 순서대로 처리됩니다.
+        처리 결과는 REST 응답이 아니라 WebSocket으로 전달됩니다 —
+        성공은 `/topic/auctions/{auctionId}` 브로드캐스트, 실패는 `/user/queue/bid-requests` 유니캐스트입니다.
+      operationId: createBidRequest
+      parameters:
+      - name: auctionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBidRequestRequest"
+            examples:
+              입찰 요청:
+                description: 입찰 요청
+                value:
+                  bidPrice: 10500
+        required: true
+      responses:
+        "202":
+          description: 입찰 요청 접수 성공
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CreateBidRequestResponse"
+              examples:
+                입찰 요청 접수 결과:
+                  description: 입찰 요청 접수 결과
+                  value:
+                    bidRequestId: 1
+                    auctionId: 1
+                    memberId: 2
+                    bidPrice: 10500
+                    status: PENDING
+                    createdAt: 2026-08-11T12:00:00
+        "400":
+          description: 입찰가 누락 또는 양수가 아닌 입찰가
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 인증 필요
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 경매를 찾을 수 없음
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+      security:
+      - access-token-cookie: []
   /members/me/watches:
     get:
       tags:
@@ -812,6 +882,9 @@ paths:
                     sellerMemberNickname: 피카츄
                     majorDefect: 모서리에 약간의 마모
                     status: REGISTERABLE
+                    auctionStatus: null
+                    auctionStartedAt: null
+                    auctionEndedAt: null
                     certificate:
                       certificateId: 200
                       serialNumber: PSA-84213907
@@ -837,7 +910,7 @@ paths:
       tags:
       - Consignment
       summary: 상품 삭제
-      description: 상품을 삭제합니다. 경매가 시작된 이후(AUCTION_SCHEDULED/AUCTION_ONGOING/WON) 상태의
+      description: 상품을 삭제합니다. 경매 신청 이후(IN_AUCTION/SOLD) 상태의
         상품은 삭제할 수 없습니다.
       operationId: deleteConsignment
       parameters:
@@ -886,7 +959,7 @@ paths:
         images는 수정 후 남길 최종 이미지 목록입니다. 기존 이미지는 consignmentImageId로 유지하고
         새 이미지는 temporaryObjectKey로 추가하며, 목록에서 빠진 기존 이미지는 삭제합니다.
         배열 순서가 최종 이미지 순서가 됩니다.
-        경매 신청 이후(AUCTION_SCHEDULED)/진행 중(AUCTION_ONGOING)/낙찰 완료(WON) 상태에서는 수정할 수 없습니다.
+        경매 신청 이후(IN_AUCTION)/낙찰 완료(SOLD) 상태에서는 수정할 수 없습니다.
       operationId: modifyConsignment
       parameters:
       - name: consignmentId
@@ -938,6 +1011,9 @@ paths:
                     sellerMemberNickname: 피카츄
                     majorDefect: 모서리에 약간의 마모
                     status: REGISTERABLE
+                    auctionStatus: null
+                    auctionStartedAt: null
+                    auctionEndedAt: null
                     certificate:
                       certificateId: 201
                       serialNumber: PSA-84213907
@@ -1130,6 +1206,60 @@ paths:
                 $ref: "#/components/schemas/ExceptionResponse"
         "401":
           description: 인증 필요
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+      security:
+      - access-token-cookie: []
+  /members/me/point-charges:
+    post:
+      tags:
+      - Member
+      summary: 포인트 충전
+      description: |
+        실제 결제 연동 없이 목업으로 포인트를 즉시 적립합니다. 같은 idempotencyKey로 재요청하면
+        중복 적립되지 않고 이전 결과를 그대로 반환합니다.
+      operationId: chargeMyPoint
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChargePointRequest"
+            examples:
+              포인트 충전 요청:
+                description: 포인트 충전 요청
+                value:
+                  amount: 300000
+                  idempotencyKey: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        required: true
+      responses:
+        "201":
+          description: 포인트 충전 성공
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointChargeResponse"
+        "200":
+          description: 이미 처리된 충전 요청(같은 idempotencyKey 재요청)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointChargeResponse"
+        "400":
+          description: 유효하지 않은 충전 금액
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "401":
+          description: 인증 필요
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "404":
+          description: 회원 없음
           content:
             '*/*':
               schema:
@@ -1564,10 +1694,8 @@ components:
           type: string
           enum:
           - REGISTERABLE
-          - AUCTION_SCHEDULED
-          - AUCTION_ONGOING
-          - WON
-          - PASSED
+          - IN_AUCTION
+          - SOLD
         certificate:
           $ref: "#/components/schemas/CertificateResponse"
     SearchCardsResponse:
@@ -1739,6 +1867,38 @@ components:
         createdAt:
           type: string
           format: date-time
+    CreateBidRequestRequest:
+      type: object
+      properties:
+        bidPrice:
+          type: integer
+          format: int64
+      required:
+      - bidPrice
+    CreateBidRequestResponse:
+      type: object
+      properties:
+        bidRequestId:
+          type: integer
+          format: int64
+        auctionId:
+          type: integer
+          format: int64
+        memberId:
+          type: integer
+          format: int64
+        bidPrice:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+          - PENDING
+          - SUCCEEDED
+          - FAILED
+        createdAt:
+          type: string
+          format: date-time
     MyProfileResponse:
       type: object
       properties:
@@ -1843,10 +2003,21 @@ components:
           type: string
           enum:
           - REGISTERABLE
-          - AUCTION_SCHEDULED
-          - AUCTION_ONGOING
+          - IN_AUCTION
+          - SOLD
+        auctionStatus:
+          type: string
+          enum:
+          - SCHEDULED
+          - ONGOING
           - WON
           - PASSED
+        auctionStartedAt:
+          type: string
+          format: date-time
+        auctionEndedAt:
+          type: string
+          format: date-time
         certificate:
           $ref: "#/components/schemas/CertificateResponse"
         images:
@@ -1875,10 +2046,21 @@ components:
           type: string
           enum:
           - REGISTERABLE
-          - AUCTION_SCHEDULED
-          - AUCTION_ONGOING
+          - IN_AUCTION
+          - SOLD
+        auctionStatus:
+          type: string
+          enum:
+          - SCHEDULED
+          - ONGOING
           - WON
           - PASSED
+        auctionStartedAt:
+          type: string
+          format: date-time
+        auctionEndedAt:
+          type: string
+          format: date-time
         certificate:
           $ref: "#/components/schemas/CertificateResponse"
     GetMyConsignmentsPageResponse:
@@ -2138,6 +2320,7 @@ components:
           - OPENING_BALANCE
           - AUCTION_PAYMENT
           - AUCTION_PAYOUT
+          - CHARGE
         amount:
           type: integer
           format: int64
@@ -2170,6 +2353,45 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PointTransactionItemResponse"
+    ChargePointRequest:
+      type: object
+      required:
+      - amount
+      - idempotencyKey
+      properties:
+        amount:
+          type: integer
+          format: int64
+        idempotencyKey:
+          type: string
+    PointChargeResponse:
+      type: object
+      required:
+      - pointTransactionId
+      - chargedAmount
+      - pointBalance
+      - reservedPointBalance
+      - availablePointBalance
+      - createdAt
+      properties:
+        pointTransactionId:
+          type: integer
+          format: int64
+        chargedAmount:
+          type: integer
+          format: int64
+        pointBalance:
+          type: integer
+          format: int64
+        reservedPointBalance:
+          type: integer
+          format: int64
+        availablePointBalance:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
     GetMyBidsRequest:
       type: object
       properties:
@@ -2265,6 +2487,8 @@ components:
         recommendedBid:
           type: integer
           format: int64
+        myBidWon:
+          type: boolean
     GetAuctionBidsRequest:
       type: object
       properties:

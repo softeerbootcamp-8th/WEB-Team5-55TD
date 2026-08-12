@@ -30,6 +30,32 @@ export async function placeBid(
   return data;
 }
 
+type BidRequestStatus = "PENDING" | "SUCCEEDED" | "FAILED";
+
+export interface PlacedBidRequest {
+  bidRequestId: number;
+  auctionId: number;
+  memberId: number;
+  bidPrice: number;
+  status: BidRequestStatus;
+  createdAt: string;
+}
+
+/**
+ * 입찰 요청을 접수한다. 이 호출이 성공(202)해도 입찰이 확정된 것은 아니다 — 실제 처리 결과는
+ * WebSocket으로 비동기 전달된다(성공: 경매 topic 브로드캐스트, 실패: 유니캐스트).
+ */
+export async function createBidRequest(
+  auctionId: string,
+  bidPrice: number,
+): Promise<PlacedBidRequest> {
+  const { data } = await axiosInstance.post<PlacedBidRequest>(
+    `/auctions/${auctionId}/bid-requests`,
+    { bidPrice },
+  );
+  return data;
+}
+
 /** 백엔드가 내려주는 한글 메시지(ExceptionResponse.message)를 그대로 보여준다. */
 export function getBidErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {
@@ -125,11 +151,7 @@ function parseGrade(value?: string | null): Grade | undefined {
   return { agency: agency as Grade["agency"], score: score.join(" ") };
 }
 
-/**
- * 경매가 이미 종료된 뒤에는 OUTBID를 "추월됨"이 아니라 "미낙찰"로 보여준다.
- * 백엔드가 아직 경매 종료 시 낙찰 입찰을 WON으로 전환하는 배치를 구현하지 않아
- * 실제로는 status에 WON이 관측되지 않지만, 화면은 계약된 값을 그대로 대비한다.
- */
+/** 경매가 이미 종료된 뒤에는 OUTBID를 "추월됨"이 아니라 "미낙찰"로 보여준다. */
 function toUiBidStatus(
   status: BidStatus,
   auctionStatus: ApiAuctionStatus,

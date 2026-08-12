@@ -79,7 +79,7 @@ public interface ConsignmentApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberId": 1,
@@ -151,12 +151,15 @@ public interface ConsignmentApi {
                                     "setName": "Base Set",
                                     "cardNumber": "4/102",
                                     "language": "일본어",
-                                    "rarity": "MINT",
+                                    "rarity": "레어 홀로",
                                     "imageUrl": "https://example.com/cards/10.png"
                                   },
                                   "sellerMemberId": 1,
                                   "majorDefect": "모서리에 약간의 마모",
                                   "status": "REGISTERABLE",
+                                  "auctionStatus": null,
+                                  "auctionStartedAt": null,
+                                  "auctionEndedAt": null,
                                   "certificate": {
                                     "certificateId": 200,
                                     "serialNumber": "PSA-84213907",
@@ -205,12 +208,15 @@ public interface ConsignmentApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberNickname": "피카츄",
                               "majorDefect": "모서리에 약간의 마모",
                               "status": "REGISTERABLE",
+                              "auctionStatus": null,
+                              "auctionStartedAt": null,
+                              "auctionEndedAt": null,
                               "certificate": {
                                 "certificateId": 200,
                                 "serialNumber": "PSA-84213907",
@@ -242,7 +248,7 @@ public interface ConsignmentApi {
             images는 수정 후 남길 최종 이미지 목록입니다. 기존 이미지는 consignmentImageId로 유지하고
             새 이미지는 temporaryObjectKey로 추가하며, 목록에서 빠진 기존 이미지는 삭제합니다.
             배열 순서가 최종 이미지 순서가 됩니다.
-            경매 신청 이후(AUCTION_SCHEDULED)/진행 중(AUCTION_ONGOING)/낙찰 완료(WON) 상태에서는 수정할 수 없습니다.
+            경매 신청 이후(IN_AUCTION)/낙찰 완료(SOLD) 상태에서는 수정할 수 없습니다.
             """,
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       requestBody =
@@ -290,12 +296,15 @@ public interface ConsignmentApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberNickname": "피카츄",
                               "majorDefect": "모서리에 약간의 마모",
                               "status": "REGISTERABLE",
+                              "auctionStatus": null,
+                              "auctionStartedAt": null,
+                              "auctionEndedAt": null,
                               "certificate": {
                                 "certificateId": 201,
                                 "serialNumber": "PSA-84213907",
@@ -339,8 +348,7 @@ public interface ConsignmentApi {
 
   @Operation(
       summary = "상품 삭제",
-      description =
-          "상품을 삭제합니다. 경매가 시작된 이후(AUCTION_SCHEDULED/AUCTION_ONGOING/WON) 상태의 상품은 삭제할 수 없습니다.",
+      description = "상품을 삭제합니다. 경매 신청 이후(IN_AUCTION/SOLD) 상태의 상품은 삭제할 수 없습니다.",
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {
         @ApiResponse(responseCode = "204", description = "상품 삭제 성공"),

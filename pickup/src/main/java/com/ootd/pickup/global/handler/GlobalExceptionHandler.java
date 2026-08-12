@@ -9,6 +9,8 @@ import com.ootd.pickup.global.slack.ErrorRequestContext;
 import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -123,7 +125,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     ExceptionResponse response =
         new ExceptionResponse(
-            statusCode.value(), clientExceptionCode, message, path, ZonedDateTime.now());
+            statusCode.value(),
+            clientExceptionCode,
+            message,
+            path,
+            ZonedDateTime.now(ZoneOffset.UTC));
     return ResponseEntity.status(statusCode).headers(headers).body(response);
   }
 
@@ -178,7 +184,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         request.getRequestURI(),
         runtimeException);
 
-    ErrorRequestContext context = ErrorRequestContext.from(request, LocalDateTime.now());
+    // Slack 알림은 온콜 담당자가 바로 읽을 수 있어야 하므로 여기만 예외적으로 KST를 쓴다.
+    ErrorRequestContext context =
+        ErrorRequestContext.from(request, LocalDateTime.now(ZoneId.of("Asia/Seoul")));
     slackErrorNotifier.notifyError(runtimeException, context);
 
     ExceptionResponse response =

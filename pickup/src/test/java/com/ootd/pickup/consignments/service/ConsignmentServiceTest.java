@@ -3,6 +3,8 @@ package com.ootd.pickup.consignments.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
 
+import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.auction.repository.auction.AuctionSummary;
 import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
@@ -33,6 +35,7 @@ import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.service.MemberManageService;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -304,8 +307,7 @@ class ConsignmentServiceTest {
     // given
     Long consignmentId = 100L;
     Card card = createCard(10L);
-    Consignment consignment =
-        createConsignment(consignmentId, card, ConsignmentStatus.AUCTION_ONGOING);
+    Consignment consignment = createConsignment(consignmentId, card, ConsignmentStatus.IN_AUCTION);
     Certificate certificate = createCertificate(200L, consignment);
     given(consignmentRepository.findConsignmentById(consignmentId))
         .willReturn(Optional.of(consignment));
@@ -453,39 +455,6 @@ class ConsignmentServiceTest {
   }
 
   @Test
-  void PASSED_상태의_상품도_수정할_수_있다() {
-    // given
-    Long sellerMemberId = 1L;
-    Long consignmentId = 100L;
-    Consignment consignment =
-        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.PASSED);
-    Certificate certificate = createCertificate(200L, consignment);
-    given(consignmentRepository.findByIdForUpdate(consignmentId))
-        .willReturn(Optional.of(consignment));
-    given(certificateRepository.findCertificateByConsignment(consignment))
-        .willReturn(Optional.of(certificate));
-    given(consignmentImageRepository.saveAll(anyList()))
-        .willAnswer(invocation -> invocation.getArgument(0));
-
-    ModifyConsignmentRequest request =
-        new ModifyConsignmentRequest(
-            null,
-            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
-            List.of(
-                new ConsignmentImageRequest("https://image.example.com/front.png"),
-                new ConsignmentImageRequest("https://image.example.com/back.png")));
-
-    // when
-    GetConsignmentDetailResponse response =
-        consignmentService
-            .modifyConsignment(consignmentId, sellerMemberId, request, finalizedImages(request))
-            .response();
-
-    // then
-    assertThat(response.status()).isEqualTo(ConsignmentStatus.PASSED);
-  }
-
-  @Test
   void 존재하지_않는_상품을_수정하면_예외가_발생한다() {
     // given
     Long notExistConsignmentId = 999L;
@@ -543,7 +512,7 @@ class ConsignmentServiceTest {
     Long sellerMemberId = 1L;
     Long consignmentId = 100L;
     Consignment consignment =
-        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.AUCTION_ONGOING);
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.IN_AUCTION);
     given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
 
@@ -695,8 +664,11 @@ class ConsignmentServiceTest {
         .willReturn(List.of(consignment));
     given(certificateRepository.findAllByConsignmentIn(List.of(consignment)))
         .willReturn(List.of(certificate));
-    given(auctionManageService.findAuctionIdsByConsignments(List.of(consignment)))
-        .willReturn(Map.of(100L, 300L));
+    LocalDateTime startedAt = LocalDateTime.of(2026, 6, 1, 12, 0);
+    LocalDateTime endedAt = LocalDateTime.of(2026, 6, 2, 12, 0);
+    given(auctionManageService.findAuctionSummariesByConsignments(List.of(consignment)))
+        .willReturn(
+            Map.of(100L, new AuctionSummary(300L, AuctionStatus.ONGOING, startedAt, endedAt)));
 
     // when
     CursorPageResponse<GetMyConsignmentsResponse, Long> response =
@@ -709,6 +681,9 @@ class ConsignmentServiceTest {
     GetMyConsignmentsResponse item = response.items().get(0);
     assertThat(item.consignmentId()).isEqualTo(100L);
     assertThat(item.auctionId()).isEqualTo(300L);
+    assertThat(item.auctionStatus()).isEqualTo(AuctionStatus.ONGOING);
+    assertThat(item.auctionStartedAt()).isEqualTo(startedAt);
+    assertThat(item.auctionEndedAt()).isEqualTo(endedAt);
     assertThat(item.sellerMemberId()).isEqualTo(sellerMemberId);
     assertThat(item.card().cardId()).isEqualTo(10L);
     assertThat(item.status()).isEqualTo(ConsignmentStatus.REGISTERABLE);
@@ -729,7 +704,7 @@ class ConsignmentServiceTest {
         .willReturn(List.of(consignment));
     given(certificateRepository.findAllByConsignmentIn(List.of(consignment)))
         .willReturn(List.of(certificate));
-    given(auctionManageService.findAuctionIdsByConsignments(List.of(consignment)))
+    given(auctionManageService.findAuctionSummariesByConsignments(List.of(consignment)))
         .willReturn(Map.of());
 
     // when
@@ -739,6 +714,9 @@ class ConsignmentServiceTest {
     // then
     GetMyConsignmentsResponse item = response.items().get(0);
     assertThat(item.auctionId()).isNull();
+    assertThat(item.auctionStatus()).isNull();
+    assertThat(item.auctionStartedAt()).isNull();
+    assertThat(item.auctionEndedAt()).isNull();
   }
 
   @Test
@@ -755,8 +733,11 @@ class ConsignmentServiceTest {
         .willReturn(List.of(first, second, extra));
     given(certificateRepository.findAllByConsignmentIn(List.of(first, second)))
         .willReturn(List.of(createCertificate(200L, first), createCertificate(201L, second)));
-    given(auctionManageService.findAuctionIdsByConsignments(List.of(first, second)))
-        .willReturn(Map.of(102L, 300L, 101L, 301L));
+    given(auctionManageService.findAuctionSummariesByConsignments(List.of(first, second)))
+        .willReturn(
+            Map.of(
+                102L, new AuctionSummary(300L, AuctionStatus.SCHEDULED, null, null),
+                101L, new AuctionSummary(301L, AuctionStatus.ONGOING, null, null)));
 
     // when
     CursorPageResponse<GetMyConsignmentsResponse, Long> response =
@@ -845,25 +826,6 @@ class ConsignmentServiceTest {
   }
 
   @Test
-  void PASSED_상태의_상품도_삭제할_수_있다() {
-    // given
-    Long sellerMemberId = 1L;
-    Long consignmentId = 100L;
-    Consignment consignment =
-        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.PASSED);
-    given(consignmentRepository.findByIdForUpdate(consignmentId))
-        .willReturn(Optional.of(consignment));
-
-    // when
-    consignmentService.deleteConsignment(consignmentId, sellerMemberId);
-
-    // then
-    then(certificateRepository).should().deleteByConsignment(consignment);
-    then(consignmentImageRepository).should().deleteAllByConsignment(consignment);
-    then(consignmentRepository).should().deleteById(consignmentId);
-  }
-
-  @Test
   void 존재하지_않는_상품을_삭제하면_예외가_발생한다() {
     // given
     Long notExistConsignmentId = 999L;
@@ -904,7 +866,7 @@ class ConsignmentServiceTest {
     Long sellerMemberId = 1L;
     Long consignmentId = 100L;
     Consignment consignment =
-        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.AUCTION_ONGOING);
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.IN_AUCTION);
     given(consignmentRepository.findByIdForUpdate(consignmentId))
         .willReturn(Optional.of(consignment));
 
@@ -917,6 +879,22 @@ class ConsignmentServiceTest {
     then(consignmentRepository).should(never()).deleteById(any());
   }
 
+  @Test
+  void 경매중인_상품이_있으면_활성_상품이_있다고_판단한다() {
+    // given
+    Long sellerMemberId = 1L;
+    given(
+            consignmentRepository.existsBySellerMemberIdAndStatus(
+                sellerMemberId, ConsignmentStatus.IN_AUCTION))
+        .willReturn(true);
+
+    // when
+    boolean hasActiveConsignment = consignmentService.hasActiveConsignment(sellerMemberId);
+
+    // then
+    assertThat(hasActiveConsignment).isTrue();
+  }
+
   private Card createCard(Long cardId) {
     Card card =
         Card.builder()
@@ -924,7 +902,7 @@ class ConsignmentServiceTest {
             .cardNumber("4/102")
             .setName("Base Set")
             .language(Language.JAPANESE)
-            .rarity(Rarity.MINT)
+            .rarity(Rarity.RARE_HOLO)
             .imageUrl("https://image.example.com/card.png")
             .build();
     ReflectionTestUtils.setField(card, "cardId", cardId);

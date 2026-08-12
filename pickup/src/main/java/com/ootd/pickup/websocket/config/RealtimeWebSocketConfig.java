@@ -27,6 +27,8 @@ public class RealtimeWebSocketConfig implements WebSocketMessageBrokerConfigurer
   private final RealtimeWebSocketProperties properties;
   private final TaskScheduler realtimeHeartBeatTaskScheduler;
   private final AuctionSubscriptionInterceptor auctionSubscriptionInterceptor;
+  private final WebSocketAuthHandshakeInterceptor webSocketAuthHandshakeInterceptor;
+  private final MemberHandshakeHandler memberHandshakeHandler;
 
   @Bean
   MBeanExporter realtimeWebSocketMBeanExporter(RealtimeWebSocketJmxMetrics metrics) {
@@ -45,13 +47,17 @@ public class RealtimeWebSocketConfig implements WebSocketMessageBrokerConfigurer
   public void registerStompEndpoints(StompEndpointRegistry registry) {
     registry
         .addEndpoint("/ws")
-        .setAllowedOrigins(properties.allowedOrigins().toArray(String[]::new));
+        .setAllowedOrigins(properties.allowedOrigins().toArray(String[]::new))
+        .addInterceptors(webSocketAuthHandshakeInterceptor)
+        .setHandshakeHandler(memberHandshakeHandler);
   }
 
   @Override
   public void configureMessageBroker(MessageBrokerRegistry registry) {
     // 클라이언트가 서버의 @MessageMapping 메서드로 보내는 영역
     registry.setApplicationDestinationPrefixes("/app");
+    // /user/** 로 보낸 메시지를 로그인한 세션의 Principal(memberId) 기준으로 라우팅한다 (입찰 실패 유니캐스트용).
+    registry.setUserDestinationPrefix("/user");
     registry
         // Broker가 여러 구독자에게 방송하는 영역 -> Simple Broker가 처리
         .enableSimpleBroker("/topic")

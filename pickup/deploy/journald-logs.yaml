@@ -1,0 +1,10 @@
+## 설치 경로: /etc/datadog-agent/conf.d/journald.d/conf.yaml
+## MySQL DBM(mysql-dbm.yaml)과 동일하게 애플리케이션 배포와 분리해 수동 설치한다.
+## pickup(systemd) 서비스가 journald 로 내보내는 로그를 Datadog Agent가 수집한다.
+logs:
+  - type: journald
+    path: /var/log/journal/
+    include_units:
+      - pickup.service
+    service: pickup-api
+    source: java
