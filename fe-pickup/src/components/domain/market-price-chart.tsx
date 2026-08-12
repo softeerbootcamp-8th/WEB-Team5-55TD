@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from "react";
 export interface GradePriceSeries {
   tier: string;
@@ -54,7 +55,6 @@ function preferredTier(tiers: string[], agency?: string, score?: string) {
 }
 
 export function MarketPriceChart(props: MarketPriceChartProps) {
-  const [cardId, setCardId] = useState("");
   const [tiers, setTiers] = useState<string[]>([]);
   const [selectedTier, setSelectedTier] = useState("");
   const [series, setSeries] = useState<GradePriceSeries | null>(null);

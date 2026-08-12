@@ -213,7 +213,7 @@ function AuctionDetailPage() {
             cardNumber={auction.card?.cardNumber}
             preferredAgency={auction.grade?.agency}
             preferredScore={auction.grade?.score}
-            reservePrice={auction.reservePrice ?? auction.startPrice}
+            reservePrice={auction.startPrice}
           />
 
           {/* CTA */}
