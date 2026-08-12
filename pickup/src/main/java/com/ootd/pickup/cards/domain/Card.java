@@ -84,7 +84,7 @@ public class Card {
             .cardNumber(cardNumber)
             .setName(setName)
             .language(Language.ENGLISH)
-            .rarity(Rarity.MINT)
+            .rarity(Rarity.RARE_HOLO)
             .imageUrl(imageUrl)
             .build();
     card.tcgdexId = tcgdexId;
