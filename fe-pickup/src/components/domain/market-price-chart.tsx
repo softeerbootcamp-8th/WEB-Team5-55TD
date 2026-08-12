@@ -1,9 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  findGradedCard,
-  getGradePriceHistory,
-  type GradePriceSeries,
-} from "@/api/poketrace";
+export interface GradePriceSeries {
+  tier: string;
+  points: { date: string; price: number }[];
+}
+
+function hashCode(str: string) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return hash;
+}
+
+function xorshift(seed: number) {
+  let x = seed === 0 ? 1 : seed;
+  return () => {
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    return (x >>> 0) / 4294967296;
+  };
+}
+
+function getTierMultiplier(tier: string) {
+  if (tier.includes("10")) return 1.5;
+  if (tier.includes("9_5")) return 1.2;
+  if (tier.includes("9")) return 1.0;
+  if (tier.includes("8")) return 0.8;
+  return 0.7;
+}
 
 interface MarketPriceChartProps {
   cardName: string;
@@ -11,6 +37,7 @@ interface MarketPriceChartProps {
   cardNumber?: string;
   preferredAgency?: string;
   preferredScore?: string;
+  reservePrice?: number;
 }
 
 const WIDTH = 720;
@@ -34,49 +61,47 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    const controller = new AbortController();
-    findGradedCard(
-      props.cardName,
-      props.setName,
-      props.cardNumber,
-      controller.signal,
-    )
-      .then((card) => {
-        const tier = preferredTier(
-          card.tiers,
-          props.preferredAgency,
-          props.preferredScore,
-        );
-        setCardId(card.cardId);
-        setTiers(card.tiers);
-        setSelectedTier(tier);
-      })
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setHidden(true);
-        }
-      });
-    return () => controller.abort();
+    const mockTiers = ["PSA_10", "PSA_9", "BGS_9_5", "BGS_9", "CGC_10", "CGC_9"];
+    const tier = preferredTier(
+      mockTiers,
+      props.preferredAgency,
+      props.preferredScore,
+    );
+    setTiers(mockTiers);
+    setSelectedTier(tier);
   }, [
     props.cardName,
-    props.setName,
-    props.cardNumber,
     props.preferredAgency,
     props.preferredScore,
   ]);
 
   useEffect(() => {
-    if (!cardId || !selectedTier) return;
-    const controller = new AbortController();
-    getGradePriceHistory(cardId, selectedTier, controller.signal)
-      .then(setSeries)
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setHidden(true);
-        }
-      });
-    return () => controller.abort();
-  }, [cardId, selectedTier]);
+    if (!selectedTier) return;
+    
+    const basePrice = props.reservePrice || 10000;
+    const tierMult = getTierMultiplier(selectedTier);
+    const targetPrice = basePrice * tierMult;
+
+    const seed = Math.abs(hashCode(props.cardName + selectedTier)) || 1;
+    const random = xorshift(seed);
+
+    const points = [];
+    let currentPrice = targetPrice * (0.8 + random() * 0.4); 
+    
+    const now = new Date();
+    for (let i = 30; i >= 0; i -= 1) {
+      const date = new Date(now.getTime() - i * 3 * 24 * 60 * 60 * 1000); 
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const change = (random() - 0.5) * 0.1 * currentPrice; 
+      const reversion = (targetPrice - currentPrice) * 0.1;
+      currentPrice = currentPrice + change + reversion;
+      
+      points.push({ date: dateStr, price: Math.round(currentPrice) });
+    }
+
+    setSeries({ tier: selectedTier, points });
+  }, [props.cardName, selectedTier, props.reservePrice]);
 
   if (hidden || !series) return null;
 
