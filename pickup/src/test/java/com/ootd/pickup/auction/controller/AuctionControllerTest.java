@@ -100,7 +100,8 @@ class AuctionControllerTest {
   void 위탁상품ID가_없으면_400을_반환한다() throws Exception {
     // given
     CreateAuctionRequest request =
-        new CreateAuctionRequest(null, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
+        new CreateAuctionRequest(
+            null, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
 
     // when & then
     mockMvc
