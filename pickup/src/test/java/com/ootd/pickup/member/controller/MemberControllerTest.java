@@ -61,14 +61,14 @@ class MemberControllerTest {
   @MockitoBean private SlackErrorNotifier slackErrorNotifier;
 
   @Test
-  void 아이디_닉네임_비밀번호가_4자_미만이면_회원을_생성하지_않는다() throws Exception {
-    // given
+  void 가입_입력이_형식에_맞지_않으면_회원을_생성하지_않는다() throws Exception {
+    // given — 아이디 5자 미만, 닉네임 1자, 비밀번호 한 종류 8자 미만
     String request =
         """
         {
           "loginId": "abc",
-          "nickname": "닉넴",
-          "password": "123"
+          "nickname": "닉",
+          "password": "1234"
         }
         """;
 

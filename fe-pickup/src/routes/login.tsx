@@ -16,14 +16,14 @@ export const Route = createFileRoute("/login")({
 
 const DEFAULT_ERROR_MESSAGE = "아이디 또는 비밀번호를 확인해 주세요.";
 
-/** DESIGN.md · login.html — 아이디·비밀번호 각 4자 이상 시 활성 */
+/** DESIGN.md · login.html — 아이디·비밀번호를 입력하면 활성. 형식 검증은 가입에서만 한다. */
 function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const valid = username.trim().length >= 4 && password.trim().length >= 4;
+  const valid = username.trim().length > 0 && password.trim().length > 0;
 
   const { mutate, isPending } = useMutation({
     mutationFn: (loginRequest: LoginRequest) => login(loginRequest),
@@ -68,7 +68,7 @@ function LoginPage() {
               setUsername(e.target.value);
               setErrorMessage(null);
             }}
-            placeholder="아이디 (4자 이상)"
+            placeholder="아이디"
             autoComplete="username"
           />
         </div>
@@ -82,7 +82,7 @@ function LoginPage() {
               setPassword(e.target.value);
               setErrorMessage(null);
             }}
-            placeholder="비밀번호 (4자 이상)"
+            placeholder="비밀번호"
             autoComplete="current-password"
             aria-invalid={errorMessage !== null}
           />

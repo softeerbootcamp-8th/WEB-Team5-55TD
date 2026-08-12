@@ -84,9 +84,9 @@ class LoginControllerTest {
   }
 
   @Test
-  void 아이디나_비밀번호가_4자_미만이면_로그인하지_않는다() throws Exception {
+  void 아이디나_비밀번호가_비어있으면_로그인하지_않는다() throws Exception {
     // given
-    String requestBody = "{\"loginId\":\"abc\",\"password\":\"123\"}";
+    String requestBody = "{\"loginId\":\"\",\"password\":\"\"}";
 
     // when
     ResultActions result =

@@ -5,6 +5,12 @@ import type { AxiosError } from "axios";
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
 import {
+  isValidNickname,
+  isValidPassword,
+  NICKNAME_GUIDE,
+  PASSWORD_GUIDE,
+} from "@/lib/member-policy";
+import {
   getGetMyProfileQueryKey,
   useGetMyProfile,
   useUpdateMyProfile,
@@ -43,7 +49,8 @@ import { setAuthenticated, setNickname } from "@/lib/auth";
 
 const PROFILE_ERROR_MESSAGE = "계정 정보를 불러오지 못했습니다.";
 const UPDATE_ERROR_MESSAGE = "계정 정보를 저장하지 못했습니다.";
-const WITHDRAW_ERROR_MESSAGE = "회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+const WITHDRAW_ERROR_MESSAGE =
+  "회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 const INVALID_PASSWORD_MESSAGE = "비밀번호가 일치하지 않습니다.";
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
@@ -131,20 +138,21 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const normalizedNickname = nickname.trim();
-  const nicknameValid = normalizedNickname.length >= 4;
+  const nicknameValid = isValidNickname(normalizedNickname);
   const passwordTouched =
     currentPassword.length > 0 ||
     newPassword.length > 0 ||
     newPasswordConfirm.length > 0;
-  const currentPasswordTooShort = passwordTouched && currentPassword.length < 4;
-  const newPasswordTooShort = passwordTouched && newPassword.length < 4;
+  const currentPasswordMissing =
+    passwordTouched && currentPassword.length === 0;
+  const newPasswordInvalid = passwordTouched && !isValidPassword(newPassword);
   const passwordMismatch =
     passwordTouched &&
-    !newPasswordTooShort &&
+    !newPasswordInvalid &&
     newPassword !== newPasswordConfirm;
   const passwordValid =
     !passwordTouched ||
-    (!currentPasswordTooShort && !newPasswordTooShort && !passwordMismatch);
+    (!currentPasswordMissing && !newPasswordInvalid && !passwordMismatch);
   const nicknameChanged = normalizedNickname !== profile.nickname;
   const hasServerChanges = nicknameChanged || passwordTouched;
   const hasChanges = hasServerChanges || isAvatarChanged;
@@ -285,11 +293,11 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
                 setNicknameInput(event.target.value);
                 setErrorMessage(null);
               }}
-              placeholder="닉네임 (4자 이상)"
+              placeholder={`닉네임 (${NICKNAME_GUIDE})`}
             />
             {!nicknameValid && (
               <p className="text-xs text-[var(--color-danger)]">
-                닉네임은 4자 이상이어야 합니다.
+                닉네임은 {NICKNAME_GUIDE}여야 합니다.
               </p>
             )}
           </div>
@@ -308,9 +316,9 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
                 placeholder="비밀번호 변경 시 입력해 주세요"
                 autoComplete="current-password"
               />
-              {currentPasswordTooShort && (
+              {currentPasswordMissing && (
                 <p className="text-xs text-[var(--color-danger)]">
-                  현재 비밀번호는 4자 이상 입력해 주세요.
+                  현재 비밀번호를 입력해 주세요.
                 </p>
               )}
             </div>
@@ -328,9 +336,9 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
                 placeholder="변경하지 않으려면 비워두세요"
                 autoComplete="new-password"
               />
-              {newPasswordTooShort && (
+              {newPasswordInvalid && (
                 <p className="text-xs text-[var(--color-danger)]">
-                  새 비밀번호는 4자 이상이어야 합니다.
+                  새 비밀번호는 {PASSWORD_GUIDE}여야 합니다.
                 </p>
               )}
             </div>
