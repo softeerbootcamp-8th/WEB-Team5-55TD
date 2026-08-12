@@ -1,6 +1,7 @@
 package com.ootd.pickup.global.exception;
 
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import org.springframework.http.HttpStatus;
 
@@ -13,7 +14,7 @@ public final class ExceptionResponseFactory {
         exceptionCode.getClientExceptionCode().name(),
         exceptionCode.getMessage(),
         path,
-        ZonedDateTime.now());
+        ZonedDateTime.now(ZoneOffset.UTC));
   }
 
   public static ExceptionResponse from(PickUpException exception, String path) {
@@ -22,7 +23,7 @@ public final class ExceptionResponseFactory {
         exception.getExceptionCodeName(),
         exception.getMessage(),
         path,
-        ZonedDateTime.now());
+        ZonedDateTime.now(ZoneOffset.UTC));
   }
 
   public static ExceptionResponse badRequest(String message, String path) {
@@ -31,7 +32,7 @@ public final class ExceptionResponseFactory {
         ExceptionCode.ILLEGAL_ARGUMENT.name(),
         message,
         path,
-        ZonedDateTime.now());
+        ZonedDateTime.now(ZoneOffset.UTC));
   }
 
   public static ExceptionResponse internalServerError(String path) {

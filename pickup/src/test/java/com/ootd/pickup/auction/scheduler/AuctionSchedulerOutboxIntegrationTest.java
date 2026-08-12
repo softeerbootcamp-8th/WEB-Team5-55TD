@@ -237,7 +237,7 @@ class AuctionSchedulerOutboxIntegrationTest {
             Consignment.builder()
                 .card(card)
                 .sellerMember(sellerMember)
-                .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                .status(ConsignmentStatus.IN_AUCTION)
                 .build());
     Auction auction =
         auctionJpaRepository.saveAndFlush(

@@ -33,27 +33,15 @@ class ConsignmentStatusTest {
   }
 
   @Test
-  void 유찰_상태면_수정_가능하다() {
+  void 경매중_상태면_수정_불가능하다() {
     // when & then
-    assertThat(ConsignmentStatus.PASSED.isModifiable()).isTrue();
+    assertThat(ConsignmentStatus.IN_AUCTION.isModifiable()).isFalse();
   }
 
   @Test
-  void 경매등록_상태면_수정_불가능하다() {
+  void 판매완료_상태면_수정_불가능하다() {
     // when & then
-    assertThat(ConsignmentStatus.AUCTION_SCHEDULED.isModifiable()).isFalse();
-  }
-
-  @Test
-  void 경매진행_상태면_수정_불가능하다() {
-    // when & then
-    assertThat(ConsignmentStatus.AUCTION_ONGOING.isModifiable()).isFalse();
-  }
-
-  @Test
-  void 낙찰_상태면_수정_불가능하다() {
-    // when & then
-    assertThat(ConsignmentStatus.WON.isModifiable()).isFalse();
+    assertThat(ConsignmentStatus.SOLD.isModifiable()).isFalse();
   }
 
   @Test
@@ -63,26 +51,14 @@ class ConsignmentStatusTest {
   }
 
   @Test
-  void 유찰_상태면_삭제_가능하다() {
+  void 경매중_상태면_삭제_불가능하다() {
     // when & then
-    assertThat(ConsignmentStatus.PASSED.isDeletable()).isTrue();
+    assertThat(ConsignmentStatus.IN_AUCTION.isDeletable()).isFalse();
   }
 
   @Test
-  void 경매등록_상태면_삭제_불가능하다() {
+  void 판매완료_상태면_삭제_불가능하다() {
     // when & then
-    assertThat(ConsignmentStatus.AUCTION_SCHEDULED.isDeletable()).isFalse();
-  }
-
-  @Test
-  void 경매진행_상태면_삭제_불가능하다() {
-    // when & then
-    assertThat(ConsignmentStatus.AUCTION_ONGOING.isDeletable()).isFalse();
-  }
-
-  @Test
-  void 낙찰_상태면_삭제_불가능하다() {
-    // when & then
-    assertThat(ConsignmentStatus.WON.isDeletable()).isFalse();
+    assertThat(ConsignmentStatus.SOLD.isDeletable()).isFalse();
   }
 }
