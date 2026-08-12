@@ -14,6 +14,12 @@ public interface AuctionRepository {
 
   Optional<Auction> findByIdForUpdate(Long auctionId);
 
+  int incrementWatchCountById(Long auctionId);
+
+  int decrementWatchCountById(Long auctionId);
+
+  int resetWatchCountById(Long auctionId);
+
   long countBySellerMemberIdAndStatus(Long sellerMemberId, AuctionStatus status);
 
   List<Auction> searchAuctions(

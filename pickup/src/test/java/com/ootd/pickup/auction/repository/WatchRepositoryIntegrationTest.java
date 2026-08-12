@@ -6,6 +6,7 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchJpaRepository;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
 import com.ootd.pickup.auction.repository.watch.WatchSummary;
@@ -18,6 +19,7 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaRepository;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
+import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -41,9 +43,61 @@ class WatchRepositoryIntegrationTest {
 
   @Autowired private AuctionJpaRepository auctionJpaRepository;
 
+  @Autowired private AuctionRepository auctionRepository;
+
+  @Autowired private EntityManager entityManager;
+
   @Autowired private WatchJpaRepository watchJpaRepository;
 
   @Autowired private WatchRepository watchRepository;
+
+  @Test
+  void 관심수를_증가시키면_경매의_관심수가_원자적으로_증가한다() {
+    // given
+    Member member = createMember("watch-count-increment");
+    Auction auction = createAuction(member, "관심수 증가 카드");
+
+    // when
+    auctionRepository.incrementWatchCountById(auction.getAuctionId());
+    auctionRepository.incrementWatchCountById(auction.getAuctionId());
+    entityManager.clear();
+
+    // then
+    Auction updated = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
+    assertThat(updated.getWatchCount()).isEqualTo(2L);
+  }
+
+  @Test
+  void 관심수가_0이면_감소시켜도_음수가_되지_않는다() {
+    // given
+    Member member = createMember("watch-count-floor");
+    Auction auction = createAuction(member, "관심수 하한 카드");
+
+    // when
+    int updatedCount = auctionRepository.decrementWatchCountById(auction.getAuctionId());
+    entityManager.clear();
+
+    // then
+    Auction updated = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
+    assertThat(updatedCount).isZero();
+    assertThat(updated.getWatchCount()).isZero();
+  }
+
+  @Test
+  void 관심수를_초기화하면_0이_된다() {
+    // given
+    Member member = createMember("watch-count-reset");
+    Auction auction = createAuction(member, "관심수 초기화 카드");
+    auctionRepository.incrementWatchCountById(auction.getAuctionId());
+
+    // when
+    auctionRepository.resetWatchCountById(auction.getAuctionId());
+    entityManager.clear();
+
+    // then
+    Auction updated = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
+    assertThat(updated.getWatchCount()).isZero();
+  }
 
   @Test
   void 같은_회원과_경매의_관심은_중복저장할_수_없다() {
