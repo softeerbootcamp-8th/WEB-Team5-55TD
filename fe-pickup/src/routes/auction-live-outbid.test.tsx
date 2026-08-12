@@ -41,7 +41,20 @@ vi.mock("@tanstack/react-query", () => ({
           pages: [
             {
               items: [
-                { id: "5", maskedNickname: "me", amount: 10000, isMine: true },
+                {
+                  id: "5",
+                  maskedNickname: "me",
+                  amount: 10000,
+                  createdAt: "2026-01-01T00:01:00Z",
+                  isMine: true,
+                },
+                {
+                  id: "4",
+                  maskedNickname: "me",
+                  amount: 9500,
+                  createdAt: "2026-01-01T00:00:00Z",
+                  isMine: true,
+                },
               ],
               hasNext: false,
             },
@@ -85,6 +98,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 vi.mock("@/api/auctions", () => ({ getAuctionDetail: vi.fn() }));
 vi.mock("@/api/bids", () => ({
+  REALTIME_BID_PAGE_SIZE: 20,
   getAuctionBids: vi.fn(),
   getBidErrorMessage: vi.fn(),
   createBidRequest: vi.fn(),
@@ -190,6 +204,36 @@ describe("실시간 경매 추월 알림", () => {
     );
     expect(screen.getByRole("button", { name: "입찰하기" })).toBeEnabled();
     vi.useRealTimers();
+  });
+
+  it("최근과 전체 입찰 내역을 같은 영역에서 전환한다", async () => {
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    expect(screen.getByRole("tab", { name: "최근" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.queryByText("9,500원")).not.toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "전체" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+
+    expect(screen.getByRole("tab", { name: "전체" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByText("9,500원")).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "최근" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+
+    expect(screen.queryByText("9,500원")).not.toBeInTheDocument();
   });
 });
 
