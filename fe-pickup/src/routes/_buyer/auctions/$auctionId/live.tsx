@@ -247,7 +247,7 @@ function LiveAuctionPage() {
             : (message.endedAt ?? undefined),
       }));
 
-      const isMine = myHighestBid?.bidId === message.latestBid.bidId;
+      const isMine = myHighestBidRef.current?.bidId === message.latestBid.bidId;
       queryClient.setQueryData<AuctionBidsSnapshot | undefined>(
         ["auction-bids", auction.id, "preview"],
         (snapshot) =>
