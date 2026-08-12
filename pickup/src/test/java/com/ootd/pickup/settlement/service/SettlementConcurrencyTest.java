@@ -216,7 +216,7 @@ class SettlementConcurrencyTest {
                 .cardNumber("001")
                 .setName("테스트 세트")
                 .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
+                .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/card.png")
                 .build());
     Consignment consignment =

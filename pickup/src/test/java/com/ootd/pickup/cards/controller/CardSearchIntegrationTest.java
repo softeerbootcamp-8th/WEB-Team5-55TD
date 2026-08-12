@@ -61,7 +61,7 @@ class CardSearchIntegrationTest {
         .andExpect(jsonPath("$.items[0].setName").value("Base Set"))
         .andExpect(jsonPath("$.items[0].cardNumber").value("4/102"))
         .andExpect(jsonPath("$.items[0].language").value("한국어"))
-        .andExpect(jsonPath("$.items[0].rarity").value("MINT"));
+        .andExpect(jsonPath("$.items[0].rarity").value("레어 홀로"));
 
     mockMvc
         .perform(
@@ -132,7 +132,7 @@ class CardSearchIntegrationTest {
         .cardNumber(cardNumber)
         .setName(setName)
         .language(language)
-        .rarity(Rarity.MINT)
+        .rarity(Rarity.RARE_HOLO)
         .imageUrl("https://image.example.com/" + cardNumber + ".png")
         .build();
   }

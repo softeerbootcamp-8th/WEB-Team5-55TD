@@ -200,7 +200,7 @@ public interface MemberApi {
                                     "setName": "Base Set",
                                     "cardNumber": "4/102",
                                     "language": "일본어",
-                                    "rarity": "홀로 레어",
+                                    "rarity": "레어 홀로",
                                     "imageUrl": "string"
                                   },
                                   "grade": "PSA 10",

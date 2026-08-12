@@ -51,7 +51,7 @@ public interface SalesApi {
                                     "setName": "Base Set",
                                     "cardNumber": "4/102",
                                     "language": "일본어",
-                                    "rarity": "MINT",
+                                    "rarity": "레어 홀로",
                                     "imageUrl": "https://example.com/cards/10.png"
                                   },
                                   "grade": "PSA 10",

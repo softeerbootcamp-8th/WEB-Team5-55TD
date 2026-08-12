@@ -94,7 +94,7 @@ class SalesControllerTest {
   private SaleHistoryItemResponse createItem() {
     return new SaleHistoryItemResponse(
         1L,
-        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "MINT", "https://img"),
+        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "레어 홀로", "https://img"),
         "PSA 10",
         12000L,
         AuctionStatus.WON);

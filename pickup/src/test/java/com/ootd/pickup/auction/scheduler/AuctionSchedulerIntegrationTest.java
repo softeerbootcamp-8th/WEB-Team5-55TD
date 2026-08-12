@@ -273,7 +273,7 @@ class AuctionSchedulerIntegrationTest {
                 .cardNumber(unique)
                 .setName("스케줄러 전이 테스트 세트")
                 .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
+                .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/scheduler.png")
                 .build());
     Consignment consignment =
