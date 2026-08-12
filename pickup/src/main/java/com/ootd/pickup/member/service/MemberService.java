@@ -51,7 +51,6 @@ import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
-@Slf4j
 @RequiredArgsConstructor
 @Transactional
 public class MemberService {
