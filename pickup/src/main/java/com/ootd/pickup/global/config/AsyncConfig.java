@@ -19,6 +19,19 @@ public class AsyncConfig {
     this.properties = properties;
   }
 
+  @Bean(name = "taskExecutor")
+  public Executor taskExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    AsyncProperties.Pool pool = properties.defaultPool();
+    executor.setCorePoolSize(pool.corePoolSize());
+    executor.setMaxPoolSize(pool.maxPoolSize());
+    executor.setQueueCapacity(pool.queueCapacity());
+    executor.setThreadNamePrefix("default-async-");
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+    executor.initialize();
+    return executor;
+  }
+
   @Bean(name = "slackNotificationExecutor")
   public Executor slackNotificationExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
