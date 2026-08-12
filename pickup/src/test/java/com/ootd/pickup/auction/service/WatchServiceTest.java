@@ -8,6 +8,7 @@ import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.response.WatchResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
@@ -29,6 +30,8 @@ class WatchServiceTest {
   @Mock private AuctionRepository auctionRepository;
 
   @Mock private WatchRepository watchRepository;
+
+  private static final Long SELLER_ID = 2L;
 
   private WatchService watchService;
 
@@ -108,6 +111,19 @@ class WatchServiceTest {
   }
 
   @Test
+  void 판매자가_본인의_경매에_관심을_등록하면_예외가_발생한다() {
+    // given
+    given(memberManageService.getMemberById(SELLER_ID)).willReturn(createMember(SELLER_ID));
+    given(auctionRepository.findById(100L)).willReturn(Optional.of(createAuction(100L, SELLER_ID)));
+
+    // when & then
+    assertThatThrownBy(() -> watchService.registerWatch(SELLER_ID, 100L))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.AUCTION_SELLER_WATCH_FORBIDDEN.getMessage());
+    then(watchRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 관심을_해제하면_회원과_경매가_일치하는_관심을_삭제한다() {
     // when
     watchService.deleteWatch(1L, 100L);
@@ -144,7 +160,12 @@ class WatchServiceTest {
   }
 
   private Auction createAuction(Long auctionId) {
-    Auction auction = Auction.builder().build();
+    return createAuction(auctionId, SELLER_ID);
+  }
+
+  private Auction createAuction(Long auctionId, Long sellerId) {
+    Consignment consignment = Consignment.builder().sellerMember(createMember(sellerId)).build();
+    Auction auction = Auction.builder().consignment(consignment).build();
     ReflectionTestUtils.setField(auction, "auctionId", auctionId);
     return auction;
   }
