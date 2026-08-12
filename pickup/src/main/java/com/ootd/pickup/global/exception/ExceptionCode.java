@@ -47,7 +47,7 @@ public enum ExceptionCode {
   KAKAO_AUTHENTICATION_FAILED(
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.KAKAO_AUTHENTICATION_FAILED, "카카오 인증에 실패했습니다."),
   REFRESH_TOKEN_STORE_UNAVAILABLE(
-      HttpStatus.UNAUTHORIZED,
+      HttpStatus.INTERNAL_SERVER_ERROR,
       ClientExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE,
       "일시적으로 토큰을 갱신할 수 없습니다. 다시 로그인해 주세요."),
   CONSIGNMENT_NOT_REGISTERABLE(
