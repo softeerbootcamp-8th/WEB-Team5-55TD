@@ -7,10 +7,10 @@ resources:
 images:
   - name: pickup-api
     newName: ghcr.io/softeerbootcamp-8th/web-team5-55td/pickup-api
-    newTag: f581733ac34d1a2168072f197a32adf223d01732
+    newTag: eacc85fbce16416cf2a44c007431c45b70a397da
   - name: pickup-web
     newName: ghcr.io/softeerbootcamp-8th/web-team5-55td/pickup-web
-    newTag: f581733ac34d1a2168072f197a32adf223d01732
+    newTag: eacc85fbce16416cf2a44c007431c45b70a397da
 labels:
   - pairs:
       app.kubernetes.io/part-of: pickup
