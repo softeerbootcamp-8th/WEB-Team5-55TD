@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigate = vi.fn();
@@ -74,5 +80,48 @@ describe("HeartButton", () => {
     render(<WatchButton auctionId="7" watched count={2} />);
     fireEvent.click(screen.getByRole("button", { name: "관심 해제" }));
     expect(deleteMutate).toHaveBeenCalled();
+  });
+
+  it("빠른 연속 클릭으로 관심 등록이 중복돼도 활성 상태를 유지한다", async () => {
+    const { WatchButton } = await import("./heart-button");
+    render(<WatchButton auctionId="7" watched={false} count={2} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "관심 등록" }));
+    await act(async () => {
+      await registerMutate.mock.calls[0][1].onSettled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "관심 등록" }));
+    act(() => {
+      registerMutate.mock.calls[1][1].onError({
+        response: {
+          status: 409,
+          data: { message: "이미 관심 등록한 경매입니다." },
+        },
+      });
+    });
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "관심 해제" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("관심 등록이 실패하면 낙관적 상태를 롤백하고 오류를 알린다", async () => {
+    const { WatchButton } = await import("./heart-button");
+    render(<WatchButton auctionId="7" watched={false} count={2} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "관심 등록" }));
+    act(() => {
+      registerMutate.mock.calls[0][1].onError({
+        response: { status: 500, data: { message: "서버 오류" } },
+      });
+    });
+
+    expect(toast.error).toHaveBeenCalledWith("서버 오류");
+    expect(
+      screen.getByRole("button", { name: "관심 등록" }),
+    ).toBeInTheDocument();
   });
 });

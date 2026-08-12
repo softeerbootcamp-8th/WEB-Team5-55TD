@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import type { AxiosError } from "axios";
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
@@ -22,17 +23,28 @@ import {
   getImageValidationError,
   uploadImage,
 } from "@/api/image-upload";
+import { withdrawMember } from "@/api/member";
 import { Avatar } from "@/components/domain/avatar";
 import { PageContainer } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { setNickname } from "@/lib/auth";
+import { setAuthenticated, setNickname } from "@/lib/auth";
 
 const PROFILE_ERROR_MESSAGE = "계정 정보를 불러오지 못했습니다.";
 const UPDATE_ERROR_MESSAGE = "계정 정보를 저장하지 못했습니다.";
+const WITHDRAW_ERROR_MESSAGE = "회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+const INVALID_PASSWORD_MESSAGE = "비밀번호가 일치하지 않습니다.";
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
   return (
@@ -70,10 +82,13 @@ export function AccountSettingsPage() {
           onAction={() => profileQuery.refetch()}
         />
       ) : (
-        <AccountSettingsForm
-          key={`${profile.memberId ?? "me"}:${profile.nickname}:${profile.profileImageUrl ?? ""}`}
-          profile={profile}
-        />
+        <>
+          <AccountSettingsForm
+            key={`${profile.memberId ?? "me"}:${profile.nickname}:${profile.profileImageUrl ?? ""}`}
+            profile={profile}
+          />
+          <WithdrawMemberSection />
+        </>
       )}
     </PageContainer>
   );
@@ -356,6 +371,125 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
           </Button>
         </form>
       </CardContent>
+    </Card>
+  );
+}
+
+/** 회원 탈퇴 — 비밀번호 확인 모달을 거쳐 DELETE /members/me 호출 */
+function WithdrawMemberSection() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const withdrawMutation = useMutation({
+    mutationFn: (password: string) => withdrawMember(password),
+    onSuccess: () => {
+      setOpen(false);
+      setAuthenticated(false);
+      toast.success("회원 탈퇴가 완료되었습니다.");
+      navigate({ to: "/login" });
+    },
+    onError: (error: AxiosError<ExceptionResponse>) => {
+      if (error.response?.data?.error === "INVALID_PASSWORD") {
+        setErrorMessage(INVALID_PASSWORD_MESSAGE);
+        return;
+      }
+      setOpen(false);
+      toast.error(getErrorMessage(error, WITHDRAW_ERROR_MESSAGE));
+    },
+  });
+
+  const closeDialog = (nextOpen: boolean) => {
+    if (withdrawMutation.isPending) return;
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setPassword("");
+      setErrorMessage(null);
+    }
+  };
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!password || withdrawMutation.isPending) return;
+    setErrorMessage(null);
+    withdrawMutation.mutate(password);
+  };
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-start gap-3 p-6">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold">회원 탈퇴</h2>
+          <p className="text-sm text-[var(--color-text-sub)]">
+            탈퇴 시 계정 정보가 삭제되며 복구할 수 없습니다. 진행 중인 경매에
+            셀러 상품이 등록되어 있거나 최고 입찰자로 참여 중이면 탈퇴할 수
+            없습니다.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          onClick={() => setOpen(true)}
+        >
+          회원 탈퇴
+        </Button>
+      </CardContent>
+
+      <Dialog open={open} onOpenChange={closeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>회원 탈퇴 하시겠어요?</DialogTitle>
+            <DialogDescription>
+              탈퇴하면 계정 정보가 삭제되고 복구할 수 없습니다. 계속하려면
+              비밀번호를 입력해 주세요.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="withdraw-password">비밀번호</Label>
+              <Input
+                id="withdraw-password"
+                type="password"
+                value={password}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setErrorMessage(null);
+                }}
+                placeholder="비밀번호를 입력해 주세요"
+                autoComplete="current-password"
+                aria-invalid={!!errorMessage}
+                autoFocus
+              />
+              {errorMessage && (
+                <p className="text-xs text-[var(--color-danger)]">
+                  {errorMessage}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1"
+                onClick={() => closeDialog(false)}
+                disabled={withdrawMutation.isPending}
+              >
+                취소
+              </Button>
+              <Button
+                type="submit"
+                variant="destructive"
+                className="flex-1"
+                disabled={!password || withdrawMutation.isPending}
+              >
+                {withdrawMutation.isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

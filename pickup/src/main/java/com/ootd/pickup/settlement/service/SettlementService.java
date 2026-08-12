@@ -150,6 +150,12 @@ public class SettlementService {
     pointRepository.save(point);
     pointTransactionRepository.save(
         PointTransaction.forAuctionPayment(winner, amount, point.getBalance(), auction));
+    log.debug(
+        "낙찰자 포인트 차감 완료 - auctionId={}, memberId={}, amount={}, balanceAfter={}",
+        auction.getAuctionId(),
+        winner.getMemberId(),
+        amount,
+        point.getBalance());
   }
 
   private void paySeller(Auction auction, Member seller, Point point, long amount) {
@@ -157,5 +163,11 @@ public class SettlementService {
     pointRepository.save(point);
     pointTransactionRepository.save(
         PointTransaction.forAuctionPayout(seller, amount, point.getBalance(), auction));
+    log.debug(
+        "판매자 포인트 지급 완료 - auctionId={}, memberId={}, amount={}, balanceAfter={}",
+        auction.getAuctionId(),
+        seller.getMemberId(),
+        amount,
+        point.getBalance());
   }
 }

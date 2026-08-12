@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { BidList, BidRow } from "@/components/domain/bid-list";
 import { ConsignmentImageFields } from "@/components/domain/consignment-image-fields";
@@ -32,7 +32,12 @@ describe("추가 도메인 컴포넌트", () => {
       </ul>,
     );
     expect(screen.getByText("ab***12")).toBeInTheDocument();
-    expect(screen.getByText("나")).toBeInTheDocument();
+    // 본인 입찰 행: 아바타 이니셜과 닉네임 라벨이 둘 다 "나"라 중복되므로, 라벨
+    // 쪽(truncate 클래스)으로 셀렉터를 좁혀 확인한다.
+    const myRow = screen.getAllByRole("listitem")[1];
+    expect(
+      within(myRow).getByText("나", { selector: "span.truncate" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("10,500원")).toBeInTheDocument();
   });
 

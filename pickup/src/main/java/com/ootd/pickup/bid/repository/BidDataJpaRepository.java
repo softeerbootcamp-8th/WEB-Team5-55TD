@@ -94,4 +94,19 @@ public class BidDataJpaRepository implements BidRepository {
   private BooleanExpression cursorPredicate(Long cursorBidId) {
     return cursorBidId == null ? null : bid.bidId.lt(cursorBidId);
   }
+
+  /** Bid 상태 컬럼 대신 Auction이 가리키는 현재 최고 입찰을 기준으로 탈퇴 제한 여부를 판단한다. */
+  @Override
+  public boolean existsCurrentHighestBidByMemberId(Long memberId) {
+    return queryFactory
+            .selectOne()
+            .from(bid)
+            .join(bid.auction, auction)
+            .where(
+                bid.member.memberId.eq(memberId),
+                auction.auctionStatus.eq(AuctionStatus.ONGOING),
+                auction.winningBidId.eq(bid.bidId))
+            .fetchFirst()
+        != null;
+  }
 }

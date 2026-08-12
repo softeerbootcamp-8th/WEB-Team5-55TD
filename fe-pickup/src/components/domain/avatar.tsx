@@ -6,10 +6,13 @@ export function Avatar({
   src,
   nickname,
   className,
+  initialClassName = "text-2xl",
 }: {
   src?: string;
   nickname: string;
   className?: string;
+  /** 이니셜 글자 크기. 아바타를 작게 쓰는 곳(입찰 목록 등)에서 오버플로를 막기 위해 재정의한다. */
+  initialClassName?: string;
 }) {
   const [hasError, setHasError] = useState(false);
   const [prevSrc, setPrevSrc] = useState(src);
@@ -37,7 +40,7 @@ export function Avatar({
           onError={() => setHasError(true)}
         />
       ) : (
-        <span className="text-2xl font-bold text-primary">
+        <span className={cn("font-bold text-primary", initialClassName)}>
           {nickname.slice(0, 1).toUpperCase()}
         </span>
       )}

@@ -17,7 +17,7 @@ public record GetCardDetailResponse(
         card.getSetName(),
         card.getCardNumber(),
         card.getLanguage().getDisplayName(),
-        card.getRarity().name(),
+        card.getRarity().getDisplayName(),
         card.getImageUrl());
   }
 }

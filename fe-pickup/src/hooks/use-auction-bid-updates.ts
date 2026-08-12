@@ -26,8 +26,9 @@ type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
 export interface AuctionBidUpdatedMessage {
   eventId: string;
-  type: "AUCTION_BID_UPDATED";
+  type: "BID_REQUEST_SUCCEEDED";
   auctionId: number;
+  bidRequestId: number | null;
   auctionStatus: ApiAuctionStatus;
   currentPrice: number;
   startedAt: string;
@@ -78,9 +79,10 @@ function parseMessage(frame: IMessage): AuctionBidUpdatedMessage | null {
   const isValid =
     typeof value.eventId === "string" &&
     value.eventId.length > 0 &&
-    value.type === "AUCTION_BID_UPDATED" &&
+    value.type === "BID_REQUEST_SUCCEEDED" &&
     typeof value.auctionId === "number" &&
     value.auctionId > 0 &&
+    (value.bidRequestId === null || typeof value.bidRequestId === "number") &&
     typeof value.auctionStatus === "string" &&
     AUCTION_STATUSES.has(value.auctionStatus) &&
     typeof value.currentPrice === "number" &&
@@ -135,6 +137,21 @@ export function useAuctionBidUpdates({
     let isReconnecting = false;
     let isDisposed = false;
 
+    function markProcessed(eventId: string): boolean {
+      if (processedEventIds.has(eventId)) {
+        return false;
+      }
+      processedEventIds.add(eventId);
+      processedEventOrder.push(eventId);
+      if (processedEventOrder.length > PROCESSED_EVENT_LIMIT) {
+        const expiredEventId = processedEventOrder.shift();
+        if (expiredEventId) {
+          processedEventIds.delete(expiredEventId);
+        }
+      }
+      return true;
+    }
+
     const client = new Client({
       brokerURL: resolveBrokerUrl(),
       connectionTimeout: 10_000,
@@ -173,17 +190,8 @@ export function useAuctionBidUpdates({
           console.warn("유효하지 않은 경매 WebSocket 메시지를 수신했습니다.");
           return;
         }
-        if (processedEventIds.has(message.eventId)) {
+        if (!markProcessed(message.eventId)) {
           return;
-        }
-
-        processedEventIds.add(message.eventId);
-        processedEventOrder.push(message.eventId);
-        if (processedEventOrder.length > PROCESSED_EVENT_LIMIT) {
-          const expiredEventId = processedEventOrder.shift();
-          if (expiredEventId) {
-            processedEventIds.delete(expiredEventId);
-          }
         }
 
         if (

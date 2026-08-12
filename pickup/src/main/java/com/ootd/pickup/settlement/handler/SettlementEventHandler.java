@@ -42,6 +42,11 @@ public class SettlementEventHandler implements EventHandler<AuctionEndedMessageQ
 
   @Override
   public void handle(AuctionEndedMessageQueueEvent event) {
+    log.debug(
+        "경매 종료 이벤트를 수신했습니다 - eventId={}, auctionId={}, auctionStatus={}",
+        event.eventId(),
+        event.auctionId(),
+        event.auctionStatus());
     if (event.auctionStatus() == PASSED) {
       pointReservationService.releaseForPassedAuction(event.auctionId());
       return;

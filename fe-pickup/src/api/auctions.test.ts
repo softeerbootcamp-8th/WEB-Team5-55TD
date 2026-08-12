@@ -172,9 +172,38 @@ describe("auctions api", () => {
       id: "12",
       status: "ENDED",
       minBidUnit: 1500,
-      images: ["thumb.jpg"],
+      images: ["thumb.jpg", "card.jpg"],
       won: false,
       myBidWon: false,
+    });
+  });
+
+  it("상세 API가 404여도 목록의 낙찰 여부를 그대로 반영한다", async () => {
+    const api = await import("@/api/auctions");
+    get
+      .mockRejectedValueOnce({ response: { status: 404 } })
+      .mockResolvedValueOnce({
+        data: {
+          hasNext: false,
+          items: [
+            {
+              auctionId: 13,
+              card,
+              auctionStatus: "WON",
+              startingPrice: 30000,
+              currentPrice: 50000,
+              thumbnailUrl: "thumb.jpg",
+              watchCount: 0,
+              watched: false,
+            },
+          ],
+        },
+      });
+    await expect(api.getAuctionDetail("13")).resolves.toMatchObject({
+      id: "13",
+      status: "ENDED",
+      currentPrice: 50000,
+      won: true,
     });
   });
 });

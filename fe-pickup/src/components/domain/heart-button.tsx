@@ -67,6 +67,15 @@ export function HeartButton({
   );
 }
 
+const CONFLICT_STATUS = 409;
+
+function isAlreadyWatchedError(error: unknown) {
+  return (
+    (error as AxiosError<ExceptionResponse>).response?.status ===
+    CONFLICT_STATUS
+  );
+}
+
 export function WatchButton({
   auctionId,
   watched,
@@ -128,6 +137,8 @@ export function WatchButton({
       { auctionId: Number(auctionId) },
       {
         onError: (error) => {
+          // 등록 중복(409)은 서버에 이미 관심이 등록된 상태라 화면과 어긋나지 않는다.
+          if (nextActive && isAlreadyWatchedError(error)) return;
           setOptimisticWatch(null);
           handleError(error);
         },
