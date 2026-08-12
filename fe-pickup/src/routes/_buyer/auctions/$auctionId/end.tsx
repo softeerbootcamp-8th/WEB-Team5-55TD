@@ -23,29 +23,33 @@ export const Route = createFileRoute("/_buyer/auctions/$auctionId/end")({
   component: AuctionEndPage,
 });
 
-/**
- * DESIGN.md · auction end.html — 낙찰/유찰 결과.
- * 백엔드가 낙찰자 회원 id를 내려주지 않아 "내가 낙찰됐는지"는 판별할 수 없다.
- * 경매 전체의 낙찰/유찰 결과만 정확히 표시한다.
- */
+/** DESIGN.md · auction end.html — 낙찰/유찰 결과. 조회자 본인의 낙찰 여부를 기준으로 표시한다. */
 function AuctionEndPage() {
   const { auction } = Route.useLoaderData();
-  const won = auction.won;
+  const sold = auction.won;
+  const iWon = auction.myBidWon;
+
+  const headline = iWon
+    ? "낙찰되었습니다"
+    : sold
+      ? "낙찰자가 결정되었습니다"
+      : "유찰되었습니다";
+  const description = iWon
+    ? "경매가 낙찰로 종료되었습니다."
+    : sold
+      ? "다른 회원이 낙찰받아 종료되었습니다."
+      : "낙찰 없이 종료되었습니다.";
 
   return (
     <PageContainer className="flex flex-col items-center gap-8 py-16">
       <div className="flex flex-col items-center gap-3 text-center">
-        {won ? (
+        {iWon ? (
           <CheckCircle2 className="size-14 text-[var(--color-success)]" />
         ) : (
           <XCircle className="size-14 text-[var(--color-text-muted)]" />
         )}
-        <h1 className="text-3xl font-bold">
-          {won ? "낙찰되었습니다" : "유찰되었습니다"}
-        </h1>
-        <p className="text-sm text-[var(--color-text-sub)]">
-          {won ? "경매가 낙찰로 종료되었습니다." : "낙찰 없이 종료되었습니다."}
-        </p>
+        <h1 className="text-3xl font-bold">{headline}</h1>
+        <p className="text-sm text-[var(--color-text-sub)]">{description}</p>
       </div>
 
       <div className="flex w-full max-w-md flex-col items-center gap-5 rounded-[var(--radius-lg)] border border-border bg-card p-6">
@@ -56,15 +60,15 @@ function AuctionEndPage() {
           className="w-40"
         />
         <div className="flex items-center gap-2">
-          <ResultBadge won={won} />
+          <ResultBadge won={sold} />
           <GradeBadge grade={auction.grade} />
         </div>
         <h2 className="text-lg font-semibold">{auction.cardName}</h2>
 
         <dl className="w-full divide-y divide-border">
           <RowLine
-            label={won ? "최종 낙찰가" : "결과"}
-            value={won ? formatWon(auction.currentPrice) : "유찰"}
+            label={sold ? "최종 낙찰가" : "결과"}
+            value={sold ? formatWon(auction.currentPrice) : "유찰"}
             emphasize
           />
         </dl>

@@ -25,6 +25,7 @@ public record AuctionDetailResponse(
     long watchCount,
     boolean watched,
     String thumbnailUrl,
+    Long sellerId,
     String sellerNickname,
     CertificateResponse certificate,
     List<ConsignmentImageResponse> images,
@@ -32,7 +33,9 @@ public record AuctionDetailResponse(
     String majorDefect,
     Long bidIncrement,
     Long nextMinBid,
-    Long recommendedBid) {
+    Long recommendedBid,
+    // 조회자 본인이 이 경매의 낙찰자인지. 비로그인 상태거나 낙찰자가 아니면 false.
+    boolean myBidWon) {
 
   public static AuctionDetailResponse of(
       Auction auction,
@@ -41,7 +44,8 @@ public record AuctionDetailResponse(
       long watchCount,
       boolean watched,
       Long currentPrice,
-      ImageUrlResolver imageUrlResolver) {
+      ImageUrlResolver imageUrlResolver,
+      boolean myBidWon) {
     Consignment consignment = auction.getConsignment();
 
     return new AuctionDetailResponse(
@@ -58,6 +62,7 @@ public record AuctionDetailResponse(
         watchCount,
         watched,
         resolveThumbnailUrl(images, imageUrlResolver),
+        consignment.getSellerMember().getMemberId(),
         consignment.getSellerMember().getNickname(),
         CertificateResponse.from(certificate),
         images.stream()
@@ -68,7 +73,8 @@ public record AuctionDetailResponse(
         auction.getBidIncrement(),
         nextMinBid(auction, currentPrice),
         // TODO: 입찰 이력 기반 추천 입찰가 도입 전까지 미제공
-        null);
+        null,
+        myBidWon);
   }
 
   private static String resolveThumbnailUrl(

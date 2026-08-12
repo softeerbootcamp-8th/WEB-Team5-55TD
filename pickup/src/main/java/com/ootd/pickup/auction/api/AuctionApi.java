@@ -25,7 +25,7 @@ public interface AuctionApi {
       description =
           """
             위탁상품에 대한 경매 개최를 신청합니다. 신청이 접수되면 경매 상태는
-            SCHEDULED(예정)로 생성되고, 위탁상품 상태는 AUCTION_SCHEDULED로 전환됩니다.
+            SCHEDULED(예정)로 생성되고, 위탁상품 상태는 IN_AUCTION으로 전환됩니다.
             bidIncrement(입찰 단위)는 시작가의 5%로 시스템이 결정합니다.
             """,
       requestBody =
@@ -97,6 +97,8 @@ public interface AuctionApi {
           """
             검색어(q), 경매 상태(status), 정렬(sort) 조건으로 경매 목록을 커서 기반으로 조회합니다.
             limit이 있으면 커서/hasNext 없이 상위 N개만 반환하는 홈 노출 전용 모드로 동작합니다.
+            sellerId/cardId로 같은 판매자·같은 카드의 경매만 좁혀볼 수 있고,
+            excludeAuctionId로 특정 경매(예: 현재 보고 있는 상세 화면의 경매)를 결과에서 제외할 수 있습니다.
             """,
       responses = {
         @ApiResponse(
@@ -124,7 +126,7 @@ public interface AuctionApi {
                                     "setName": "Base Set",
                                     "cardNumber": "4/102",
                                     "language": "일본어",
-                                    "rarity": "MINT",
+                                    "rarity": "레어 홀로",
                                     "imageUrl": "https://example.com/cards/10.png"
                                   },
                                   "grade": "PSA 10",
@@ -173,7 +175,7 @@ public interface AuctionApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "grade": "PSA 10",
@@ -220,7 +222,7 @@ public interface AuctionApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "grade": "PSA 10",
@@ -233,6 +235,7 @@ public interface AuctionApi {
                               "watchCount": 0,
                               "watched": false,
                               "thumbnailUrl": "https://example.com/consignments/100-front.png",
+                              "sellerId": 42,
                               "sellerNickname": "카드마스터샵",
                               "certificate": {
                                 "certificateId": 1,

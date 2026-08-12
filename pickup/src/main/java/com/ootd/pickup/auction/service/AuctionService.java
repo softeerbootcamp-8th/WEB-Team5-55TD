@@ -14,6 +14,7 @@ import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.auction.AuctionSort;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
 import com.ootd.pickup.auction.repository.watch.WatchSummary;
+import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
@@ -30,10 +31,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuctionService {
@@ -58,10 +61,21 @@ public class AuctionService {
     }
 
     Long bidIncrement = calculateBidIncrement(request.startingPrice());
+    log.debug(
+        "최소 입찰 단위를 계산했습니다 - startingPrice={}, bidIncrement={}",
+        request.startingPrice(),
+        bidIncrement);
 
     consignment.scheduleAuction();
     Auction auction = auctionRepository.save(request.toEntity(consignment, bidIncrement));
 
+    log.info(
+        "경매를 등록했습니다 - auctionId={}, consignmentId={}, sellerMemberId={}, startingPrice={}, startedAt={}",
+        auction.getAuctionId(),
+        consignment.getConsignmentId(),
+        memberId,
+        request.startingPrice(),
+        auction.getStartedAt());
     return CreateAuctionResponse.from(auction);
   }
 
@@ -92,7 +106,15 @@ public class AuctionService {
     if (request.limit() != null) {
       int limit = validatePositiveLimit(request.limit());
       List<Auction> auctions =
-          auctionRepository.searchAuctions(request.q(), statuses, sort, null, limit);
+          auctionRepository.searchAuctions(
+              request.q(),
+              statuses,
+              sort,
+              null,
+              limit,
+              request.sellerId(),
+              request.cardId(),
+              request.excludeAuctionId());
       Assembled assembled = assemble(auctions, viewerMemberId);
       return CursorPageResponse.from(assembled.items(), false, null);
     }
@@ -100,7 +122,15 @@ public class AuctionService {
     int size = CursorPageSize.resolve(request.size());
     AuctionCursor decodedCursor = AuctionCursor.decode(request.cursor(), sort);
     List<Auction> fetched =
-        auctionRepository.searchAuctions(request.q(), statuses, sort, decodedCursor, size + 1);
+        auctionRepository.searchAuctions(
+            request.q(),
+            statuses,
+            sort,
+            decodedCursor,
+            size + 1,
+            request.sellerId(),
+            request.cardId(),
+            request.excludeAuctionId());
 
     boolean hasNext = fetched.size() > size;
     List<Auction> page = hasNext ? fetched.subList(0, size) : fetched;
@@ -123,7 +153,7 @@ public class AuctionService {
   public AuctionListItemResponse getFeaturedAuction(Long viewerMemberId) {
     List<Auction> candidates =
         auctionRepository.searchAuctions(
-            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1);
+            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1, null, null, null);
     Auction featured =
         candidates.stream()
             .findFirst()
@@ -144,9 +174,7 @@ public class AuctionService {
         watchRepository
             .findWatchSummariesByAuctionIds(viewerMemberId, List.of(auctionId))
             .getOrDefault(auctionId, WatchSummary.EMPTY);
-    Long currentPrice =
-        resolveCurrentPrice(
-            auction, bidRepository.findCurrentPricesByAuctionIds(List.of(auctionId)));
+    boolean myBidWon = resolveMyBidWon(auction, viewerMemberId);
 
     return AuctionDetailResponse.of(
         auction,
@@ -154,8 +182,26 @@ public class AuctionService {
         images,
         watchSummary.count(),
         watchSummary.watchedByViewer(),
-        currentPrice,
-        imageUrlResolver);
+        auction.getCurrentPrice(),
+        imageUrlResolver,
+        myBidWon);
+  }
+
+  /**
+   * 조회자 본인이 이 경매의 낙찰자인지 판정한다. 판정 근거는 {@link Bid#getBidStatus()}와 같다 — Auction의 winningBidId가 이 경매의
+   * 유일한 낙찰 근거다.
+   */
+  private boolean resolveMyBidWon(Auction auction, Long viewerMemberId) {
+    if (viewerMemberId == null
+        || auction.getAuctionStatus() != AuctionStatus.WON
+        || auction.getWinningBidId() == null) {
+      return false;
+    }
+
+    return bidRepository
+        .findById(auction.getWinningBidId())
+        .map(bid -> bid.getMember().getMemberId().equals(viewerMemberId))
+        .orElse(false);
   }
 
   private Consignment getConsignment(Long consignmentId) {
@@ -186,7 +232,6 @@ public class AuctionService {
 
     Map<Long, WatchSummary> watchSummaries =
         watchRepository.findWatchSummariesByAuctionIds(viewerMemberId, auctionIds);
-    Map<Long, Long> currentPrices = bidRepository.findCurrentPricesByAuctionIds(auctionIds);
 
     Map<Long, Certificate> certificatesByConsignmentId =
         certificateManageService.getCertificatesByConsignmentId(consignmentIds);
@@ -205,19 +250,11 @@ public class AuctionService {
                       thumbnailsByConsignmentId.get(a.getConsignment().getConsignmentId()),
                       watchSummary.count(),
                       watchSummary.watchedByViewer(),
-                      resolveCurrentPrice(a, currentPrices));
+                      a.getCurrentPrice());
                 })
             .toList();
 
     return new Assembled(items, watchSummaries);
-  }
-
-  /** 경매 시작 전에는 현재가 개념이 없으므로 null, 그 외에는 최고 입찰가(없으면 시작가)를 반환한다. */
-  private Long resolveCurrentPrice(Auction auction, Map<Long, Long> currentPrices) {
-    if (auction.getAuctionStatus() == AuctionStatus.SCHEDULED) {
-      return null;
-    }
-    return currentPrices.getOrDefault(auction.getAuctionId(), auction.getStartingPrice());
   }
 
   private Map<Long, String> resolveThumbnails(List<Long> consignmentIds) {

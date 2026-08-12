@@ -42,8 +42,10 @@ export interface AuctionDetailView extends AuctionDetail {
   cardState?: string;
   majorDefect?: string;
   inspectedAt?: string;
-  /** 경매 전체의 낙찰 여부 (WON). 낙찰자가 조회자 본인인지는 백엔드가 아직 알려주지 않는다. */
+  /** 경매 전체의 낙찰 여부 (WON). 낙찰자가 누구인지와 무관하게 경매 자체의 결과다. */
   won: boolean;
+  /** 조회자 본인이 이 경매의 낙찰자인지. */
+  myBidWon: boolean;
 }
 
 export type AuctionSort =
@@ -60,6 +62,9 @@ export interface AuctionSearchParams {
   sort: AuctionSort;
   cursor?: string;
   size?: number;
+  sellerId?: number;
+  cardId?: number;
+  excludeAuctionId?: number;
 }
 
 function toUiStatus(status: ApiAuctionStatus): AuctionStatus {
@@ -108,7 +113,7 @@ export interface CreateAuctionPayload {
   consignmentId: string;
   startingPrice: number;
   reserve: number;
-  /** LocalDateTime 형식 (타임존 없이) — 예: "2026-08-01T10:00:00" */
+  /** UTC ISO-8601(Z 접미사) — 예: "2026-08-01T01:00:00Z". KST 입력값 변환은 lib/timezone.ts 참고 */
   scheduledStartAt: string;
 }
 
@@ -140,11 +145,9 @@ export async function registerAuction(
   return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
 }
 
-export async function searchAuctions(params: AuctionSearchParams): Promise<{
-  items: AuctionSummary[];
-  hasNext: boolean;
-  cursor?: string;
-}> {
+async function fetchAuctionPage(
+  params: AuctionSearchParams,
+): Promise<AuctionPageResponse> {
   const { data } = await axiosInstance.get<AuctionPageResponse>("/auctions", {
     params: {
       q: params.q || undefined,
@@ -152,11 +155,24 @@ export async function searchAuctions(params: AuctionSearchParams): Promise<{
       sort: params.sort,
       cursor: params.cursor,
       size: params.size ?? 20,
+      sellerId: params.sellerId,
+      cardId: params.cardId,
+      excludeAuctionId: params.excludeAuctionId,
     },
     paramsSerializer: {
       indexes: null,
     },
   });
+
+  return data;
+}
+
+export async function searchAuctions(params: AuctionSearchParams): Promise<{
+  items: AuctionSummary[];
+  hasNext: boolean;
+  cursor?: string;
+}> {
+  const data = await fetchAuctionPage(params);
 
   return {
     items: data.items.map(toSummary),
@@ -199,12 +215,14 @@ interface ConsignmentImageResponse {
 }
 
 interface AuctionDetailResponse extends AuctionListItemResponse {
+  sellerId?: number | null;
   sellerNickname?: string | null;
   certificate?: CertificateResponse | null;
   images?: ConsignmentImageResponse[] | null;
   cardState?: string | null;
   majorDefect?: string | null;
   bidIncrement?: number | null;
+  myBidWon?: boolean;
 }
 
 function isListItem(value: unknown): value is AuctionListItemResponse {
@@ -238,6 +256,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
   return {
     ...summary,
     grade,
+    sellerId: item.sellerId != null ? String(item.sellerId) : undefined,
     sellerNickname: item.sellerNickname ?? undefined,
     minBidUnit: item.bidIncrement ?? Math.round(item.startingPrice * 0.05),
     images: (item.images ?? []).map((image) => image.imageUrl),
@@ -247,6 +266,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     majorDefect: item.majorDefect ?? undefined,
     inspectedAt: item.certificate?.inspectedAt ?? undefined,
     won: item.auctionStatus === "WON",
+    myBidWon: item.myBidWon ?? false,
   };
 }
 
@@ -262,6 +282,8 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
     bidCount: 0,
     card: item.card,
     won: item.auctionStatus === "WON",
+    // 목록 응답에는 조회자별 낙찰 여부가 없다.
+    myBidWon: false,
   };
 }
 
@@ -288,21 +310,16 @@ export async function getAuctionDetail(
       throw error;
     }
 
-    const page = await searchAuctions({
+    const page = await fetchAuctionPage({
       status: ["SCHEDULED", "ONGOING", "WON", "PASSED"],
       sort: "RECENT",
       size: 100,
     });
-    const summary = page.items.find((item) => item.id === auctionId);
-    if (!summary) throw error;
+    const item = page.items.find(
+      (listItem) => String(listItem.auctionId) === auctionId,
+    );
+    if (!item) throw error;
 
-    return {
-      ...summary,
-      sellerNickname: "",
-      minBidUnit: Math.round((summary.startPrice ?? 0) * 0.05),
-      images: summary.thumbnailUrl ? [summary.thumbnailUrl] : [],
-      bidCount: 0,
-      won: false,
-    };
+    return detailFromListItem(item);
   }
 }

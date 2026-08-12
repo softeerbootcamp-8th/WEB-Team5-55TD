@@ -4,6 +4,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.*;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionSummary;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.global.exception.PickUpException;
 import java.util.List;
@@ -25,7 +26,8 @@ public class AuctionManageService {
         .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
   }
 
-  public Map<Long, Long> findAuctionIdsByConsignments(List<Consignment> consignments) {
-    return auctionRepository.findAuctionIdsByConsignmentIn(consignments);
+  public Map<Long, AuctionSummary> findAuctionSummariesByConsignments(
+      List<Consignment> consignments) {
+    return auctionRepository.findAuctionSummariesByConsignmentIn(consignments);
   }
 }

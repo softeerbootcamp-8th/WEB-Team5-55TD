@@ -65,17 +65,42 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
   @Override
   public List<Auction> searchAuctions(
-      String q, List<AuctionStatus> statuses, AuctionSort sort, AuctionCursor cursor, int limit) {
+      String q,
+      List<AuctionStatus> statuses,
+      AuctionSort sort,
+      AuctionCursor cursor,
+      int limit,
+      Long sellerId,
+      Long cardId,
+      Long excludeAuctionId) {
     return queryFactory
         .selectFrom(auction)
         .join(auction.consignment, consignment)
         .fetchJoin()
         .join(consignment.card, card)
         .fetchJoin()
-        .where(keywordMatches(q), statusIn(statuses), keysetPredicate(sort, cursor))
+        .where(
+            keywordMatches(q),
+            statusIn(statuses),
+            sellerIdEq(sellerId),
+            cardIdEq(cardId),
+            auctionIdNotEq(excludeAuctionId),
+            keysetPredicate(sort, cursor))
         .orderBy(orderSpecifiers(sort))
         .limit(limit)
         .fetch();
+  }
+
+  private BooleanExpression sellerIdEq(Long sellerId) {
+    return sellerId == null ? null : consignment.sellerMember.memberId.eq(sellerId);
+  }
+
+  private BooleanExpression cardIdEq(Long cardId) {
+    return cardId == null ? null : card.cardId.eq(cardId);
+  }
+
+  private BooleanExpression auctionIdNotEq(Long excludeAuctionId) {
+    return excludeAuctionId == null ? null : auction.auctionId.ne(excludeAuctionId);
   }
 
   private BooleanExpression keywordMatches(String q) {
@@ -213,23 +238,42 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   }
 
   @Override
-  public Map<Long, Long> findAuctionIdsByConsignmentIn(List<Consignment> consignments) {
+  public Map<Long, AuctionSummary> findAuctionSummariesByConsignmentIn(
+      List<Consignment> consignments) {
     if (consignments.isEmpty()) {
       return Map.of();
     }
 
+    // 재신청 시 같은 위탁 상품에 새 경매가 또 생성되므로, 위탁 상품 하나에 경매가 여러 건 연결될 수 있다.
+    // 그중 가장 최근(auctionId가 가장 큰) 경매 하나만 대표로 남긴다. 위탁 상품별 최댓값을 서브쿼리로 먼저
+    // 구해 그 auctionId만 조인하면, 상품당 과거 경매를 전부 내려받아 애플리케이션에서 추리지 않아도 된다.
     List<Tuple> rows =
         queryFactory
-            .select(auction.consignment.consignmentId, auction.auctionId)
+            .select(
+                auction.consignment.consignmentId,
+                auction.auctionId,
+                auction.auctionStatus,
+                auction.startedAt,
+                auction.endedAt)
             .from(auction)
-            .where(auction.consignment.in(consignments))
+            .where(
+                auction.auctionId.in(
+                    JPAExpressions.select(auction.auctionId.max())
+                        .from(auction)
+                        .where(auction.consignment.in(consignments))
+                        .groupBy(auction.consignment.consignmentId)))
             .fetch();
 
     return rows.stream()
         .collect(
             Collectors.toMap(
                 row -> row.get(auction.consignment.consignmentId),
-                row -> row.get(auction.auctionId)));
+                row ->
+                    new AuctionSummary(
+                        row.get(auction.auctionId),
+                        row.get(auction.auctionStatus),
+                        row.get(auction.startedAt),
+                        row.get(auction.endedAt))));
   }
 
   @Override

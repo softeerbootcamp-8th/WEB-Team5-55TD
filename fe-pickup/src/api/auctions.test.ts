@@ -55,7 +55,7 @@ describe("auctions api", () => {
         consignmentId: "3",
         startingPrice: 1000,
         reserve: 1500,
-        scheduledStartAt: "2026-08-01T10:00:00",
+        scheduledStartAt: "2026-08-01T01:00:00Z",
       }),
     ).resolves.toEqual({ auctionId: "9", bidIncrement: 500 });
     expect(post).toHaveBeenCalledWith(
@@ -84,14 +84,44 @@ describe("auctions api", () => {
           inspectedAt: "2026-01-01",
         },
         bidIncrement: 1000,
+        myBidWon: true,
       },
     });
     await expect(api.getAuctionDetail("7")).resolves.toMatchObject({
       id: "7",
       won: true,
+      myBidWon: true,
       minBidUnit: 1000,
       images: ["front.jpg"],
       grade: { agency: "BGS", score: "9", serial: "S1" },
+    });
+  });
+
+  it("조회자가 낙찰자가 아니면 myBidWon이 false로 매핑된다", async () => {
+    const api = await import("@/api/auctions");
+    get.mockResolvedValueOnce({
+      data: {
+        auctionId: 8,
+        card,
+        auctionStatus: "WON",
+        startingPrice: 10000,
+        watchCount: 0,
+        watched: false,
+        images: [],
+        certificate: {
+          serialNumber: "S2",
+          certificationBody: "BGS",
+          grade: "9",
+          inspectedAt: "2026-01-01",
+        },
+        bidIncrement: 1000,
+        myBidWon: false,
+      },
+    });
+    await expect(api.getAuctionDetail("8")).resolves.toMatchObject({
+      id: "8",
+      won: true,
+      myBidWon: false,
     });
   });
 
@@ -114,6 +144,7 @@ describe("auctions api", () => {
       minBidUnit: 1000,
       images: ["thumb.jpg", "card.jpg"],
       won: false,
+      myBidWon: false,
     });
   });
 
@@ -141,8 +172,38 @@ describe("auctions api", () => {
       id: "12",
       status: "ENDED",
       minBidUnit: 1500,
-      images: ["thumb.jpg"],
+      images: ["thumb.jpg", "card.jpg"],
       won: false,
+      myBidWon: false,
+    });
+  });
+
+  it("상세 API가 404여도 목록의 낙찰 여부를 그대로 반영한다", async () => {
+    const api = await import("@/api/auctions");
+    get
+      .mockRejectedValueOnce({ response: { status: 404 } })
+      .mockResolvedValueOnce({
+        data: {
+          hasNext: false,
+          items: [
+            {
+              auctionId: 13,
+              card,
+              auctionStatus: "WON",
+              startingPrice: 30000,
+              currentPrice: 50000,
+              thumbnailUrl: "thumb.jpg",
+              watchCount: 0,
+              watched: false,
+            },
+          ],
+        },
+      });
+    await expect(api.getAuctionDetail("13")).resolves.toMatchObject({
+      id: "13",
+      status: "ENDED",
+      currentPrice: 50000,
+      won: true,
     });
   });
 });

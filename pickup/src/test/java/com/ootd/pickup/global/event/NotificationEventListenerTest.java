@@ -52,7 +52,7 @@ class NotificationEventListenerTest {
     assertThat(
             meterRegistry
                 .get("pickup.redis.notification.publish")
-                .tags("outcome", "rejected", "event_type", "AUCTION_BID_UPDATED")
+                .tags("outcome", "rejected", "event_type", "BID_REQUEST_SUCCEEDED")
                 .counter()
                 .count())
         .isEqualTo(1);
@@ -87,7 +87,7 @@ class NotificationEventListenerTest {
 
     @Override
     public EventType eventType() {
-      return EventType.AUCTION_BID_UPDATED;
+      return EventType.BID_REQUEST_SUCCEEDED;
     }
   }
 }

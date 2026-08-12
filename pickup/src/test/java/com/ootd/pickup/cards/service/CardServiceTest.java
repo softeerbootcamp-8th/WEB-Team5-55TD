@@ -42,7 +42,7 @@ class CardServiceTest {
             .cardName("피카츄")
             .setName("베이스셋")
             .language(Language.KOREAN)
-            .rarity(Rarity.MINT)
+            .rarity(Rarity.RARE_HOLO)
             .imageUrl("https://image.example.com/1.png")
             .build();
     given(cardRepository.findCardById(cardId)).willReturn(Optional.of(card));
@@ -54,7 +54,7 @@ class CardServiceTest {
     assertThat(response.cardName()).isEqualTo("피카츄");
     assertThat(response.setName()).isEqualTo("베이스셋");
     assertThat(response.language()).isEqualTo(Language.KOREAN.getDisplayName());
-    assertThat(response.rarity()).isEqualTo("MINT");
+    assertThat(response.rarity()).isEqualTo(Rarity.RARE_HOLO.getDisplayName());
     assertThat(response.imageUrl()).isEqualTo("https://image.example.com/1.png");
   }
 
@@ -148,7 +148,7 @@ class CardServiceTest {
             .cardNumber(cardNumber)
             .setName("Base Set")
             .language(Language.KOREAN)
-            .rarity(Rarity.MINT)
+            .rarity(Rarity.RARE_HOLO)
             .imageUrl("https://image.example.com/" + cardId + ".png")
             .build();
     ReflectionTestUtils.setField(card, "cardId", cardId);

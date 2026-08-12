@@ -232,6 +232,80 @@ class AuctionSearchIntegrationTest {
         .andExpect(jsonPath("$.items[0].grade").value("PSA 10"));
   }
 
+  @Test
+  void sellerId로_필터링하면_해당_판매자의_경매만_조회된다() throws Exception {
+    // given
+    Consignment sellerAConsignment = createConsignment();
+    Auction sellerAAuction1 =
+        createAuction(sellerAConsignment, AuctionStatus.SCHEDULED, 1000L, null);
+    Auction sellerAAuction2 =
+        createAuction(sellerAConsignment, AuctionStatus.SCHEDULED, 2000L, null);
+    Consignment sellerBConsignment = createConsignment();
+    createAuction(sellerBConsignment, AuctionStatus.SCHEDULED, 3000L, null);
+    Long sellerAId = sellerAConsignment.getSellerMember().getMemberId();
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("sellerId", String.valueOf(sellerAId))
+                .param("sort", "PRICE_ASC"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].auctionId").value(sellerAAuction1.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(sellerAAuction2.getAuctionId()));
+  }
+
+  @Test
+  void cardId로_필터링하면_같은_카드의_경매만_조회된다() throws Exception {
+    // given
+    Card sharedCard = createCard("리자몽", "4/102", "Base Set", Language.JAPANESE);
+    Consignment consignment1 =
+        consignmentJpaRepository.save(
+            Consignment.builder()
+                .card(sharedCard)
+                .sellerMember(createMember("cardFilterSeller1"))
+                .status(ConsignmentStatus.IN_AUCTION)
+                .build());
+    Consignment consignment2 =
+        consignmentJpaRepository.save(
+            Consignment.builder()
+                .card(sharedCard)
+                .sellerMember(createMember("cardFilterSeller2"))
+                .status(ConsignmentStatus.IN_AUCTION)
+                .build());
+    Auction sameCardAuction1 = createAuction(consignment1, AuctionStatus.SCHEDULED, 1000L, null);
+    Auction sameCardAuction2 = createAuction(consignment2, AuctionStatus.SCHEDULED, 2000L, null);
+    Consignment otherConsignment = createConsignment();
+    createAuction(otherConsignment, AuctionStatus.SCHEDULED, 3000L, null);
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("cardId", String.valueOf(sharedCard.getCardId()))
+                .param("sort", "PRICE_ASC"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].auctionId").value(sameCardAuction1.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(sameCardAuction2.getAuctionId()));
+  }
+
+  @Test
+  void excludeAuctionId를_지정하면_해당_경매는_결과에서_제외된다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    Auction current = createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null);
+    Auction other = createAuction(consignment, AuctionStatus.SCHEDULED, 2000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("excludeAuctionId", String.valueOf(current.getAuctionId())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(other.getAuctionId()));
+  }
+
   private String extractCursor(String json) {
     JsonNode root = objectMapper.readTree(json);
     return root.get("cursor").asText();
@@ -247,7 +321,7 @@ class AuctionSearchIntegrationTest {
         Consignment.builder()
             .card(card)
             .sellerMember(seller)
-            .status(ConsignmentStatus.AUCTION_ONGOING)
+            .status(ConsignmentStatus.IN_AUCTION)
             .build();
     return consignmentJpaRepository.save(consignment);
   }
@@ -259,7 +333,7 @@ class AuctionSearchIntegrationTest {
             .cardNumber(cardNumber)
             .setName(setName)
             .language(language)
-            .rarity(Rarity.MINT)
+            .rarity(Rarity.RARE_HOLO)
             .imageUrl("https://image.example.com/" + cardNumber + ".png")
             .build();
     return cardJpaRepository.save(card);
