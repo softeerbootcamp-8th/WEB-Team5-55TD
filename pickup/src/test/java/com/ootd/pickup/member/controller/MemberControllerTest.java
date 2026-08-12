@@ -31,12 +31,15 @@ import com.ootd.pickup.member.service.MemberService;
 import com.ootd.pickup.member.service.ProfileApplicationService;
 import com.ootd.pickup.point.domain.PointTransactionType;
 import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointChargeResponse;
 import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
+import com.ootd.pickup.point.service.PointChargeService;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -52,6 +55,8 @@ class MemberControllerTest {
   @MockitoBean private MemberService memberService;
 
   @MockitoBean private ProfileApplicationService profileApplicationService;
+
+  @MockitoBean private PointChargeService pointChargeService;
 
   @MockitoBean private SlackErrorNotifier slackErrorNotifier;
 
@@ -225,6 +230,98 @@ class MemberControllerTest {
         .andExpect(jsonPath("$.items[0].transactionType").value("AUCTION_PAYOUT"))
         .andExpect(jsonPath("$.items[0].amount").value(10_500L))
         .andExpect(jsonPath("$.hasNext").value(false));
+  }
+
+  @Test
+  void 인증된_회원이_포인트를_충전하면_201과_충전결과를_반환한다() throws Exception {
+    // given
+    String request = "{\"amount\":300000,\"idempotencyKey\":\"req-1\"}";
+    PointChargeResponse response =
+        new PointChargeResponse(
+            1L, 300_000L, 500_000L, 0L, 500_000L, LocalDateTime.of(2026, 8, 8, 10, 0));
+    given(pointChargeService.chargePoint(1L, 300_000L, "req-1")).willReturn(response);
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/members/me/point-charges")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.chargedAmount").value(300_000L))
+        .andExpect(jsonPath("$.pointBalance").value(500_000L));
+  }
+
+  @Test
+  void 충전_금액이_0이하면_400을_반환한다() throws Exception {
+    // given
+    String request = "{\"amount\":0,\"idempotencyKey\":\"req-1\"}";
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/members/me/point-charges")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+        .andExpect(status().isBadRequest());
+
+    then(pointChargeService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void idempotencyKey가_없으면_400을_반환한다() throws Exception {
+    // given
+    String request = "{\"amount\":300000}";
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/members/me/point-charges")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+        .andExpect(status().isBadRequest());
+
+    then(pointChargeService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 같은_idempotencyKey로_재요청하면_200과_기존결과를_반환한다() throws Exception {
+    // given
+    String request = "{\"amount\":300000,\"idempotencyKey\":\"req-1\"}";
+    PointChargeResponse response =
+        new PointChargeResponse(
+            1L, 300_000L, 500_000L, 0L, 500_000L, LocalDateTime.of(2026, 8, 8, 10, 0));
+    given(pointChargeService.chargePoint(1L, 300_000L, "req-1"))
+        .willThrow(new DataIntegrityViolationException("uk_point_transaction_idempotency_key"));
+    given(pointChargeService.getChargeResult(1L, "req-1")).willReturn(response);
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/members/me/point-charges")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.chargedAmount").value(300_000L));
+
+    then(pointChargeService).should().getChargeResult(1L, "req-1");
+  }
+
+  @Test
+  void 인증정보가_없으면_포인트_충전은_401을_반환한다() throws Exception {
+    // given & when & then
+    mockMvc
+        .perform(
+            post("/members/me/point-charges")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"amount\":300000,\"idempotencyKey\":\"req-1\"}"))
+        .andExpect(status().isUnauthorized());
+
+    then(pointChargeService).shouldHaveNoInteractions();
   }
 
   @Test

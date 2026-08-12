@@ -14,7 +14,9 @@ import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.dto.WithdrawMemberRequest;
+import com.ootd.pickup.point.dto.request.ChargePointRequest;
 import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointChargeResponse;
 import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -128,6 +130,36 @@ public interface MemberApi {
       })
   ResponseEntity<CursorPageResponse<PointTransactionItemResponse, String>> getMyPointTransactions(
       @Parameter(hidden = true) Long memberId, GetPointTransactionsRequest request);
+
+  @Operation(
+      summary = "포인트 충전",
+      description =
+          "실제 결제 연동 없이 목업으로 포인트를 즉시 적립합니다. 같은 idempotencyKey로 재요청하면 중복 적립되지 않고 이전 결과를 그대로 반환합니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(
+            responseCode = "201",
+            description = "포인트 충전 성공",
+            content = @Content(schema = @Schema(implementation = PointChargeResponse.class))),
+        @ApiResponse(
+            responseCode = "200",
+            description = "이미 처리된 충전 요청(같은 idempotencyKey 재요청)",
+            content = @Content(schema = @Schema(implementation = PointChargeResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "유효하지 않은 충전 금액",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 필요",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "회원 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<PointChargeResponse> chargeMyPoint(
+      @Parameter(hidden = true) Long memberId, ChargePointRequest request);
 
   @Operation(
       summary = "내 입찰 내역 조회",

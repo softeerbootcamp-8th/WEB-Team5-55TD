@@ -131,6 +131,10 @@ public enum ExceptionCode {
       HttpStatus.BAD_REQUEST,
       ClientExceptionCode.STARTING_PRICE_TOO_LARGE,
       "입력한 시작가가 너무 커서 처리할 수 없습니다."),
+  INVALID_CHARGE_AMOUNT(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.INVALID_CHARGE_AMOUNT,
+      "충전 금액은 100,000 이상 10,000,000 이하여야 합니다."),
   MEMBER_ALREADY_WITHDRAWN(
       HttpStatus.CONFLICT, ClientExceptionCode.MEMBER_ALREADY_WITHDRAWN, "이미 탈퇴한 회원입니다."),
   MEMBER_WITHDRAW_NOT_ALLOWED(
