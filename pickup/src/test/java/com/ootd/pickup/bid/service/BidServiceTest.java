@@ -5,6 +5,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_STARTED;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_SELLER_BID_FORBIDDEN;
 import static com.ootd.pickup.global.exception.ExceptionCode.BELOW_MIN_INCREMENT;
+import static com.ootd.pickup.global.exception.ExceptionCode.ENDED_AUCTION_BIDS_SELLER_ONLY;
 import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INSUFFICIENT_BID_LIMIT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
@@ -12,6 +13,8 @@ import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -432,6 +435,51 @@ class BidServiceTest {
             exception ->
                 assertThat(((PickUpException) exception).getExceptionCodeName())
                     .isEqualTo(exceptionCode.getClientExceptionCode().name()));
+  }
+
+  @Test
+  void 종료된_경매의_입찰내역을_판매자가_조회하면_정상적으로_반환한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.WON, LocalDateTime.now().minusMinutes(10));
+    Bid bid = createBid(auction, createMember(2L), 11_000L, 101L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(bidRepository.findAllByAuctionId(1L, null, 21)).willReturn(List.of(bid));
+
+    // when
+    CursorPageResponse<AuctionBidListItemResponse, String> response =
+        bidService.getAuctionBids(1L, 1L, new GetAuctionBidsRequest(null, 20));
+
+    // then
+    assertThat(response.items()).hasSize(1);
+  }
+
+  @Test
+  void 종료된_경매의_입찰내역을_구매자가_조회하면_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.WON, LocalDateTime.now().minusMinutes(10));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+
+    // when & then
+    assertThatThrownBy(() -> bidService.getAuctionBids(1L, 2L, new GetAuctionBidsRequest(null, 20)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ENDED_AUCTION_BIDS_SELLER_ONLY.getMessage());
+    then(bidRepository).should(never()).findAllByAuctionId(anyLong(), any(), anyInt());
+  }
+
+  @Test
+  void 유찰된_경매의_입찰내역을_비로그인_조회자가_조회하면_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.PASSED, LocalDateTime.now().minusMinutes(10));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+
+    // when & then
+    assertThatThrownBy(
+            () -> bidService.getAuctionBids(1L, null, new GetAuctionBidsRequest(null, 20)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ENDED_AUCTION_BIDS_SELLER_ONLY.getMessage());
   }
 
   private Auction createAuction(

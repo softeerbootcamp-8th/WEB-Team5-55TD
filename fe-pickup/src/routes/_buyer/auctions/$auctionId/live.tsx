@@ -170,6 +170,9 @@ function LiveAuctionPage() {
 
   // 실시간 입찰 목록 — 개수 제한 없이 최신순으로 이어서 불러온다(스크롤 페이지네이션).
   // 입찰자별 중복 제거(같은 회원의 최신 입찰만 표시)는 RealtimeBidList가 담당한다.
+  // 종료된 경매의 입찰 내역은 판매자만 볼 수 있다(서버가 403). 이 화면은 종료를 감지하면
+  // 결과 화면으로 보내므로, 그 사이에 굳이 조회해서 403을 만들지 않는다.
+  const isEnded = auction.status === AuctionStatus.ENDED;
   const previewBidsQuery = useInfiniteQuery({
     queryKey: ["auction-bids", auction.id, "preview"],
     queryFn: ({ pageParam }: { pageParam?: string }) =>
@@ -180,6 +183,7 @@ function LiveAuctionPage() {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasNext ? lastPage.cursor : undefined,
+    enabled: !isEnded,
     staleTime: 0,
     refetchInterval: () =>
       auction.status === AuctionStatus.LIVE &&
@@ -194,7 +198,7 @@ function LiveAuctionPage() {
   const allBidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id, "all"],
     queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
-    enabled: allBidsOpen,
+    enabled: allBidsOpen && !isEnded,
   });
   const latestBidId = previewBidItems[0]
     ? Number(previewBidItems[0].id)
@@ -202,9 +206,7 @@ function LiveAuctionPage() {
 
   // 실시간 화면에서 추월당했는지 판단하려면 "내가 최고 입찰자였는지"를 알아야 한다.
   // 페이지를 새로 열었을 때는 입찰 내역에서, 직접 입찰했을 때는 그 결과에서 채운다.
-  const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(
-    null,
-  );
+  const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(null);
   // 방금 접수한 입찰 요청의 id. 성공 브로드캐스트가 이 id와 일치하면 "내 요청"으로 판단해
   // 성공 토스트를 띄운다 — 이 화면은 서버로부터 자신의 memberId를 알 방법이 없다.
   const pendingBidRequestIdRef = useRef<number | null>(null);
@@ -287,33 +289,30 @@ function LiveAuctionPage() {
       const isMine = myHighestBidRef.current?.bidId === message.latestBid.bidId;
       queryClient.setQueryData<
         InfiniteData<AuctionBidsSnapshot, string | undefined> | undefined
-      >(
-        ["auction-bids", auction.id, "preview"],
-        (snapshot) => {
-          if (!snapshot || snapshot.pages.length === 0) return snapshot;
+      >(["auction-bids", auction.id, "preview"], (snapshot) => {
+        if (!snapshot || snapshot.pages.length === 0) return snapshot;
 
-          const [firstPage, ...remainingPages] = snapshot.pages;
-          const updatedFirstPage = mergeLatestBid(
-            firstPage,
-            message.latestBid,
-            isMine,
-            REALTIME_BID_PAGE_SIZE,
-          );
-          if (!updatedFirstPage) return snapshot;
+        const [firstPage, ...remainingPages] = snapshot.pages;
+        const updatedFirstPage = mergeLatestBid(
+          firstPage,
+          message.latestBid,
+          isMine,
+          REALTIME_BID_PAGE_SIZE,
+        );
+        if (!updatedFirstPage) return snapshot;
 
-          const latestBidId = String(message.latestBid.bidId);
-          return {
-            ...snapshot,
-            pages: [
-              updatedFirstPage,
-              ...remainingPages.map((page) => ({
-                ...page,
-                items: page.items.filter((item) => item.id !== latestBidId),
-              })),
-            ],
-          };
-        },
-      );
+        const latestBidId = String(message.latestBid.bidId);
+        return {
+          ...snapshot,
+          pages: [
+            updatedFirstPage,
+            ...remainingPages.map((page) => ({
+              ...page,
+              items: page.items.filter((item) => item.id !== latestBidId),
+            })),
+          ],
+        };
+      });
       queryClient.setQueryData<AuctionBidsSnapshot | undefined>(
         ["auction-bids", auction.id, "all"],
         (snapshot) =>

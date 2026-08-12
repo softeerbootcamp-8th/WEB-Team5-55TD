@@ -75,6 +75,10 @@ public enum ExceptionCode {
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.AUCTION_SELLER_BID_FORBIDDEN,
       "판매자는 본인의 경매에 입찰할 수 없습니다."),
+  ENDED_AUCTION_BIDS_SELLER_ONLY(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.ENDED_AUCTION_BIDS_SELLER_ONLY,
+      "종료된 경매의 입찰 내역은 판매자만 조회할 수 있습니다."),
   OUTBID_EXISTS(HttpStatus.CONFLICT, ClientExceptionCode.OUTBID_EXISTS, "이미 더 높은 입찰이 존재합니다."),
   BELOW_MIN_INCREMENT(
       HttpStatus.CONFLICT,
