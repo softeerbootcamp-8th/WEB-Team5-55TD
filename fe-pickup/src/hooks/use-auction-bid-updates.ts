@@ -42,10 +42,22 @@ export interface AuctionBidUpdatedMessage {
   occurredAt: string;
 }
 
+export interface BidRequestFailedMessage {
+  eventId: string;
+  type: "BID_REQUEST_FAILED";
+  auctionId: number;
+  bidRequestId: number | null;
+  bidPrice: number;
+  failureCode: string;
+  failureMessage: string;
+  occurredAt: string;
+}
+
 interface UseAuctionBidUpdatesOptions {
   auctionId: string;
   latestBidId?: number;
   onBidUpdated: (message: AuctionBidUpdatedMessage) => void;
+  onBidFailed?: (message: BidRequestFailedMessage) => void;
   onSubscribed: () => void;
 }
 
@@ -61,6 +73,27 @@ function resolveBrokerUrl() {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function parseFailedMessage(frame: IMessage): BidRequestFailedMessage | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(frame.body);
+  } catch {
+    return null;
+  }
+
+  if (!isRecord(value)) return null;
+
+  const isValid =
+    typeof value.eventId === "string" &&
+    value.eventId.length > 0 &&
+    value.type === "BID_REQUEST_FAILED" &&
+    typeof value.auctionId === "number" &&
+    (value.bidRequestId === null || typeof value.bidRequestId === "number") &&
+    typeof value.failureMessage === "string";
+
+  return isValid ? (value as unknown as BidRequestFailedMessage) : null;
 }
 
 function parseMessage(frame: IMessage): AuctionBidUpdatedMessage | null {
@@ -104,10 +137,12 @@ export function useAuctionBidUpdates({
   auctionId,
   latestBidId,
   onBidUpdated,
+  onBidFailed,
   onSubscribed,
 }: UseAuctionBidUpdatesOptions) {
   const latestBidIdRef = useRef(latestBidId);
   const onBidUpdatedRef = useRef(onBidUpdated);
+  const onBidFailedRef = useRef(onBidFailed);
   const onSubscribedRef = useRef(onSubscribed);
 
   useEffect(() => {
@@ -126,8 +161,9 @@ export function useAuctionBidUpdates({
 
   useEffect(() => {
     onBidUpdatedRef.current = onBidUpdated;
+    onBidFailedRef.current = onBidFailed;
     onSubscribedRef.current = onSubscribed;
-  }, [onBidUpdated, onSubscribed]);
+  }, [onBidFailed, onBidUpdated, onSubscribed]);
 
   useEffect(() => {
     const processedEventIds = new Set<string>();
@@ -203,6 +239,17 @@ export function useAuctionBidUpdates({
 
         latestBidIdRef.current = message.latestBid.bidId;
         onBidUpdatedRef.current(message);
+      });
+      // 입찰 요청이 거절되면(포인트 부족 등) 그 사유는 요청자 본인에게만 온다.
+      client.subscribe("/user/queue/bid-requests", (frame) => {
+        const message = parseFailedMessage(frame);
+        if (!message || String(message.auctionId) !== auctionId) {
+          return;
+        }
+        if (!markProcessed(message.eventId)) {
+          return;
+        }
+        onBidFailedRef.current?.(message);
       });
       onSubscribedRef.current();
     };

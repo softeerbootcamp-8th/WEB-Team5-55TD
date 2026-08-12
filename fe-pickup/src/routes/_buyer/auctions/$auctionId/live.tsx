@@ -44,6 +44,7 @@ import { refreshAccessToken } from "@/api/mutator/custom-instance";
 import {
   useAuctionBidUpdates,
   type AuctionBidUpdatedMessage,
+  type BidRequestFailedMessage,
 } from "@/hooks/use-auction-bid-updates";
 import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
 import {
@@ -202,9 +203,7 @@ function LiveAuctionPage() {
 
   // 실시간 화면에서 추월당했는지 판단하려면 "내가 최고 입찰자였는지"를 알아야 한다.
   // 페이지를 새로 열었을 때는 입찰 내역에서, 직접 입찰했을 때는 그 결과에서 채운다.
-  const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(
-    null,
-  );
+  const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(null);
   // 방금 접수한 입찰 요청의 id. 성공 브로드캐스트가 이 id와 일치하면 "내 요청"으로 판단해
   // 성공 토스트를 띄운다 — 이 화면은 서버로부터 자신의 memberId를 알 방법이 없다.
   const pendingBidRequestIdRef = useRef<number | null>(null);
@@ -287,33 +286,30 @@ function LiveAuctionPage() {
       const isMine = myHighestBidRef.current?.bidId === message.latestBid.bidId;
       queryClient.setQueryData<
         InfiniteData<AuctionBidsSnapshot, string | undefined> | undefined
-      >(
-        ["auction-bids", auction.id, "preview"],
-        (snapshot) => {
-          if (!snapshot || snapshot.pages.length === 0) return snapshot;
+      >(["auction-bids", auction.id, "preview"], (snapshot) => {
+        if (!snapshot || snapshot.pages.length === 0) return snapshot;
 
-          const [firstPage, ...remainingPages] = snapshot.pages;
-          const updatedFirstPage = mergeLatestBid(
-            firstPage,
-            message.latestBid,
-            isMine,
-            REALTIME_BID_PAGE_SIZE,
-          );
-          if (!updatedFirstPage) return snapshot;
+        const [firstPage, ...remainingPages] = snapshot.pages;
+        const updatedFirstPage = mergeLatestBid(
+          firstPage,
+          message.latestBid,
+          isMine,
+          REALTIME_BID_PAGE_SIZE,
+        );
+        if (!updatedFirstPage) return snapshot;
 
-          const latestBidId = String(message.latestBid.bidId);
-          return {
-            ...snapshot,
-            pages: [
-              updatedFirstPage,
-              ...remainingPages.map((page) => ({
-                ...page,
-                items: page.items.filter((item) => item.id !== latestBidId),
-              })),
-            ],
-          };
-        },
-      );
+        const latestBidId = String(message.latestBid.bidId);
+        return {
+          ...snapshot,
+          pages: [
+            updatedFirstPage,
+            ...remainingPages.map((page) => ({
+              ...page,
+              items: page.items.filter((item) => item.id !== latestBidId),
+            })),
+          ],
+        };
+      });
       queryClient.setQueryData<AuctionBidsSnapshot | undefined>(
         ["auction-bids", auction.id, "all"],
         (snapshot) =>
@@ -323,10 +319,28 @@ function LiveAuctionPage() {
     [auction.id, queryClient],
   );
 
+  const applyBidFailure = useCallback(
+    (message: BidRequestFailedMessage) => {
+      // 내가 방금 보낸 요청의 결과만 반영한다.
+      if (
+        pendingBidRequestIdRef.current !== null &&
+        message.bidRequestId !== pendingBidRequestIdRef.current
+      ) {
+        return;
+      }
+      pendingBidRequestIdRef.current = null;
+      setIsBidRequestPending(false);
+      setFail(message.failureMessage);
+      refreshSnapshot();
+    },
+    [refreshSnapshot],
+  );
+
   useAuctionBidUpdates({
     auctionId: auction.id,
     latestBidId,
     onBidUpdated: applyBidUpdate,
+    onBidFailed: applyBidFailure,
     onSubscribed: refreshSnapshot,
   });
 
