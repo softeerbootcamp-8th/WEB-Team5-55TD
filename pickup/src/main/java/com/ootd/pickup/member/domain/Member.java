@@ -97,7 +97,7 @@ public class Member {
    */
   public void withdraw() {
     status = MemberStatus.WITHDRAWN;
-    withdrawnAt = LocalDateTime.now();
+    withdrawnAt = LocalDateTime.now(ZoneOffset.UTC);
     loginId = null;
     password = null;
     updatedAt = withdrawnAt;
