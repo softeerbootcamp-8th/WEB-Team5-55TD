@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/accordion";
 import { getAuctionDetail } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
-import { formatDateTime, formatWon } from "@/lib/format";
+import { formatDate, formatDateTime, formatWon } from "@/lib/format";
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/")({
   loader: async ({ params }) => {
@@ -188,11 +188,7 @@ function AuctionDetailPage() {
                   />
                   <Row
                     label="검수 완료일"
-                    value={
-                      auction.inspectedAt
-                        ? formatDateTime(auction.inspectedAt)
-                        : "-"
-                    }
+                    value={formatDate(auction.inspectedAt)}
                   />
                   <Row
                     label="카드 상태"

@@ -61,11 +61,35 @@ const KST_DATE_TIME_FORMAT = new Intl.DateTimeFormat("ko-KR", {
   hourCycle: "h23",
 });
 
+/** 날짜만: 2026.07.22 (KST 고정). */
+const KST_DATE_FORMAT = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function kstPartsOf(format: Intl.DateTimeFormat, iso: string) {
+  const parts = format.formatToParts(new Date(iso));
+  return (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+}
+
 export function formatDateTime(iso?: string): string {
   if (!iso) return "-";
-  const parts = KST_DATE_TIME_FORMAT.formatToParts(new Date(iso));
-  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  const get = kstPartsOf(KST_DATE_TIME_FORMAT, iso);
   return `${get("year")}.${get("month")}.${get("day")} ${get("hour")}:${get("minute")}`;
+}
+
+/**
+ * 검수 완료일처럼 서버가 시간 없는 날짜(LocalDate, 예: "2026-07-20")로 내려주는 값에 쓴다.
+ * 날짜만 있는 ISO 문자열은 사양상 UTC 자정으로 해석되므로 formatDateTime 으로 찍으면
+ * 의미 없는 09:00(KST)이 따라붙는다.
+ */
+export function formatDate(iso?: string): string {
+  if (!iso) return "-";
+  const get = kstPartsOf(KST_DATE_FORMAT, iso);
+  return `${get("year")}.${get("month")}.${get("day")}`;
 }
 
 /** 상대 시각: "방금 전", "1분 전", "3시간 전" (DESIGN.md §5.9) */

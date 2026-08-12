@@ -3,6 +3,7 @@ import {
   formatWonCompact,
   formatPoint,
   formatCountdown,
+  formatDate,
   formatDateTime,
   relativeTime,
   maskNickname,
@@ -41,6 +42,19 @@ describe("format utilities", () => {
     expect(formatDateTime("2026-07-22T06:04:00Z")).toBe("2026.07.22 15:04");
     // KST로 변환하면 다음 날로 넘어가는 경계도 올바르게 처리한다.
     expect(formatDateTime("2026-07-22T15:30:00Z")).toBe("2026.07.23 00:30");
+  });
+
+  it("formats date-only values without a bogus time, in any timezone", () => {
+    expect(formatDate()).toBe("-");
+    // 검수 완료일은 시간 없는 LocalDate 로 내려온다. 시각이 붙으면 안 된다.
+    expect(formatDate("2026-07-20")).toBe("2026.07.20");
+
+    const originalTimeZone = process.env.TZ;
+    for (const timeZone of ["America/New_York", "UTC", "Asia/Seoul"]) {
+      process.env.TZ = timeZone;
+      expect(formatDate("2026-07-20")).toBe("2026.07.20");
+    }
+    process.env.TZ = originalTimeZone;
   });
 
   it("formats relative times at each boundary", () => {
