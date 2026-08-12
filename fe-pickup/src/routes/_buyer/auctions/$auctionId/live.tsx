@@ -11,6 +11,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import type { InfiniteData } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
 import { PageContainer } from "@/components/layout/page";
@@ -32,9 +33,9 @@ import {
 import { getAuctionDetail } from "@/api/auctions";
 import {
   BID_MODAL_SIZE,
+  createBidRequest,
   getAuctionBids,
   getBidErrorMessage,
-  placeBid,
   REALTIME_BID_PAGE_SIZE,
 } from "@/api/bids";
 import { getGetMyPointBalanceQueryKey } from "@/api/generated/member/member";
@@ -46,17 +47,20 @@ import {
 import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
 import { formatWon } from "@/lib/format";
 import { AuctionStatus } from "@/lib/types";
+import {
+  mergeLatestBid,
+  type AuctionBidsSnapshot,
+} from "@/lib/auction-live-state";
 
 const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
-const HIDDEN_POLLING_INTERVAL_MILLIS = 60_000;
 const POLLING_JITTER_MILLIS = 3_000;
+const BID_REQUEST_RESULT_TIMEOUT_MILLIS = 10_000;
 
 function pollingInterval() {
-  const baseInterval =
-    document.visibilityState === "hidden"
-      ? HIDDEN_POLLING_INTERVAL_MILLIS
-      : ACTIVE_POLLING_INTERVAL_MILLIS;
-  return baseInterval + Math.floor(Math.random() * POLLING_JITTER_MILLIS);
+  return (
+    ACTIVE_POLLING_INTERVAL_MILLIS +
+    Math.floor(Math.random() * POLLING_JITTER_MILLIS)
+  );
 }
 
 function laterEndTime(
@@ -101,10 +105,11 @@ function LiveAuctionPage() {
     initialData: initialAuction,
     staleTime: 0,
     refetchInterval: (query) =>
-      query.state.data?.status === AuctionStatus.LIVE
+      query.state.data?.status === AuctionStatus.LIVE &&
+      document.visibilityState !== "hidden"
         ? pollingInterval()
         : false,
-    refetchIntervalInBackground: true,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
   const auction = auctionQuery.data;
@@ -119,6 +124,7 @@ function LiveAuctionPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [fail, setFail] = useState<string | null>(null);
   const [allBidsOpen, setAllBidsOpen] = useState(false);
+  const [isBidRequestPending, setIsBidRequestPending] = useState(false);
 
   const snapshotPrice = auction.currentPrice ?? auction.startPrice ?? 0;
   const realtimePrice =
@@ -158,8 +164,11 @@ function LiveAuctionPage() {
       lastPage.hasNext ? lastPage.cursor : undefined,
     staleTime: 0,
     refetchInterval: () =>
-      auction.status === AuctionStatus.LIVE ? pollingInterval() : false,
-    refetchIntervalInBackground: true,
+      auction.status === AuctionStatus.LIVE &&
+      document.visibilityState !== "hidden"
+        ? pollingInterval()
+        : false,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
   const previewBidItems =
@@ -178,6 +187,9 @@ function LiveAuctionPage() {
   const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(
     null,
   );
+  // 방금 접수한 입찰 요청의 id. 성공 브로드캐스트가 이 id와 일치하면 "내 요청"으로 판단해
+  // 성공 토스트를 띄운다 — 이 화면은 서버로부터 자신의 memberId를 알 방법이 없다.
+  const pendingBidRequestIdRef = useRef<number | null>(null);
   const topPreviewBid = previewBidItems[0];
   useEffect(() => {
     if (topPreviewBid?.isMine) {
@@ -197,18 +209,49 @@ function LiveAuctionPage() {
     });
   }, [auction.id, queryClient]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshSnapshot();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [refreshSnapshot]);
+
   const applyBidUpdate = useCallback(
     (message: AuctionBidUpdatedMessage) => {
-      const myHighestBid = myHighestBidRef.current;
       if (
-        myHighestBid &&
-        message.latestBid.bidId !== myHighestBid.bidId &&
-        message.currentPrice > myHighestBid.price
+        message.bidRequestId !== null &&
+        message.bidRequestId === pendingBidRequestIdRef.current
       ) {
-        myHighestBidRef.current = null;
-        toast.warning("추월당했습니다", {
-          description: `다른 회원이 ${formatWon(message.currentPrice)}에 입찰했습니다.`,
+        pendingBidRequestIdRef.current = null;
+        setIsBidRequestPending(false);
+        setAmount("");
+        myHighestBidRef.current = {
+          bidId: message.latestBid.bidId,
+          price: message.currentPrice,
+        };
+        queryClient.invalidateQueries({
+          queryKey: getGetMyPointBalanceQueryKey(),
         });
+        toast.success("입찰 성공", {
+          description: `${formatWon(message.currentPrice)}에 입찰했습니다.`,
+        });
+      } else {
+        const myHighestBid = myHighestBidRef.current;
+        if (
+          myHighestBid &&
+          message.latestBid.bidId !== myHighestBid.bidId &&
+          message.currentPrice > myHighestBid.price
+        ) {
+          myHighestBidRef.current = null;
+          toast.warning("추월당했습니다", {
+            description: `다른 회원이 ${formatWon(message.currentPrice)}에 입찰했습니다.`,
+          });
+        }
       }
 
       setRealtimeSnapshot((current) => ({
@@ -222,9 +265,42 @@ function LiveAuctionPage() {
             ? laterEndTime(current.endsAt, message.endedAt)
             : (message.endedAt ?? undefined),
       }));
-      void queryClient.invalidateQueries({
-        queryKey: ["auction-bids", auction.id],
-      });
+
+      const isMine = myHighestBidRef.current?.bidId === message.latestBid.bidId;
+      queryClient.setQueryData<
+        InfiniteData<AuctionBidsSnapshot, string | undefined> | undefined
+      >(
+        ["auction-bids", auction.id, "preview"],
+        (snapshot) => {
+          if (!snapshot || snapshot.pages.length === 0) return snapshot;
+
+          const [firstPage, ...remainingPages] = snapshot.pages;
+          const updatedFirstPage = mergeLatestBid(
+            firstPage,
+            message.latestBid,
+            isMine,
+            REALTIME_BID_PAGE_SIZE,
+          );
+          if (!updatedFirstPage) return snapshot;
+
+          const latestBidId = String(message.latestBid.bidId);
+          return {
+            ...snapshot,
+            pages: [
+              updatedFirstPage,
+              ...remainingPages.map((page) => ({
+                ...page,
+                items: page.items.filter((item) => item.id !== latestBidId),
+              })),
+            ],
+          };
+        },
+      );
+      queryClient.setQueryData<AuctionBidsSnapshot | undefined>(
+        ["auction-bids", auction.id, "all"],
+        (snapshot) =>
+          mergeLatestBid(snapshot, message.latestBid, isMine, BID_MODAL_SIZE),
+      );
     },
     [auction.id, queryClient],
   );
@@ -236,8 +312,25 @@ function LiveAuctionPage() {
     onSubscribed: refreshSnapshot,
   });
 
+  useEffect(() => {
+    if (!isBidRequestPending) return;
+
+    const timeoutId = window.setTimeout(() => {
+      if (pendingBidRequestIdRef.current === null) return;
+      pendingBidRequestIdRef.current = null;
+      setIsBidRequestPending(false);
+      refreshSnapshot();
+      toast.error("입찰 결과 확인 지연", {
+        description:
+          "처리 결과를 받지 못했습니다. 포인트와 입찰 내역을 확인해 주세요.",
+      });
+    }, BID_REQUEST_RESULT_TIMEOUT_MILLIS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isBidRequestPending, refreshSnapshot]);
+
   const bidMutation = useMutation({
-    mutationFn: (bidPrice: number) => placeBid(auction.id, bidPrice),
+    mutationFn: (bidPrice: number) => createBidRequest(auction.id, bidPrice),
   });
 
   const onBidClick = () => {
@@ -253,27 +346,15 @@ function LiveAuctionPage() {
     setConfirmOpen(false);
     bidMutation.mutate(parsedAmount, {
       onSuccess: (placed) => {
-        myHighestBidRef.current = { bidId: placed.bidId, price: placed.bidPrice };
-        queryClient.invalidateQueries({
-          queryKey: ["auction-bids", auction.id],
-        });
-        queryClient.invalidateQueries({
-          queryKey: getGetMyPointBalanceQueryKey(),
-        });
-        setRealtimeSnapshot((current) => ({
-          auctionId: auction.id,
-          price:
-            current.auctionId === auction.id
-              ? Math.max(current.price, placed.bidPrice)
-              : placed.bidPrice,
-          endsAt:
-            current.auctionId === auction.id ? current.endsAt : auction.endsAt,
-        }));
-        setAmount("");
+        // 접수만 된 상태다 — 실제 처리 결과(성공/실패)는 WebSocket으로 비동기 도착한다.
+        // 아직 입력값을 지우지 않는다: 결과를 못 받아 타임아웃될 경우에도 같은 금액으로
+        // 바로 재시도할 수 있어야 한다. 실제 성공이 확인되면 applyBidUpdate에서 지운다.
+        pendingBidRequestIdRef.current = placed.bidRequestId;
+        setIsBidRequestPending(true);
       },
       onError: (error) => setFail(getBidErrorMessage(error)),
     });
-  }, [auction.endsAt, auction.id, bidMutation, parsedAmount, queryClient]);
+  }, [bidMutation, parsedAmount]);
 
   const goEnd = useCallback(() => {
     navigate({
@@ -337,10 +418,16 @@ function LiveAuctionPage() {
               />
               <Button
                 onClick={onBidClick}
-                disabled={parsedAmount === null || bidMutation.isPending}
+                disabled={
+                  parsedAmount === null ||
+                  bidMutation.isPending ||
+                  isBidRequestPending
+                }
                 className="shrink-0"
               >
-                {bidMutation.isPending ? "입찰 중…" : "입찰하기"}
+                {bidMutation.isPending || isBidRequestPending
+                  ? "처리 중…"
+                  : "입찰하기"}
               </Button>
             </div>
             <div className="flex flex-wrap gap-2" aria-label="추천 입찰 금액">

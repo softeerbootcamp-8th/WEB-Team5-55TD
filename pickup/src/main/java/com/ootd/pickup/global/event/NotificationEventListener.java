@@ -44,6 +44,11 @@ public class NotificationEventListener {
   private void publishAsync(NotificationEvent event) {
     try {
       eventPublisher.publish(event);
+      log.debug(
+          "알림 이벤트를 발행했습니다 - eventType={}, aggregateId={}, eventId={}",
+          event.eventType(),
+          event.aggregateId(),
+          event.eventId());
     } catch (RuntimeException exception) {
       log.warn(
           "알림 이벤트 발행에 실패했습니다. eventType={}, aggregateId={}, eventId={}",
