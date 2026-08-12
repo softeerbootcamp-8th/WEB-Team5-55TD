@@ -1,12 +1,14 @@
 package com.ootd.pickup.auction.repository.auction;
 
 import static com.ootd.pickup.auction.domain.QAuction.auction;
+import static com.ootd.pickup.bid.domain.QBid.bid;
 import static com.ootd.pickup.cards.domain.QCard.card;
 import static com.ootd.pickup.consignments.domain.QConsignment.consignment;
 import static com.ootd.pickup.member.domain.QMember.member;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.global.util.EpochMillis;
@@ -26,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -336,5 +339,103 @@ public class AuctionDataJpaRepository implements AuctionRepository {
         .endedAt
         .lt(endedAt)
         .or(auction.endedAt.eq(endedAt).and(auction.auctionId.lt(cursor.auctionId())));
+  }
+
+  @Override
+  public List<Long> findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+      AuctionStatus auctionStatus, Limit limit) {
+    return queryFactory
+        .select(auction.auctionId)
+        .from(auction)
+        .where(
+            auction.auctionStatus.eq(auctionStatus),
+            auction.startedAt.loe(DateTimeExpression.currentTimestamp(LocalDateTime.class)))
+        .orderBy(auction.startedAt.asc(), auction.auctionId.asc())
+        .limit(limit.max())
+        .fetch();
+  }
+
+  @Override
+  public List<Long> findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+      AuctionStatus auctionStatus, Limit limit) {
+    return queryFactory
+        .select(auction.auctionId)
+        .from(auction)
+        .where(
+            auction.auctionStatus.eq(auctionStatus),
+            auction.endedAt.loe(DateTimeExpression.currentTimestamp(LocalDateTime.class)))
+        .orderBy(auction.endedAt.asc(), auction.auctionId.asc())
+        .limit(limit.max())
+        .fetch();
+  }
+
+  @Override
+  public int updateAuctionStatusToOngoingByIdIn(List<Long> auctionIds) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.auctionStatus, AuctionStatus.ONGOING)
+                .where(
+                    auction.auctionId.in(auctionIds),
+                    auction.auctionStatus.eq(AuctionStatus.SCHEDULED))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public int updateAuctionStatusToWonByIdIn(List<Long> auctionIds) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.auctionStatus, AuctionStatus.WON)
+                .where(
+                    auction.auctionId.in(auctionIds),
+                    auction.auctionStatus.eq(AuctionStatus.ONGOING),
+                    auction.winningPrice.isNotNull(),
+                    auction.winningPrice.goe(auction.reservePrice))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public int updateAuctionStatusToPassedByIdIn(List<Long> auctionIds) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.auctionStatus, AuctionStatus.PASSED)
+                .where(
+                    auction.auctionId.in(auctionIds),
+                    auction.auctionStatus.eq(AuctionStatus.ONGOING),
+                    auction.winningPrice.isNull().or(auction.winningPrice.lt(auction.reservePrice)))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public List<Auction> findAllWithConsignmentAndSellerMemberByIdIn(List<Long> auctionIds) {
+    return queryFactory
+        .selectFrom(auction)
+        .join(auction.consignment, consignment)
+        .fetchJoin()
+        .join(consignment.sellerMember, member)
+        .fetchJoin()
+        .where(auction.auctionId.in(auctionIds))
+        .fetch();
+  }
+
+  @Override
+  public List<Bid> findAllBidsWithMemberByIdIn(List<Long> bidIds) {
+    return queryFactory
+        .selectFrom(bid)
+        .join(bid.member, member)
+        .fetchJoin()
+        .where(bid.bidId.in(bidIds))
+        .fetch();
   }
 }

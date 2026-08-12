@@ -1,4 +1,4 @@
-package com.ootd.pickup.auction.scheduler;
+package com.ootd.pickup.auction.service;
 
 import static com.ootd.pickup.auction.domain.AuctionStatus.*;
 
@@ -6,7 +6,9 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.auction.event.AuctionEndedNotificationEvent;
 import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
+import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
+import com.ootd.pickup.consignments.repository.consignment.ConsignmentRepository;
 import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.event.EventPublisher;
 import java.util.List;
@@ -48,8 +50,8 @@ public class AuctionStatusTransitionService {
    */
   private static final Limit BATCH_LIMIT = Limit.of(100);
 
-  private final AuctionSchedulerRepository auctionSchedulerJpaRepository;
-  private final AuctionSchedulerStatusUpdateRepository auctionSchedulerStatusUpdateRepository;
+  private final AuctionRepository auctionRepository;
+  private final ConsignmentRepository consignmentRepository;
   private final EventProducer eventProducer;
   private final EventPublisher eventPublisher;
 
@@ -57,14 +59,14 @@ public class AuctionStatusTransitionService {
   @Transactional
   public void startDueAuctions() {
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+        auctionRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
             SCHEDULED, BATCH_LIMIT);
     if (auctionIds.isEmpty()) {
       log.debug("시작 대상 경매가 없습니다");
       return;
     }
 
-    int updated = auctionSchedulerJpaRepository.updateAuctionStatusToOngoingByIdIn(auctionIds);
+    int updated = auctionRepository.updateAuctionStatusToOngoingByIdIn(auctionIds);
     if (updated != auctionIds.size()) {
       log.warn(
           "경매 시작 전이 건수가 대상과 다릅니다 - candidates={}, updated={}, auctionIds={}",
@@ -81,7 +83,7 @@ public class AuctionStatusTransitionService {
   }
 
   private void publishStarted(List<Long> auctionIds) {
-    auctionSchedulerJpaRepository.findAllWithConsignmentAndSellerMemberByIdIn(auctionIds).stream()
+    auctionRepository.findAllWithConsignmentAndSellerMemberByIdIn(auctionIds).stream()
         .filter(auction -> auction.getAuctionStatus() == ONGOING)
         .map(AuctionStartedNotificationEvent::fromEntity)
         .forEach(eventPublisher::publish);
@@ -100,15 +102,14 @@ public class AuctionStatusTransitionService {
   @Transactional
   public void endDueAuctions() {
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
-            ONGOING, BATCH_LIMIT);
+        auctionRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(ONGOING, BATCH_LIMIT);
     if (auctionIds.isEmpty()) {
       log.debug("종료 대상 경매가 없습니다");
       return;
     }
 
-    int won = auctionSchedulerJpaRepository.updateAuctionStatusToWonByIdIn(auctionIds);
-    int passed = auctionSchedulerJpaRepository.updateAuctionStatusToPassedByIdIn(auctionIds);
+    int won = auctionRepository.updateAuctionStatusToWonByIdIn(auctionIds);
+    int passed = auctionRepository.updateAuctionStatusToPassedByIdIn(auctionIds);
     int updated = won + passed;
 
     if (updated != auctionIds.size()) {
@@ -123,10 +124,10 @@ public class AuctionStatusTransitionService {
       return;
     }
 
-    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToSoldByAuctionIdIn(auctionIds);
-    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToRegisterableByAuctionIdIn(
-        auctionIds);
+    consignmentRepository.updateStatusToSoldByAuctionIdIn(auctionIds);
+    consignmentRepository.updateStatusToRegisterableByAuctionIdIn(auctionIds);
 
+    // 낙찰 입찰은 두 계열이 모두 필요로 한다. 한 번만 조회해 함께 쓴다.
     List<Auction> closedAuctions = findClosedAuctions(auctionIds);
     Map<Long, Bid> winningBidsById = findWinningBidsById(closedAuctions);
 
@@ -158,9 +159,7 @@ public class AuctionStatusTransitionService {
    * @return 실제로 종료된 경매 목록
    */
   private List<Auction> findClosedAuctions(List<Long> auctionIds) {
-    return auctionSchedulerJpaRepository
-        .findAllWithConsignmentAndSellerMemberByIdIn(auctionIds)
-        .stream()
+    return auctionRepository.findAllWithConsignmentAndSellerMemberByIdIn(auctionIds).stream()
         .filter(auction -> auction.getAuctionStatus().isTerminal())
         .toList();
   }
@@ -210,7 +209,7 @@ public class AuctionStatusTransitionService {
       return Map.of();
     }
 
-    return auctionSchedulerJpaRepository.findAllBidsWithMemberByIdIn(winningBidIds).stream()
+    return auctionRepository.findAllBidsWithMemberByIdIn(winningBidIds).stream()
         .collect(Collectors.toMap(Bid::getBidId, Function.identity()));
   }
 }
