@@ -233,6 +233,7 @@ function LiveAuctionPage() {
         toast.success("입찰 성공", {
           description: `${formatWon(message.currentPrice)}에 입찰했습니다.`,
         });
+        setAmount("");
       } else {
         const myHighestBid = myHighestBidRef.current;
         if (
@@ -321,7 +322,6 @@ function LiveAuctionPage() {
         // 접수만 된 상태다 — 실제 처리 결과(성공/실패)는 WebSocket으로 비동기 도착한다.
         pendingBidRequestIdRef.current = placed.bidRequestId;
         setIsBidRequestPending(true);
-        setAmount("");
       },
       onError: (error) => setFail(getBidErrorMessage(error)),
     });

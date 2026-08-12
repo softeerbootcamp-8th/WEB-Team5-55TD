@@ -9,6 +9,7 @@
     "build": "vite build && tsc -b",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
+    "pretest": "pnpm gen:api",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

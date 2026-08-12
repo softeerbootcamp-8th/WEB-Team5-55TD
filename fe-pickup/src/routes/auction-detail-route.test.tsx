@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentType, ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 let auction: Record<string, unknown>;
 vi.mock("@tanstack/react-router", () => ({
@@ -44,13 +45,24 @@ const base = {
 };
 
 describe("구매자 경매 상세", () => {
+  const renderRoute = (Component: ComponentType) =>
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <Component />
+      </QueryClientProvider>,
+    );
+
   beforeEach(() => {
     auction = { ...base, status: "LIVE", currentPrice: 10000 };
   });
   it("진행 중·예정·종료 가격 상태와 상세 정보를 표시한다", async () => {
     const { Route } = await import("@/routes/_buyer/auctions/$auctionId/index");
     const Component = Route.options.component as ComponentType;
-    render(<Component />);
+    renderRoute(Component);
     expect(screen.getByRole("heading", { name: "Mewtwo" })).toBeInTheDocument();
     expect(screen.getByText("현재가")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button")[0]);
@@ -62,11 +74,11 @@ describe("구매자 경매 상세", () => {
       startPrice: 5000,
       currentPrice: undefined,
     };
-    render(<Component />);
+    renderRoute(Component);
     expect(screen.getByText("시작가")).toBeInTheDocument();
     cleanup();
     auction = { ...base, status: "ENDED", currentPrice: 20000 };
-    render(<Component />);
+    renderRoute(Component);
     expect(screen.getByText("낙찰가")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "경매 참여" }),
