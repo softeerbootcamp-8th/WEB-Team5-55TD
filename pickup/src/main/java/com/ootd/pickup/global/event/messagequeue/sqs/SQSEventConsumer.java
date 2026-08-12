@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
@@ -52,6 +54,9 @@ public class SQSEventConsumer implements SmartLifecycle {
 
   /** {@link SQSMessageQueueSender}가 싣는 속성 이름. 양쪽이 같아야 한다. */
   private static final String EVENT_TYPE_ATTRIBUTE = "eventType";
+
+  /** Datadog 등에서 에러를 Critical로 수집하기 위한 마커. */
+  private static final Marker CRITICAL_MARKER = MarkerFactory.getMarker("CRITICAL");
 
   /** 큐 접속 자체가 실패할 때 폴링이 쉬지 않고 도는 것을 막는 간격. */
   private static final Duration ERROR_BACKOFF = Duration.ofSeconds(1);
@@ -232,6 +237,7 @@ public class SQSEventConsumer implements SmartLifecycle {
       } catch (RuntimeException exception) {
         blockedGroups.add(messageGroupId);
         log.error(
+            CRITICAL_MARKER,
             "SQS 이벤트 처리에 실패했습니다 - messageId={}, messageGroupId={}",
             message.messageId(),
             messageGroupId,
