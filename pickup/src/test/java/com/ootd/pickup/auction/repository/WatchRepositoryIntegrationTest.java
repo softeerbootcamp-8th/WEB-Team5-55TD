@@ -19,7 +19,6 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaRepository;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
-import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -45,14 +44,12 @@ class WatchRepositoryIntegrationTest {
 
   @Autowired private AuctionRepository auctionRepository;
 
-  @Autowired private EntityManager entityManager;
-
   @Autowired private WatchJpaRepository watchJpaRepository;
 
   @Autowired private WatchRepository watchRepository;
 
   @Test
-  void 관심수를_증가시키면_경매의_관심수가_원자적으로_증가한다() {
+  void 관심수를_증가시키고_다시_조회하면_갱신된_관심수가_반환된다() {
     // given
     Member member = createMember("watch-count-increment");
     Auction auction = createAuction(member, "관심수 증가 카드");
@@ -60,7 +57,6 @@ class WatchRepositoryIntegrationTest {
     // when
     auctionRepository.incrementWatchCountById(auction.getAuctionId());
     auctionRepository.incrementWatchCountById(auction.getAuctionId());
-    entityManager.clear();
 
     // then
     Auction updated = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
@@ -75,7 +71,6 @@ class WatchRepositoryIntegrationTest {
 
     // when
     int updatedCount = auctionRepository.decrementWatchCountById(auction.getAuctionId());
-    entityManager.clear();
 
     // then
     Auction updated = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
@@ -92,7 +87,6 @@ class WatchRepositoryIntegrationTest {
 
     // when
     auctionRepository.resetWatchCountById(auction.getAuctionId());
-    entityManager.clear();
 
     // then
     Auction updated = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();

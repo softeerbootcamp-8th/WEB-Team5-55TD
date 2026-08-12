@@ -17,6 +17,7 @@ import com.querydsl.core.types.dsl.DateTimeExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -34,6 +35,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
   private final AuctionJpaRepository auctionJpaRepository;
   private final JPAQueryFactory queryFactory;
+  private final EntityManager entityManager;
 
   @Override
   public Auction save(Auction newAuction) {
@@ -47,32 +49,41 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
   @Override
   public int incrementWatchCountById(Long auctionId) {
-    return (int)
-        queryFactory
-            .update(auction)
-            .set(auction.watchCount, auction.watchCount.add(1L))
-            .where(auction.auctionId.eq(auctionId))
-            .execute();
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.watchCount, auction.watchCount.add(1L))
+                .where(auction.auctionId.eq(auctionId))
+                .execute();
+    entityManager.clear();
+    return updated;
   }
 
   @Override
   public int decrementWatchCountById(Long auctionId) {
-    return (int)
-        queryFactory
-            .update(auction)
-            .set(auction.watchCount, auction.watchCount.subtract(1L))
-            .where(auction.auctionId.eq(auctionId), auction.watchCount.gt(0L))
-            .execute();
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.watchCount, auction.watchCount.subtract(1L))
+                .where(auction.auctionId.eq(auctionId), auction.watchCount.gt(0L))
+                .execute();
+    entityManager.clear();
+    return updated;
   }
 
   @Override
   public int resetWatchCountById(Long auctionId) {
-    return (int)
-        queryFactory
-            .update(auction)
-            .set(auction.watchCount, 0L)
-            .where(auction.auctionId.eq(auctionId))
-            .execute();
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.watchCount, 0L)
+                .where(auction.auctionId.eq(auctionId))
+                .execute();
+    entityManager.clear();
+    return updated;
   }
 
   @Override
