@@ -16,6 +16,7 @@ import { Countdown } from "@/components/domain/countdown";
 import { BidList } from "@/components/domain/bid-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,10 @@ import {
   type AuctionBidUpdatedMessage,
 } from "@/hooks/use-auction-bid-updates";
 import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
+import {
+  setSkipBidConfirm,
+  shouldSkipBidConfirm,
+} from "@/lib/bid-confirm-preference";
 import { formatWon } from "@/lib/format";
 import { AuctionStatus } from "@/lib/types";
 import {
@@ -116,6 +121,7 @@ function LiveAuctionPage() {
   });
   const [amount, setAmount] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dontShowConfirmAgain, setDontShowConfirmAgain] = useState(false);
   const [fail, setFail] = useState<string | null>(null);
   const [allBidsOpen, setAllBidsOpen] = useState(false);
   const [isBidRequestPending, setIsBidRequestPending] = useState(false);
@@ -143,6 +149,18 @@ function LiveAuctionPage() {
     const value = Number(normalized);
     return Number.isSafeInteger(value) && value >= minNext ? value : null;
   })();
+  // + 버튼 기준값: 최소 입찰가 미만이거나 아직 입력하지 않은 값도 base 로 허용해
+  // "입력된 금액에 최소 입찰 단위만큼 더한다"를 그대로 따른다.
+  const rawAmount = (() => {
+    const normalized = amount.trim().replaceAll(",", "");
+    if (!/^\d+$/.test(normalized)) return null;
+    const value = Number(normalized);
+    return Number.isSafeInteger(value) ? value : null;
+  })();
+
+  const onIncrementClick = () => {
+    setAmount(String((rawAmount ?? currentPrice) + minUnit));
+  };
 
   const previewBidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id, "preview"],
@@ -290,17 +308,8 @@ function LiveAuctionPage() {
     mutationFn: (bidPrice: number) => createBidRequest(auction.id, bidPrice),
   });
 
-  const onBidClick = () => {
-    if (parsedAmount === null) {
-      setFail("입찰가는 현재가 + 최소 입찰 단위 이상이어야 합니다.");
-      return;
-    }
-    setConfirmOpen(true);
-  };
-
-  const confirmBid = useCallback(() => {
+  const placeBid = useCallback(() => {
     if (parsedAmount === null) return;
-    setConfirmOpen(false);
     bidMutation.mutate(parsedAmount, {
       onSuccess: (placed) => {
         // 접수만 된 상태다 — 실제 처리 결과(성공/실패)는 WebSocket으로 비동기 도착한다.
@@ -312,6 +321,30 @@ function LiveAuctionPage() {
       onError: (error) => setFail(getBidErrorMessage(error)),
     });
   }, [bidMutation, parsedAmount]);
+
+  const closeBidConfirm = useCallback(() => {
+    setConfirmOpen(false);
+    setDontShowConfirmAgain(false);
+  }, []);
+
+  const onBidClick = () => {
+    if (parsedAmount === null) {
+      setFail("입찰가는 현재가 + 최소 입찰 단위 이상이어야 합니다.");
+      return;
+    }
+    if (shouldSkipBidConfirm()) {
+      placeBid();
+      return;
+    }
+    setConfirmOpen(true);
+  };
+
+  const confirmBid = useCallback(() => {
+    if (parsedAmount === null) return;
+    if (dontShowConfirmAgain) setSkipBidConfirm(true);
+    closeBidConfirm();
+    placeBid();
+  }, [closeBidConfirm, dontShowConfirmAgain, parsedAmount, placeBid]);
 
   const goEnd = useCallback(() => {
     navigate({
@@ -373,6 +406,19 @@ function LiveAuctionPage() {
                 placeholder={`${minNext.toLocaleString("ko-KR")} 이상`}
                 className="tabular"
               />
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                onClick={onIncrementClick}
+                disabled={
+                  minUnit <= 0 || bidMutation.isPending || isBidRequestPending
+                }
+                aria-label={`최소 입찰 단위(${formatWon(minUnit)})만큼 추가`}
+                className="shrink-0"
+              >
+                +
+              </Button>
               <Button
                 onClick={onBidClick}
                 disabled={
@@ -457,7 +503,12 @@ function LiveAuctionPage() {
       </Dialog>
 
       {/* 입찰 확인 모달 */}
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(open) =>
+          open ? setConfirmOpen(true) : closeBidConfirm()
+        }
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>입찰 확인</DialogTitle>
@@ -477,11 +528,23 @@ function LiveAuctionPage() {
               </dd>
             </div>
           </dl>
+          <div className="flex items-center gap-2">
+            <input
+              id="skip-bid-confirm"
+              type="checkbox"
+              checked={dontShowConfirmAgain}
+              onChange={(e) => setDontShowConfirmAgain(e.target.checked)}
+              className="size-4 rounded border border-[var(--color-border-strong)] accent-primary"
+            />
+            <Label htmlFor="skip-bid-confirm" className="text-sm">
+              다시 보지 않기
+            </Label>
+          </div>
           <DialogFooter>
             <Button
               variant="secondary"
               className="flex-1"
-              onClick={() => setConfirmOpen(false)}
+              onClick={closeBidConfirm}
             >
               취소
             </Button>
