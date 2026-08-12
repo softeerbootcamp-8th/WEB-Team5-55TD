@@ -12,13 +12,15 @@ import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
+import com.ootd.pickup.auction.event.BidRequestSucceededNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
@@ -34,8 +36,7 @@ import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
-import com.ootd.pickup.point.domain.Point;
-import com.ootd.pickup.point.repository.PointRepository;
+import com.ootd.pickup.point.service.PointReservationService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -56,7 +57,7 @@ class BidServiceTest {
   @Mock private BidRepository bidRepository;
 
   @Mock private MemberRepository memberRepository;
-  @Mock private PointRepository pointRepository;
+  @Mock private PointReservationService pointReservationService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private BidService bidService;
@@ -68,7 +69,7 @@ class BidServiceTest {
             auctionRepository,
             bidRepository,
             memberRepository,
-            pointRepository,
+            pointReservationService,
             applicationEventPublisher);
   }
 
@@ -80,9 +81,6 @@ class BidServiceTest {
     Member bidder = createMember(2L);
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(pointRepository.findByMemberId(2L)).willReturn(Optional.of(createPoint(2L, 50_000L)));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.empty());
     given(bidRepository.save(any(Bid.class)))
         .willAnswer(
             invocation -> {
@@ -107,11 +105,12 @@ class BidServiceTest {
     then(applicationEventPublisher).should().publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue())
         .isInstanceOfSatisfying(
-            AuctionBidUpdatedNotificationEvent.class,
+            BidRequestSucceededNotificationEvent.class,
             event -> {
               assertThat(event.auctionId()).isEqualTo(1L);
               assertThat(event.winningBid().bidId()).isEqualTo(10L);
               assertThat(event.winningPrice()).isEqualTo(10_500L);
+              assertThat(event.bidRequestId()).isNull();
             });
   }
 
@@ -124,11 +123,9 @@ class BidServiceTest {
     Member newBidder = createMember(3L);
     Bid previousHighestBid = Bid.create(auction, previousBidder, 10_500L);
     ReflectionTestUtils.setField(previousHighestBid, "bidId", 10L);
+    auction.updateWinningBid(previousHighestBid.getBidId(), previousHighestBid.getBidPrice());
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(3L)).willReturn(Optional.of(newBidder));
-    given(pointRepository.findByMemberId(3L)).willReturn(Optional.of(createPoint(3L, 50_000L)));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.of(previousHighestBid));
     given(bidRepository.save(any(Bid.class)))
         .willAnswer(
             invocation -> {
@@ -158,10 +155,9 @@ class BidServiceTest {
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
     Member bidder = createMember(2L);
     Bid previousHighestBid = Bid.create(auction, createMember(3L), 10_500L);
+    auction.updateWinningBid(previousHighestBid.getBidId(), previousHighestBid.getBidPrice());
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.of(previousHighestBid));
 
     // when & then
     assertExceptionCode(
@@ -176,10 +172,9 @@ class BidServiceTest {
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
     Member bidder = createMember(2L);
     Bid previousHighestBid = Bid.create(auction, createMember(3L), 10_500L);
+    auction.updateWinningBid(previousHighestBid.getBidId(), previousHighestBid.getBidPrice());
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.of(previousHighestBid));
 
     // when & then
     assertExceptionCode(
@@ -194,9 +189,9 @@ class BidServiceTest {
     Member bidder = createMember(2L);
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.empty());
-    given(pointRepository.findByMemberId(2L)).willReturn(Optional.of(createPoint(2L, 10_000L)));
+    willThrow(new PickUpException(INSUFFICIENT_BID_LIMIT))
+        .given(pointReservationService)
+        .prepareReservation(eq(auction), eq(bidder), eq(10_500L));
 
     // when & then
     assertExceptionCode(
@@ -212,9 +207,6 @@ class BidServiceTest {
     Member bidder = createMember(2L);
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
-    given(bidRepository.findFirstByAuctionIdAndBidStatus(1L, BidStatus.HIGHEST))
-        .willReturn(Optional.empty());
-    given(pointRepository.findByMemberId(2L)).willReturn(Optional.of(createPoint(2L, 10_500L)));
     given(bidRepository.save(any(Bid.class)))
         .willAnswer(
             invocation -> {
@@ -403,6 +395,30 @@ class BidServiceTest {
     then(bidRepository).shouldHaveNoInteractions();
   }
 
+  @Test
+  void 최고_입찰중인_경매가_있으면_true를_반환한다() {
+    // given
+    given(bidRepository.existsCurrentHighestBidByMemberId(2L)).willReturn(true);
+
+    // when
+    boolean hasActiveBid = bidService.hasActiveBid(2L);
+
+    // then
+    assertThat(hasActiveBid).isTrue();
+  }
+
+  @Test
+  void 최고_입찰중인_경매가_없으면_false를_반환한다() {
+    // given
+    given(bidRepository.existsCurrentHighestBidByMemberId(2L)).willReturn(false);
+
+    // when
+    boolean hasActiveBid = bidService.hasActiveBid(2L);
+
+    // then
+    assertThat(hasActiveBid).isFalse();
+  }
+
   private Bid createBid(Auction auction, Member member, Long bidPrice, Long bidId) {
     Bid bid = Bid.create(auction, member, bidPrice);
     ReflectionTestUtils.setField(bid, "bidId", bidId);
@@ -423,7 +439,7 @@ class BidServiceTest {
     Consignment consignment =
         Consignment.builder()
             .sellerMember(createMember(sellerMemberId))
-            .status(ConsignmentStatus.AUCTION_SCHEDULED)
+            .status(ConsignmentStatus.IN_AUCTION)
             .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
@@ -444,11 +460,5 @@ class BidServiceTest {
     Member member = Member.create("loginId" + memberId, "password", "닉네임" + memberId);
     ReflectionTestUtils.setField(member, "memberId", memberId);
     return member;
-  }
-
-  private Point createPoint(Long memberId, long balance) {
-    Point point = Point.create(memberId);
-    point.increaseBalance(balance);
-    return point;
   }
 }

@@ -30,7 +30,7 @@ class OutboxEventSchedulerIntegrationTest {
 
   @Autowired private OutboxEventScheduler outboxEventScheduler;
 
-  @Autowired private OutboxEventJpaRepository outboxEventJpaRepository;
+  @Autowired private OutboxEventRepository outboxEventJpaRepository;
 
   @Autowired private EventProducer eventProducer;
 

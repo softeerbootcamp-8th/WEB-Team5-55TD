@@ -1,6 +1,6 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronDown, Search } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
 import { AuctionCard } from "@/components/domain/auction-card";
@@ -13,10 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  searchAuctions,
-  type AuctionSort,
-} from "@/api/auctions";
+import { searchAuctions, type AuctionSort } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/_buyer/auctions/")({
@@ -24,16 +21,27 @@ export const Route = createFileRoute("/_buyer/auctions/")({
 });
 
 type Filter = "LIVE" | "UPCOMING" | "ENDED";
-type Sort = "popular" | "priceAsc" | "priceDesc" | "endingSoon";
+type Sort =
+  | "popular"
+  | "priceAsc"
+  | "priceDesc"
+  | "endingSoon"
+  | "startingSoon"
+  | "recent";
 
 const SORT_LABEL: Record<Sort, string> = {
   popular: "인기순",
   priceAsc: "가격 낮은순",
   priceDesc: "가격 높은순",
   endingSoon: "종료 임박순",
+  startingSoon: "시작 임박순",
+  recent: "최신순",
 };
 
-const API_STATUS: Record<Filter, ("SCHEDULED" | "ONGOING" | "WON" | "PASSED")[]> = {
+const API_STATUS: Record<
+  Filter,
+  ("SCHEDULED" | "ONGOING" | "WON" | "PASSED")[]
+> = {
   LIVE: ["ONGOING"],
   UPCOMING: ["SCHEDULED"],
   ENDED: ["WON", "PASSED"],
@@ -44,6 +52,8 @@ const API_SORT: Record<Sort, AuctionSort> = {
   priceAsc: "PRICE_ASC",
   priceDesc: "PRICE_DESC",
   endingSoon: "ENDING_SOON",
+  startingSoon: "STARTING_SOON",
+  recent: "RECENT",
 };
 
 /** DESIGN.md · auction list.html — 검색 · 정렬 · 진행/예정/종료 필터 */
@@ -53,24 +63,46 @@ function AuctionListPage() {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim());
 
-  const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["auctions", filter, sort, deferredQuery],
-    queryFn: () =>
-      searchAuctions({
-        q: deferredQuery || undefined,
-        status: API_STATUS[filter],
-        sort: API_SORT[sort],
-        size: 100,
-      }),
-  });
-  const list = data?.items ?? [];
+  const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      queryKey: ["auctions", filter, sort, deferredQuery],
+      queryFn: ({ pageParam }) =>
+        searchAuctions({
+          q: deferredQuery || undefined,
+          status: API_STATUS[filter],
+          sort: API_SORT[sort],
+          cursor: pageParam,
+          size: 20,
+        }),
+      initialPageParam: undefined as string | undefined,
+      getNextPageParam: (lastPage) =>
+        lastPage.hasNext ? lastPage.cursor : undefined,
+    });
+  const list = data?.pages.flatMap((page) => page.items) ?? [];
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <PageContainer className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">경매</h1>
         <p className="text-sm text-[var(--color-text-sub)]">
-          카드셋 · 카드명 · 언어로 경매를 탐색하세요.
+          카드명으로 경매를 탐색하세요.
         </p>
       </div>
 
@@ -135,11 +167,22 @@ function AuctionListPage() {
           description="검색어나 필터를 바꿔보세요."
         />
       ) : (
-        <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
-          {list.map((a) => (
-            <AuctionCard key={a.id} auction={a} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
+            {list.map((a) => (
+              <AuctionCard key={a.id} auction={a} />
+            ))}
+          </div>
+          {hasNextPage && (
+            <div ref={sentinelRef} className="py-4 text-center">
+              {isFetchingNextPage && (
+                <p className="text-sm text-[var(--color-text-sub)]">
+                  불러오는 중
+                </p>
+              )}
+            </div>
+          )}
+        </>
       )}
     </PageContainer>
   );

@@ -2,7 +2,9 @@ package com.ootd.pickup.global.event.redis;
 
 import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.event.NotificationEvent;
+import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -17,6 +19,7 @@ import tools.jackson.databind.ObjectMapper;
  * <p>직렬화 실패는 여기서 따로 잡지 않는다. Jackson 3의 예외는 unchecked라({@code OutboxEventEntity.create}와 같은 관례) 그대로
  * 던지면 호출자의 {@code catch (RuntimeException)}가 잡아 로그만 남기고 삼킨다 — 알림은 유실이 허용되는 계열이라 이중으로 감쌀 이유가 없다.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RedisEventPublisher implements EventPublisher {
@@ -24,10 +27,32 @@ public class RedisEventPublisher implements EventPublisher {
   private final StringRedisTemplate redisTemplate;
   private final ObjectMapper objectMapper;
   private final NotificationChannelResolver channelResolver;
+  private final RealtimeNotificationMetrics metrics;
 
   @Override
   public void publish(NotificationEvent event) {
-    redisTemplate.convertAndSend(channelResolver.resolve(event), serialize(event));
+    try {
+      Long subscriberCount =
+          redisTemplate.convertAndSend(channelResolver.resolve(event), serialize(event));
+      // Redis PUBLISH는 구독자가 없어도 예외 없이 성공하므로 반환값을 확인해야 실제 알림 유실을 발견할 수 있다.
+      if (subscriberCount == 0) {
+        metrics.recordRedisPublishNoSubscribers(event.eventType());
+        log.debug(
+            "구독자가 없어 알림 이벤트가 전달되지 않았습니다 - eventType={}, aggregateId={}",
+            event.eventType(),
+            event.aggregateId());
+        return;
+      }
+      metrics.recordRedisPublishSuccess(event.eventType());
+      log.debug(
+          "Redis 채널로 알림 이벤트를 발행했습니다 - eventType={}, aggregateId={}, subscriberCount={}",
+          event.eventType(),
+          event.aggregateId(),
+          subscriberCount);
+    } catch (RuntimeException exception) {
+      metrics.recordRedisPublishFailure(event.eventType());
+      throw exception;
+    }
   }
 
   private String serialize(NotificationEvent event) {

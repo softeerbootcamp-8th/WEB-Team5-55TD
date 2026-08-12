@@ -32,7 +32,7 @@ public class OutboxEventScheduler {
   /** 한 주기에 발행할 최대 건수. 잠금 점유 시간과 한 트랜잭션의 크기를 제한한다. */
   private static final Limit BATCH_LIMIT = Limit.of(100);
 
-  private final OutboxEventJpaRepository outboxEventJpaRepository;
+  private final OutboxEventRepository outboxEventJpaRepository;
   private final MessageQueueSender messageQueueSender;
   private final TransactionTemplate transactionTemplate;
 
@@ -50,7 +50,7 @@ public class OutboxEventScheduler {
    * 계속 발행한다.
    */
   @Scheduled(fixedDelayString = "${scheduler.outbox.fixed-delay:1s}")
-  @SchedulerLock(name = "outbox-event-relay", lockAtMostFor = "PT30S", lockAtLeastFor = "PT0.5S")
+  @SchedulerLock(name = "outbox-event-relay", lockAtMostFor = "PT30S", lockAtLeastFor = "PT0.1S")
   public void relayUnpublishedEvents() {
     List<RelayedOutboxEvent> pending = findPendingEvents();
     if (pending.isEmpty()) {

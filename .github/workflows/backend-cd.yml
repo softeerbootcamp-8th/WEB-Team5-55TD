@@ -1,7 +1,24 @@
+# 백엔드 배포. main push 는 자동, 그 외 브랜치는 workflow_dispatch 로 수동 실행한다.
+#
+# 고칠 때 알아야 할 것
+#
+# - EC2 의 /home/ubuntu/pickup/.env 는 APP_ENV_ 블록과 pickup/deploy/datadog.env 를
+#   합쳐 만든다. 커밋마다 바뀌거나 GitHub 에서 오는 값은 이 블록에, dd-java-agent 의
+#   정적 설정은 그 파일에 둔다.
+# - APP_ENV_ 접두사를 뗀 이름이 그대로 키가 되고, 여기 있는 값은 전부 필수다. 하나라도
+#   비면 EC2 를 건드리기 전에 배포가 멈춘다. application.yml 기본값으로 충분하면 넣지 않는다.
+# - 그 값에는 따옴표·역슬래시·개행을 쓸 수 없다. systemd 가 EnvironmentFile 을 읽을 때
+#   해석해 다른 값이 된다.
+# - TAG_SERVICE·TAG_ENVIRONMENT 는 배포 역할 IAM 정책의 ssm:resourceTag 조건과 같아야 한다.
+#   어긋나면 조용히 권한 거부가 난다.
+# - deploy.sh 와 인자 계약이 있고, wait 스텝은 deploy.sh 가 찍는 RESULT= / FAILED_APP_LOG=
+#   마커를 파싱한다. 한쪽만 바꾸면 배포가 실패하거나 결과를 오판한다.
+# - 환경변수 값은 SSM 명령에 싣지 않는다. 실행 기록과 CloudTrail 에 평문으로 남는다.
+# - 배포는 직렬화하되 취소하지 않는다. 진행 중인 배포를 끊으면 서버가 어중간한 상태로 남는다.
+# - wait 스텝의 set +e 와 인용하지 않은 instance_ids 는 의도된 것이다.
 name: Backend CD
 
 on:
-  # 자동 배포는 main 만. develop 은 아래 workflow_dispatch 로 수동 실행한다.
   push:
     branches:
       - main
@@ -9,13 +26,8 @@ on:
       - "pickup/**"
       - ".github/workflows/backend-cd.yml"
       - ".github/workflows/backend-ci.yml"
-  # IAM 역할 신뢰 정책이 main·develop 만 허용하므로, 그 외 브랜치에서 실행하면
-  # OIDC 인증 단계에서 거부된다.
   workflow_dispatch:
 
-# 배포가 겹치면 jar 교체 중에 또 교체된다. deploy.sh 도 flock 으로 막지만,
-# 워크플로 단계에서 직렬화해 두는 편이 로그를 읽기 쉽다.
-# 진행 중인 배포를 끊으면 서버가 어중간한 상태로 남으므로 취소하지 않는다.
 concurrency:
   group: backend-cd
   cancel-in-progress: false
@@ -33,25 +45,50 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
 
-    # job 레벨에 둔다. top-level 에 두면 재사용 워크플로인 ci 잡에도 상속된다.
     permissions:
-      id-token: write # OIDC 토큰 발급 (AssumeRoleWithWebIdentity) 에 필수
+      id-token: write
       contents: read
 
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       DEPLOY_S3_BUCKET: ${{ vars.DEPLOY_S3_BUCKET }}
-      IMAGE_STORAGE_BUCKET: ${{ secrets.IMAGE_STORAGE_BUCKET }}
-      IMAGE_STORAGE_REGION: ${{ secrets.IMAGE_STORAGE_REGION }}
-      IMAGE_MEDIA_BASE_URL: ${{ secrets.IMAGE_MEDIA_BASE_URL }}
-      IMAGE_UPLOAD_URL_TTL: ${{ secrets.IMAGE_UPLOAD_URL_TTL }}
-      # 커밋별 디렉터리에 jar 과 deploy.sh 를 짝으로 올린다.
-      # deploy.sh 를 고정 경로에 두면 옛 jar 을 최신 배포 로직으로 배포하게 된다.
       S3_PREFIX: pickup/${{ github.sha }}
-      # 배포 역할 IAM 정책의 ssm:resourceTag 조건과 반드시 같아야 한다.
-      # 변수로 빼면 한쪽만 바뀌었을 때 조용히 권한 거부가 나므로 여기 함께 둔다.
       TAG_SERVICE: pickup
       TAG_ENVIRONMENT: production
+
+      APP_ENV_SPRING_PROFILES_ACTIVE: ${{ vars.SPRING_PROFILES_ACTIVE }}
+      APP_ENV_JAVA_TOOL_OPTIONS: ${{ vars.JAVA_TOOL_OPTIONS }}
+
+      APP_ENV_DB_URL: ${{ secrets.DB_URL }}
+      APP_ENV_DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      APP_ENV_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      APP_ENV_DB_POOL_MAX_SIZE: ${{ vars.DB_POOL_MAX_SIZE }}
+      APP_ENV_DB_POOL_MIN_IDLE: ${{ vars.DB_POOL_MIN_IDLE }}
+      APP_ENV_DB_CONNECTION_TIMEOUT_MS: ${{ vars.DB_CONNECTION_TIMEOUT_MS }}
+
+      APP_ENV_REDIS_HOST: ${{ secrets.REDIS_HOST }}
+      APP_ENV_REDIS_PORT: ${{ vars.REDIS_PORT }}
+
+      APP_ENV_JWT_ISSUER: ${{ vars.JWT_ISSUER }}
+      APP_ENV_JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      APP_ENV_JWT_ACCESS_TOKEN_TTL: ${{ vars.JWT_ACCESS_TOKEN_TTL }}
+
+      APP_ENV_SLACK_ENABLED: ${{ vars.SLACK_ENABLED }}
+      APP_ENV_SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      APP_ENV_SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+
+      APP_ENV_IMAGE_STORAGE_BUCKET: ${{ vars.IMAGE_STORAGE_BUCKET }}
+      APP_ENV_IMAGE_STORAGE_REGION: ${{ vars.IMAGE_STORAGE_REGION }}
+      APP_ENV_IMAGE_MEDIA_BASE_URL: ${{ vars.IMAGE_MEDIA_BASE_URL }}
+      APP_ENV_IMAGE_UPLOAD_URL_TTL: ${{ vars.IMAGE_UPLOAD_URL_TTL }}
+
+      APP_ENV_WEBSOCKET_ALLOWED_ORIGINS: ${{ vars.WEBSOCKET_ALLOWED_ORIGINS }}
+
+      APP_ENV_EVENT_SQS_QUEUE_URL: ${{ secrets.EVENT_SQS_QUEUE_URL }}
+
+      APP_ENV_DD_SERVICE: pickup-api
+      APP_ENV_DD_ENV: production
+      APP_ENV_DD_VERSION: ${{ github.sha }}
 
     steps:
       - name: Validate required configuration
@@ -62,11 +99,16 @@ jobs:
           missing=()
           [ -n "${AWS_REGION}" ]       || missing+=("vars.AWS_REGION")
           [ -n "${DEPLOY_S3_BUCKET}" ] || missing+=("vars.DEPLOY_S3_BUCKET")
-          [ -n "${IMAGE_STORAGE_BUCKET}" ] || missing+=("secrets.IMAGE_STORAGE_BUCKET")
-          [ -n "${IMAGE_STORAGE_REGION}" ] || missing+=("secrets.IMAGE_STORAGE_REGION")
-          [ -n "${IMAGE_MEDIA_BASE_URL}" ] || missing+=("secrets.IMAGE_MEDIA_BASE_URL")
-          [ -n "${IMAGE_UPLOAD_URL_TTL}" ] || missing+=("secrets.IMAGE_UPLOAD_URL_TTL")
           [ -n "${ROLE_ARN}" ]         || missing+=("secrets.AWS_DEPLOY_ROLE_ARN")
+
+          app_keys=$(compgen -v | grep '^APP_ENV_' | sort)
+          if [ -z "${app_keys}" ]; then
+            echo "::error::APP_ENV_ 로 시작하는 런타임 환경변수가 하나도 없습니다."
+            exit 1
+          fi
+          for name in ${app_keys}; do
+            [ -n "${!name}" ] || missing+=("${name#APP_ENV_}")
+          done
 
           if [ ${#missing[@]} -gt 0 ]; then
             echo "::error::다음 설정이 비어 있습니다: ${missing[*]}"
@@ -74,20 +116,34 @@ jobs:
           fi
 
           invalid=()
-          [[ "${IMAGE_STORAGE_BUCKET}" =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]] \
-            || invalid+=("secrets.IMAGE_STORAGE_BUCKET")
-          [ "${IMAGE_STORAGE_REGION}" = "ap-northeast-2" ] \
-            || invalid+=("secrets.IMAGE_STORAGE_REGION")
-          [[ "${IMAGE_MEDIA_BASE_URL}" =~ ^https://[A-Za-z0-9.-]+$ ]] \
-            || invalid+=("secrets.IMAGE_MEDIA_BASE_URL")
-          [[ "${IMAGE_UPLOAD_URL_TTL}" =~ ^[1-9][0-9]*[smhd]$ ]] \
-            || invalid+=("secrets.IMAGE_UPLOAD_URL_TTL")
+
+          for name in ${app_keys}; do
+            case "${!name}" in
+              *\"*|*\\*|*\'*|*$'\n'*) invalid+=("${name#APP_ENV_}(따옴표·역슬래시·개행 불가)") ;;
+            esac
+          done
+
+          check_format() {
+            local name="APP_ENV_$1"
+            [[ "${!name}" =~ $2 ]] || invalid+=("$1")
+          }
+          check_format SPRING_PROFILES_ACTIVE '^prod$'
+          check_format DB_URL '^jdbc:mysql://.+$'
+          check_format IMAGE_STORAGE_BUCKET '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+          check_format IMAGE_STORAGE_REGION '^ap-northeast-2$'
+          check_format IMAGE_MEDIA_BASE_URL '^https://[A-Za-z0-9.-]+$'
+          check_format IMAGE_UPLOAD_URL_TTL '^[1-9][0-9]*[smhd]$'
+          check_format WEBSOCKET_ALLOWED_ORIGINS '^https://[A-Za-z0-9.-]+$'
+          check_format EVENT_SQS_QUEUE_URL '^https://sqs\.[a-z0-9-]+\.amazonaws\.com/[0-9]{12}/[A-Za-z0-9_-]+\.fifo$'
+          check_format DD_SERVICE '^pickup-api$'
+          check_format DD_ENV '^production$'
+          check_format DD_VERSION '^[0-9a-f]{40}$'
 
           if [ ${#invalid[@]} -gt 0 ]; then
             echo "::error::다음 설정의 형식이 올바르지 않습니다: ${invalid[*]}"
             exit 1
           fi
-          echo "configuration OK"
+          echo "런타임 환경변수 $(echo "${app_keys}" | wc -w | tr -d ' ')개 검증 완료"
 
       - name: Checkout
         id: checkout
@@ -108,17 +164,11 @@ jobs:
           role-session-name: gha-backend-cd-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 태그로 SSM 명령을 보내면 매칭 인스턴스가 0대여도 에러가 아니라 성공한다.
-      # 그러면 배포가 안 됐는데 워크플로는 초록불이 된다. 여기서 미리 막는다.
       - name: Resolve target instances
         id: resolve-targets
         run: |
           set -euo pipefail
 
-          # describe-instance-information 은 태그 필터와 다른 필터를 함께 쓸 수 없다
-          # ("Cannot mix tag or inventory filter with any other filter").
-          # 응답에 태그가 포함되지 않아 태그를 클라이언트에서 거를 수도 없으므로,
-          # 태그는 API 필터로 넘기고 PingStatus 는 JMESPath 로 거른다.
           ids=$(aws ssm describe-instance-information \
             --filters "Key=tag:Service,Values=${TAG_SERVICE}" \
                       "Key=tag:Environment,Values=${TAG_ENVIRONMENT}" \
@@ -128,8 +178,6 @@ jobs:
           if [ -z "${ids}" ]; then
             echo "::error::SSM 에 Online 으로 등록된 대상 인스턴스가 없습니다 (Service=${TAG_SERVICE}, Environment=${TAG_ENVIRONMENT})"
 
-            # 두 원인을 구분하기 위해 둘 다 찍는다.
-            # 태그 목록이 비었으면 태그 불일치, 있는데 Online 이 아니면 Agent 문제다.
             echo "── 태그가 일치하는 인스턴스 (상태 무관) ──"
             aws ssm describe-instance-information \
               --filters "Key=tag:Service,Values=${TAG_SERVICE}" \
@@ -149,6 +197,33 @@ jobs:
           echo "instance_count=${count}" >> "$GITHUB_OUTPUT"
           echo "대상 인스턴스 ${count}대: ${ids}"
 
+      - name: Generate runtime env file
+        id: runtime-env
+        env:
+          DATADOG_ENV_FILE: pickup/deploy/datadog.env
+        run: |
+          set -eu
+          umask 077
+          : > runtime.env
+          for name in $(compgen -v | grep '^APP_ENV_' | sort); do
+            printf '%s=%s\n' "${name#APP_ENV_}" "${!name}" >> runtime.env
+          done
+
+          if grep -vE '^\s*(#.*)?$' "${DATADOG_ENV_FILE}" | grep -qvE '^[A-Z][A-Z0-9_]*='; then
+            echo "::error::${DATADOG_ENV_FILE} 에 KEY=값 형식이 아닌 줄이 있습니다"
+            exit 1
+          fi
+          grep -E '^[A-Z][A-Z0-9_]*=' "${DATADOG_ENV_FILE}" >> runtime.env
+
+          duplicated=$(cut -d= -f1 runtime.env | sort | uniq -d | paste -sd' ' -)
+          if [ -n "${duplicated}" ]; then
+            echo "::error::키가 중복됐습니다: ${duplicated}"
+            exit 1
+          fi
+
+          echo "런타임 환경변수 $(wc -l < runtime.env | tr -d ' ')개 생성"
+          cut -d= -f1 runtime.env | paste -sd' ' -
+
       - name: Upload jar and deploy script to S3
         id: upload
         run: |
@@ -163,30 +238,17 @@ jobs:
 
           aws s3 cp "${jars[0]}"            "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/app.jar"
           aws s3 cp pickup/deploy/deploy.sh "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/deploy.sh"
+          aws s3 cp runtime.env             "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/runtime.env"
+          aws s3 cp pickup/deploy/hikaricp-jmx.yaml "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/hikaricp-jmx.yaml"
+          aws s3 cp pickup/deploy/tomcat-jmx.yaml "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/tomcat-jmx.yaml"
+          aws s3 cp pickup/deploy/websocket-jmx.yaml "s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/websocket-jmx.yaml"
           echo "업로드 완료: s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/"
-
-      - name: Prepare image runtime configuration
-        id: image-runtime-config
-        run: |
-          set -euo pipefail
-
-          encoded=$(printf '%s\n' \
-            "IMAGE_STORAGE_BUCKET=${IMAGE_STORAGE_BUCKET}" \
-            "IMAGE_STORAGE_REGION=${IMAGE_STORAGE_REGION}" \
-            "IMAGE_MEDIA_BASE_URL=${IMAGE_MEDIA_BASE_URL}" \
-            "IMAGE_UPLOAD_URL_TTL=${IMAGE_UPLOAD_URL_TTL}" \
-            | base64 -w 0)
-          echo "encoded=${encoded}" >> "$GITHUB_OUTPUT"
 
       - name: Send deploy command via SSM
         id: send-command
         run: |
           set -euo pipefail
 
-          # 파라미터를 JSON 파일로 넘긴다. --parameters 를 인라인으로 쓰면
-          # 중첩 인용부호 때문에 깨지기 쉽다.
-          # \$PATH 는 러너가 아니라 EC2 에서 전개되어야 하므로 이스케이프한다.
-          # SSM Run Command 는 최소 환경으로 실행되어 /snap/bin 이 PATH 에 없다.
           cat > /tmp/ssm-params.json <<JSON
           {
             "commands": [
@@ -194,7 +256,7 @@ jobs:
               "set -e",
               "aws s3 cp s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/deploy.sh /tmp/pickup-deploy.sh --quiet",
               "chmod +x /tmp/pickup-deploy.sh",
-              "/tmp/pickup-deploy.sh s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}/app.jar '${{ steps.image-runtime-config.outputs.encoded }}'"
+              "/tmp/pickup-deploy.sh s3://${DEPLOY_S3_BUCKET}/${S3_PREFIX}"
             ],
             "executionTimeout": ["600"]
           }
@@ -203,7 +265,6 @@ jobs:
           python3 -c "import json; json.load(open('/tmp/ssm-params.json'))" \
             || { echo "::error::SSM 파라미터 JSON 생성 실패"; cat /tmp/ssm-params.json; exit 1; }
 
-          # instance_ids 는 공백 구분 문자열이라 의도적으로 인용하지 않는다.
           command_id=$(aws ssm send-command \
             --document-name AWS-RunShellScript \
             --instance-ids ${{ steps.resolve-targets.outputs.instance_ids }} \
@@ -219,14 +280,9 @@ jobs:
           echo "SSM 명령 전송: ${command_id}"
           echo "${console_url}"
 
-      # aws ssm wait command-executed 는 5초 × 20회 = 100초에서 포기한다.
-      # deploy.sh 는 헬스체크 90초 + 롤백까지 180초를 넘길 수 있어 직접 폴링한다.
       - name: Wait for deploy to finish
         id: wait
         run: |
-          # GitHub 기본 셸은 bash -e 다. 이 스텝은 결과를 모아 마지막에 exit "${overall}" 로
-          # 직접 판정하므로, 중간의 grep 이 "일치 없음"(exit 1)을 반환해도 죽어서는 안 된다.
-          # 성공 배포에는 FAILED_APP_LOG 마커가 없어서 그 grep 이 정상적으로 1을 반환한다.
           set +e
           set -uo pipefail
           cid="${{ steps.send-command.outputs.command_id }}"
@@ -262,22 +318,14 @@ jobs:
             fi
             echo "::endgroup::"
 
-            # deploy.sh 가 찍는 RESULT= 마커로만 판정한다.
-            # 한국어 로그를 grep 하면 "롤백 대상 없음"까지 "롤백됨"으로 잡힌다.
-            # 문자 클래스에 숫자를 포함한다. 빠뜨리면 숫자가 든 마커가 잘려
-            # (예: s3_failed -> "s") case 문에서 "상태 불명"으로 오분류된다.
             r=$(printf '%s' "${out}" | grep -o 'RESULT=[a-z0-9_]*' | tail -1 | cut -d= -f2 || true)
             results="${results} ${r:-unknown}"
 
-            # deploy.sh 가 실패한 버전의 로그에서 뽑아낸 근본 원인.
-            # 이게 있으면 Slack 실패 사유로 이걸 쓴다 (앱이 왜 못 떴는지가 담긴다).
-            # 성공 배포에는 이 마커가 없다. grep 이 1 을 반환해도 진행해야 한다.
             a=$(printf '%s\n' "${out}" | grep -o 'FAILED_APP_LOG=.*' | tail -1 | cut -d= -f2- || true)
             if [ -n "${a}" ]; then
               app_reason="${a}"
             fi
 
-            # 없으면 스크립트의 마지막 [deploy] 줄이 결과 요약에 가장 가깝다.
             l=$(printf '%s\n' "${out}" "${err}" | grep '\[deploy\]' | tail -1 || true)
             if [ -n "${l}" ]; then
               last_line="${l}"
@@ -289,14 +337,10 @@ jobs:
             fi
           done
 
-          # Slack 페이로드는 YAML 이므로 개행·인용부호를 제거하고 길이를 제한한다.
-          # 백틱·$·백슬래시도 지워 두면 이후 단계에서 셸에 노출돼도 안전하다.
           sanitize() {
             printf '%s' "$1" | tr '\n\r\t' '   ' | tr -d '"'"'"'`$\\' | cut -c1-400
           }
 
-          # 인스턴스가 여러 대면 가장 심각한 상태를 대표값으로 쓴다.
-          # 한 대가 정상이어도 다른 한 대가 죽어 있으면 그 사실이 알림에 떠야 한다.
           pick() { printf '%s' "${results}" | grep -qw "$1"; }
           if   pick no_rollback_target;  then rollback_text="롤백 불가 (직전 버전 없음) — 서비스 중단 가능"
           elif pick rollback_failed;     then rollback_text="롤백했으나 헬스체크 실패 — 서비스 중단 가능"
@@ -320,7 +364,6 @@ jobs:
       - name: Determine failed step
         id: failure-info
         if: failure()
-        # deploy.sh 출력에서 온 문자열은 ${{ }} 로 스크립트에 직접 붙이지 않고 env 로 넘긴다.
         env:
           FAILED_INSTANCES: ${{ steps.wait.outputs.failed_instances }}
           LAST_LOG: ${{ steps.wait.outputs.last_log }}
@@ -331,10 +374,13 @@ jobs:
 
           if [ "${{ steps.validate-config.outcome }}" = "failure" ]; then
             FAILED_STEP="배포 설정 검증"
-            FAILED_REASON="필수 Variables/Secrets 가 비어 있거나 형식이 잘못되었습니다. AWS_REGION, DEPLOY_S3_BUCKET, IMAGE_STORAGE_BUCKET, IMAGE_STORAGE_REGION, IMAGE_MEDIA_BASE_URL, IMAGE_UPLOAD_URL_TTL, AWS_DEPLOY_ROLE_ARN 을 확인하세요."
+            FAILED_REASON="필수 Variables/Secrets 가 비어 있거나 형식이 잘못되었습니다. 워크플로 로그의 '비어 있습니다'/'형식이 올바르지 않습니다' 목록과 backend-cd.yml 의 APP_ENV_ 블록을 대조하세요."
           elif [ "${{ steps.download-jar.outcome }}" = "failure" ]; then
             FAILED_STEP="JAR 아티팩트 다운로드"
             FAILED_REASON="CI 워크플로에서 빌드된 app-jar 아티팩트를 찾지 못했습니다."
+          elif [ "${{ steps.runtime-env.outcome }}" = "failure" ]; then
+            FAILED_STEP="런타임 환경변수 파일 생성"
+            FAILED_REASON="runtime.env 생성에 실패했습니다. backend-cd.yml 의 APP_ENV_ 블록을 확인하세요."
           elif [ "${{ steps.aws-auth.outcome }}" = "failure" ]; then
             FAILED_STEP="AWS OIDC 인증"
             FAILED_REASON="AssumeRoleWithWebIdentity 가 거부됐습니다. IAM 역할 신뢰 정책의 sub 조건(repo/브랜치)과 AWS_DEPLOY_ROLE_ARN 을 확인하세요."
@@ -349,8 +395,6 @@ jobs:
             FAILED_REASON="send-command 가 실패했습니다. 배포 역할의 ssm:SendCommand 권한과 인스턴스 태그 조건을 확인하세요."
           elif [ "${{ steps.wait.outcome }}" = "failure" ]; then
             FAILED_STEP="EC2 배포 실행"
-            # 앱이 왜 못 떴는지가 담긴 APP_REASON 을 우선한다.
-            # deploy.sh 의 마지막 줄은 "롤백 완료" 같은 결과 요약이라 원인이 아니다.
             if [ -n "${APP_REASON:-}" ]; then
               FAILED_REASON="${APP_REASON}"
             else

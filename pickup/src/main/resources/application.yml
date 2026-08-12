@@ -6,7 +6,7 @@ spring:
     group:
       local: dev
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/pickup?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/pickup?serverTimezone=UTC&characterEncoding=UTF-8}
     username: ${DB_USERNAME:pickup}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -37,6 +37,20 @@ spring:
     scheduling:
       pool:
         size: 2
+management:
+  statsd:
+    metrics:
+      export:
+        enabled: true
+        flavor: datadog
+        host: ${DD_AGENT_HOST:localhost}
+        port: ${DD_DOGSTATSD_PORT:8125}
+        protocol: udp
+  metrics:
+    tags:
+      service: ${DD_SERVICE:pickup-api}
+      env: ${DD_ENV:production}
+      version: ${DD_VERSION:unknown}
 auth:
   token:
     issuer: ${JWT_ISSUER:pickup}
@@ -56,7 +70,16 @@ scheduler:
     fixed-delay: ${SCHEDULER_AUCTION_FIXED_DELAY:1s}
   outbox:
     enabled: ${SCHEDULER_OUTBOX_ENABLED:false}
-    fixed-delay: ${SCHEDULER_OUTBOX_FIXED_DELAY:1s}
+    fixed-delay: ${SCHEDULER_OUTBOX_FIXED_DELAY:200ms}
+  card-sync:
+    enabled: ${SCHEDULER_CARD_SYNC_ENABLED:true}
+    cron: ${SCHEDULER_CARD_SYNC_CRON:0 0 */6 * * *}
+    recent-days: ${SCHEDULER_CARD_SYNC_RECENT_DAYS:90}
+    max-sets-per-run: ${SCHEDULER_CARD_SYNC_MAX_SETS_PER_RUN:10}
+
+tcgdex:
+  base-url: ${TCGDEX_BASE_URL:https://api.tcgdex.net/v2/en}
+  timeout: ${TCGDEX_TIMEOUT:10s}
 
 event:
   sqs:

@@ -3,9 +3,11 @@ package com.ootd.pickup.member.service;
 import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_PASSWORD;
+import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_ALREADY_WITHDRAWN;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_LOGIN_ID_ALREADY_EXISTS;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NICKNAME_ALREADY_EXISTS;
-import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
+import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_WITHDRAW_NOT_ALLOWED;
+import static com.ootd.pickup.global.exception.ExceptionCode.POINT_NOT_FOUND;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.auction.domain.Auction;
@@ -13,15 +15,18 @@ import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
 import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
+import com.ootd.pickup.bid.service.BidService;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.service.ImageUrlResolver;
@@ -29,16 +34,22 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.dto.*;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
+import com.ootd.pickup.point.domain.PointTransaction;
+import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import com.ootd.pickup.point.repository.PointRepository;
+import com.ootd.pickup.point.repository.PointTransactionRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -47,14 +58,19 @@ public class MemberService {
   private static final int BCRYPT_COST_FACTOR = 12;
   private static final int DEFAULT_SIZE = 20;
   private static final int MAX_SIZE = 100;
+
   private final MemberRepository memberRepository;
   private final MemberManageService memberManageService;
   private final PointRepository pointRepository;
+  private final PointTransactionRepository pointTransactionRepository;
   private final ImageUrlResolver imageUrlResolver;
   private final BidRepository bidRepository;
   private final CertificateRepository certificateRepository;
   private final WatchRepository watchRepository;
   private final ConsignmentImageRepository consignmentImageRepository;
+  private final ConsignmentService consignmentService;
+  private final BidService bidService;
+  private final AuthService authService;
 
   public MemberResponse createMember(MemberRequest memberRequest) {
     if (memberRepository.existsByLoginId(memberRequest.loginId())) {
@@ -76,6 +92,8 @@ public class MemberService {
     }
 
     pointRepository.save(Point.create(savedMember.getMemberId()));
+    log.info(
+        "회원가입했습니다 - memberId={}, loginId={}", savedMember.getMemberId(), savedMember.getLoginId());
     return new MemberResponse(
         savedMember.getMemberId(), savedMember.getLoginId(), savedMember.getNickname(), null);
   }
@@ -99,7 +117,7 @@ public class MemberService {
     }
 
     if (nickname != null
-        && !nickname.equals(member.getNickname())
+        && !nickname.equalsIgnoreCase(member.getNickname())
         && memberRepository.existsByNickname(nickname)) {
       throw new PickUpException(MEMBER_NICKNAME_ALREADY_EXISTS);
     }
@@ -111,6 +129,9 @@ public class MemberService {
     member.updateProfile(nickname, passwordHash);
     String previousObjectKey = member.getProfileImageObjectKey();
     updateProfileImage(member, updateMyProfileRequest, finalizedProfileObjectKey);
+    if (passwordHash != null) {
+      log.info("비밀번호를 변경했습니다 - memberId={}", memberId);
+    }
     return new ProfileUpdateResult(toMyProfileResponse(member), previousObjectKey);
   }
 
@@ -119,8 +140,24 @@ public class MemberService {
     Point point =
         pointRepository
             .findByMemberId(memberId)
-            .orElseThrow(() -> new PickUpException(MEMBER_NOT_FOUND));
-    return new PointBalanceResponse(point.getBalance());
+            .orElseThrow(() -> new PickUpException(POINT_NOT_FOUND));
+    return new PointBalanceResponse(
+        point.getBalance(), point.getReservedBalance(), point.getAvailableBalance());
+  }
+
+  @Transactional(readOnly = true)
+  public CursorPageResponse<PointTransactionItemResponse, String> getMyPointTransactions(
+      Long memberId, GetPointTransactionsRequest request) {
+    int size = resolveSize(request.size());
+    Long cursorId = decodeCursor(request.cursor());
+    List<PointTransaction> fetched =
+        pointTransactionRepository.findAllByMemberId(memberId, cursorId, size + 1);
+    boolean hasNext = fetched.size() > size;
+    List<PointTransaction> page = hasNext ? fetched.subList(0, size) : fetched;
+    List<PointTransactionItemResponse> items =
+        page.stream().map(PointTransactionItemResponse::fromEntity).toList();
+    String nextCursor = hasNext ? String.valueOf(page.getLast().getPointTransactionId()) : null;
+    return CursorPageResponse.from(items, hasNext, nextCursor);
   }
 
   @Transactional(readOnly = true)
@@ -217,11 +254,9 @@ public class MemberService {
   }
 
   private List<MyBidListItemResponse> assembleMyBids(List<Bid> myLastBids) {
-    List<Long> auctionIds = myLastBids.stream().map(b -> b.getAuction().getAuctionId()).toList();
     List<Long> consignmentIds =
         myLastBids.stream().map(b -> b.getAuction().getConsignment().getConsignmentId()).toList();
 
-    Map<Long, Long> currentPrices = bidRepository.findCurrentPricesByAuctionIds(auctionIds);
     Map<Long, Certificate> certificatesByConsignmentId =
         certificateRepository.findAllByConsignmentIds(consignmentIds).stream()
             .collect(Collectors.toMap(c -> c.getConsignment().getConsignmentId(), c -> c));
@@ -229,12 +264,11 @@ public class MemberService {
     return myLastBids.stream()
         .map(
             myLastBid -> {
-              Long auctionId = myLastBid.getAuction().getAuctionId();
               Long consignmentId = myLastBid.getAuction().getConsignment().getConsignmentId();
               return MyBidListItemResponse.of(
                   myLastBid,
                   certificatesByConsignmentId.get(consignmentId),
-                  currentPrices.getOrDefault(auctionId, myLastBid.getAuction().getStartingPrice()));
+                  myLastBid.getAuction().getCurrentPrice());
             })
         .toList();
   }
@@ -282,6 +316,24 @@ public class MemberService {
   private MyProfileResponse toMyProfileResponse(Member member) {
     return MyProfileResponse.from(
         member, imageUrlResolver.resolve(member.getProfileImageObjectKey()));
+  }
+
+  public void withdrawMember(Long memberId, WithdrawMemberRequest withdrawMemberRequest) {
+    Member member = memberManageService.getMemberById(memberId);
+
+    if (member.isWithdrawn()) {
+      throw new PickUpException(MEMBER_ALREADY_WITHDRAWN);
+    }
+    if (!member.isPasswordMatched(withdrawMemberRequest.password())) {
+      throw new PickUpException(INVALID_PASSWORD);
+    }
+    if (consignmentService.hasActiveConsignment(memberId) || bidService.hasActiveBid(memberId)) {
+      throw new PickUpException(MEMBER_WITHDRAW_NOT_ALLOWED);
+    }
+
+    member.withdraw();
+    authService.revokeAllRefreshTokens(memberId);
+    log.info("회원이 탈퇴했습니다 - memberId={}", memberId);
   }
 
   public record ProfileUpdateResult(MyProfileResponse response, String previousObjectKey) {}

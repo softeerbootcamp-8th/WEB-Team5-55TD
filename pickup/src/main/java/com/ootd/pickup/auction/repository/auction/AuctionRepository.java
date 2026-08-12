@@ -14,13 +14,22 @@ public interface AuctionRepository {
 
   Optional<Auction> findByIdForUpdate(Long auctionId);
 
+  long countBySellerMemberIdAndStatus(Long sellerMemberId, AuctionStatus status);
+
   List<Auction> searchAuctions(
-      String q, List<AuctionStatus> statuses, AuctionSort sort, AuctionCursor cursor, int limit);
+      String q,
+      List<AuctionStatus> statuses,
+      AuctionSort sort,
+      AuctionCursor cursor,
+      int limit,
+      Long sellerId,
+      Long cardId,
+      Long excludeAuctionId);
 
   Optional<Auction> findByIdWithConsignmentAndCard(Long auctionId);
 
   List<Auction> findAllBySellerMemberIdWithCard(
       Long sellerMemberId, List<AuctionStatus> statuses, SalesCursor cursor, int limit);
 
-  Map<Long, Long> findAuctionIdsByConsignmentIn(List<Consignment> consignments);
+  Map<Long, AuctionSummary> findAuctionSummariesByConsignmentIn(List<Consignment> consignments);
 }

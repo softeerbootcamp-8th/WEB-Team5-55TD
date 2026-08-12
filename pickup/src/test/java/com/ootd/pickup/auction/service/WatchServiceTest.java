@@ -128,6 +128,15 @@ class WatchServiceTest {
     then(watchRepository).should().deleteByMemberIdAndAuctionId(1L, 100L);
   }
 
+  @Test
+  void 경매종료로_관심을_정리하면_해당_경매의_관심을_삭제한다() {
+    // when
+    watchService.deleteWatchesByAuctionId(100L);
+
+    // then
+    then(watchRepository).should().deleteByAuctionId(100L);
+  }
+
   private Member createMember(Long memberId) {
     Member member = Member.create("loginId", "password", "닉네임");
     ReflectionTestUtils.setField(member, "memberId", memberId);

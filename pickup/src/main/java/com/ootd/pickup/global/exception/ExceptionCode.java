@@ -126,7 +126,21 @@ public enum ExceptionCode {
       HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다."),
   POINT_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.POINT_NOT_FOUND, "포인트 정보를 찾을 수 없습니다."),
   INSUFFICIENT_BID_LIMIT(
-      HttpStatus.CONFLICT, ClientExceptionCode.INSUFFICIENT_BID_LIMIT, "보유 포인트가 입찰 금액보다 적습니다.");
+      HttpStatus.CONFLICT, ClientExceptionCode.INSUFFICIENT_BID_LIMIT, "보유 포인트가 입찰 금액보다 적습니다."),
+  STARTING_PRICE_TOO_LARGE(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.STARTING_PRICE_TOO_LARGE,
+      "입력한 시작가가 너무 커서 처리할 수 없습니다."),
+  INVALID_CHARGE_AMOUNT(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.INVALID_CHARGE_AMOUNT,
+      "충전 금액은 100,000 이상 10,000,000 이하여야 합니다."),
+  MEMBER_ALREADY_WITHDRAWN(
+      HttpStatus.CONFLICT, ClientExceptionCode.MEMBER_ALREADY_WITHDRAWN, "이미 탈퇴한 회원입니다."),
+  MEMBER_WITHDRAW_NOT_ALLOWED(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.MEMBER_WITHDRAW_NOT_ALLOWED,
+      "진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

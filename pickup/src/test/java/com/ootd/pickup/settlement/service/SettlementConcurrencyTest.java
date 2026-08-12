@@ -16,6 +16,7 @@ import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointJpaRepository;
+import com.ootd.pickup.point.repository.PointTransactionJpaRepository;
 import com.ootd.pickup.settlement.domain.Settlement;
 import com.ootd.pickup.settlement.domain.SettlementType;
 import com.ootd.pickup.settlement.repository.SettlementJpaRepository;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * SettlementService의 정산 처리를 실제 DB 트랜잭션과 락으로 검증한다.
@@ -51,10 +53,12 @@ class SettlementConcurrencyTest {
   @Autowired private MemberJpaRepository memberJpaRepository;
   @Autowired private CardJpaRepository cardJpaRepository;
   @Autowired private PointJpaRepository pointJpaRepository;
+  @Autowired private PointTransactionJpaRepository pointTransactionJpaRepository;
   @Autowired private SettlementJpaRepository settlementJpaRepository;
 
   @AfterEach
   void tearDown() {
+    pointTransactionJpaRepository.deleteAll();
     settlementJpaRepository.deleteAll();
     pointJpaRepository.deleteAll();
     auctionJpaRepository.deleteAll();
@@ -212,7 +216,7 @@ class SettlementConcurrencyTest {
                 .cardNumber("001")
                 .setName("테스트 세트")
                 .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
+                .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/card.png")
                 .build());
     Consignment consignment =
@@ -220,9 +224,9 @@ class SettlementConcurrencyTest {
             Consignment.builder()
                 .card(card)
                 .sellerMember(consignmentSeller)
-                .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                .status(ConsignmentStatus.IN_AUCTION)
                 .build());
-    return auctionJpaRepository.saveAndFlush(
+    Auction auction =
         Auction.builder()
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
@@ -231,7 +235,9 @@ class SettlementConcurrencyTest {
             .startingPrice(10_000L)
             .reservePrice(10_000L)
             .bidIncrement(500L)
-            .build());
+            .build();
+    ReflectionTestUtils.setField(auction, "legacyUnreservedBid", true);
+    return auctionJpaRepository.saveAndFlush(auction);
   }
 
   private Point seedPoint(Long memberId, long balance) {

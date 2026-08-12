@@ -48,7 +48,8 @@ public class AuctionStatusTransitionService {
    */
   private static final Limit BATCH_LIMIT = Limit.of(100);
 
-  private final AuctionSchedulerJpaRepository auctionSchedulerJpaRepository;
+  private final AuctionSchedulerRepository auctionSchedulerJpaRepository;
+  private final AuctionSchedulerStatusUpdateRepository auctionSchedulerStatusUpdateRepository;
   private final EventProducer eventProducer;
   private final EventPublisher eventPublisher;
 
@@ -59,6 +60,7 @@ public class AuctionStatusTransitionService {
         auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
             SCHEDULED, BATCH_LIMIT);
     if (auctionIds.isEmpty()) {
+      log.debug("시작 대상 경매가 없습니다");
       return;
     }
 
@@ -136,6 +138,7 @@ public class AuctionStatusTransitionService {
         auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
             ONGOING, BATCH_LIMIT);
     if (auctionIds.isEmpty()) {
+      log.debug("종료 대상 경매가 없습니다");
       return;
     }
 
@@ -154,6 +157,10 @@ public class AuctionStatusTransitionService {
     if (updated == 0) {
       return;
     }
+
+    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToSoldByAuctionIdIn(auctionIds);
+    auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToRegisterableByAuctionIdIn(
+        auctionIds);
 
     // 낙찰 입찰은 두 계열이 모두 필요로 한다. 한 번만 조회해 함께 쓴다.
     List<Auction> closedAuctions = findClosedAuctions(auctionIds);
@@ -223,6 +230,9 @@ public class AuctionStatusTransitionService {
 
   /** 유찰된 경매는 낙찰 입찰이 없다. 빈 맵에 null 키로 조회하면 예외가 나므로 먼저 걸러낸다. */
   private Bid winningBidOf(Auction auction, Map<Long, Bid> winningBidsById) {
+    if (auction.getAuctionStatus() != WON) {
+      return null;
+    }
     Long winningBidId = auction.getWinningBidId();
     return winningBidId == null ? null : winningBidsById.get(winningBidId);
   }

@@ -18,10 +18,17 @@ scheduler:
   # 전이 로직 자체는 AuctionScheduler 빈의 메서드를 직접 호출해 검증한다.
   enabled: false
 
+management:
+  # 테스트에서 실제 Datadog Agent로 UDP를 전송하지 않는다.
+  statsd:
+    metrics:
+      export:
+        enabled: false
+
 auth:
   token:
     issuer: pickup-test
-    secret: ${JWT_TEST_SECRET:zbXk82Pja7kPR3Pe684ZMsxM8LldVy8//HITTkv3XsE=}
+    secret: ${JWT_TEST_SECRET}
     access-token-ttl: 15m
   cookie:
     secure: true

@@ -251,6 +251,7 @@ class AuctionControllerTest {
         .andExpect(jsonPath("$.consignmentId").value(100L))
         .andExpect(jsonPath("$.grade").value("PSA 10"))
         .andExpect(jsonPath("$.cardState").value("Gem Mint"))
+        .andExpect(jsonPath("$.sellerId").value(42L))
         .andExpect(jsonPath("$.sellerNickname").value("카드마스터샵"))
         .andExpect(jsonPath("$.certificate.serialNumber").value("PSA-84213907"))
         .andExpect(jsonPath("$.images[0].imageUrl").value("https://img-front"))
@@ -274,7 +275,7 @@ class AuctionControllerTest {
     return new AuctionDetailResponse(
         1L,
         100L,
-        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "MINT", "https://img"),
+        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "레어 홀로", "https://img"),
         "PSA 10",
         AuctionStatus.SCHEDULED,
         10000L,
@@ -285,6 +286,7 @@ class AuctionControllerTest {
         0L,
         false,
         "https://img-front",
+        42L,
         "카드마스터샵",
         new CertificateResponse(
             1L, "PSA-84213907", CertificationBody.PSA, "10", LocalDate.of(2026, 6, 30)),
@@ -293,14 +295,15 @@ class AuctionControllerTest {
         null,
         500L,
         10000L,
-        null);
+        null,
+        false);
   }
 
   private AuctionListItemResponse createListItem() {
     return new AuctionListItemResponse(
         1L,
         100L,
-        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "MINT", "https://img"),
+        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "레어 홀로", "https://img"),
         "PSA 10",
         AuctionStatus.SCHEDULED,
         10000L,

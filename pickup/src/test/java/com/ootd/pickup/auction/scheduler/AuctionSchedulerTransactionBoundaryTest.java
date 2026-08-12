@@ -154,7 +154,7 @@ class AuctionSchedulerTransactionBoundaryTest {
                       .cardNumber(unique)
                       .setName("트랜잭션 경계 테스트 세트")
                       .language(Language.KOREAN)
-                      .rarity(Rarity.MINT)
+                      .rarity(Rarity.RARE_HOLO)
                       .imageUrl("https://example.com/boundary.png")
                       .build());
           Consignment consignment =
@@ -162,7 +162,7 @@ class AuctionSchedulerTransactionBoundaryTest {
                   Consignment.builder()
                       .card(card)
                       .sellerMember(sellerMember)
-                      .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                      .status(ConsignmentStatus.IN_AUCTION)
                       .build());
           Auction auction =
               auctionJpaRepository.save(

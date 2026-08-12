@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -58,6 +59,9 @@ public class Auction {
   @Column(name = "winning_price")
   private Long winningPrice;
 
+  @Column(name = "legacy_unreserved_bid", nullable = false)
+  private boolean legacyUnreservedBid;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -77,19 +81,39 @@ public class Auction {
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
-    this.createdAt = LocalDateTime.now();
+    this.legacyUnreservedBid = false;
+    this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public Long getRemainingSeconds() {
     if (auctionStatus != AuctionStatus.ONGOING || endedAt == null) {
       return null;
     }
-    return Math.max(Duration.between(LocalDateTime.now(), endedAt).getSeconds(), 0);
+    return Math.max(Duration.between(LocalDateTime.now(ZoneOffset.UTC), endedAt).getSeconds(), 0);
   }
 
   public void updateWinningBid(Long winningBidId, Long winningPrice) {
     this.winningBidId = winningBidId;
     this.winningPrice = winningPrice;
+  }
+
+  /** 종료 5분 이내의 유효 입찰이면 해당 입찰 시각부터 다시 5분을 보장한다. */
+  public boolean extendEndAtForSoftClose(LocalDateTime bidAt) {
+    if (auctionStatus != AuctionStatus.ONGOING || endedAt == null || !endedAt.isAfter(bidAt)) {
+      return false;
+    }
+
+    LocalDateTime softCloseBoundary = bidAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+    if (endedAt.isAfter(softCloseBoundary)) {
+      return false;
+    }
+
+    endedAt = softCloseBoundary;
+    return true;
+  }
+
+  public void markBidReserved() {
+    this.legacyUnreservedBid = false;
   }
 
   public Long getCurrentPrice() {
