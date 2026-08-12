@@ -64,6 +64,11 @@ public class AuthService {
     refreshTokenRepository.delete(tokenHash);
   }
 
+  /** 회원이 가진 모든 기기의 리프레시 토큰을 회수한다. 탈퇴 후 재로그인을 막기 위해 쓴다. */
+  public void revokeAllRefreshTokens(Long memberId) {
+    refreshTokenRepository.deleteByMemberId(memberId);
+  }
+
   public RefreshResponse refresh(String refreshToken) {
     if (refreshToken == null || refreshToken.isBlank()) {
       throw new PickUpException(INVALID_REFRESH_TOKEN);

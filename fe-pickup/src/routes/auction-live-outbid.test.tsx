@@ -60,7 +60,10 @@ vi.mock("@tanstack/react-query", () => ({
     },
     isPending: false,
   }),
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+  }),
 }));
 vi.mock("@/api/auctions", () => ({ getAuctionDetail: vi.fn() }));
 vi.mock("@/api/bids", () => ({
