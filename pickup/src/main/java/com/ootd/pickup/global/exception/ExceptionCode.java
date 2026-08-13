@@ -68,6 +68,10 @@ public enum ExceptionCode {
       "대표로 보여줄 진행 중인 경매가 없습니다."),
   WATCH_ALREADY_EXISTS(
       HttpStatus.CONFLICT, ClientExceptionCode.WATCH_ALREADY_EXISTS, "이미 관심 등록한 경매입니다."),
+  AUCTION_SELLER_WATCH_FORBIDDEN(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.AUCTION_SELLER_WATCH_FORBIDDEN,
+      "판매자는 본인의 경매에 관심 등록할 수 없습니다."),
   AUCTION_NOT_STARTED(
       HttpStatus.CONFLICT, ClientExceptionCode.AUCTION_NOT_STARTED, "아직 시작되지 않은 경매입니다."),
   AUCTION_ENDED(HttpStatus.CONFLICT, ClientExceptionCode.AUCTION_ENDED, "이미 종료된 경매입니다."),

@@ -32,6 +32,10 @@ public class WatchService {
             .findById(auctionId)
             .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
 
+    if (auction.getConsignment().getSellerMember().getMemberId().equals(memberId)) {
+      throw new PickUpException(AUCTION_SELLER_WATCH_FORBIDDEN);
+    }
+
     Watch watch;
     try {
       watch = watchRepository.save(Watch.builder().member(member).auction(auction).build());
