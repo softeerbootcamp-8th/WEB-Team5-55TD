@@ -176,6 +176,20 @@ class MemberServiceTest {
     assertThat(response.loginId()).isEqualTo("pickup-user");
     assertThat(response.nickname()).isEqualTo("픽업회원");
     assertThat(response.profileImageUrl()).isNull();
+    assertThat(response.oauthProvider()).isNull();
+  }
+
+  @Test
+  void 소셜_가입_회원을_조회하면_가입_제공자를_반환한다() {
+    // given
+    Member member = Member.createOAuth("KAKAO", "12345", "kakao_12345", null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when
+    MyProfileResponse response = memberService.getMyProfile(1L);
+
+    // then
+    assertThat(response.oauthProvider()).isEqualTo("KAKAO");
   }
 
   @Test
