@@ -6,21 +6,23 @@ import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class KakaoMemberService {
   private static final String PROVIDER = "KAKAO";
-  private static final int MAX_CREATE_ATTEMPTS = 3;
 
   private final MemberRepository memberRepository;
   private final PointRepository pointRepository;
 
+  /**
+   * 동시에 같은 랜덤 닉네임 또는 같은 카카오 계정으로 가입이 몰리면 유니크 제약 위반으로 실패할 수 있다. 이 메서드는 단일 트랜잭션에서 한 번만 시도한다 — 실패 시 이
+   * 트랜잭션 안에서 재시도하지 않는다(Spring이 첫 실패 시점에 트랜잭션을 rollback-only로 표시해, 같은 트랜잭션 안의 재시도는 커밋 시점에
+   * UnexpectedRollbackException으로 조용히 무효화되기 때문). 재시도가 필요하면 호출자(KakaoAuthService)가 이 메서드를 새 트랜잭션으로
+   * 다시 호출해야 한다.
+   */
   @Transactional
   public KakaoMemberResult findOrCreate(KakaoClient.KakaoUser user) {
     return memberRepository
@@ -30,22 +32,12 @@ public class KakaoMemberService {
   }
 
   private Member createMember(KakaoClient.KakaoUser user) {
-    for (int attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt++) {
-      String nickname = RandomNicknameGenerator.generate(memberRepository::existsByNickname);
-      try {
-        Member member =
-            memberRepository.save(
-                Member.createOAuth(PROVIDER, user.subject(), nickname, user.profileImageUrl()));
-        pointRepository.save(Point.create(member.getMemberId()));
-        return member;
-      } catch (DataIntegrityViolationException exception) {
-        if (attempt == MAX_CREATE_ATTEMPTS) {
-          throw exception;
-        }
-        log.warn("카카오 회원 생성 중 닉네임 선점 충돌로 재시도합니다 - subject={}, attempt={}", user.subject(), attempt);
-      }
-    }
-    throw new IllegalStateException("도달할 수 없는 코드입니다.");
+    String nickname = RandomNicknameGenerator.generate(memberRepository::existsByNickname);
+    Member member =
+        memberRepository.save(
+            Member.createOAuth(PROVIDER, user.subject(), nickname, user.profileImageUrl()));
+    pointRepository.save(Point.create(member.getMemberId()));
+    return member;
   }
 
   public record KakaoMemberResult(Member member, boolean created) {}
