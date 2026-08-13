@@ -5,6 +5,7 @@ export interface KakaoLoginResponse {
   loginId: string;
   nickname: string;
   profileImageUrl?: string;
+  needsNickname: boolean;
 }
 
 export function startKakaoLogin() {

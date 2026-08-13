@@ -100,7 +100,7 @@ class MemberControllerTest {
   @Test
   void 인증된_회원이_내_정보를_조회하면_200과_회원정보를_반환한다() throws Exception {
     // given
-    MyProfileResponse response = new MyProfileResponse(1L, "pickup-user", "피카츄", null);
+    MyProfileResponse response = new MyProfileResponse(1L, "pickup-user", "피카츄", null, null);
     given(memberService.getMyProfile(1L)).willReturn(response);
 
     // when & then
@@ -121,7 +121,7 @@ class MemberControllerTest {
   void 인증된_회원이_일부_정보를_수정하면_200과_수정된_회원정보를_반환한다() throws Exception {
     // given
     UpdateMyProfileRequest request = new UpdateMyProfileRequest("라이츄회원", null, null, null);
-    MyProfileResponse response = new MyProfileResponse(1L, "pickup-user", "라이츄회원", null);
+    MyProfileResponse response = new MyProfileResponse(1L, "pickup-user", "라이츄회원", null, null);
     given(profileApplicationService.updateMyProfile(1L, request)).willReturn(response);
 
     // when & then

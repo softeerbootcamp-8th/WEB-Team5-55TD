@@ -393,6 +393,110 @@ class AuctionSearchIntegrationTest {
         .andExpect(jsonPath("$.items[0].auctionId").value(other.getAuctionId()));
   }
 
+  @Test
+  void searchField가_AUCTION_TITLE이면_경매명으로만_찾는다() throws Exception {
+    // given
+    Card card = createCard("리자몽", "4/102", "Base Set", Language.JAPANESE);
+    Consignment consignment = createConsignment(card, createMember("titleSeller"));
+    Auction titled = createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null, "리자몽 단독 출품전");
+    createAuction(consignment, AuctionStatus.SCHEDULED, 2000L, null, "피카츄 기획전");
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "단독 출품전").param("searchField", "AUCTION_TITLE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(titled.getAuctionId()));
+
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽").param("searchField", "AUCTION_TITLE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(titled.getAuctionId()));
+  }
+
+  @Test
+  void searchField가_CARD_NAME이면_세트명은_찾지_못한다() throws Exception {
+    // given
+    Card card = createCard("리자몽", "4/102", "정글 컬렉션", Language.JAPANESE);
+    Auction auction =
+        createAuction(
+            createConsignment(card, createMember("cardNameSeller")),
+            AuctionStatus.SCHEDULED,
+            1000L,
+            null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽").param("searchField", "CARD_NAME"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(auction.getAuctionId()));
+
+    mockMvc
+        .perform(get("/auctions").param("q", "정글 컬렉션").param("searchField", "CARD_NAME"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0));
+  }
+
+  @Test
+  void searchField가_SELLER이면_판매자_닉네임으로_찾는다() throws Exception {
+    // given
+    Card card = createCard("리자몽", "4/102", "Base Set", Language.JAPANESE);
+    Auction target =
+        createAuction(
+            createConsignment(card, createMember("포켓몬마스터민제")),
+            AuctionStatus.SCHEDULED,
+            1000L,
+            null);
+    createAuction(
+        createConsignment(card, createMember("다른판매자")), AuctionStatus.SCHEDULED, 2000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "마스터민제").param("searchField", "SELLER"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(target.getAuctionId()));
+  }
+
+  @Test
+  void searchField를_생략하면_경매명과_판매자까지_함께_훑는다() throws Exception {
+    // given
+    Card card = createCard("피카츄", "025/102", "Jungle", Language.KOREAN);
+    Auction byTitle =
+        createAuction(
+            createConsignment(card, createMember("allFieldSellerA")),
+            AuctionStatus.SCHEDULED,
+            1000L,
+            null,
+            "리자몽 기획전");
+    Auction bySeller =
+        createAuction(
+            createConsignment(card, createMember("리자몽수집가")), AuctionStatus.SCHEDULED, 2000L, null);
+    createAuction(
+        createConsignment(card, createMember("allFieldSellerC")),
+        AuctionStatus.SCHEDULED,
+        3000L,
+        null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽").param("sort", "PRICE_ASC"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].auctionId").value(byTitle.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(bySeller.getAuctionId()));
+  }
+
+  @Test
+  void 지원하지_않는_searchField면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽").param("searchField", "SELLER_EMAIL"))
+        .andExpect(status().isBadRequest());
+  }
+
   private String extractCursor(String json) {
     JsonNode root = objectMapper.readTree(json);
     return root.get("cursor").asText();
@@ -403,7 +507,10 @@ class AuctionSearchIntegrationTest {
   }
 
   private Consignment createConsignment(Card card) {
-    Member seller = createMember("seller" + System.identityHashCode(card));
+    return createConsignment(card, createMember("seller" + System.identityHashCode(card)));
+  }
+
+  private Consignment createConsignment(Card card, Member seller) {
     Consignment consignment =
         Consignment.builder()
             .card(card)
@@ -433,9 +540,18 @@ class AuctionSearchIntegrationTest {
 
   private Auction createAuction(
       Consignment consignment, AuctionStatus status, Long startingPrice, LocalDateTime endedAt) {
+    return createAuction(consignment, status, startingPrice, endedAt, "테스트 제목");
+  }
+
+  private Auction createAuction(
+      Consignment consignment,
+      AuctionStatus status,
+      Long startingPrice,
+      LocalDateTime endedAt,
+      String title) {
     Auction auction =
         Auction.builder()
-            .title("테스트 제목")
+            .title(title)
             .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().plusDays(1))

@@ -105,7 +105,9 @@ describe("AccountSettingsPage", () => {
         "새 비밀번호는 영문·숫자·특수문자 중 2가지 이상 조합 8~16자여야 합니다.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("현재 비밀번호를 입력해 주세요.")).toBeInTheDocument();
+    expect(
+      screen.getByText("현재 비밀번호를 입력해 주세요."),
+    ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("새 비밀번호"), {
       target: { value: "pickup12!" },
     });
@@ -161,5 +163,47 @@ describe("AccountSettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "회원 탈퇴" }));
     fireEvent.click(screen.getByRole("button", { name: "네" }));
     expect(withdrawMutate).toHaveBeenCalledWith();
+  });
+
+  it("카카오 가입 회원에게는 비밀번호 변경 항목을 보여주지 않는다", async () => {
+    const { AccountSettingsPage } =
+      await import("@/components/domain/account-settings-page");
+    profileState = {
+      isLoading: false,
+      isError: false,
+      data: {
+        memberId: 1,
+        nickname: "tester",
+        profileImageUrl: undefined,
+        oauthProvider: "KAKAO",
+      },
+    };
+    render(<AccountSettingsPage />);
+
+    expect(screen.queryByLabelText("현재 비밀번호")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("새 비밀번호")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("새 비밀번호 확인")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/카카오 계정으로 가입해 비밀번호가 없습니다/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("프로필 이미지·닉네임을 변경할 수 있습니다."),
+    ).toBeInTheDocument();
+  });
+
+  it("일반 회원에게는 비밀번호 변경 항목을 계속 보여준다", async () => {
+    const { AccountSettingsPage } =
+      await import("@/components/domain/account-settings-page");
+    profileState = {
+      isLoading: false,
+      isError: false,
+      data: { memberId: 1, nickname: "tester", profileImageUrl: undefined },
+    };
+    render(<AccountSettingsPage />);
+
+    expect(screen.getByLabelText("현재 비밀번호")).toBeInTheDocument();
+    expect(
+      screen.getByText("프로필 이미지·닉네임·비밀번호를 변경할 수 있습니다."),
+    ).toBeInTheDocument();
   });
 });

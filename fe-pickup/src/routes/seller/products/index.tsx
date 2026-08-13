@@ -90,7 +90,7 @@ function ProductListPage() {
         </div>
         <Button asChild className="self-start">
           <Link to="/seller/register">
-            <Plus /> 카드 등록
+            <Plus /> 상품 등록
           </Link>
         </Button>
       </div>

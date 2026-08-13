@@ -121,7 +121,7 @@ describe("consignments api", () => {
     });
   });
 
-  it("상세 이미지를 정렬하고 404는 undefined로 반환한다", async () => {
+  it("상세 이미지를 정렬하고 404·403은 null로 반환한다", async () => {
     get.mockResolvedValueOnce({
       data: {
         consignmentId: 8,
@@ -150,7 +150,11 @@ describe("consignments api", () => {
     const notFound = new axios.AxiosError("missing");
     notFound.response = { status: 404 } as never;
     get.mockRejectedValueOnce(notFound);
-    await expect(getMyConsignmentDetail("404")).resolves.toBeUndefined();
+    await expect(getMyConsignmentDetail("404")).resolves.toBeNull();
+    const forbidden = new axios.AxiosError("forbidden");
+    forbidden.response = { status: 403 } as never;
+    get.mockRejectedValueOnce(forbidden);
+    await expect(getMyConsignmentDetail("403")).resolves.toBeNull();
     await deleteMyConsignment("8");
     expect(del).toHaveBeenCalledWith("/consignments/8");
   });

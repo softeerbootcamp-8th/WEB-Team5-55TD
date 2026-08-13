@@ -190,7 +190,8 @@ public interface ConsignmentApi {
 
   @Operation(
       summary = "상품 상세 조회",
-      description = "상품 ID로 상품 상세 정보를 조회합니다.",
+      description = "상품 ID로 내가 등록한 상품의 상세 정보를 조회합니다. 다른 셀러가 등록한 상품은 조회할 수 없습니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {
         @ApiResponse(
             responseCode = "200",
@@ -237,12 +238,21 @@ public interface ConsignmentApi {
                             }
                             """))),
         @ApiResponse(
+            responseCode = "401",
+            description = "인증이 필요함 (access-token 쿠키 없음/만료)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "403",
+            description = "본인이 등록한 상품이 아님",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
             responseCode = "404",
             description = "상품을 찾을 수 없음",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<GetConsignmentDetailResponse> getConsignment(
-      @Parameter(description = "상품 ID", required = true) Long consignmentId);
+      @Parameter(description = "상품 ID", required = true) Long consignmentId,
+      @Parameter(hidden = true) Long sellerMemberId);
 
   @Operation(
       summary = "상품 정보 수정",

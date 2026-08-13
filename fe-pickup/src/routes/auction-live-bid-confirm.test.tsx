@@ -14,6 +14,8 @@ const auction = {
   sellerProfileImageUrl: "seller-profile.jpg",
 };
 
+let myNickname: string | null = "collector88";
+
 const mutate = vi.fn(
   (
     price: number,
@@ -67,9 +69,12 @@ vi.mock("@/api/bids", () => ({
   getBidRequestResult: vi.fn().mockResolvedValue({ status: "PENDING" }),
 }));
 vi.mock("@/hooks/use-auction-bid-updates", () => ({
-  useAuctionBidUpdates: () => {},
+  useAuctionBidUpdates: () => "connected",
 }));
-vi.mock("@/lib/auth", () => ({ useIsAuthenticated: () => true }));
+vi.mock("@/lib/auth", () => ({
+  useIsAuthenticated: () => true,
+  useNickname: () => myNickname,
+}));
 vi.mock("sonner", () => ({
   toast: { warning: vi.fn(), success: vi.fn(), error: vi.fn() },
 }));
@@ -189,5 +194,51 @@ describe("입찰 금액 + 버튼", () => {
     fireEvent.click(screen.getByRole("button", { name: /최소 입찰 단위/ }));
 
     expect(screen.getByPlaceholderText(/이상/)).toHaveValue("10500");
+  });
+});
+
+describe("자신이 올린 경매", () => {
+  beforeEach(() => {
+    mutate.mockClear();
+    localStorage.clear();
+  });
+  afterEach(() => {
+    myNickname = "collector88";
+  });
+
+  it("셀러_본인이면_입찰_관련_조작을_모두_막는다", async () => {
+    myNickname = "seller";
+    await renderLivePage();
+
+    expect(screen.getByRole("button", { name: "입찰하기" })).toBeDisabled();
+    expect(screen.getByPlaceholderText(/이상/)).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /최소 입찰 단위/ }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText("자신이 등록한 경매에는 입찰할 수 없습니다."),
+    ).toBeInTheDocument();
+  });
+
+  it("셀러_본인이면_입찰가_옆에_자신의_상품임을_표시한다", async () => {
+    myNickname = "seller";
+    await renderLivePage();
+
+    expect(screen.getByText("자신의 상품")).toBeInTheDocument();
+  });
+
+  it("다른_회원이면_입찰가_옆에_문구를_보여주지_않는다", async () => {
+    await renderLivePage();
+
+    expect(screen.queryByText("자신의 상품")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/이상/)).not.toBeDisabled();
+  });
+
+  it("닉네임을_모르면_막지_않는다", async () => {
+    myNickname = null;
+    await renderLivePage();
+
+    expect(screen.queryByText("자신의 상품")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/이상/)).not.toBeDisabled();
   });
 });

@@ -45,6 +45,10 @@ public class AuthService {
   }
 
   public LoginResponse issueLogin(Member member) {
+    return issueLogin(member, false);
+  }
+
+  public LoginResponse issueLogin(Member member, boolean needsNickname) {
     AccessToken accessToken = accessTokenGenerator.generate(member.getMemberId());
     RefreshToken refreshToken = refreshTokenGenerator.generate();
 
@@ -56,7 +60,8 @@ public class AuthService {
             member.getMemberId(),
             member.getLoginId(),
             member.getNickname(),
-            member.getResolvedProfileImageUrl(imageUrlResolver));
+            member.getResolvedProfileImageUrl(imageUrlResolver),
+            needsNickname);
 
     log.info("로그인했습니다 - memberId={}", member.getMemberId());
     return new LoginResponse(body, accessToken, refreshToken.value());

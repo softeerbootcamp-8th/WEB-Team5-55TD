@@ -26,3 +26,12 @@ export function utcInstantToKstLocalInput(instant: string | number): string {
     typeof instant === "number" ? instant : new Date(instant).getTime();
   return new Date(epochMillis + KST_OFFSET_MILLIS).toISOString().slice(0, 16);
 }
+
+/**
+ * `<input type="date">`용 "오늘" 값("YYYY-MM-DD", KST 벽시계 기준).
+ * 브라우저 로캘 타임존과 무관하게 항상 KST 날짜로 계산한다 — 감정일처럼 미래를
+ * 허용하지 않아야 하는 날짜 필드의 `max` 속성 및 검증에 쓴다.
+ */
+export function todayDateInputValue(): string {
+  return new Date(Date.now() + KST_OFFSET_MILLIS).toISOString().slice(0, 10);
+}
