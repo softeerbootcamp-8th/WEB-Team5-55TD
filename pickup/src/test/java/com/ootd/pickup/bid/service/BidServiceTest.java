@@ -32,6 +32,8 @@ import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.event.EventPublisher;
+import com.ootd.pickup.global.event.NotificationEvent;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
@@ -46,7 +48,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,7 +59,7 @@ class BidServiceTest {
 
   @Mock private MemberRepository memberRepository;
   @Mock private PointReservationService pointReservationService;
-  @Mock private ApplicationEventPublisher applicationEventPublisher;
+  @Mock private EventPublisher eventPublisher;
 
   private BidService bidService;
 
@@ -70,7 +71,7 @@ class BidServiceTest {
             bidRepository,
             memberRepository,
             pointReservationService,
-            applicationEventPublisher);
+            eventPublisher);
   }
 
   @Test
@@ -101,8 +102,9 @@ class BidServiceTest {
     assertThat(auction.getWinningBidId()).isEqualTo(10L);
     assertThat(auction.getWinningPrice()).isEqualTo(10_500L);
     then(auctionRepository).should().save(auction);
-    ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-    then(applicationEventPublisher).should().publishEvent(eventCaptor.capture());
+    ArgumentCaptor<NotificationEvent> eventCaptor =
+        ArgumentCaptor.forClass(NotificationEvent.class);
+    then(eventPublisher).should().publish(eventCaptor.capture());
     assertThat(eventCaptor.getValue())
         .isInstanceOfSatisfying(
             BidRequestSucceededNotificationEvent.class,
