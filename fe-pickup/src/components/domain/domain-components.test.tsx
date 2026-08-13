@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Avatar } from "@/components/domain/avatar";
 import { CardThumb } from "@/components/domain/card-thumb";
+import { ConnectionStatus } from "@/components/domain/connection-status";
 import { Countdown } from "@/components/domain/countdown";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
@@ -127,5 +128,25 @@ describe("공통 도메인 컴포넌트", () => {
     expect(onEnd).toHaveBeenCalledOnce();
     act(() => vi.advanceTimersByTime(2000));
     expect(onEnd).toHaveBeenCalledOnce();
+  });
+
+  it("연결 상태마다 라벨과 색을 다르게 보여준다", () => {
+    const { rerender } = render(<ConnectionStatus status="connected" />);
+    expect(screen.getByRole("status")).toHaveTextContent("실시간");
+    expect(screen.getByRole("status")).toHaveClass(
+      "text-[var(--color-success)]",
+    );
+
+    rerender(<ConnectionStatus status="reconnecting" />);
+    expect(screen.getByRole("status")).toHaveTextContent("재연결 중");
+    expect(screen.getByRole("status")).toHaveClass(
+      "text-[var(--color-warning)]",
+    );
+
+    rerender(<ConnectionStatus status="disconnected" />);
+    expect(screen.getByRole("status")).toHaveTextContent("연결 끊김");
+    expect(screen.getByRole("status")).toHaveClass(
+      "text-[var(--color-danger)]",
+    );
   });
 });

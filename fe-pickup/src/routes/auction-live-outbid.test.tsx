@@ -96,6 +96,7 @@ vi.mock("@/hooks/use-auction-bid-updates", () => ({
     onBidUpdated: (message: Record<string, unknown>) => void;
   }) => {
     onBidUpdated = options.onBidUpdated;
+    return "connected";
   },
 }));
 vi.mock("@/lib/auth", () => ({ useIsAuthenticated: () => true }));

@@ -19,6 +19,7 @@ import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
+import { ConnectionStatus } from "@/components/domain/connection-status";
 import { BidList, RealtimeBidList } from "@/components/domain/bid-list";
 import { Avatar } from "@/components/domain/avatar";
 import { Button } from "@/components/ui/button";
@@ -343,7 +344,7 @@ function LiveAuctionPage() {
     [refreshSnapshot],
   );
 
-  useAuctionBidUpdates({
+  const connectionStatus = useAuctionBidUpdates({
     auctionId: auction.id,
     latestBidId,
     onBidUpdated: applyBidUpdate,
@@ -495,7 +496,10 @@ function LiveAuctionPage() {
             imageUrl={auction.thumbnailUrl}
           />
           <div className="flex flex-col gap-3">
-            <GradeBadge grade={auction.grade} />
+            <div className="flex items-center gap-2">
+              <GradeBadge grade={auction.grade} />
+              <ConnectionStatus status={connectionStatus} />
+            </div>
             <h1 className="text-2xl font-bold">{auction.cardName}</h1>
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
               <Avatar
