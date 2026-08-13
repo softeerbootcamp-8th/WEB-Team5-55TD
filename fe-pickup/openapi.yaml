@@ -1959,6 +1959,9 @@ components:
           type: string
         profileImageUrl:
           type: string
+        oauthProvider:
+          type: string
+          description: 소셜 가입 회원의 제공자(예 KAKAO). 일반 회원은 값이 없다.
     ProfileImageUpdateRequest:
       type: object
       properties:
