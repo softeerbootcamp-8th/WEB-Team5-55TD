@@ -182,6 +182,58 @@ class AuctionSearchIntegrationTest {
   }
 
   @Test
+  void 상태를_여러_개_지정하면_OR로_합쳐서_조회한다() throws Exception {
+    // given — 종료 탭 하나가 WON·PASSED 두 상태를 함께 보내는 것과 같은 형태다.
+    Consignment consignment = createConsignment();
+    Auction won = createAuction(consignment, AuctionStatus.WON, 1000L, null);
+    Auction passed = createAuction(createConsignment(), AuctionStatus.PASSED, 2000L, null);
+    createAuction(createConsignment(), AuctionStatus.ONGOING, 3000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("status", "WON").param("status", "PASSED"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(
+            jsonPath("$.items[*].auctionId")
+                .value(
+                    org.hamcrest.Matchers.containsInAnyOrder(
+                        won.getAuctionId().intValue(), passed.getAuctionId().intValue())));
+  }
+
+  @Test
+  void 같은_상태를_여러_번_보내도_결과는_같다() throws Exception {
+    // given
+    createAuction(createConsignment(), AuctionStatus.ONGOING, 1000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("status", "ONGOING").param("status", "ONGOING"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1));
+  }
+
+  @Test
+  void 상태를_상태_종류보다_많이_보내면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("status", "ONGOING")
+                .param("status", "SCHEDULED")
+                .param("status", "WON")
+                .param("status", "PASSED")
+                .param("status", "ONGOING"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 알_수_없는_상태를_보내면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc.perform(get("/auctions").param("status", "UNKNOWN")).andExpect(status().isBadRequest());
+  }
+
+  @Test
   void limit이_있으면_커서_없이_상위_N개만_반환한다() throws Exception {
     // given
     Consignment consignment = createConsignment();
