@@ -151,7 +151,7 @@ class WatchServiceTest {
   }
 
   private Auction createAuction(Long auctionId) {
-    Auction auction = Auction.builder().build();
+    Auction auction = Auction.builder().title("테스트 제목").description("테스트 설명").build();
     ReflectionTestUtils.setField(auction, "auctionId", auctionId);
     return auction;
   }

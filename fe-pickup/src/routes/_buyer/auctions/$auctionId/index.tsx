@@ -123,13 +123,22 @@ function AuctionDetailPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold">{auction.cardName}</h1>
+            <h1 className="text-2xl font-bold">{auction.title ?? auction.cardName}</h1>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {auction.cardName}
+            </p>
             <p className="text-sm text-[var(--color-text-sub)]">
               {auction.sellerNickname
                 ? `판매자 · ${auction.sellerNickname}`
                 : "검증된 위탁 상품"}
             </p>
           </div>
+
+          {auction.description && (
+            <div className="text-sm whitespace-pre-wrap text-foreground">
+              {auction.description}
+            </div>
+          )}
 
           <div className="rounded-[var(--radius-lg)] border border-border bg-card p-5">
             {isLive ? (

@@ -350,6 +350,8 @@ class AuctionSearchIntegrationTest {
       Consignment consignment, AuctionStatus status, Long startingPrice, LocalDateTime endedAt) {
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().plusDays(1))
             .endedAt(endedAt)
