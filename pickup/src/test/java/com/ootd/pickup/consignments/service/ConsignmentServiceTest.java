@@ -275,8 +275,9 @@ class ConsignmentServiceTest {
   }
 
   @Test
-  void 존재하는_상품ID로_조회하면_상품_상세정보를_반환한다() {
+  void 소유자가_존재하는_상품ID로_조회하면_상품_상세정보를_반환한다() {
     // given
+    Long sellerMemberId = 1L;
     Long consignmentId = 100L;
     Card card = createCard(10L);
     Consignment consignment =
@@ -294,7 +295,8 @@ class ConsignmentServiceTest {
         .willReturn(images);
 
     // when
-    GetConsignmentDetailResponse response = consignmentService.getConsignment(consignmentId);
+    GetConsignmentDetailResponse response =
+        consignmentService.getConsignment(consignmentId, sellerMemberId);
 
     // then
     assertThat(response.consignmentId()).isEqualTo(consignmentId);
@@ -314,6 +316,7 @@ class ConsignmentServiceTest {
   @Test
   void REGISTERABLE이_아닌_상품을_조회하면_경매등록상태가_true다() {
     // given
+    Long sellerMemberId = 1L;
     Long consignmentId = 100L;
     Card card = createCard(10L);
     Consignment consignment = createConsignment(consignmentId, card, ConsignmentStatus.IN_AUCTION);
@@ -326,21 +329,42 @@ class ConsignmentServiceTest {
         .willReturn(List.of());
 
     // when
-    GetConsignmentDetailResponse response = consignmentService.getConsignment(consignmentId);
+    GetConsignmentDetailResponse response =
+        consignmentService.getConsignment(consignmentId, sellerMemberId);
 
     // then
     assertThat(response.auctionRegistered()).isTrue();
   }
 
   @Test
+  void 다른_셀러가_등록한_상품ID로_조회하면_예외가_발생한다() {
+    // given
+    Long otherSellerMemberId = 2L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    // when & then
+    assertThatThrownBy(() -> consignmentService.getConsignment(consignmentId, otherSellerMemberId))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.CONSIGNMENT_READ_OWNER_MISMATCH.getMessage());
+    then(certificateRepository).shouldHaveNoInteractions();
+    then(consignmentImageRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 존재하지_않는_상품ID로_조회하면_예외가_발생한다() {
     // given
+    Long sellerMemberId = 1L;
     Long notExistConsignmentId = 999L;
     given(consignmentRepository.findConsignmentById(notExistConsignmentId))
         .willReturn(Optional.empty());
 
     // when & then
-    assertThatThrownBy(() -> consignmentService.getConsignment(notExistConsignmentId))
+    assertThatThrownBy(
+            () -> consignmentService.getConsignment(notExistConsignmentId, sellerMemberId))
         .isInstanceOf(PickUpException.class);
     then(certificateRepository).shouldHaveNoInteractions();
     then(consignmentImageRepository).shouldHaveNoInteractions();
@@ -349,6 +373,7 @@ class ConsignmentServiceTest {
   @Test
   void 상품에_연결된_인증서를_찾을_수_없으면_예외가_발생한다() {
     // given
+    Long sellerMemberId = 1L;
     Long consignmentId = 100L;
     Consignment consignment =
         createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
@@ -358,7 +383,7 @@ class ConsignmentServiceTest {
         .willReturn(Optional.empty());
 
     // when & then
-    assertThatThrownBy(() -> consignmentService.getConsignment(consignmentId))
+    assertThatThrownBy(() -> consignmentService.getConsignment(consignmentId, sellerMemberId))
         .isInstanceOf(PickUpException.class);
     then(consignmentImageRepository).shouldHaveNoInteractions();
   }

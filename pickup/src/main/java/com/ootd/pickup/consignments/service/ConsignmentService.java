@@ -103,11 +103,15 @@ public class ConsignmentService {
     return RegisterConsignmentResponse.of(consignment, certificate);
   }
 
-  public GetConsignmentDetailResponse getConsignment(Long consignmentId) {
+  public GetConsignmentDetailResponse getConsignment(Long consignmentId, Long sellerMemberId) {
     Consignment consignment =
         consignmentRepository
             .findConsignmentById(consignmentId)
             .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+    if (!consignment.getSellerMember().getMemberId().equals(sellerMemberId)) {
+      throw new PickUpException(CONSIGNMENT_READ_OWNER_MISMATCH);
+    }
 
     Certificate certificate = getCertificate(consignment);
 

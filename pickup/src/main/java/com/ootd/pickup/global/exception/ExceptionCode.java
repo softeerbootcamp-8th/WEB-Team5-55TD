@@ -24,6 +24,10 @@ public enum ExceptionCode {
       ClientExceptionCode.CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS,
       "이미 등록된 인증서 일련번호입니다."),
   MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.MEMBER_NOT_FOUND, "회원을 찾을 수 없습니다."),
+  CONSIGNMENT_READ_OWNER_MISMATCH(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.CONSIGNMENT_READ_OWNER_MISMATCH,
+      "본인이 등록한 상품만 조회할 수 있습니다."),
   CONSIGNMENT_MODIFY_OWNER_MISMATCH(
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.CONSIGNMENT_MODIFY_OWNER_MISMATCH,
