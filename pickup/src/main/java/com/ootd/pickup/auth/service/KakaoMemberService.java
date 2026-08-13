@@ -18,18 +18,21 @@ public class KakaoMemberService {
   private final PointRepository pointRepository;
 
   @Transactional
-  public Member findOrCreate(KakaoClient.KakaoUser user) {
+  public KakaoMemberResult findOrCreate(KakaoClient.KakaoUser user) {
     return memberRepository
         .findByOauthProviderAndOauthSubject(PROVIDER, user.subject())
-        .orElseGet(() -> createMember(user));
+        .map(member -> new KakaoMemberResult(member, false))
+        .orElseGet(() -> new KakaoMemberResult(createMember(user), true));
   }
 
   private Member createMember(KakaoClient.KakaoUser user) {
-    String nickname = "kakao_" + user.subject();
+    String nickname = RandomNicknameGenerator.generate(memberRepository::existsByNickname);
     Member member =
         memberRepository.save(
             Member.createOAuth(PROVIDER, user.subject(), nickname, user.profileImageUrl()));
     pointRepository.save(Point.create(member.getMemberId()));
     return member;
   }
+
+  public record KakaoMemberResult(Member member, boolean created) {}
 }

@@ -16,7 +16,14 @@ function KakaoCallbackPage() {
   useEffect(() => {
     if (!code || !state) return;
     finishKakaoLogin(code, state).then((member) => {
-      setAuthenticated(true); setNickname(member.nickname); navigate({ to: "/home", replace: true });
+      setAuthenticated(true);
+      setNickname(member.nickname);
+      if (member.needsNickname) {
+        sessionStorage.setItem("kakao_pending_nickname", member.nickname);
+        navigate({ to: "/auth/kakao/nickname", replace: true });
+        return;
+      }
+      navigate({ to: "/home", replace: true });
     }).catch(() => setError("카카오 로그인에 실패했습니다. 다시 시도해 주세요."));
   }, [code, navigate, state]);
   return <main className="flex min-h-dvh items-center justify-center px-8"><p>{error ?? "카카오 로그인 처리 중…"}</p></main>;
