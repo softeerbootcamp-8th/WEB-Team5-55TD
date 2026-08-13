@@ -85,24 +85,27 @@ function AuctionDetailPage() {
           </button>
           {images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
-              {images.map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setLightboxIndex(i)}
-                  className="group relative block rounded-[var(--radius-md)] text-left"
-                >
-                  <CardThumb
-                    cardName={auction.cardName}
-                    imageUrl={img}
-                    aspect="aspect-square"
-                    label={i === 0 ? "앞" : i === 1 ? "뒤" : `${i + 1}`}
-                  />
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
-                    <Expand className="size-4 text-white drop-shadow" />
-                  </span>
-                </button>
-              ))}
+              {images.slice(1).map((img, index) => {
+                const imageIndex = index + 1;
+                return (
+                  <button
+                    key={imageIndex}
+                    type="button"
+                    onClick={() => setLightboxIndex(imageIndex)}
+                    className="group relative block rounded-[var(--radius-md)] text-left"
+                  >
+                    <CardThumb
+                      cardName={auction.cardName}
+                      imageUrl={img}
+                      aspect="aspect-square"
+                      label={imageIndex === 1 ? "뒤" : `${imageIndex + 1}`}
+                    />
+                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
+                      <Expand className="size-4 text-white drop-shadow" />
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
