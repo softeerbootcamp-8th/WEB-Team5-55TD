@@ -200,17 +200,22 @@ export async function getMyConsignments(params: {
   };
 }
 
+// TanStack Query 는 queryFn 이 undefined 를 반환하면 오류로 처리하므로 "없음"은 null 로 알린다.
 export async function getMyConsignmentDetail(
   id: string,
-): Promise<ConsignmentDetail | undefined> {
+): Promise<ConsignmentDetail | null> {
   try {
     const { data } = await axiosInstance.get<ConsignmentDetailResponse>(
       `/consignments/${id}`,
     );
     return toDetail(data);
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      return undefined;
+    // 다른 셀러의 상품(403)은 존재 여부까지 숨겨야 하므로 없는 상품과 같게 다룬다.
+    const status = axios.isAxiosError(error)
+      ? error.response?.status
+      : undefined;
+    if (status === 404 || status === 403) {
+      return null;
     }
     throw error;
   }
