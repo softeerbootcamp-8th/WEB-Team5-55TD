@@ -140,6 +140,7 @@ jobs:
           # CloudFront 가 /api/* 를 백엔드로 넘기므로 상대 경로면 충분하다.
           # Vite 는 이 값을 번들에 문자열로 박아 넣는다 — 런타임 변경 불가.
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api' }}
+          VITE_KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID }}
         run: pnpm build
 
       - name: Determine failed step

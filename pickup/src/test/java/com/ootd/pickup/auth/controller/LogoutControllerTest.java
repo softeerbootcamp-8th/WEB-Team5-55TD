@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.ootd.pickup.auth.service.AuthService;
+import com.ootd.pickup.auth.service.KakaoAuthService;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
 import com.ootd.pickup.global.auth.TokenCookieManager;
@@ -34,6 +35,7 @@ class LogoutControllerTest {
         MockMvcBuilders.standaloneSetup(
                 new AuthController(
                     authService,
+                    mock(KakaoAuthService.class),
                     new TokenCookieManager(
                         tokenProperties, new TokenCookieProperties(true, "None"))))
             .build();
