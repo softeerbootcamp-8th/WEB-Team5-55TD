@@ -41,6 +41,34 @@ describe("추가 도메인 컴포넌트", () => {
     expect(screen.getByText("10,500원")).toBeInTheDocument();
   });
 
+  it("전체 입찰 목록에서 프로필 사진이 없으면 포켓몬 아바타로 채운다", () => {
+    const now = new Date().toISOString();
+    render(
+      <BidList
+        bids={[
+          { id: "1", nickname: "bravo22", amount: 12000, createdAt: now },
+          { id: "2", nickname: "alpha11", amount: 11000, createdAt: now },
+          // 같은 입찰자가 다시 등장해도 같은 아바타를 쓴다.
+          { id: "3", nickname: "bravo22", amount: 10500, createdAt: now },
+          {
+            id: "4",
+            nickname: "charlie33",
+            amount: 10000,
+            createdAt: now,
+            profileImageUrl: "/uploaded.png",
+          },
+        ]}
+      />,
+    );
+
+    const avatars = screen.getAllByRole("img");
+    expect(avatars[0]).toHaveAttribute("src", "/avatars/pokemon/squirtle.webp");
+    expect(avatars[1]).toHaveAttribute("src", "/avatars/pokemon/pikachu.webp");
+    expect(avatars[2]).toHaveAttribute("src", "/avatars/pokemon/squirtle.webp");
+    // 프로필 사진이 있으면 그대로 우선한다.
+    expect(avatars[3]).toHaveAttribute("src", "/uploaded.png");
+  });
+
   it("스텝 인디케이터에서 완료·현재·예정 단계를 구분한다", () => {
     render(<StepIndicator steps={["카드", "실물", "이미지"]} current={1} />);
     expect(screen.getByText("카드")).toBeInTheDocument();
