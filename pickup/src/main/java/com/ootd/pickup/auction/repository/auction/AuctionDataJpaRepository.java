@@ -21,6 +21,8 @@ import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.querydsl.jpa.impl.JPAUpdateClause;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -38,6 +40,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
   private final AuctionJpaRepository auctionJpaRepository;
   private final JPAQueryFactory queryFactory;
+  private final EntityManager entityManager;
 
   @Override
   public Auction save(Auction newAuction) {
@@ -236,18 +239,22 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
     LocalDateTime softCloseBoundary = bidAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
     LocalDateTime extendedEndAt = currentEndAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
-    int updatedRows =
-        auctionJpaRepository.extendEndAtIfClosingSoon(
-            targetAuction.getAuctionId(),
-            AuctionStatus.ONGOING,
-            currentEndAt,
-            bidAt,
-            softCloseBoundary,
-            extendedEndAt);
+    long updatedRows =
+        new JPAUpdateClause(entityManager, auction)
+            .set(auction.endedAt, extendedEndAt)
+            .where(
+                auction.auctionId.eq(targetAuction.getAuctionId()),
+                auction.auctionStatus.eq(AuctionStatus.ONGOING),
+                auction.endedAt.eq(currentEndAt),
+                auction.endedAt.gt(bidAt),
+                auction.endedAt.lt(softCloseBoundary))
+            .execute();
     if (updatedRows != 1) {
       return false;
     }
 
+    // 벌크 UPDATE는 영속성 컨텍스트를 우회하므로 이후 조회가 이전 종료 시각을 보지 않게 한다.
+    entityManager.clear();
     targetAuction.extendEndAtBySoftCloseWindow();
     return true;
   }
