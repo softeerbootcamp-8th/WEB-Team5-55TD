@@ -54,9 +54,7 @@ public class AuthService {
             member.getMemberId(),
             member.getLoginId(),
             member.getNickname(),
-            member.getExternalProfileImageUrl() != null
-                ? member.getExternalProfileImageUrl()
-                : imageUrlResolver.resolve(member.getProfileImageObjectKey()));
+            member.getResolvedProfileImageUrl(imageUrlResolver));
 
     return new LoginResponse(body, accessToken, refreshToken.value());
   }

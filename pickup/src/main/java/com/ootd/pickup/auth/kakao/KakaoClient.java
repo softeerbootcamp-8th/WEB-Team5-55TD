@@ -1,5 +1,6 @@
 package com.ootd.pickup.auth.kakao;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ootd.pickup.auth.dto.KakaoLoginRequest;
 import java.util.Map;
 import org.springframework.http.MediaType;
@@ -15,7 +16,6 @@ public class KakaoClient {
     this.properties = properties;
   }
 
-  @SuppressWarnings("unchecked")
   public KakaoUser authenticate(KakaoLoginRequest request) {
     var form = new LinkedMultiValueMap<String, String>();
     form.add("grant_type", "authorization_code");
@@ -23,26 +23,47 @@ public class KakaoClient {
     form.add("client_secret", properties.clientSecret());
     form.add("redirect_uri", request.redirectUri());
     form.add("code", request.code());
-    Map<String, Object> token =
+    KakaoTokenResponse token =
         restClient
             .post()
             .uri("https://kauth.kakao.com/oauth/token")
             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
             .body(form)
             .retrieve()
-            .body(Map.class);
-    String accessToken = (String) token.get("access_token");
+            .body(KakaoTokenResponse.class);
+    if (token == null || token.accessToken() == null || token.accessToken().isBlank()) {
+      throw new KakaoAuthenticationException("Kakao access token is missing");
+    }
     Map<String, Object> user =
         restClient
             .get()
             .uri("https://kapi.kakao.com/v2/user/me")
-            .header("Authorization", "Bearer " + accessToken)
+            .header("Authorization", "Bearer " + token.accessToken())
             .retrieve()
             .body(Map.class);
+    if (user == null || user.get("id") == null) {
+      throw new KakaoAuthenticationException("Kakao user identity is missing");
+    }
     String subject = String.valueOf(user.get("id"));
-    Map<String, Object> propertiesMap =
-        (Map<String, Object>) user.getOrDefault("properties", Map.of());
-    return new KakaoUser(subject, (String) propertiesMap.get("profile_image"));
+    Object properties = user.get("properties");
+    String profileImageUrl = null;
+    if (properties instanceof Map<?, ?> propertiesMap) {
+      Object profileImage = propertiesMap.get("profile_image");
+      if (profileImage instanceof String value) {
+        profileImageUrl = value;
+      }
+    }
+    return new KakaoUser(subject, profileImageUrl);
+  }
+
+  public record KakaoTokenResponse(
+      @JsonProperty("access_token") String accessToken,
+      @JsonProperty("token_type") String tokenType) {}
+
+  public static class KakaoAuthenticationException extends RuntimeException {
+    public KakaoAuthenticationException(String message) {
+      super(message);
+    }
   }
 
   public record KakaoUser(String subject, String profileImageUrl) {}

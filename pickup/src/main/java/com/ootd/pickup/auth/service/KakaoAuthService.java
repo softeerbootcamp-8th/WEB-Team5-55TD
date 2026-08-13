@@ -28,7 +28,7 @@ public class KakaoAuthService {
     KakaoClient.KakaoUser kakaoUser;
     try {
       kakaoUser = kakaoClient.authenticate(request);
-    } catch (RestClientException | NullPointerException exception) {
+    } catch (RestClientException | KakaoClient.KakaoAuthenticationException exception) {
       throw new PickUpException(KAKAO_AUTHENTICATION_FAILED);
     }
     Member member =

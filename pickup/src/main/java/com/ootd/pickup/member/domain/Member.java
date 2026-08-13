@@ -1,6 +1,7 @@
 package com.ootd.pickup.member.domain;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -68,6 +69,12 @@ public class Member {
 
   public void setExternalProfileImageUrl(String profileImageUrl) {
     this.externalProfileImageUrl = profileImageUrl;
+  }
+
+  public String getResolvedProfileImageUrl(ImageUrlResolver imageUrlResolver) {
+    return externalProfileImageUrl != null
+        ? externalProfileImageUrl
+        : imageUrlResolver.resolve(profileImageObjectKey);
   }
 
   public void updateProfile(String nickname, String passwordHash) {

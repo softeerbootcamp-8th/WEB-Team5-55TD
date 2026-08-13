@@ -302,11 +302,7 @@ public class MemberService {
   }
 
   private MyProfileResponse toMyProfileResponse(Member member) {
-    return MyProfileResponse.from(
-        member,
-        member.getExternalProfileImageUrl() != null
-            ? member.getExternalProfileImageUrl()
-            : imageUrlResolver.resolve(member.getProfileImageObjectKey()));
+    return MyProfileResponse.from(member, member.getResolvedProfileImageUrl(imageUrlResolver));
   }
 
   public record ProfileUpdateResult(MyProfileResponse response, String previousObjectKey) {}
