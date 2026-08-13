@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.ootd.pickup.auth.dto.RefreshResponseBody;
 import com.ootd.pickup.auth.service.AuthService;
+import com.ootd.pickup.auth.service.KakaoAuthService;
 import com.ootd.pickup.auth.service.RefreshResponse;
 import com.ootd.pickup.auth.token.AccessToken;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
@@ -38,6 +39,7 @@ class RefreshTokenControllerTest {
         MockMvcBuilders.standaloneSetup(
                 new AuthController(
                     authService,
+                    mock(KakaoAuthService.class),
                     new TokenCookieManager(
                         tokenProperties, new TokenCookieProperties(true, "None"))))
             .build();

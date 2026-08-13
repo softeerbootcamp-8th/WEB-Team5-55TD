@@ -9,4 +9,9 @@ public record MemberRequest(
     @NotBlank(message = "닉네임은 필수입니다.") @Size(min = 4, message = "닉네임은 4자 이상이어야 합니다.")
         String nickname,
     @NotBlank(message = "비밀번호는 필수입니다.") @Size(min = 4, message = "비밀번호는 4자 이상이어야 합니다.")
-        String password) {}
+        String password,
+    String profileImage) {
+  public MemberRequest(String loginId, String nickname, String password) {
+    this(loginId, nickname, password, null);
+  }
+}

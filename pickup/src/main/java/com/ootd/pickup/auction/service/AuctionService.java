@@ -60,6 +60,7 @@ public class AuctionService {
       throw new PickUpException(CONSIGNMENT_AUCTION_OWNER_MISMATCH);
     }
 
+    validateAuctionPrices(request.startingPrice(), request.reserve());
     Long bidIncrement = calculateBidIncrement(request.startingPrice());
     log.debug(
         "최소 입찰 단위를 계산했습니다 - startingPrice={}, bidIncrement={}",
@@ -77,6 +78,12 @@ public class AuctionService {
         request.startingPrice(),
         auction.getStartedAt());
     return CreateAuctionResponse.from(auction);
+  }
+
+  private void validateAuctionPrices(Long startingPrice, Long reservePrice) {
+    if (startingPrice > reservePrice) {
+      throw new PickUpException(STARTING_PRICE_EXCEEDS_RESERVE_PRICE);
+    }
   }
 
   /**

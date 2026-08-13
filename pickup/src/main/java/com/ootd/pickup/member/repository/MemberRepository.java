@@ -6,6 +6,8 @@ import java.util.Optional;
 public interface MemberRepository {
   Optional<Member> findByLoginId(String loginId);
 
+  Optional<Member> findByOauthProviderAndOauthSubject(String provider, String subject);
+
   boolean existsByLoginId(String loginId);
 
   boolean existsByNickname(String nickname);

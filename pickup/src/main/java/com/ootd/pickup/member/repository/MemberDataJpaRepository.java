@@ -17,6 +17,11 @@ public class MemberDataJpaRepository implements MemberRepository {
   }
 
   @Override
+  public Optional<Member> findByOauthProviderAndOauthSubject(String provider, String subject) {
+    return memberJpaRepository.findByOauthProviderAndOauthSubject(provider, subject);
+  }
+
+  @Override
   public boolean existsByLoginId(String loginId) {
     return memberJpaRepository.existsByLoginId(loginId);
   }

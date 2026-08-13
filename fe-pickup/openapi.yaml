@@ -322,6 +322,26 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ExceptionResponse"
+  /auth/kakao:
+    post:
+      tags:
+      - Authentication
+      summary: 카카오 로그인
+      description: 카카오 인가 코드를 검증하고 최초 로그인 시 자동 가입한 뒤 서비스 토큰 쿠키를 발급합니다.
+      operationId: kakaoLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KakaoLoginRequest"
+      responses:
+        "200":
+          description: 카카오 로그인 성공
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LoginResponseBody"
   /auth/logout:
     post:
       tags:
@@ -552,7 +572,7 @@ paths:
       - Bid
       summary: 경매 입찰 내역 조회
       description: |
-        해당 경매의 입찰 내역을 최근 입찰 순으로 조회합니다. 닉네임은 마스킹되어 노출되며,
+        해당 경매의 입찰 내역을 최근 입찰 순으로 조회합니다. 닉네임은 그대로 노출되며,
         로그인한 회원 본인의 입찰에는 isMine=true가 표시됩니다. 비로그인 상태로도 조회할 수 있습니다.
       operationId: getAuctionBids
       parameters:
@@ -1574,6 +1594,8 @@ components:
           type: string
           maxLength: 2147483647
           minLength: 4
+        profileImage:
+          type: string
       required:
       - loginId
       - nickname
@@ -1760,6 +1782,18 @@ components:
       required:
       - loginId
       - password
+    KakaoLoginRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        redirectUri:
+          type: string
+          minLength: 1
+      required:
+      - code
+      - redirectUri
     RefreshResponseBody:
       type: object
       properties:
@@ -2101,7 +2135,9 @@ components:
         bidId:
           type: integer
           format: int64
-        nicknameMasked:
+        nickname:
+          type: string
+        profileImageUrl:
           type: string
         bidPrice:
           type: integer

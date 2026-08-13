@@ -56,6 +56,8 @@ function AuctionApplyPage() {
   const [startPrice, setStartPrice] = useState("");
   const [reserve, setReserve] = useState("");
   const [schedule, setSchedule] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [minimumSchedule] = useState(() => {
     // 요청이 서버에 도착하는 사이에 과거 시각이 되지 않도록 1분의 여유를 둔다.
@@ -75,7 +77,7 @@ function AuctionApplyPage() {
   );
   const scheduleValid =
     Number.isFinite(scheduleValue) && scheduleValue > minimumScheduleValue;
-  const valid = priceRangeValid && scheduleValid;
+  const valid = priceRangeValid && scheduleValid && title.trim().length > 0;
 
   const { mutate: submitApply, isPending: isSubmitting } = useMutation({
     mutationFn: () =>
@@ -84,6 +86,8 @@ function AuctionApplyPage() {
         startingPrice: startValue!,
         reserve: reserveValue!,
         scheduledStartAt: kstLocalInputToUtcIso(schedule),
+        title,
+        description,
       }),
     onSuccess: () => {
       toast.success("경매 신청이 완료되었습니다.");
@@ -163,6 +167,28 @@ function AuctionApplyPage() {
       </div>
 
       <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-6">
+        <div className="flex flex-col gap-1.5">
+          <Label>
+            경매 제목 <span className="text-[var(--color-danger)]">*</span>
+          </Label>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="경매 제목을 입력해 주세요"
+            maxLength={100}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>경매 본문 (선택)</Label>
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="경매 본문을 입력해 주세요"
+            maxLength={1000}
+          />
+        </div>
+
         <div className="flex flex-col gap-1.5">
           <Label>
             희망 시작가 <span className="text-[var(--color-danger)]">*</span>

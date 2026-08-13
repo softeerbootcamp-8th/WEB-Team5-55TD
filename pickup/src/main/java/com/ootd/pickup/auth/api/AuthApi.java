@@ -1,5 +1,6 @@
 package com.ootd.pickup.auth.api;
 
+import com.ootd.pickup.auth.dto.KakaoLoginRequest;
 import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.dto.LoginResponseBody;
 import com.ootd.pickup.auth.dto.RefreshResponseBody;
@@ -38,6 +39,11 @@ public interface AuthApi {
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<LoginResponseBody> login(LoginRequest loginRequest);
+
+  @Operation(
+      summary = "카카오 로그인",
+      description = "카카오 인가 코드를 검증하고 최초 로그인 시 자동 가입한 뒤 서비스 토큰 쿠키를 발급합니다.")
+  ResponseEntity<LoginResponseBody> kakaoLogin(KakaoLoginRequest request);
 
   @Operation(
       summary = "토큰 갱신",

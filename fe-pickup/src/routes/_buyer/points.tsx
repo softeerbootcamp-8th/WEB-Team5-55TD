@@ -191,7 +191,7 @@ function PointsPage() {
         <section className="grid gap-3 md:grid-cols-3">
           <BalanceCard
             label="사용 가능 포인트"
-            value={balanceQuery.data.availablePointBalance}
+            value={balanceQuery.data.pointBalance}
             accent
           />
           <BalanceCard
