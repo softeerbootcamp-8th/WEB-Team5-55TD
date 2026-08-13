@@ -127,6 +127,10 @@ public enum ExceptionCode {
   POINT_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.POINT_NOT_FOUND, "포인트 정보를 찾을 수 없습니다."),
   INSUFFICIENT_BID_LIMIT(
       HttpStatus.CONFLICT, ClientExceptionCode.INSUFFICIENT_BID_LIMIT, "보유 포인트가 입찰 금액보다 적습니다."),
+  STARTING_PRICE_EXCEEDS_RESERVE_PRICE(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.STARTING_PRICE_EXCEEDS_RESERVE_PRICE,
+      "희망 시작가는 최소 희망 낙찰가보다 클 수 없습니다."),
   STARTING_PRICE_TOO_LARGE(
       HttpStatus.BAD_REQUEST,
       ClientExceptionCode.STARTING_PRICE_TOO_LARGE,
