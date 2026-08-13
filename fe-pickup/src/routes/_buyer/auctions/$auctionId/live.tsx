@@ -45,6 +45,7 @@ import { refreshAccessToken } from "@/api/mutator/custom-instance";
 import {
   useAuctionBidUpdates,
   type AuctionBidUpdatedMessage,
+  type BidRequestFailedMessage,
 } from "@/hooks/use-auction-bid-updates";
 import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
 import {
@@ -324,10 +325,28 @@ function LiveAuctionPage() {
     [auction.id, queryClient],
   );
 
+  const applyBidFailure = useCallback(
+    (message: BidRequestFailedMessage) => {
+      // 내가 방금 보낸 요청의 결과만 반영한다.
+      if (
+        pendingBidRequestIdRef.current !== null &&
+        message.bidRequestId !== pendingBidRequestIdRef.current
+      ) {
+        return;
+      }
+      pendingBidRequestIdRef.current = null;
+      setIsBidRequestPending(false);
+      setFail(message.failureMessage);
+      refreshSnapshot();
+    },
+    [refreshSnapshot],
+  );
+
   useAuctionBidUpdates({
     auctionId: auction.id,
     latestBidId,
     onBidUpdated: applyBidUpdate,
+    onBidFailed: applyBidFailure,
     onSubscribed: refreshSnapshot,
   });
 
