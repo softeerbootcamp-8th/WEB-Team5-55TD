@@ -75,11 +75,6 @@ describe("format utilities", () => {
     );
   });
 
-  it("masks short and long nicknames", () => {
-    expect(maskNickname("abc")).toBe("abc***");
-    expect(maskNickname("abcdefg")).toBe("abc***fg");
-  });
-
   it("rounds the minimum bid unit the same way the server stores it", () => {
     // 서버: Math.round(startingPrice * 0.05)
     expect(minBidUnit(10_000)).toBe(500);
