@@ -95,6 +95,25 @@ describe("셀러 등록 위저드", () => {
     expect(mutate).toHaveBeenCalledWith(1);
   });
 
+  it("주요 결함 입력란에 글자수 제한과 카운터를 표시한다", async () => {
+    const { Route } = await import("@/routes/seller/register");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    fireEvent.change(screen.getByPlaceholderText("카드명 검색 (예: 리자몽)"), {
+      target: { value: "char" },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fireEvent.click(screen.getByRole("button", { name: /Charizard/ }));
+    fireEvent.click(screen.getByRole("button", { name: "다음 단계" }));
+
+    const defectInput =
+      screen.getByPlaceholderText("예: 뒷면 우하단 미세 스크래치");
+    expect(defectInput).toHaveAttribute("maxLength", "255");
+    expect(screen.getByText("0/255")).toBeInTheDocument();
+    fireEvent.change(defectInput, { target: { value: "뒷면에 스크래치" } });
+    expect(screen.getByText("8/255")).toBeInTheDocument();
+  });
+
   it("감정일에 미래 날짜를 입력하면 다음 단계로 진행할 수 없다", async () => {
     const { Route } = await import("@/routes/seller/register");
     const Component = Route.options.component as ComponentType;

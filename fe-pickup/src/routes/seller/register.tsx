@@ -28,6 +28,7 @@ import type {
 } from "@/api/generated/model";
 import { uploadImage } from "@/api/image-upload";
 import { CARD_STATE_OPTIONS, getCardStateLabel } from "@/lib/card-state";
+import { MAJOR_DEFECT_MAX_LENGTH } from "@/lib/consignment";
 
 export const Route = createFileRoute("/seller/register")({
   component: RegisterWizard,
@@ -335,7 +336,11 @@ function RegisterWizard() {
                 value={majorDefect}
                 onChange={(e) => setMajorDefect(e.target.value)}
                 placeholder="예: 뒷면 우하단 미세 스크래치"
+                maxLength={MAJOR_DEFECT_MAX_LENGTH}
               />
+              <p className="text-right text-xs text-[var(--color-text-muted)]">
+                {majorDefect.length}/{MAJOR_DEFECT_MAX_LENGTH}
+              </p>
             </Field>
           </div>
         )}

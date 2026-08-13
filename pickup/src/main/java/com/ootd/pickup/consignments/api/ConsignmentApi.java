@@ -99,7 +99,7 @@ public interface ConsignmentApi {
                             """))),
         @ApiResponse(
             responseCode = "400",
-            description = "요청 값 검증 실패 (필수 값 누락, 이미지 2장 미만, 유효하지 않은 등급/감정기관 등)",
+            description = "요청 값 검증 실패 (필수 값 누락, 이미지 2장 미만, 주요 결함 255자 초과, 유효하지 않은 등급/감정기관 등)",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "401",
@@ -340,7 +340,7 @@ public interface ConsignmentApi {
                             """))),
         @ApiResponse(
             responseCode = "400",
-            description = "요청 값 검증 실패 (이미지 2장 미만, 유효하지 않은 등급/감정기관 등)",
+            description = "요청 값 검증 실패 (이미지 2장 미만, 주요 결함 255자 초과, 유효하지 않은 등급/감정기관 등)",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "401",
