@@ -5,6 +5,8 @@ import static org.mockito.Mockito.*;
 
 import com.ootd.pickup.auth.token.InvalidAccessTokenException;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
+import com.ootd.pickup.global.auth.CsrfTokenGenerator;
+import com.ootd.pickup.global.auth.CsrfTokenMismatchException;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import com.ootd.pickup.global.auth.TokenCookieProperties;
 import jakarta.servlet.FilterChain;
@@ -24,7 +26,8 @@ class ExceptionHandlingFilterTest {
   private final TokenCookieManager tokenCookieManager =
       new TokenCookieManager(
           new JwtTokenProperties("pickup", "secret", Duration.ofMinutes(30), Duration.ofDays(14)),
-          new TokenCookieProperties(true, "None"));
+          new TokenCookieProperties(true, "None"),
+          new CsrfTokenGenerator());
   private final ExceptionHandlingFilter exceptionHandlingFilter =
       new ExceptionHandlingFilter(objectMapper, tokenCookieManager);
 
@@ -82,6 +85,38 @@ class ExceptionHandlingFilterTest {
 
     // then
     assertThat(response.getCookie("refresh-token")).isNull();
+  }
+
+  @Test
+  void CSRF_토큰이_일치하지_않으면_403_응답을_반환한다() throws Exception {
+    // given
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/auctions/1/bids");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    FilterChain filterChain = mock(FilterChain.class);
+    doThrow(new CsrfTokenMismatchException()).when(filterChain).doFilter(request, response);
+
+    // when
+    exceptionHandlingFilter.doFilter(request, response, filterChain);
+
+    // then
+    JsonNode body = objectMapper.readTree(response.getContentAsByteArray());
+    assertThat(response.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+    assertThat(body.get("error").asText()).isEqualTo("CSRF_TOKEN_MISMATCH");
+  }
+
+  @Test
+  void CSRF_토큰이_일치하지_않아도_액세스_토큰_쿠키는_만료시키지_않는다() throws Exception {
+    // given
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/auctions/1/bids");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    FilterChain filterChain = mock(FilterChain.class);
+    doThrow(new CsrfTokenMismatchException()).when(filterChain).doFilter(request, response);
+
+    // when
+    exceptionHandlingFilter.doFilter(request, response, filterChain);
+
+    // then
+    assertThat(response.getCookie("access-token")).isNull();
   }
 
   @Test

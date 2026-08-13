@@ -37,7 +37,7 @@ public class AuthenticationWebConfig implements WebMvcConfigurer {
     FilterRegistrationBean<AuthenticationFilter> filterRegistrationBean =
         new FilterRegistrationBean<>(authenticationFilter);
     filterRegistrationBean.addUrlPatterns("/*");
-    filterRegistrationBean.setOrder(1);
+    filterRegistrationBean.setOrder(2);
     return filterRegistrationBean;
   }
 

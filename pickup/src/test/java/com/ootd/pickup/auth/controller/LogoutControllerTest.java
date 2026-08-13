@@ -11,6 +11,7 @@ import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.auth.service.KakaoAuthService;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
+import com.ootd.pickup.global.auth.CsrfTokenGenerator;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import com.ootd.pickup.global.auth.TokenCookieProperties;
 import jakarta.servlet.http.Cookie;
@@ -37,7 +38,9 @@ class LogoutControllerTest {
                     authService,
                     mock(KakaoAuthService.class),
                     new TokenCookieManager(
-                        tokenProperties, new TokenCookieProperties(true, "None"))))
+                        tokenProperties,
+                        new TokenCookieProperties(true, "None"),
+                        new CsrfTokenGenerator())))
             .build();
   }
 
@@ -68,6 +71,13 @@ class LogoutControllerTest {
                             containsString("Path=/auth;"),
                             containsString("Max-Age=0"),
                             containsString("HttpOnly"),
+                            containsString("Secure"),
+                            containsString("SameSite=None")),
+                        allOf(
+                            containsString("csrf-token="),
+                            containsString("Path=/;"),
+                            containsString("Max-Age=0"),
+                            not(containsString("HttpOnly")),
                             containsString("Secure"),
                             containsString("SameSite=None")))));
 
