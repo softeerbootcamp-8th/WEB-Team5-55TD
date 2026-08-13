@@ -553,7 +553,8 @@ function LiveAuctionPage() {
                 aria-label={`최소 입찰 단위(${formatWon(minUnit)})만큼 추가`}
                 className="shrink-0"
               >
-                +
+                <span aria-hidden="true">+</span>
+                <span className="sr-only">현재 최소 입찰 단위 {formatWon(minUnit)} 추가</span>
               </Button>
               <Button
                 onClick={onBidClick}
