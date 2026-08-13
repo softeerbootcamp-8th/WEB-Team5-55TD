@@ -4,6 +4,7 @@ import static com.ootd.pickup.global.event.messagequeue.outbox.QOutboxEventEntit
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Limit;
@@ -75,5 +76,28 @@ public class OutboxEventRepository {
                 .execute();
     entityManager.clear();
     return updated;
+  }
+
+  /**
+   * 발행 완료 후 보존 기간이 지난 행을 지운다.
+   *
+   * <p>{@code published=false}인 행은 조건에서 제외한다. 발행에 계속 실패해 남은 행(poison message)까지 지우면 아직 큐에 들어가지 않은
+   * 이벤트가 유실된다. {@link OutboxEventCleanupScheduler}만 이 메서드를 호출한다.
+   *
+   * @param threshold 이 시각보다 이전에 발생한(occurredAt 기준) 이벤트만 지운다
+   * @return 지워진 건수
+   */
+  @Transactional
+  public int deleteByPublishedTrueAndCreatedAtBefore(LocalDateTime threshold) {
+    int deleted =
+        (int)
+            queryFactory
+                .delete(outboxEventEntity)
+                .where(
+                    outboxEventEntity.published.isTrue(),
+                    outboxEventEntity.createdAt.before(threshold))
+                .execute();
+    entityManager.clear();
+    return deleted;
   }
 }
