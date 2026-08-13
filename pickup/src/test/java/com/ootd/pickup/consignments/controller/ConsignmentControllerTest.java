@@ -151,6 +151,31 @@ class ConsignmentControllerTest {
   }
 
   @Test
+  void 감정일이_현재보다_이후면_상품_등록은_400을_반환한다() throws Exception {
+    // given
+    RegisterConsignmentRequest request =
+        new RegisterConsignmentRequest(
+            10L,
+            CardState.HIGH,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.now().plusDays(1)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentApplicationService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 정의되지_않은_카드상태이면_400을_반환한다() throws Exception {
     String request =
         objectMapper.writeValueAsString(createRequest()).replace("\"HIGH\"", "\"INVALID\"");
@@ -552,6 +577,31 @@ class ConsignmentControllerTest {
         .andExpect(status().isBadRequest());
 
     then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 감정일이_현재보다_이후면_상품_수정은_400을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            CardState.HIGH,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.now().plusDays(1)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentApplicationService).shouldHaveNoInteractions();
   }
 
   @Test
