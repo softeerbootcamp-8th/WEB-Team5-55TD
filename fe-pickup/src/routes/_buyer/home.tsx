@@ -44,12 +44,13 @@ function HomePage() {
     <PageContainer className="flex flex-col gap-12">
       {/* 대표 경매 hero */}
       {featured && (
-        <section className="grid gap-8 rounded-[var(--radius-lg)] border border-border bg-card p-4 md:p-6 md:grid-cols-[300px_1fr]">
+        <section className="group grid gap-8 rounded-[var(--radius-lg)] border border-border bg-card p-4 md:p-6 md:grid-cols-[300px_1fr]">
           <CardThumb
             cardName={featured.cardName}
             grade={featured.grade}
             imageUrl={featured.thumbnailUrl}
             className="mx-auto w-full max-w-[280px] md:max-w-none"
+            shineOnGroupHover
           />
           <div className="flex flex-col justify-center gap-4">
             <div className="flex items-center gap-2">
@@ -59,7 +60,9 @@ function HomePage() {
                 관심 {featured.watchCount}
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold">{featured.cardName}</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">
+              {featured.cardName}
+            </h1>
             <div className="flex items-end gap-8">
               <Price amount={featured.currentPrice} label="현재가" size="lg" />
               <div className="flex flex-col gap-0.5">
@@ -79,7 +82,10 @@ function HomePage() {
                 </Link>
               </Button>
               <Button size="lg" variant="secondary" asChild>
-                <Link to="/auctions/$auctionId" params={{ auctionId: featured.id }}>
+                <Link
+                  to="/auctions/$auctionId"
+                  params={{ auctionId: featured.id }}
+                >
                   상세 보기
                 </Link>
               </Button>
