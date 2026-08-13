@@ -22,6 +22,7 @@ import com.ootd.pickup.bid.dto.response.AuctionBidListItemResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
@@ -32,7 +33,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -50,7 +50,7 @@ public class BidService {
   private final BidRepository bidRepository;
   private final MemberRepository memberRepository;
   private final PointReservationService pointReservationService;
-  private final ApplicationEventPublisher applicationEventPublisher;
+  private final EventPublisher eventPublisher;
 
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
@@ -94,7 +94,7 @@ public class BidService {
       log.info("마감 임박 입찰로 경매를 연장했습니다 - auctionId={}, endedAt={}", auctionId, auction.getEndedAt());
     }
     auctionRepository.save(auction);
-    applicationEventPublisher.publishEvent(
+    eventPublisher.publish(
         BidRequestSucceededNotificationEvent.fromEntity(auction, savedBid, bidRequestId));
 
     log.info(

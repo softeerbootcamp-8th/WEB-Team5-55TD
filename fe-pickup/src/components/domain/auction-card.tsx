@@ -52,8 +52,11 @@ export function AuctionCard({
           <GradeBadge grade={auction.grade} />
         </div>
         <h3 className="line-clamp-1 text-sm font-semibold">
-          {auction.cardName}
+          {auction.title ?? auction.cardName}
         </h3>
+        <p className="line-clamp-1 text-xs text-[var(--color-text-muted)]">
+          {auction.cardName}
+        </p>
 
         {isLive && (
           <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">

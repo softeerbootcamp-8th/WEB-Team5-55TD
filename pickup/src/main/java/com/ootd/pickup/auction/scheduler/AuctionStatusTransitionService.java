@@ -9,7 +9,6 @@ import com.ootd.pickup.auction.event.AuctionStartedNotificationEvent;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.global.event.EventProducer;
 import com.ootd.pickup.global.event.EventPublisher;
-import com.ootd.pickup.global.event.NotificationEvent;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,8 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 경매 상태 전이를 실행한다. 전이 하나가 트랜잭션 하나다.
@@ -30,8 +27,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * <ul>
  *   <li>{@link AuctionEndedMessageQueueEvent} — 정산이 정확히 한 번 돌아야 하므로 상태 전이와 같은 커밋에 Outbox로 적재한다.
- *   <li>{@link AuctionStartedNotificationEvent} — 화면 갱신용이라 유실이 허용된다. 커밋 이후 Redis로 즉시 발행한다.
+ *   <li>{@link AuctionStartedNotificationEvent} — 화면 갱신용이라 유실이 허용된다. 커밋 이후 발행되는 것은 {@link
+ *       EventPublisher}가 보장하므로, 이벤트를 만들어 넘기기만 한다.
  * </ul>
+ *
+ * <p>이벤트는 트랜잭션 <b>안에서</b> 만든다. {@code fromEntity}가 위탁 상품을 지연 로딩으로 타고 들어간다.
  *
  * <p><b>전이 메서드는 다른 빈에서 호출해야 한다.</b> 같은 클래스 안에서 부르면 프록시를 지나지 않아 트랜잭션이 열리지 않는다. 그 상태로 진행되면 {@link
  * EventProducer#produce}가 진행 중인 트랜잭션을 요구하므로 적재 시점에 실패한다.
@@ -76,50 +76,15 @@ public class AuctionStatusTransitionService {
       return;
     }
 
-    publishStartedAfterCommit(auctionIds);
+    publishStarted(auctionIds);
     log.info("경매를 시작했습니다 - count={}, auctionIds={}", updated, auctionIds);
   }
 
-  private void publishStartedAfterCommit(List<Long> auctionIds) {
-    publishAfterCommit(
-        "경매 시작 알림",
-        auctionSchedulerJpaRepository
-            .findAllWithConsignmentAndSellerMemberByIdIn(auctionIds)
-            .stream()
-            .filter(auction -> auction.getAuctionStatus() == ONGOING)
-            .map(AuctionStartedNotificationEvent::fromEntity)
-            .toList());
-  }
-
-  /**
-   * 알림을 커밋 이후에 발행하도록 예약한다.
-   *
-   * <p>커밋 전에 보내면 롤백된 전이의 상태가 화면에 뜨고, 알림에는 그것을 되돌릴 방법이 없다. 그래서 전송을 {@code afterCommit}으로 미룬다.
-   *
-   * <p>이벤트는 <b>호출 시점에</b> 만들어 넘겨야 한다. {@code fromEntity}가 위탁 상품을 타고 들어가므로, 생성까지 커밋 이후로 미루면 영속성
-   * 컨텍스트가 닫혀 지연 로딩이 실패한다.
-   *
-   * <p>발행 실패는 삼킨다. 알림은 유실이 허용되는 계열이고, 여기서 예외를 올리면 이미 커밋된 상태 전이가 실패한 것처럼 보인다.
-   *
-   * @param description 실패 로그에 쓸 알림 이름
-   * @param events 커밋 이후 발행할 알림 목록
-   */
-  private void publishAfterCommit(String description, List<? extends NotificationEvent> events) {
-    if (events.isEmpty()) {
-      return;
-    }
-
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            try {
-              events.forEach(eventPublisher::publish);
-            } catch (RuntimeException exception) {
-              log.warn("{} 발행에 실패했습니다 - count={}", description, events.size(), exception);
-            }
-          }
-        });
+  private void publishStarted(List<Long> auctionIds) {
+    auctionSchedulerJpaRepository.findAllWithConsignmentAndSellerMemberByIdIn(auctionIds).stream()
+        .filter(auction -> auction.getAuctionStatus() == ONGOING)
+        .map(AuctionStartedNotificationEvent::fromEntity)
+        .forEach(eventPublisher::publish);
   }
 
   /**
@@ -162,19 +127,16 @@ public class AuctionStatusTransitionService {
     auctionSchedulerStatusUpdateRepository.updateConsignmentStatusToRegisterableByAuctionIdIn(
         auctionIds);
 
-    // 낙찰 입찰은 두 계열이 모두 필요로 한다. 한 번만 조회해 함께 쓴다.
     List<Auction> closedAuctions = findClosedAuctions(auctionIds);
     Map<Long, Bid> winningBidsById = findWinningBidsById(closedAuctions);
 
     int appended = appendClosedEventsToOutbox(closedAuctions, winningBidsById);
-    publishAfterCommit(
-        "경매 종료 알림",
-        closedAuctions.stream()
-            .map(
-                auction ->
-                    AuctionEndedNotificationEvent.fromEntity(
-                        auction, winningBidOf(auction, winningBidsById)))
-            .toList());
+    closedAuctions.stream()
+        .map(
+            auction ->
+                AuctionEndedNotificationEvent.fromEntity(
+                    auction, winningBidOf(auction, winningBidsById)))
+        .forEach(eventPublisher::publish);
 
     log.info(
         "경매를 종료했습니다 - won={}, passed={}, outboxAppended={}, auctionIds={}",

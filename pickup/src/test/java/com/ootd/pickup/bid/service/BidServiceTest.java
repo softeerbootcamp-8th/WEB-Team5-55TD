@@ -32,6 +32,8 @@ import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.event.EventPublisher;
+import com.ootd.pickup.global.event.NotificationEvent;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
@@ -46,7 +48,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,7 +59,7 @@ class BidServiceTest {
 
   @Mock private MemberRepository memberRepository;
   @Mock private PointReservationService pointReservationService;
-  @Mock private ApplicationEventPublisher applicationEventPublisher;
+  @Mock private EventPublisher eventPublisher;
 
   private BidService bidService;
 
@@ -70,7 +71,7 @@ class BidServiceTest {
             bidRepository,
             memberRepository,
             pointReservationService,
-            applicationEventPublisher);
+            eventPublisher);
   }
 
   @Test
@@ -101,8 +102,9 @@ class BidServiceTest {
     assertThat(auction.getWinningBidId()).isEqualTo(10L);
     assertThat(auction.getWinningPrice()).isEqualTo(10_500L);
     then(auctionRepository).should().save(auction);
-    ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-    then(applicationEventPublisher).should().publishEvent(eventCaptor.capture());
+    ArgumentCaptor<NotificationEvent> eventCaptor =
+        ArgumentCaptor.forClass(NotificationEvent.class);
+    then(eventPublisher).should().publish(eventCaptor.capture());
     assertThat(eventCaptor.getValue())
         .isInstanceOfSatisfying(
             BidRequestSucceededNotificationEvent.class,
@@ -284,7 +286,7 @@ class BidServiceTest {
   }
 
   @Test
-  void 경매_입찰_내역을_조회하면_최근_입찰_순으로_마스킹된_닉네임과_함께_반환된다() {
+  void 경매_입찰_내역을_조회하면_최근_입찰_순으로_닉네임과_함께_반환된다() {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
@@ -306,7 +308,7 @@ class BidServiceTest {
 
     AuctionBidListItemResponse first = response.items().get(0);
     assertThat(first.bidId()).isEqualTo(101L);
-    assertThat(first.nicknameMasked()).isEqualTo("닉네임***임2");
+    assertThat(first.nickname()).isEqualTo("닉네임2");
     assertThat(first.bidPrice()).isEqualTo(11_000L);
     assertThat(first.isMine()).isTrue();
 
@@ -444,6 +446,8 @@ class BidServiceTest {
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(endedAt)

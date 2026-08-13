@@ -21,6 +21,7 @@ export interface Grade {
 
 export interface AuctionSummary {
   id: string;
+  title?: string;
   cardName: string;
   thumbnailUrl?: string;
   status: AuctionStatus;
@@ -34,6 +35,7 @@ export interface AuctionSummary {
 }
 
 export type AuctionDetail = AuctionSummary & {
+  description?: string;
   sellerId?: string;
   sellerNickname?: string;
   minBidUnit?: number;
@@ -43,7 +45,7 @@ export type AuctionDetail = AuctionSummary & {
 
 export interface Bid {
   id: string;
-  maskedNickname: string;
+  nickname: string;
   amount: number;
   createdAt: string;
   isMine?: boolean;
