@@ -21,12 +21,19 @@ export function mergeLatestBid(
 ): AuctionBidsSnapshot | undefined {
   if (!snapshot) return undefined;
 
+  const previousBid = snapshot.items.find(
+    (item) =>
+      item.maskedNickname === latestBid.nicknameMasked ||
+      (isMine && item.isMine),
+  );
+
   const bid: Bid = {
     id: String(latestBid.bidId),
     maskedNickname: latestBid.nicknameMasked,
+    profileImageUrl: previousBid?.profileImageUrl,
     amount: latestBid.bidPrice,
     createdAt: latestBid.createdAt,
-    isMine,
+    isMine: Boolean(isMine || previousBid?.isMine),
   };
 
   return {

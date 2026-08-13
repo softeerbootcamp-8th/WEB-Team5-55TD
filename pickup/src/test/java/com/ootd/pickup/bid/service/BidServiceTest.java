@@ -34,6 +34,7 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.service.PointReservationService;
@@ -59,6 +60,7 @@ class BidServiceTest {
   @Mock private MemberRepository memberRepository;
   @Mock private PointReservationService pointReservationService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
+  @Mock private ImageUrlResolver imageUrlResolver;
 
   private BidService bidService;
 
@@ -70,7 +72,8 @@ class BidServiceTest {
             bidRepository,
             memberRepository,
             pointReservationService,
-            applicationEventPublisher);
+            applicationEventPublisher,
+            imageUrlResolver);
   }
 
   @Test
@@ -289,11 +292,14 @@ class BidServiceTest {
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
     Member viewer = createMember(2L);
+    ReflectionTestUtils.setField(viewer, "profileImageObjectKey", "profiles/2.webp");
     Member other = createMember(3L);
     Bid myBid = createBid(auction, viewer, 11_000L, 101L);
     Bid otherBid = createBid(auction, other, 10_500L, 100L);
     given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
     given(bidRepository.findAllByAuctionId(1L, null, 21)).willReturn(List.of(myBid, otherBid));
+    given(imageUrlResolver.resolve("profiles/2.webp"))
+        .willReturn("https://images.test/profiles/2.webp");
 
     // when
     CursorPageResponse<AuctionBidListItemResponse, String> response =
@@ -306,7 +312,8 @@ class BidServiceTest {
 
     AuctionBidListItemResponse first = response.items().get(0);
     assertThat(first.bidId()).isEqualTo(101L);
-    assertThat(first.nicknameMasked()).isEqualTo("닉네임***임2");
+    assertThat(first.nicknameMasked()).isEqualTo("닉***2");
+    assertThat(first.profileImageUrl()).isEqualTo("https://images.test/profiles/2.webp");
     assertThat(first.bidPrice()).isEqualTo(11_000L);
     assertThat(first.isMine()).isTrue();
 

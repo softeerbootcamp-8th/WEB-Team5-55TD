@@ -6,7 +6,12 @@ import type { Bid } from "@/lib/types";
 const now = new Date().toISOString();
 
 function bid(overrides: Partial<Bid> & { id: string }): Bid {
-  return { maskedNickname: "ab***12", amount: 1000, createdAt: now, ...overrides };
+  return {
+    maskedNickname: "ab***12",
+    amount: 1000,
+    createdAt: now,
+    ...overrides,
+  };
 }
 
 describe("RealtimeBidList", () => {
@@ -41,6 +46,53 @@ describe("RealtimeBidList", () => {
     expect(within(rows[0]).getByText("bb***22")).toBeInTheDocument();
     expect(within(rows[0]).getByText("3,000원")).toBeInTheDocument();
     expect(within(rows[1]).getByText("aa***11")).toBeInTheDocument();
+    const avatars = screen.getAllByRole("img");
+    expect(avatars[0]).toHaveAttribute("src", "/avatars/pokemon/squirtle.webp");
+    expect(avatars[1]).toHaveAttribute("src", "/avatars/pokemon/pikachu.webp");
+  });
+
+  it("프로필 사진을 우선하고 목록 순서가 바뀌어도 대체 아바타를 유지한다", () => {
+    const { rerender } = render(
+      <RealtimeBidList
+        bids={[
+          bid({ id: "2", maskedNickname: "aa***11" }),
+          bid({
+            id: "1",
+            maskedNickname: "bb***22",
+            profileImageUrl: "/profile.webp",
+          }),
+        ]}
+        hasNext={false}
+        isFetchingNextPage={false}
+        onLoadMore={vi.fn()}
+      />,
+    );
+    const firstFallback = screen.getByAltText("aa***11 프로필 이미지");
+    expect(firstFallback).toHaveAttribute(
+      "src",
+      "/avatars/pokemon/pikachu.webp",
+    );
+    expect(screen.getByAltText("bb***22 프로필 이미지")).toHaveAttribute(
+      "src",
+      "/profile.webp",
+    );
+
+    rerender(
+      <RealtimeBidList
+        bids={[
+          bid({ id: "3", maskedNickname: "bb***22" }),
+          bid({ id: "2", maskedNickname: "aa***11" }),
+        ]}
+        hasNext={false}
+        isFetchingNextPage={false}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByAltText("aa***11 프로필 이미지")).toHaveAttribute(
+      "src",
+      firstFallback.getAttribute("src"),
+    );
   });
 
   it("hasNext가 true면 더 보기 버튼이 onLoadMore를 호출한다", () => {

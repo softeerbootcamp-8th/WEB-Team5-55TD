@@ -12,14 +12,18 @@ function bid(overrides: Partial<Bid> & { id: string }): Bid {
 }
 
 describe("bidderKey", () => {
-  it("본인 입찰은 항상 같은 키로 묶인다", () => {
-    expect(bidderKey(bid({ id: "1", isMine: true, maskedNickname: "aa***11" }))).toBe(
-      bidderKey(bid({ id: "2", isMine: true, maskedNickname: "bb***22" })),
+  it("본인 여부와 관계없이 같은 마스킹 닉네임을 키로 쓴다", () => {
+    expect(
+      bidderKey(bid({ id: "1", isMine: true, maskedNickname: "aa***11" })),
+    ).toBe(
+      bidderKey(bid({ id: "2", isMine: false, maskedNickname: "aa***11" })),
     );
   });
 
   it("타인 입찰은 마스킹 닉네임을 키로 쓴다", () => {
-    expect(bidderKey(bid({ id: "1", maskedNickname: "ab***12" }))).toBe("ab***12");
+    expect(bidderKey(bid({ id: "1", maskedNickname: "ab***12" }))).toBe(
+      "ab***12",
+    );
   });
 });
 
@@ -54,7 +58,7 @@ describe("dedupeBidsByBidder", () => {
   it("본인 입찰이 여러 번이어도 하나만 남는다", () => {
     const bids: Bid[] = [
       bid({ id: "2", isMine: true, amount: 2000 }),
-      bid({ id: "1", maskedNickname: "aa***11", amount: 1000 }),
+      bid({ id: "1", maskedNickname: "bb***22", amount: 1000 }),
       bid({ id: "0", isMine: true, amount: 500 }),
     ];
 

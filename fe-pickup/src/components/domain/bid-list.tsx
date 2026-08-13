@@ -6,6 +6,7 @@ import { bidderKey, dedupeBidsByBidder } from "@/lib/bids";
 import { Avatar } from "@/components/domain/avatar";
 import { useAnimatedNumber } from "@/hooks/use-animated-number";
 import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
+import { assignPokemonAvatars } from "@/lib/pokemon-avatars";
 
 function displayNameOf(bid: Bid): string {
   return bid.isMine ? "나" : bid.maskedNickname;
@@ -25,6 +26,7 @@ export function BidRow({ bid }: { bid: Bid }) {
       )}
     >
       <Avatar
+        src={bid.profileImageUrl}
         nickname={displayName}
         className="size-8 shrink-0"
         initialClassName="text-xs"
@@ -76,7 +78,13 @@ export function BidList({
  * 바뀌면 숫자가 카운트업/다운되고, `layout`으로 목록 내 위치 이동(맨 위로)도 함께
  * 애니메이션된다. 새로 등장하는 입찰자는 아래에서 위로 슬라이드하며 나타난다.
  */
-function AnimatedBidRow({ bid }: { bid: Bid }) {
+function AnimatedBidRow({
+  bid,
+  fallbackAvatarUrl,
+}: {
+  bid: Bid;
+  fallbackAvatarUrl: string;
+}) {
   const mine = bid.isMine;
   const displayName = displayNameOf(bid);
   const animatedAmount = useAnimatedNumber(bid.amount);
@@ -96,6 +104,8 @@ function AnimatedBidRow({ bid }: { bid: Bid }) {
       )}
     >
       <Avatar
+        src={bid.profileImageUrl}
+        fallbackSrc={fallbackAvatarUrl}
         nickname={displayName}
         className="size-8 shrink-0"
         initialClassName="text-xs"
@@ -144,6 +154,8 @@ export function RealtimeBidList({
     onIntersect: onLoadMore,
   });
   const deduped = dedupeBidsByBidder(bids);
+  const bidderKeys = deduped.map(bidderKey);
+  const avatarAssignments = assignPokemonAvatars(bidderKeys);
 
   if (deduped.length === 0) {
     return (
@@ -157,9 +169,16 @@ export function RealtimeBidList({
     <div className={cn("flex flex-col gap-2", className)}>
       <ul className="flex flex-col gap-1">
         <AnimatePresence initial={false} mode="popLayout">
-          {deduped.map((bid) => (
-            <AnimatedBidRow key={bidderKey(bid)} bid={bid} />
-          ))}
+          {deduped.map((bid) => {
+            const key = bidderKey(bid);
+            return (
+              <AnimatedBidRow
+                key={key}
+                bid={bid}
+                fallbackAvatarUrl={avatarAssignments.get(key)!}
+              />
+            );
+          })}
         </AnimatePresence>
       </ul>
       {hasNext && (

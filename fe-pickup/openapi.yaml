@@ -2103,6 +2103,8 @@ components:
           format: int64
         nicknameMasked:
           type: string
+        profileImageUrl:
+          type: string
         bidPrice:
           type: integer
           format: int64
