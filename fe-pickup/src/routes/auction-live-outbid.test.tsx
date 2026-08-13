@@ -12,6 +12,7 @@ const auction = {
   endsAt: "2099-01-01T11:00:00",
 };
 
+const myNickname: string | null = "collector88";
 let onBidUpdated: ((message: Record<string, unknown>) => void) | undefined;
 const toastWarning = vi.fn();
 const toastSuccess = vi.fn();
@@ -98,7 +99,10 @@ vi.mock("@/hooks/use-auction-bid-updates", () => ({
     onBidUpdated = options.onBidUpdated;
   },
 }));
-vi.mock("@/lib/auth", () => ({ useIsAuthenticated: () => true }));
+vi.mock("@/lib/auth", () => ({
+  useIsAuthenticated: () => true,
+  useNickname: () => myNickname,
+}));
 vi.mock("sonner", () => ({
   toast: { warning: toastWarning, success: toastSuccess, error: toastError },
 }));

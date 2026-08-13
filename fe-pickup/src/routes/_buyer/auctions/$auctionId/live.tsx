@@ -48,7 +48,7 @@ import {
   type AuctionBidUpdatedMessage,
   type BidRequestFailedMessage,
 } from "@/hooks/use-auction-bid-updates";
-import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
+import { isAuthenticated, useIsAuthenticated, useNickname } from "@/lib/auth";
 import {
   setSkipBidConfirm,
   shouldSkipBidConfirm,
@@ -108,6 +108,7 @@ function LiveAuctionPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isAuthenticated = useIsAuthenticated();
+  const myNickname = useNickname();
   const auctionQuery = useQuery({
     queryKey: ["auction-detail", initialAuction.id],
     queryFn: () => getAuctionDetail(initialAuction.id),
@@ -123,6 +124,9 @@ function LiveAuctionPage() {
   });
   const auction = auctionQuery.data;
   const minUnit = auction.minBidUnit ?? 0;
+  // 닉네임을 모르면 막지 않는다 — 최종 차단은 서버가 한다.
+  const isMyAuction =
+    !!myNickname && myNickname === (auction.sellerNickname ?? null);
 
   const [realtimeSnapshot, setRealtimeSnapshot] = useState({
     auctionId: auction.id,
@@ -527,8 +531,13 @@ function LiveAuctionPage() {
         {isAuthenticated ? (
           <div className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-[var(--color-text-sub)]">
+              <span className="flex items-center gap-2 text-[var(--color-text-sub)]">
                 최소 다음 입찰가
+                {isMyAuction && (
+                  <span className="rounded-[var(--radius-pill)] bg-[var(--color-surface-2)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+                    자신의 상품
+                  </span>
+                )}
               </span>
               <span className="tabular font-semibold text-foreground">
                 {formatWon(minNext)}
@@ -541,6 +550,7 @@ function LiveAuctionPage() {
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={`${minNext.toLocaleString("ko-KR")} 이상`}
                 className="tabular"
+                disabled={isMyAuction}
               />
               <Button
                 type="button"
@@ -548,7 +558,10 @@ function LiveAuctionPage() {
                 size="icon"
                 onClick={onIncrementClick}
                 disabled={
-                  minUnit <= 0 || bidMutation.isPending || isBidRequestPending
+                  isMyAuction ||
+                  minUnit <= 0 ||
+                  bidMutation.isPending ||
+                  isBidRequestPending
                 }
                 aria-label={`최소 입찰 단위(${formatWon(minUnit)})만큼 추가`}
                 className="shrink-0"
@@ -559,6 +572,7 @@ function LiveAuctionPage() {
               <Button
                 onClick={onBidClick}
                 disabled={
+                  isMyAuction ||
                   parsedAmount === null ||
                   bidMutation.isPending ||
                   isBidRequestPending
@@ -578,13 +592,16 @@ function LiveAuctionPage() {
                   size="sm"
                   variant="secondary"
                   onClick={() => setAmount(String(recommended))}
+                  disabled={isMyAuction}
                 >
                   {formatWon(recommended)}
                 </Button>
               ))}
             </div>
             <p className="text-xs text-[var(--color-text-muted)]">
-              입찰은 취소할 수 없습니다.
+              {isMyAuction
+                ? "자신이 등록한 경매에는 입찰할 수 없습니다."
+                : "입찰은 취소할 수 없습니다."}
             </p>
           </div>
         ) : (
