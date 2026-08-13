@@ -2,6 +2,7 @@ package com.ootd.pickup.auction.controller;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
 import static org.assertj.core.api.Assertions.*;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.BDDMockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -82,6 +83,56 @@ class AuctionControllerTest {
   }
 
   @Test
+  void 시작가가_1000원_미만이면_400을_반환한다() throws Exception {
+    // given
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            100L, 999L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(containsString("1,000원 이상")));
+
+    then(auctionService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 시작가가_정확히_1000원이면_경매_신청이_통과한다() throws Exception {
+    // given
+    LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1);
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(100L, 1000L, 15000L, scheduledStartAt, "Title", "Description");
+    given(auctionService.registerAuction(eq(1L), any(CreateAuctionRequest.class)))
+        .willReturn(
+            new CreateAuctionResponse(
+                1L,
+                100L,
+                AuctionStatus.SCHEDULED,
+                1000L,
+                50L,
+                scheduledStartAt,
+                null,
+                null,
+                null,
+                LocalDateTime.now()));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
   void 인증_정보가_없으면_401을_반환한다() throws Exception {
     // given
     CreateAuctionRequest request = createRequest(LocalDateTime.now().plusDays(1));
@@ -103,6 +154,44 @@ class AuctionControllerTest {
     CreateAuctionRequest request =
         new CreateAuctionRequest(
             null, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(auctionService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 제목이_100자를_초과하면_400을_반환한다() throws Exception {
+    // given
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            100L, 10000L, 15000L, LocalDateTime.now().plusDays(1), "가".repeat(101), "Description");
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(auctionService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 설명이_1000자를_초과하면_400을_반환한다() throws Exception {
+    // given
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            100L, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "가".repeat(1001));
 
     // when & then
     mockMvc
@@ -303,7 +392,8 @@ class AuctionControllerTest {
         500L,
         10000L,
         null,
-        false);
+        false,
+        null);
   }
 
   private AuctionListItemResponse createListItem() {

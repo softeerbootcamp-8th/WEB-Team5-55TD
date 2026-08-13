@@ -24,6 +24,7 @@ import { getAuctionDetail } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
 import { formatDate, formatDateTime, formatWon } from "@/lib/format";
 import { getCardStateLabel } from "@/lib/card-state";
+import { pokemonAvatarForKey } from "@/lib/pokemon-avatars";
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/")({
   loader: async ({ params }) => {
@@ -135,6 +136,9 @@ function AuctionDetailPage() {
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
               <Avatar
                 src={auction.sellerProfileImageUrl}
+                fallbackSrc={pokemonAvatarForKey(
+                  auction.sellerId ?? auction.sellerNickname ?? "판매자",
+                )}
                 nickname={auction.sellerNickname || "판매자"}
                 className="size-7"
                 initialClassName="text-xs"
@@ -229,15 +233,6 @@ function AuctionDetailPage() {
             </AccordionItem>
           </Accordion>
 
-          <MarketPriceChart
-            cardName={auction.cardName}
-            setName={auction.card?.setName}
-            cardNumber={auction.card?.cardNumber}
-            preferredAgency={auction.grade?.agency}
-            preferredScore={auction.grade?.score}
-            reservePrice={auction.startPrice}
-          />
-
           {/* CTA */}
           {auction.status !== AuctionStatus.ENDED && (
             <Button size="lg" asChild className="w-full">
@@ -255,6 +250,15 @@ function AuctionDetailPage() {
           )}
         </div>
       </div>
+
+      <MarketPriceChart
+        cardName={auction.cardName}
+        setName={auction.card?.setName}
+        cardNumber={auction.card?.cardNumber}
+        preferredAgency={auction.grade?.agency}
+        preferredScore={auction.grade?.score}
+        reservePrice={auction.startPrice}
+      />
 
       <RelatedAuctionsBanner auction={auction} />
 

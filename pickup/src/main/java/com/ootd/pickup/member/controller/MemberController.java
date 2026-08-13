@@ -14,7 +14,6 @@ import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
-import com.ootd.pickup.member.dto.WithdrawMemberRequest;
 import com.ootd.pickup.member.service.MemberService;
 import com.ootd.pickup.member.service.ProfileApplicationService;
 import com.ootd.pickup.point.dto.request.ChargePointRequest;
@@ -126,9 +125,8 @@ public class MemberController implements MemberApi {
   @DeleteMapping("/me")
   @Override
   @RequireAuthentication
-  public ResponseEntity<Void> withdrawMember(
-      @MemberId Long memberId, @Valid @RequestBody WithdrawMemberRequest request) {
-    memberService.withdrawMember(memberId, request);
+  public ResponseEntity<Void> withdrawMember(@MemberId Long memberId) {
+    memberService.withdrawMember(memberId);
     return ResponseEntity.noContent().build();
   }
 }

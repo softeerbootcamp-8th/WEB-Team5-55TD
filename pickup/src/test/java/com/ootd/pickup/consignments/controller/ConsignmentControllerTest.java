@@ -151,6 +151,31 @@ class ConsignmentControllerTest {
   }
 
   @Test
+  void 감정일이_현재보다_이후면_상품_등록은_400을_반환한다() throws Exception {
+    // given
+    RegisterConsignmentRequest request =
+        new RegisterConsignmentRequest(
+            10L,
+            CardState.HIGH,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.now().plusDays(1)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentApplicationService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 정의되지_않은_카드상태이면_400을_반환한다() throws Exception {
     String request =
         objectMapper.writeValueAsString(createRequest()).replace("\"HIGH\"", "\"INVALID\"");
@@ -205,6 +230,31 @@ class ConsignmentControllerTest {
                 new ConsignmentImageRequest("uploads/1/consignments/4.jpg"),
                 new ConsignmentImageRequest("uploads/1/consignments/5.jpg"),
                 new ConsignmentImageRequest("uploads/1/consignments/6.jpg")));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 주요_결함이_255자를_초과하면_400을_반환한다() throws Exception {
+    // given
+    RegisterConsignmentRequest request =
+        new RegisterConsignmentRequest(
+            10L,
+            CardState.HIGH,
+            "a".repeat(256),
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
 
     // when & then
     mockMvc
@@ -415,7 +465,7 @@ class ConsignmentControllerTest {
   }
 
   @Test
-  void 존재하는_상품ID로_조회하면_200과_상품_상세정보를_반환한다() throws Exception {
+  void 소유자가_존재하는_상품ID로_조회하면_200과_상품_상세정보를_반환한다() throws Exception {
     // given
     Long consignmentId = 100L;
     GetConsignmentDetailResponse response =
@@ -447,11 +497,13 @@ class ConsignmentControllerTest {
                 new ConsignmentImageResponse(1L, 1, "https://image.example.com/front.png"),
                 new ConsignmentImageResponse(2L, 2, "https://image.example.com/back.png")),
             false);
-    given(consignmentService.getConsignment(consignmentId)).willReturn(response);
+    given(consignmentService.getConsignment(consignmentId, 1L)).willReturn(response);
 
     // when & then
     mockMvc
-        .perform(get("/consignments/{consignmentId}", consignmentId))
+        .perform(
+            get("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.consignmentId").value(100L))
         .andExpect(jsonPath("$.card.cardId").value(10L))
@@ -465,15 +517,46 @@ class ConsignmentControllerTest {
   }
 
   @Test
+  void 인증_없이_상품_상세를_조회하면_401을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+
+    // when & then
+    mockMvc
+        .perform(get("/consignments/{consignmentId}", consignmentId))
+        .andExpect(status().isUnauthorized());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 본인이_등록한_상품이_아니면_상세_조회는_403을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    given(consignmentService.getConsignment(consignmentId, 1L))
+        .willThrow(new PickUpException(CONSIGNMENT_READ_OWNER_MISMATCH));
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value(CONSIGNMENT_READ_OWNER_MISMATCH.getMessage()));
+  }
+
+  @Test
   void 존재하지_않는_상품ID로_조회하면_404를_반환한다() throws Exception {
     // given
     Long notExistConsignmentId = 999L;
-    given(consignmentService.getConsignment(notExistConsignmentId))
+    given(consignmentService.getConsignment(notExistConsignmentId, 1L))
         .willThrow(new PickUpException(CONSIGNMENT_NOT_FOUND));
 
     // when & then
     mockMvc
-        .perform(get("/consignments/{consignmentId}", notExistConsignmentId))
+        .perform(
+            get("/consignments/{consignmentId}", notExistConsignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value(CONSIGNMENT_NOT_FOUND.getMessage()));
   }
@@ -552,6 +635,56 @@ class ConsignmentControllerTest {
         .andExpect(status().isBadRequest());
 
     then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 주요_결함이_255자를_초과하면_수정_요청은_400을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            CardState.HIGH,
+            "a".repeat(256),
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentApplicationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 감정일이_현재보다_이후면_상품_수정은_400을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            CardState.HIGH,
+            null,
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.now().plusDays(1)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentApplicationService).shouldHaveNoInteractions();
   }
 
   @Test

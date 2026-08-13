@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -23,7 +23,12 @@ import { registerAuction } from "@/api/auctions";
 import { getMyConsignmentDetail } from "@/api/consignments";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
-import { formatDateTime, formatWon, minBidUnit } from "@/lib/format";
+import {
+  formatDateTime,
+  formatWon,
+  minBidUnit,
+  MINIMUM_STARTING_PRICE,
+} from "@/lib/format";
 import {
   kstLocalInputToUtcIso,
   utcInstantToKstLocalInput,
@@ -46,6 +51,7 @@ function parsePositivePrice(value: string): number | null {
 /** DESIGN.md · auction-apply.html — 희망 시작가/낙찰가/일정, 신청 후 수정·삭제 불가 */
 function AuctionApplyPage() {
   const { productId } = Route.useParams();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data: product, isPending } = useQuery({
@@ -66,8 +72,15 @@ function AuctionApplyPage() {
 
   const startValue = parsePositivePrice(startPrice);
   const reserveValue = parsePositivePrice(reserve);
+  const startPriceTooLow =
+    startValue !== null && startValue < MINIMUM_STARTING_PRICE;
+  const reserveBelowStart =
+    startValue !== null && reserveValue !== null && startValue > reserveValue;
   const priceRangeValid =
-    startValue !== null && reserveValue !== null && startValue <= reserveValue;
+    startValue !== null &&
+    !startPriceTooLow &&
+    reserveValue !== null &&
+    !reserveBelowStart;
   const unit = startValue ? minBidUnit(startValue) : 0;
   const scheduleValue = schedule
     ? Date.parse(kstLocalInputToUtcIso(schedule))
@@ -90,6 +103,12 @@ function AuctionApplyPage() {
         description,
       }),
     onSuccess: () => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["sellers", "me", "stats"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["consignments", "my"] }),
+      ]);
       toast.success("경매 신청이 완료되었습니다.");
       navigate({ to: "/seller/products/$productId", params: { productId } });
     },
@@ -181,11 +200,14 @@ function AuctionApplyPage() {
 
         <div className="flex flex-col gap-1.5">
           <Label>경매 본문 (선택)</Label>
-          <Input
+          <textarea
+            aria-label="경매 본문"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="경매 본문을 입력해 주세요"
             maxLength={1000}
+            rows={6}
+            className="min-h-32 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
 
@@ -203,6 +225,12 @@ function AuctionApplyPage() {
           {startPrice && startValue === null && (
             <p className="text-xs text-[var(--color-danger)]">
               시작가는 0보다 큰 안전한 범위의 정수로 입력해 주세요.
+            </p>
+          )}
+          {startPriceTooLow && (
+            <p className="text-xs text-[var(--color-danger)]">
+              시작가는 {formatWon(MINIMUM_STARTING_PRICE)} 이상으로 입력해
+              주세요.
             </p>
           )}
           <p className="text-xs text-[var(--color-text-muted)]">
@@ -230,7 +258,7 @@ function AuctionApplyPage() {
               최소 희망 낙찰가는 0보다 큰 안전한 범위의 정수로 입력해 주세요.
             </p>
           )}
-          {startValue !== null && reserveValue !== null && !priceRangeValid && (
+          {reserveBelowStart && (
             <p className="text-xs text-[var(--color-danger)]">
               최소 희망 낙찰가는 희망 시작가 이상으로 입력해 주세요.
             </p>

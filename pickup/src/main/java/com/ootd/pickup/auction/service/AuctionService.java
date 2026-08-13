@@ -11,6 +11,7 @@ import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionCursor;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionSearchField;
 import com.ootd.pickup.auction.repository.auction.AuctionSort;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
 import com.ootd.pickup.auction.repository.watch.WatchSummary;
@@ -26,9 +27,11 @@ import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
+import com.ootd.pickup.global.util.NicknameMasker;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -105,6 +108,7 @@ public class AuctionService {
   public CursorPageResponse<AuctionListItemResponse, String> searchAuctions(
       Long viewerMemberId, SearchAuctionsRequest request) {
     AuctionSort sort = AuctionSort.from(request.sort());
+    AuctionSearchField searchField = AuctionSearchField.from(request.searchField());
     List<AuctionStatus> statuses =
         request.status() == null
             ? List.of()
@@ -116,6 +120,7 @@ public class AuctionService {
       List<Auction> auctions =
           auctionRepository.searchAuctions(
               request.q(),
+              searchField,
               statuses,
               sort,
               null,
@@ -132,6 +137,7 @@ public class AuctionService {
     List<Auction> fetched =
         auctionRepository.searchAuctions(
             request.q(),
+            searchField,
             statuses,
             sort,
             decodedCursor,
@@ -161,7 +167,15 @@ public class AuctionService {
   public AuctionListItemResponse getFeaturedAuction(Long viewerMemberId) {
     List<Auction> candidates =
         auctionRepository.searchAuctions(
-            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1, null, null, null);
+            null,
+            AuctionSearchField.ALL,
+            List.of(AuctionStatus.ONGOING),
+            AuctionSort.POPULAR,
+            null,
+            1,
+            null,
+            null,
+            null);
     Auction featured =
         candidates.stream()
             .findFirst()
@@ -182,7 +196,9 @@ public class AuctionService {
         watchRepository
             .findWatchSummariesByAuctionIds(viewerMemberId, List.of(auctionId))
             .getOrDefault(auctionId, WatchSummary.EMPTY);
-    boolean myBidWon = resolveMyBidWon(auction, viewerMemberId);
+    Optional<Bid> winningBid = findWinningBid(auction);
+    boolean myBidWon = resolveMyBidWon(winningBid, viewerMemberId);
+    String winnerNicknameMasked = resolveWinnerNicknameMasked(winningBid);
 
     return AuctionDetailResponse.of(
         auction,
@@ -192,24 +208,34 @@ public class AuctionService {
         watchSummary.watchedByViewer(),
         auction.getCurrentPrice(),
         imageUrlResolver,
-        myBidWon);
+        myBidWon,
+        winnerNicknameMasked);
   }
 
   /**
-   * 조회자 본인이 이 경매의 낙찰자인지 판정한다. 판정 근거는 {@link Bid#getBidStatus()}와 같다 — Auction의 winningBidId가 이 경매의
-   * 유일한 낙찰 근거다.
+   * 이 경매의 낙찰 입찰을 조회한다. 판정 근거는 {@link Bid#getBidStatus()}와 같다 — Auction의 winningBidId가 이 경매의 유일한 낙찰
+   * 근거다. 낙찰(WON) 상태가 아니면 빈 값이다.
    */
-  private boolean resolveMyBidWon(Auction auction, Long viewerMemberId) {
-    if (viewerMemberId == null
-        || auction.getAuctionStatus() != AuctionStatus.WON
-        || auction.getWinningBidId() == null) {
+  private Optional<Bid> findWinningBid(Auction auction) {
+    if (auction.getAuctionStatus() != AuctionStatus.WON || auction.getWinningBidId() == null) {
+      return Optional.empty();
+    }
+    return bidRepository.findById(auction.getWinningBidId());
+  }
+
+  /** 조회자 본인이 이 경매의 낙찰자인지 판정한다. 비로그인 상태거나 낙찰자가 아니면 false. */
+  private boolean resolveMyBidWon(Optional<Bid> winningBid, Long viewerMemberId) {
+    if (viewerMemberId == null) {
       return false;
     }
-
-    return bidRepository
-        .findById(auction.getWinningBidId())
+    return winningBid
         .map(bid -> bid.getMember().getMemberId().equals(viewerMemberId))
         .orElse(false);
+  }
+
+  /** 낙찰자의 마스킹된 닉네임을 계산한다. 낙찰 입찰이 없으면 null. */
+  private String resolveWinnerNicknameMasked(Optional<Bid> winningBid) {
+    return winningBid.map(bid -> NicknameMasker.mask(bid.getMember().getNickname())).orElse(null);
   }
 
   private Consignment getConsignment(Long consignmentId) {

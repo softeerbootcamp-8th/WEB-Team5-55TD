@@ -13,7 +13,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { searchAuctions, type AuctionSort } from "@/api/auctions";
+import {
+  searchAuctions,
+  type AuctionSearchField,
+  type AuctionSort,
+} from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/_buyer/auctions/")({
@@ -38,6 +42,15 @@ const SORT_LABEL: Record<Sort, string> = {
   recent: "최신순",
 };
 
+const DEFAULT_SORT: Sort = "popular";
+
+/** 상태 탭별로 고를 수 있는 정렬 기준. 시각이 이미 지나 의미가 없는 기준은 뺀다. */
+const SORT_OPTIONS: Record<Filter, Sort[]> = {
+  LIVE: ["popular", "priceAsc", "priceDesc", "endingSoon", "recent"],
+  UPCOMING: ["popular", "priceAsc", "priceDesc", "startingSoon", "recent"],
+  ENDED: ["popular", "priceAsc", "priceDesc", "recent"],
+};
+
 const API_STATUS: Record<
   Filter,
   ("SCHEDULED" | "ONGOING" | "WON" | "PASSED")[]
@@ -56,19 +69,42 @@ const API_SORT: Record<Sort, AuctionSort> = {
   recent: "RECENT",
 };
 
+const SEARCH_FIELD_LABEL: Record<AuctionSearchField, string> = {
+  ALL: "통합",
+  AUCTION_TITLE: "경매명",
+  CARD_NAME: "카드명",
+  SELLER: "판매자",
+};
+
+const SEARCH_PLACEHOLDER: Record<AuctionSearchField, string> = {
+  ALL: "경매명 · 카드명 · 판매자로 검색",
+  AUCTION_TITLE: "경매명으로 검색",
+  CARD_NAME: "카드명으로 검색",
+  SELLER: "판매자로 검색",
+};
+
 /** DESIGN.md · auction list.html — 검색 · 정렬 · 진행/예정/종료 필터 */
 function AuctionListPage() {
   const [filter, setFilter] = useState<Filter>("LIVE");
-  const [sort, setSort] = useState<Sort>("popular");
+  const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [query, setQuery] = useState("");
+  const [searchField, setSearchField] = useState<AuctionSearchField>("ALL");
   const deferredQuery = useDeferredValue(query.trim());
+
+  function selectFilter(next: Filter) {
+    setFilter(next);
+    if (!SORT_OPTIONS[next].includes(sort)) {
+      setSort(DEFAULT_SORT);
+    }
+  }
 
   const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useInfiniteQuery({
-      queryKey: ["auctions", filter, sort, deferredQuery],
+      queryKey: ["auctions", filter, sort, deferredQuery, searchField],
       queryFn: ({ pageParam }) =>
         searchAuctions({
           q: deferredQuery || undefined,
+          searchField,
           status: API_STATUS[filter],
           sort: API_SORT[sort],
           cursor: pageParam,
@@ -102,24 +138,45 @@ function AuctionListPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">경매</h1>
         <p className="text-sm text-[var(--color-text-sub)]">
-          카드명으로 경매를 탐색하세요.
+          경매명 · 카드명 · 판매자로 경매를 탐색하세요.
         </p>
       </div>
 
       {/* 검색 */}
-      <div className="relative">
-        <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="카드명으로 검색"
-          className="pl-10"
-        />
+      <div className="flex gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border border-border px-3 py-2 text-sm outline-none hover:bg-[var(--color-surface-2)]">
+            {SEARCH_FIELD_LABEL[searchField]}
+            <ChevronDown className="size-4 text-[var(--color-text-muted)]" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {(Object.keys(SEARCH_FIELD_LABEL) as AuctionSearchField[]).map(
+              (key) => (
+                <DropdownMenuItem
+                  key={key}
+                  onSelect={() => setSearchField(key)}
+                >
+                  {SEARCH_FIELD_LABEL[key]}
+                </DropdownMenuItem>
+              ),
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="relative flex-1">
+          <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={SEARCH_PLACEHOLDER[searchField]}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* 필터 + 정렬 */}
       <div className="flex items-center justify-between">
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+        <Tabs value={filter} onValueChange={(v) => selectFilter(v as Filter)}>
           <TabsList>
             <TabsTrigger value={AuctionStatus.LIVE}>진행 중</TabsTrigger>
             <TabsTrigger value={AuctionStatus.UPCOMING}>예정</TabsTrigger>
@@ -133,7 +190,7 @@ function AuctionListPage() {
             <ChevronDown className="size-4 text-[var(--color-text-muted)]" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {(Object.keys(SORT_LABEL) as Sort[]).map((key) => (
+            {SORT_OPTIONS[filter].map((key) => (
               <DropdownMenuItem key={key} onSelect={() => setSort(key)}>
                 {SORT_LABEL[key]}
               </DropdownMenuItem>

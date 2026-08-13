@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Avatar } from "@/components/domain/avatar";
 import { CardThumb } from "@/components/domain/card-thumb";
+import { ConnectionStatus } from "@/components/domain/connection-status";
 import { Countdown } from "@/components/domain/countdown";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
@@ -87,6 +88,9 @@ describe("공통 도메인 컴포넌트", () => {
     expect(screen.getByText("LIVE")).toBeInTheDocument();
     fireEvent.load(screen.getByRole("img", { name: "Charizard" }));
     expect(screen.getByText("Charizard")).toHaveClass("sr-only");
+    // 실제 사진이 뜨면 GradeBadge와 중복되는 등급/라벨 오버레이도 함께 숨긴다.
+    expect(screen.getByText("BGS 9.5")).toHaveClass("sr-only");
+    expect(screen.getByText("LIVE")).toHaveClass("sr-only");
   });
 
   it("섹션 헤더와 빈 상태의 선택적 콘텐츠를 표시한다", () => {
@@ -122,10 +126,30 @@ describe("공통 도메인 컴포넌트", () => {
         onEnd={onEnd}
       />,
     );
-    expect(screen.getByText("00 : 00 : 01")).toBeInTheDocument();
+    expect(screen.getByText("00 : 00 : 00 : 01")).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1000));
     expect(onEnd).toHaveBeenCalledOnce();
     act(() => vi.advanceTimersByTime(2000));
     expect(onEnd).toHaveBeenCalledOnce();
+  });
+
+  it("연결 상태마다 라벨과 색을 다르게 보여준다", () => {
+    const { rerender } = render(<ConnectionStatus status="connected" />);
+    expect(screen.getByRole("status")).toHaveTextContent("실시간");
+    expect(screen.getByRole("status")).toHaveClass(
+      "text-[var(--color-success)]",
+    );
+
+    rerender(<ConnectionStatus status="reconnecting" />);
+    expect(screen.getByRole("status")).toHaveTextContent("재연결 중");
+    expect(screen.getByRole("status")).toHaveClass(
+      "text-[var(--color-warning)]",
+    );
+
+    rerender(<ConnectionStatus status="disconnected" />);
+    expect(screen.getByRole("status")).toHaveTextContent("연결 끊김");
+    expect(screen.getByRole("status")).toHaveClass(
+      "text-[var(--color-danger)]",
+    );
   });
 });

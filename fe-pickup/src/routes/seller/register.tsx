@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { todayDateInputValue } from "@/lib/timezone";
 import { useSearchCards } from "@/api/generated/card/card";
 import { registerConsignment } from "@/api/generated/consignment/consignment";
 import {
@@ -27,6 +28,7 @@ import type {
 } from "@/api/generated/model";
 import { uploadImage } from "@/api/image-upload";
 import { CARD_STATE_OPTIONS, getCardStateLabel } from "@/lib/card-state";
+import { MAJOR_DEFECT_MAX_LENGTH } from "@/lib/consignment";
 
 export const Route = createFileRoute("/seller/register")({
   component: RegisterWizard,
@@ -89,6 +91,8 @@ function RegisterWizard() {
   const [inspectedAt, setInspectedAt] = useState("");
   const [cardState, setCardState] = useState<CardState | "">("");
   const [majorDefect, setMajorDefect] = useState("");
+  const [today] = useState(todayDateInputValue);
+  const inspectedAtValid = inspectedAt.length === 0 || inspectedAt <= today;
 
   const [images, setImages] = useState<ConsignmentImageValue[]>([]);
 
@@ -99,7 +103,8 @@ function RegisterWizard() {
         ? grade.length > 0 &&
           cardState.length > 0 &&
           serialNumber.trim().length > 0 &&
-          inspectedAt.length > 0
+          inspectedAt.length > 0 &&
+          inspectedAtValid
         : step === 2
           ? images.length >= 2
           : true;
@@ -161,10 +166,10 @@ function RegisterWizard() {
 
   return (
     <PageContainer className="flex max-w-2xl flex-col gap-8">
-      <h1 className="text-2xl font-bold">카드 등록</h1>
+      <h1 className="text-2xl font-bold">상품 등록</h1>
       <StepIndicator steps={STEPS} current={step} />
 
-      <div className="rounded-[var(--radius-lg)] border border-border bg-card p-6">
+      <div className="rounded-[var(--radius-lg)] border border-border bg-card p-4 sm:p-6">
         {step === 0 && (
           <div className="flex flex-col gap-4">
             {!selectedCard ? (
@@ -202,14 +207,14 @@ function RegisterWizard() {
                         <CardThumb
                           cardName={card.cardName ?? ""}
                           imageUrl={card.imageUrl ?? undefined}
-                          className="size-12 rounded-[var(--radius-sm)]"
+                          className="size-12 shrink-0 rounded-[var(--radius-sm)]"
                           aspect="aspect-square"
                         />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold">
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate text-sm font-semibold">
                             {card.cardName}
                           </span>
-                          <span className="text-xs text-[var(--color-text-muted)]">
+                          <span className="truncate text-xs text-[var(--color-text-muted)]">
                             {card.setName} · {card.cardNumber} · {card.language}{" "}
                             · {card.rarity}
                           </span>
@@ -220,19 +225,19 @@ function RegisterWizard() {
                 )}
               </>
             ) : (
-              <div className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-primary bg-[var(--primary-weak)] p-4">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-primary bg-[var(--primary-weak)] p-4">
+                <div className="flex min-w-0 items-center gap-3">
                   <CardThumb
                     cardName={selectedCard.cardName ?? ""}
                     imageUrl={selectedCard.imageUrl ?? undefined}
-                    className="size-14 rounded-[var(--radius-sm)]"
+                    className="size-14 shrink-0 rounded-[var(--radius-sm)]"
                     aspect="aspect-square"
                   />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold">
                       {selectedCard.cardName}
                     </span>
-                    <span className="text-xs text-[var(--color-text-sub)]">
+                    <span className="truncate text-xs text-[var(--color-text-sub)]">
                       {selectedCard.setName} · {selectedCard.cardNumber} ·{" "}
                       {selectedCard.language} · {selectedCard.rarity}
                     </span>
@@ -257,7 +262,7 @@ function RegisterWizard() {
               있습니다. 서비스는 검수를 제공하지 않으며 인증서 일련번호로 자가
               인증합니다.
             </p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="인증기관" required>
                 <Select
                   value={certificationBody}
@@ -301,8 +306,14 @@ function RegisterWizard() {
                 <Input
                   type="date"
                   value={inspectedAt}
+                  max={today}
                   onChange={(e) => setInspectedAt(e.target.value)}
                 />
+                {!inspectedAtValid && (
+                  <p className="text-xs text-[var(--color-danger)]">
+                    현재 날짜보다 이후일 수 없습니다.
+                  </p>
+                )}
               </Field>
             </div>
             <Field label="카드 상태" required>
@@ -325,7 +336,11 @@ function RegisterWizard() {
                 value={majorDefect}
                 onChange={(e) => setMajorDefect(e.target.value)}
                 placeholder="예: 뒷면 우하단 미세 스크래치"
+                maxLength={MAJOR_DEFECT_MAX_LENGTH}
               />
+              <p className="text-right text-xs text-[var(--color-text-muted)]">
+                {majorDefect.length}/{MAJOR_DEFECT_MAX_LENGTH}
+              </p>
             </Field>
           </div>
         )}
@@ -344,7 +359,7 @@ function RegisterWizard() {
         {step === 3 && (
           <div className="flex flex-col gap-4">
             <h2 className="text-base font-semibold">입력 정보 최종 확인</h2>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
               <Summary label="카드명" value={selectedCard?.cardName ?? "-"} />
               <Summary
                 label="세트 / 번호"
@@ -371,21 +386,32 @@ function RegisterWizard() {
         )}
       </div>
 
-      {/* 네비게이션 */}
-      <div className="flex justify-between">
+      {/* 네비게이션 — 모바일에서는 엄지로 누르기 쉽게 버튼을 세로로 쌓고,
+          다음 단계로 가는 주요 동작을 위쪽에 둔다. sm 이상에서는 기존처럼
+          한 줄로 좌우 배치한다. */}
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
         <Button
           variant="secondary"
           onClick={prev}
           disabled={step === 0 || isSubmitting}
+          className="w-full sm:w-auto"
         >
           이전
         </Button>
         {step < STEPS.length - 1 ? (
-          <Button onClick={next} disabled={!canNext || isSubmitting}>
+          <Button
+            onClick={next}
+            disabled={!canNext || isSubmitting}
+            className="w-full sm:w-auto"
+          >
             다음 단계
           </Button>
         ) : (
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="w-full sm:w-auto"
+          >
             {isSubmitting ? "등록 중..." : "등록 완료"}
           </Button>
         )}

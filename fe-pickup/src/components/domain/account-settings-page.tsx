@@ -51,7 +51,7 @@ const PROFILE_ERROR_MESSAGE = "계정 정보를 불러오지 못했습니다.";
 const UPDATE_ERROR_MESSAGE = "계정 정보를 저장하지 못했습니다.";
 const WITHDRAW_ERROR_MESSAGE =
   "회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해 주세요.";
-const INVALID_PASSWORD_MESSAGE = "비밀번호가 일치하지 않습니다.";
+const SOCIAL_PROVIDER_LABEL: Record<string, string> = { KAKAO: "카카오" };
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
   return (
@@ -70,7 +70,9 @@ export function AccountSettingsPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">계정 설정</h1>
         <p className="text-sm text-[var(--color-text-sub)]">
-          프로필 이미지·닉네임·비밀번호를 변경할 수 있습니다.
+          {profile?.oauthProvider
+            ? "프로필 이미지·닉네임을 변경할 수 있습니다."
+            : "프로필 이미지·닉네임·비밀번호를 변경할 수 있습니다."}
         </p>
       </div>
 
@@ -94,7 +96,7 @@ export function AccountSettingsPage() {
             key={`${profile.memberId ?? "me"}:${profile.nickname}:${profile.profileImageUrl ?? ""}`}
             profile={profile}
           />
-          <WithdrawMemberSection />
+          <WithdrawMemberSection nickname={profile.nickname} />
         </>
       )}
     </PageContainer>
@@ -137,12 +139,15 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // 소셜 가입 회원은 비밀번호가 없어 변경할 것도 없다(서버도 거절한다).
+  const isSocialMember = !!profile.oauthProvider;
   const normalizedNickname = nickname.trim();
   const nicknameValid = isValidNickname(normalizedNickname);
   const passwordTouched =
-    currentPassword.length > 0 ||
-    newPassword.length > 0 ||
-    newPasswordConfirm.length > 0;
+    !isSocialMember &&
+    (currentPassword.length > 0 ||
+      newPassword.length > 0 ||
+      newPasswordConfirm.length > 0);
   const currentPasswordMissing =
     passwordTouched && currentPassword.length === 0;
   const newPasswordInvalid = passwordTouched && !isValidPassword(newPassword);
@@ -302,68 +307,76 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
             )}
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="currentPassword">현재 비밀번호</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={currentPassword}
-                onChange={(event) => {
-                  setCurrentPassword(event.target.value);
-                  setErrorMessage(null);
-                }}
-                placeholder="비밀번호 변경 시 입력해 주세요"
-                autoComplete="current-password"
-              />
-              {currentPasswordMissing && (
-                <p className="text-xs text-[var(--color-danger)]">
-                  현재 비밀번호를 입력해 주세요.
-                </p>
-              )}
-            </div>
+          {isSocialMember ? (
+            <p className="text-sm text-[var(--color-text-sub)]">
+              {SOCIAL_PROVIDER_LABEL[profile.oauthProvider ?? ""] ?? "소셜"}{" "}
+              계정으로 가입해 비밀번호가 없습니다. 닉네임과 프로필 이미지만
+              변경할 수 있습니다.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="currentPassword">현재 비밀번호</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => {
+                    setCurrentPassword(event.target.value);
+                    setErrorMessage(null);
+                  }}
+                  placeholder="비밀번호 변경 시 입력해 주세요"
+                  autoComplete="current-password"
+                />
+                {currentPasswordMissing && (
+                  <p className="text-xs text-[var(--color-danger)]">
+                    현재 비밀번호를 입력해 주세요.
+                  </p>
+                )}
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="newPassword">새 비밀번호</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(event) => {
-                  setNewPassword(event.target.value);
-                  setErrorMessage(null);
-                }}
-                placeholder="변경하지 않으려면 비워두세요"
-                autoComplete="new-password"
-              />
-              {newPasswordInvalid && (
-                <p className="text-xs text-[var(--color-danger)]">
-                  새 비밀번호는 {PASSWORD_GUIDE}여야 합니다.
-                </p>
-              )}
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="newPassword">새 비밀번호</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => {
+                    setNewPassword(event.target.value);
+                    setErrorMessage(null);
+                  }}
+                  placeholder="변경하지 않으려면 비워두세요"
+                  autoComplete="new-password"
+                />
+                {newPasswordInvalid && (
+                  <p className="text-xs text-[var(--color-danger)]">
+                    새 비밀번호는 {PASSWORD_GUIDE}여야 합니다.
+                  </p>
+                )}
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="newPasswordConfirm">새 비밀번호 확인</Label>
-              <Input
-                id="newPasswordConfirm"
-                type="password"
-                value={newPasswordConfirm}
-                onChange={(event) => {
-                  setNewPasswordConfirm(event.target.value);
-                  setErrorMessage(null);
-                }}
-                placeholder="새 비밀번호를 한 번 더 입력해 주세요"
-                autoComplete="new-password"
-                aria-invalid={passwordMismatch}
-              />
-              {passwordMismatch && (
-                <p className="text-xs text-[var(--color-danger)]">
-                  새 비밀번호가 일치하지 않습니다.
-                </p>
-              )}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="newPasswordConfirm">새 비밀번호 확인</Label>
+                <Input
+                  id="newPasswordConfirm"
+                  type="password"
+                  value={newPasswordConfirm}
+                  onChange={(event) => {
+                    setNewPasswordConfirm(event.target.value);
+                    setErrorMessage(null);
+                  }}
+                  placeholder="새 비밀번호를 한 번 더 입력해 주세요"
+                  autoComplete="new-password"
+                  aria-invalid={passwordMismatch}
+                />
+                {passwordMismatch && (
+                  <p className="text-xs text-[var(--color-danger)]">
+                    새 비밀번호가 일치하지 않습니다.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {errorMessage && (
             <p className="text-sm text-[var(--color-danger)]">{errorMessage}</p>
@@ -383,15 +396,13 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
   );
 }
 
-/** 회원 탈퇴 — 비밀번호 확인 모달을 거쳐 DELETE /members/me 호출 */
-function WithdrawMemberSection() {
+/** 회원 탈퇴 — "정말로 탈퇴하시겠습니까?" 확인 모달에서 "네"를 눌러야 DELETE /members/me 호출 */
+function WithdrawMemberSection({ nickname }: { nickname: string }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [password, setPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const withdrawMutation = useMutation({
-    mutationFn: (password: string) => withdrawMember(password),
+    mutationFn: () => withdrawMember(),
     onSuccess: () => {
       setOpen(false);
       setAuthenticated(false);
@@ -399,10 +410,6 @@ function WithdrawMemberSection() {
       navigate({ to: "/login" });
     },
     onError: (error: AxiosError<ExceptionResponse>) => {
-      if (error.response?.data?.error === "INVALID_PASSWORD") {
-        setErrorMessage(INVALID_PASSWORD_MESSAGE);
-        return;
-      }
       setOpen(false);
       toast.error(getErrorMessage(error, WITHDRAW_ERROR_MESSAGE));
     },
@@ -411,17 +418,6 @@ function WithdrawMemberSection() {
   const closeDialog = (nextOpen: boolean) => {
     if (withdrawMutation.isPending) return;
     setOpen(nextOpen);
-    if (!nextOpen) {
-      setPassword("");
-      setErrorMessage(null);
-    }
-  };
-
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!password || withdrawMutation.isPending) return;
-    setErrorMessage(null);
-    withdrawMutation.mutate(password);
   };
 
   return (
@@ -448,54 +444,35 @@ function WithdrawMemberSection() {
       <Dialog open={open} onOpenChange={closeDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>회원 탈퇴 하시겠어요?</DialogTitle>
+            <DialogTitle>정말로 회원 탈퇴 하시겠습니까?</DialogTitle>
             <DialogDescription>
-              탈퇴하면 계정 정보가 삭제되고 복구할 수 없습니다. 계속하려면
-              비밀번호를 입력해 주세요.
+              많은 포켓몬들이{" "}
+              <strong className="font-semibold text-foreground">
+                {nickname}
+              </strong>
+              님을 기다리고 있어요
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={submit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="withdraw-password">비밀번호</Label>
-              <Input
-                id="withdraw-password"
-                type="password"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  setErrorMessage(null);
-                }}
-                placeholder="비밀번호를 입력해 주세요"
-                autoComplete="current-password"
-                aria-invalid={!!errorMessage}
-                autoFocus
-              />
-              {errorMessage && (
-                <p className="text-xs text-[var(--color-danger)]">
-                  {errorMessage}
-                </p>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex-1"
-                onClick={() => closeDialog(false)}
-                disabled={withdrawMutation.isPending}
-              >
-                취소
-              </Button>
-              <Button
-                type="submit"
-                variant="destructive"
-                className="flex-1"
-                disabled={!password || withdrawMutation.isPending}
-              >
-                {withdrawMutation.isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
-              </Button>
-            </DialogFooter>
-          </form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => closeDialog(false)}
+              disabled={withdrawMutation.isPending}
+            >
+              아니오
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="flex-1"
+              onClick={() => withdrawMutation.mutate()}
+              disabled={withdrawMutation.isPending}
+            >
+              {withdrawMutation.isPending ? "탈퇴 처리 중..." : "네"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>

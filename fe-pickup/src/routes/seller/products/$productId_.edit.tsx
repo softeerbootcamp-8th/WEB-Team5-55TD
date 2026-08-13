@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { todayDateInputValue } from "@/lib/timezone";
 import { getMyConsignmentDetail } from "@/api/consignments";
 import type { ConsignmentDetail } from "@/api/consignments";
 import { modifyConsignment } from "@/api/generated/consignment/consignment";
@@ -25,6 +26,7 @@ import type { ExceptionResponse } from "@/api/generated/model";
 import { uploadImage } from "@/api/image-upload";
 import { ProductStatus } from "@/lib/types";
 import { CARD_STATE_OPTIONS } from "@/lib/card-state";
+import { MAJOR_DEFECT_MAX_LENGTH } from "@/lib/consignment";
 
 export const Route = createFileRoute("/seller/products/$productId_/edit")({
   component: ProductEditPage,
@@ -135,6 +137,8 @@ function EditForm({
     product.cardState ?? "",
   );
   const [majorDefect, setMajorDefect] = useState(product.majorDefect ?? "");
+  const [today] = useState(todayDateInputValue);
+  const inspectedAtValid = inspectedAt.length === 0 || inspectedAt <= today;
   const [images, setImages] = useState<ConsignmentImageValue[]>(
     product.images.map((image) => ({
       kind: "existing",
@@ -195,6 +199,7 @@ function EditForm({
     cardState.length > 0 &&
     serialNumber.trim().length > 0 &&
     inspectedAt.length > 0 &&
+    inspectedAtValid &&
     images.length >= 2;
 
   return (
@@ -266,8 +271,14 @@ function EditForm({
             <Input
               type="date"
               value={inspectedAt}
+              max={today}
               onChange={(e) => setInspectedAt(e.target.value)}
             />
+            {!inspectedAtValid && (
+              <p className="text-xs text-[var(--color-danger)]">
+                현재 날짜보다 이후일 수 없습니다.
+              </p>
+            )}
           </Field>
         </div>
         <Field label="카드 상태" required>
@@ -290,7 +301,11 @@ function EditForm({
             value={majorDefect}
             onChange={(e) => setMajorDefect(e.target.value)}
             placeholder="예: 뒷면 우하단 미세 스크래치"
+            maxLength={MAJOR_DEFECT_MAX_LENGTH}
           />
+          <p className="text-right text-xs text-[var(--color-text-muted)]">
+            {majorDefect.length}/{MAJOR_DEFECT_MAX_LENGTH}
+          </p>
         </Field>
         <ConsignmentImageFields
           images={images}

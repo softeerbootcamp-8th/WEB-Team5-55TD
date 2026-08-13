@@ -13,6 +13,7 @@ let authenticated = true;
 const deleteMutate = vi.fn();
 const registerMutate = vi.fn();
 const invalidateQueries = vi.fn();
+const setQueriesData = vi.fn();
 const invalidateRouter = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
@@ -29,7 +30,7 @@ vi.mock("@/api/generated/member/member", () => ({
   getGetMyWatchesQueryKey: () => ["watches"],
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries }),
+  useQueryClient: () => ({ invalidateQueries, setQueriesData }),
 }));
 
 describe("HeartButton", () => {
@@ -123,5 +124,44 @@ describe("HeartButton", () => {
     expect(
       screen.getByRole("button", { name: "관심 등록" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("관심 토글과 경매 목록 정렬", () => {
+  beforeEach(() => {
+    authenticated = true;
+    vi.clearAllMocks();
+  });
+
+  it("경매 목록은 즉시 다시 불러오지 않는다", async () => {
+    const { WatchButton } = await import("./heart-button");
+    render(<WatchButton auctionId="7" watched={false} count={2} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "관심 등록" }));
+    await registerMutate.mock.calls[0][1].onSettled();
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["auctions"],
+      refetchType: "none",
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: ["auctions"],
+    });
+  });
+
+  it("경매 목록 캐시의 관심 상태를 직접 갈아끼운다", async () => {
+    const { WatchButton } = await import("./heart-button");
+    render(<WatchButton auctionId="7" watched={false} count={2} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "관심 등록" }));
+    await registerMutate.mock.calls[0][1].onSettled();
+
+    const [filters, updater] = setQueriesData.mock.calls[0];
+    expect(filters).toEqual({ queryKey: ["auctions"] });
+    expect(
+      updater({ items: [{ id: "7", watched: false, watchCount: 2 }] }),
+    ).toEqual({
+      items: [{ id: "7", watched: true, watchCount: 3 }],
+    });
   });
 });

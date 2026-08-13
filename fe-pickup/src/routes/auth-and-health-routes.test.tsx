@@ -30,6 +30,15 @@ vi.mock("@tanstack/react-query", () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useInfiniteQuery: () => ({
+    data: undefined,
+    isPending: true,
+    isError: false,
+    refetch: vi.fn(),
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+  }),
   useMutation: (options: {
     onSuccess?: (value: unknown) => void;
     onError?: (error: unknown) => void;
@@ -44,12 +53,8 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@/api/generated/authentication/authentication", () => ({ login }));
 vi.mock("@/api/generated/member/member", () => ({
   createMember,
-  useGetMyWatches: () => ({
-    data: undefined,
-    isPending: true,
-    isError: false,
-    refetch: vi.fn(),
-  }),
+  getMyWatches: vi.fn(),
+  getGetMyWatchesQueryKey: () => ["my-watches"],
 }));
 vi.mock("@/api/generated/health-check/health-check", () => ({
   useHealthCheck: () => ({ ...healthState, refetch: vi.fn() }),

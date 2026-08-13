@@ -105,7 +105,9 @@ describe("AccountSettingsPage", () => {
         "새 비밀번호는 영문·숫자·특수문자 중 2가지 이상 조합 8~16자여야 합니다.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("현재 비밀번호를 입력해 주세요.")).toBeInTheDocument();
+    expect(
+      screen.getByText("현재 비밀번호를 입력해 주세요."),
+    ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("새 비밀번호"), {
       target: { value: "pickup12!" },
     });
@@ -128,7 +130,7 @@ describe("AccountSettingsPage", () => {
     });
   });
 
-  it("회원 탈퇴 버튼을 누르면 비밀번호 확인 모달이 열리고 탈퇴 요청을 보낸다", async () => {
+  it("회원 탈퇴 버튼을 누르면 확인 모달이 열리고 '네'를 눌러야 탈퇴 요청을 보낸다", async () => {
     const { AccountSettingsPage } =
       await import("@/components/domain/account-settings-page");
     profileState = {
@@ -139,18 +141,69 @@ describe("AccountSettingsPage", () => {
     render(<AccountSettingsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "회원 탈퇴" }));
-    expect(screen.getByText("회원 탈퇴 하시겠어요?")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "탈퇴하기" })).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText("비밀번호"), {
-      target: { value: "pw1234" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "탈퇴하기" }));
-    expect(withdrawMutate).toHaveBeenCalledWith("pw1234");
-
-    fireEvent.click(screen.getByRole("button", { name: "취소" }));
     expect(
-      screen.queryByText("회원 탈퇴 하시겠어요?"),
+      screen.getByText("정말로 회원 탈퇴 하시겠습니까?"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName.toLowerCase() === "p" &&
+          (element.textContent ?? "").includes(
+            "많은 포켓몬들이 tester님을 기다리고 있어요",
+          ),
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "아니오" }));
+    expect(
+      screen.queryByText("정말로 회원 탈퇴 하시겠습니까?"),
     ).not.toBeInTheDocument();
+    expect(withdrawMutate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "회원 탈퇴" }));
+    fireEvent.click(screen.getByRole("button", { name: "네" }));
+    expect(withdrawMutate).toHaveBeenCalledWith();
+  });
+
+  it("카카오 가입 회원에게는 비밀번호 변경 항목을 보여주지 않는다", async () => {
+    const { AccountSettingsPage } =
+      await import("@/components/domain/account-settings-page");
+    profileState = {
+      isLoading: false,
+      isError: false,
+      data: {
+        memberId: 1,
+        nickname: "tester",
+        profileImageUrl: undefined,
+        oauthProvider: "KAKAO",
+      },
+    };
+    render(<AccountSettingsPage />);
+
+    expect(screen.queryByLabelText("현재 비밀번호")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("새 비밀번호")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("새 비밀번호 확인")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/카카오 계정으로 가입해 비밀번호가 없습니다/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("프로필 이미지·닉네임을 변경할 수 있습니다."),
+    ).toBeInTheDocument();
+  });
+
+  it("일반 회원에게는 비밀번호 변경 항목을 계속 보여준다", async () => {
+    const { AccountSettingsPage } =
+      await import("@/components/domain/account-settings-page");
+    profileState = {
+      isLoading: false,
+      isError: false,
+      data: { memberId: 1, nickname: "tester", profileImageUrl: undefined },
+    };
+    render(<AccountSettingsPage />);
+
+    expect(screen.getByLabelText("현재 비밀번호")).toBeInTheDocument();
+    expect(
+      screen.getByText("프로필 이미지·닉네임·비밀번호를 변경할 수 있습니다."),
+    ).toBeInTheDocument();
   });
 });

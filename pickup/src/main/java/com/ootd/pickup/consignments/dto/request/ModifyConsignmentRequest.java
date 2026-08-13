@@ -8,6 +8,6 @@ import java.util.List;
 
 public record ModifyConsignmentRequest(
     @NotNull CardState cardState,
-    String majorDefect,
+    @Size(max = 255, message = "주요 결함은 255자 이하여야 합니다.") String majorDefect,
     @NotNull @Valid CertificateRequest certificate,
     @NotNull @Size(min = 2, max = 5) @Valid List<ConsignmentImageRequest> images) {}

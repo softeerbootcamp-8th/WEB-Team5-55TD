@@ -2,6 +2,7 @@ package com.ootd.pickup.consignments.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
 
+import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.repository.auction.AuctionSummary;
 import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.cards.domain.Card;
@@ -103,11 +104,15 @@ public class ConsignmentService {
     return RegisterConsignmentResponse.of(consignment, certificate);
   }
 
-  public GetConsignmentDetailResponse getConsignment(Long consignmentId) {
+  public GetConsignmentDetailResponse getConsignment(Long consignmentId, Long sellerMemberId) {
     Consignment consignment =
         consignmentRepository
             .findConsignmentById(consignmentId)
             .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+    if (!consignment.getSellerMember().getMemberId().equals(sellerMemberId)) {
+      throw new PickUpException(CONSIGNMENT_READ_OWNER_MISMATCH);
+    }
 
     Certificate certificate = getCertificate(consignment);
 
@@ -236,10 +241,11 @@ public class ConsignmentService {
       Long sellerMemberId, GetMyConsignmentsRequest request) {
     request.validateSize();
     ConsignmentStatus status = ConsignmentStatus.from(request.status());
+    AuctionStatus auctionStatus = AuctionStatus.from(request.auctionStatus());
 
     List<Consignment> searchedConsignments =
-        consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
-            sellerMemberId, status, request.cursor(), request.size() + 1);
+        consignmentRepository.findAllBySellerMemberIdAndStatusAndLatestAuctionStatusAndCursor(
+            sellerMemberId, status, auctionStatus, request.cursor(), request.size() + 1);
 
     boolean hasNext = searchedConsignments.size() > request.size();
     List<Consignment> consignments =
