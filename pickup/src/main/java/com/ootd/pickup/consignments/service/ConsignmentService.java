@@ -72,6 +72,7 @@ public class ConsignmentService {
             Consignment.builder()
                 .card(card)
                 .sellerMember(sellerMember)
+                .cardState(request.cardState())
                 .majorDefect(request.majorDefect())
                 .status(ConsignmentStatus.REGISTERABLE)
                 .build());
@@ -153,6 +154,7 @@ public class ConsignmentService {
         CertificationBody.from(request.certificate().certificationBody());
 
     Certificate certificate = getCertificate(consignment);
+    consignment.updateCardState(request.cardState());
     consignment.updateMajorDefect(request.majorDefect());
     certificate.update(
         request.certificate().serialNumber(),

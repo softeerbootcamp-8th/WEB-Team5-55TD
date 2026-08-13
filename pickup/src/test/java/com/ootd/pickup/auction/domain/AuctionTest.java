@@ -12,6 +12,8 @@ class AuctionTest {
     // given
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(null)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now().plusHours(1))
@@ -34,6 +36,8 @@ class AuctionTest {
     // given
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(null)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now().plusHours(1))
@@ -53,26 +57,13 @@ class AuctionTest {
   }
 
   @Test
-  void 종료_5분_이내_입찰이면_입찰시각부터_5분으로_종료시각을_연장한다() {
-    LocalDateTime bidAt = LocalDateTime.of(2026, 8, 8, 21, 58);
-    Auction auction = ongoingAuction(bidAt.plusMinutes(2));
-
-    boolean extended = auction.extendEndAtForSoftClose(bidAt);
-
-    assertThat(extended).isTrue();
-    assertThat(auction.getEndedAt()).isEqualTo(bidAt.plusMinutes(5));
-  }
-
-  @Test
-  void 종료까지_5분보다_많이_남은_입찰은_종료시각을_바꾸지_않는다() {
-    LocalDateTime bidAt = LocalDateTime.of(2026, 8, 8, 21, 50);
-    LocalDateTime endedAt = bidAt.plusMinutes(6);
+  void 조건부_갱신이_성공하면_기존_종료시각에_5분을_더한다() {
+    LocalDateTime endedAt = LocalDateTime.of(2026, 8, 8, 22, 0);
     Auction auction = ongoingAuction(endedAt);
 
-    boolean extended = auction.extendEndAtForSoftClose(bidAt);
+    auction.extendEndAtBySoftCloseWindow();
 
-    assertThat(extended).isFalse();
-    assertThat(auction.getEndedAt()).isEqualTo(endedAt);
+    assertThat(auction.getEndedAt()).isEqualTo(endedAt.plusMinutes(5));
   }
 
   @Test
@@ -106,6 +97,8 @@ class AuctionTest {
 
   private Auction ongoingAuction(LocalDateTime endedAt) {
     return Auction.builder()
+        .title("테스트 제목")
+        .description("테스트 설명")
         .consignment(null)
         .startedAt(endedAt.minusDays(7))
         .endedAt(endedAt)
@@ -118,6 +111,8 @@ class AuctionTest {
 
   private Auction auction(AuctionStatus status, LocalDateTime endedAt) {
     return Auction.builder()
+        .title("테스트 제목")
+        .description("테스트 설명")
         .consignment(null)
         .startedAt(LocalDateTime.now().minusHours(1))
         .endedAt(endedAt)

@@ -46,7 +46,7 @@ function WaitingPage() {
     ? "로그인 후 확인 가능"
     : pointBalanceQuery.isLoading
       ? "조회 중"
-      : formatPoint(pointBalanceQuery.data?.availablePointBalance);
+      : formatPoint(pointBalanceQuery.data?.pointBalance);
 
   return (
     <PageContainer className="flex flex-col items-center gap-8 py-16">

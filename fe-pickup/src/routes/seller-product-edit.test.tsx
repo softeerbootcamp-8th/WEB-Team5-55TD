@@ -37,6 +37,7 @@ const product = {
   status: "REGISTERABLE",
   grade: { agency: "PSA", score: "10", serial: "A" },
   gradeCode: "GEM_MINT",
+  cardState: "HIGH",
   inspectedAt: "2026-01-01",
   images: [
     { consignmentImageId: 1, imageUrl: "front" },
@@ -88,6 +89,7 @@ describe("셀러 상품 수정", () => {
       screen.getByRole("heading", { name: "Blastoise 정보 수정" }),
     ).toBeInTheDocument();
     expect(screen.getByText("이미지 첨부 영역")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("상")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "저장하기" })).toBeEnabled();
   });
 });

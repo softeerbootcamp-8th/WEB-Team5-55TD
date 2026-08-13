@@ -15,7 +15,7 @@ describe("추가 도메인 컴포넌트", () => {
         <BidRow
           bid={{
             id: "1",
-            maskedNickname: "ab***12",
+            nickname: "alpha12",
             amount: 10500,
             createdAt: now,
           }}
@@ -23,7 +23,7 @@ describe("추가 도메인 컴포넌트", () => {
         <BidRow
           bid={{
             id: "2",
-            maskedNickname: "me",
+            nickname: "me",
             amount: 11000,
             createdAt: now,
             isMine: true,
@@ -31,7 +31,7 @@ describe("추가 도메인 컴포넌트", () => {
         />
       </ul>,
     );
-    expect(screen.getByText("ab***12")).toBeInTheDocument();
+    expect(screen.getByText("alpha12")).toBeInTheDocument();
     // 본인 입찰 행: 아바타 이니셜과 닉네임 라벨이 둘 다 "나"라 중복되므로, 라벨
     // 쪽(truncate 클래스)으로 셀렉터를 좁혀 확인한다.
     const myRow = screen.getAllByRole("listitem")[1];
@@ -39,6 +39,34 @@ describe("추가 도메인 컴포넌트", () => {
       within(myRow).getByText("나", { selector: "span.truncate" }),
     ).toBeInTheDocument();
     expect(screen.getByText("10,500원")).toBeInTheDocument();
+  });
+
+  it("전체 입찰 목록에서 프로필 사진이 없으면 포켓몬 아바타로 채운다", () => {
+    const now = new Date().toISOString();
+    render(
+      <BidList
+        bids={[
+          { id: "1", nickname: "bravo22", amount: 12000, createdAt: now },
+          { id: "2", nickname: "alpha11", amount: 11000, createdAt: now },
+          // 같은 입찰자가 다시 등장해도 같은 아바타를 쓴다.
+          { id: "3", nickname: "bravo22", amount: 10500, createdAt: now },
+          {
+            id: "4",
+            nickname: "charlie33",
+            amount: 10000,
+            createdAt: now,
+            profileImageUrl: "/uploaded.png",
+          },
+        ]}
+      />,
+    );
+
+    const avatars = screen.getAllByRole("img");
+    expect(avatars[0]).toHaveAttribute("src", "/avatars/pokemon/squirtle.webp");
+    expect(avatars[1]).toHaveAttribute("src", "/avatars/pokemon/pikachu.webp");
+    expect(avatars[2]).toHaveAttribute("src", "/avatars/pokemon/squirtle.webp");
+    // 프로필 사진이 있으면 그대로 우선한다.
+    expect(avatars[3]).toHaveAttribute("src", "/uploaded.png");
   });
 
   it("스텝 인디케이터에서 완료·현재·예정 단계를 구분한다", () => {

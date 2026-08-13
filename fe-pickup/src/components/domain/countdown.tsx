@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { formatCountdown } from "@/lib/format";
 
 /**
- * 카운트다운 타이머 (DESIGN.md §5.5). "HH : MM : SS", tabular.
+ * 카운트다운 타이머 (DESIGN.md §5.5). "DD : HH : MM : SS", tabular.
  * 종료 임박(60초 이하) 시 danger 색으로 전환. onEnd 는 0 도달 시 1회 호출.
  */
 export function Countdown({

@@ -1,12 +1,11 @@
 import type { Bid } from "@/lib/types";
 
 /**
- * 입찰자를 구분하는 키. 실명 대신 마스킹된 닉네임을 쓴다 — 익명화 정책(DESIGN.md §6)을
- * 유지하면서도, 같은 회원의 반복 입찰을 실시간 목록에서 하나로 묶어 보여주는 데 필요한
- * 최소한의 식별자다. 본인은 항상 같은 키("나")로 묶인다.
+ * 입찰자를 구분하는 키. 같은 회원의 반복 입찰을 실시간 목록에서 하나로 묶어 보여주기 위해
+ * 닉네임을 사용한다. 본인은 항상 같은 키("나")로 묶인다.
  */
 export function bidderKey(bid: Bid): string {
-  return bid.isMine ? "__me__" : bid.maskedNickname;
+  return bid.isMine ? "__me__" : bid.nickname;
 }
 
 /**

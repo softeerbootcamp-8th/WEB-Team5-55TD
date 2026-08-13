@@ -193,7 +193,7 @@ function ProductGrid({
                 인증서 {p.grade?.serial}
               </span>
               <Button size="sm" variant="secondary" asChild className="mt-1">
-                {p.auctionId ? (
+                {p.auctionId && p.status !== ProductStatus.REAPPLICABLE ? (
                   <Link
                     to="/seller/auctions/$auctionId"
                     params={{ auctionId: p.auctionId }}

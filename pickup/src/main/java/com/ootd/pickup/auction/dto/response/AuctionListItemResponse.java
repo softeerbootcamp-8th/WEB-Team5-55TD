@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public record AuctionListItemResponse(
     Long auctionId,
     Long consignmentId,
+    String title,
     GetCardDetailResponse card,
     String grade,
     AuctionStatus auctionStatus,
@@ -31,6 +32,7 @@ public record AuctionListItemResponse(
     return new AuctionListItemResponse(
         auction.getAuctionId(),
         auction.getConsignment().getConsignmentId(),
+        auction.getTitle(),
         GetCardDetailResponse.from(auction.getConsignment().getCard()),
         certificate != null ? certificate.getGradeDisplay() : null,
         auction.getAuctionStatus(),

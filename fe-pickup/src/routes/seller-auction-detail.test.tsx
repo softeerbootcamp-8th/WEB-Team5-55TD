@@ -14,6 +14,7 @@ const auction = {
   endsAt: new Date(Date.now() + 3600000).toISOString(),
 };
 let nickname = "seller";
+const connectionStatus = "connected";
 let bidsQueryResult: Record<string, unknown> = {
   isPending: false,
   isError: false,
@@ -32,6 +33,10 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => bidsQueryResult,
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+vi.mock("@/hooks/use-auction-bid-updates", () => ({
+  useAuctionBidUpdates: () => connectionStatus,
 }));
 vi.mock("@/lib/auth", () => ({ useNickname: () => nickname }));
 vi.mock("@/api/auctions", () => ({ getAuctionDetail: vi.fn() }));
@@ -44,7 +49,7 @@ vi.mock("@/api/bids", () => ({
 function makeBids(count: number) {
   return Array.from({ length: count }, (_, i) => ({
     id: String(i),
-    maskedNickname: "col***88",
+    nickname: "collector88",
     amount: 11000 - i,
     createdAt: new Date().toISOString(),
   }));
@@ -65,7 +70,7 @@ describe("셀러 경매 상세", () => {
       ).toBeInTheDocument();
       expect(screen.getByText("12,000원")).toBeInTheDocument();
       expect(screen.getByText("입찰 내역")).toBeInTheDocument();
-      expect(screen.getByText("col***88")).toBeInTheDocument();
+      expect(screen.getByText("collector88")).toBeInTheDocument();
       // 입찰 횟수는 목데이터가 아니라 조회된 입찰 내역 개수를 그대로 반영한다.
       expect(screen.getByText("1")).toBeInTheDocument();
       unmount();
@@ -104,7 +109,7 @@ describe("셀러 경매 상세", () => {
     expect(screen.queryByText("100+")).not.toBeInTheDocument();
     // 입찰 내역 아이템(가격 표시)은 미리보기 영역에 6개만 렌더된다. 나머지는
     // 아직 열지 않은 모달 안에 있으므로 화면에는 보이지 않는다.
-    expect(screen.getAllByText("col***88")).toHaveLength(6);
+    expect(screen.getAllByText("collector88")).toHaveLength(6);
   });
 
   it("조회 결과가 잘렸으면(100+) 입찰 횟수에 +를 붙이고, 전체 클릭 시 모달에서 전체 목록을 보여준다", async () => {
@@ -123,6 +128,6 @@ describe("셀러 경매 상세", () => {
       screen.getByRole("heading", { name: "전체 입찰 내역" }),
     ).toBeInTheDocument();
     // 모달에는 미리보기(6개)보다 훨씬 많은 100개가 그대로 표시된다.
-    expect(screen.getAllByText("col***88")).toHaveLength(106);
+    expect(screen.getAllByText("collector88")).toHaveLength(106);
   });
 });

@@ -40,6 +40,7 @@ const product = {
   cardNumber: "2",
   language: "EN",
   rarity: "Rare",
+  cardState: "HIGH",
   majorDefect: undefined,
   images: [{ consignmentImageId: 1, imageUrl: "front.jpg" }],
   auctionRegistered: false,
@@ -73,6 +74,7 @@ describe("셀러 상품 상세", () => {
       screen.getByRole("heading", { name: "Blastoise" }),
     ).toBeInTheDocument();
     expect(screen.getByText("경매 신청")).toBeInTheDocument();
+    expect(screen.getByText("상")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "삭제" }));
     expect(screen.getByText("상품을 삭제할까요?")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "취소" }));

@@ -1,10 +1,12 @@
 package com.ootd.pickup.auth.controller;
 
 import com.ootd.pickup.auth.api.AuthApi;
+import com.ootd.pickup.auth.dto.KakaoLoginRequest;
 import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.dto.LoginResponseBody;
 import com.ootd.pickup.auth.dto.RefreshResponseBody;
 import com.ootd.pickup.auth.service.AuthService;
+import com.ootd.pickup.auth.service.KakaoAuthService;
 import com.ootd.pickup.auth.service.LoginResponse;
 import com.ootd.pickup.auth.service.RefreshResponse;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
@@ -23,12 +25,25 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController implements AuthApi {
   private final AuthService authService;
+  private final KakaoAuthService kakaoAuthService;
   private final TokenCookieManager tokenCookieManager;
 
   @PostMapping
   @Override
   public ResponseEntity<LoginResponseBody> login(@Valid @RequestBody LoginRequest loginRequest) {
     LoginResponse response = authService.login(loginRequest);
+    return ResponseEntity.ok()
+        .headers(
+            tokenCookieManager.createTokenCookieHeaders(
+                response.accessToken(), response.refreshToken()))
+        .body(response.body());
+  }
+
+  @PostMapping("/kakao")
+  @Override
+  public ResponseEntity<LoginResponseBody> kakaoLogin(
+      @Valid @RequestBody KakaoLoginRequest request) {
+    LoginResponse response = kakaoAuthService.login(request);
     return ResponseEntity.ok()
         .headers(
             tokenCookieManager.createTokenCookieHeaders(
