@@ -181,11 +181,14 @@ function AuctionApplyPage() {
 
         <div className="flex flex-col gap-1.5">
           <Label>경매 본문 (선택)</Label>
-          <Input
+          <textarea
+            aria-label="경매 본문"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="경매 본문을 입력해 주세요"
             maxLength={1000}
+            rows={6}
+            className="min-h-32 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
 

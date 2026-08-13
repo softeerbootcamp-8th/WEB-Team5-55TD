@@ -31,8 +31,9 @@ describe("format utilities", () => {
   });
 
   it("clamps and pads countdown values", () => {
-    expect(formatCountdown(-1)).toBe("00 : 00 : 00");
-    expect(formatCountdown(3_661_000)).toBe("01 : 01 : 01");
+    expect(formatCountdown(-1)).toBe("00 : 00 : 00 : 00");
+    expect(formatCountdown(3_661_000)).toBe("00 : 01 : 01 : 01");
+    expect(formatCountdown(90_061_000)).toBe("01 : 01 : 01 : 01");
   });
 
   it("formats dates in KST regardless of the runner's local timezone", () => {

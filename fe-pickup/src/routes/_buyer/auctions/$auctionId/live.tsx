@@ -500,7 +500,14 @@ function LiveAuctionPage() {
               <GradeBadge grade={auction.grade} />
               <ConnectionStatus status={connectionStatus} />
             </div>
-            <h1 className="text-2xl font-bold">{auction.cardName}</h1>
+            <h1 className="text-2xl font-bold">
+              {auction.title ?? auction.cardName}
+            </h1>
+            {auction.title && (
+              <p className="text-sm text-[var(--color-text-sub)]">
+                {auction.cardName}
+              </p>
+            )}
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
               <Avatar
                 src={auction.sellerProfileImageUrl}
@@ -554,7 +561,8 @@ function LiveAuctionPage() {
                 aria-label={`최소 입찰 단위(${formatWon(minUnit)})만큼 추가`}
                 className="shrink-0"
               >
-                +
+                <span aria-hidden="true">+</span>
+                <span className="sr-only">현재 최소 입찰 단위 {formatWon(minUnit)} 추가</span>
               </Button>
               <Button
                 onClick={onBidClick}

@@ -2046,6 +2046,8 @@ components:
           format: int64
         card:
           $ref: "#/components/schemas/GetCardDetailResponse"
+        thumbnailUrl:
+          type: string
         sellerMemberNickname:
           type: string
         cardState:
