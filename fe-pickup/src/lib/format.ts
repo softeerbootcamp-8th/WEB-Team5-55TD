@@ -107,8 +107,6 @@ export function relativeTime(iso: string, now = Date.now()): string {
   return `${day}일 전`;
 }
 
-
-
 /**
  * 최소 입찰 단위 = 시작가의 5%, 원 단위 반올림 (DESIGN.md §6).
  *
@@ -119,3 +117,6 @@ export function relativeTime(iso: string, now = Date.now()): string {
 export function minBidUnit(startPrice: number): number {
   return Math.round(startPrice * 0.05);
 }
+
+/** 경매 희망 시작가 하한 (DESIGN.md §6). 서버의 CreateAuctionRequest 검증과 같은 값이어야 한다. */
+export const MINIMUM_STARTING_PRICE = 1_000;
