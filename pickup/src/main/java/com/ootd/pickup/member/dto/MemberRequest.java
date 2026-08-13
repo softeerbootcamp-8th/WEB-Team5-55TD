@@ -22,4 +22,11 @@ public record MemberRequest(
             regexp =
                 "^(?:(?=.*[A-Za-z])(?=.*\\d)|(?=.*[A-Za-z])(?=.*[^A-Za-z\\d\\s])|(?=.*\\d)(?=.*[^A-Za-z\\d\\s]))\\S{8,16}$",
             message = "비밀번호는 영문, 숫자, 특수문자 중 두 종류 이상을 조합한 8~16자여야 합니다.")
-        String password) {}
+        String password) {
+
+  public MemberRequest {
+    if (nickname != null) {
+      nickname = nickname.strip();
+    }
+  }
+}

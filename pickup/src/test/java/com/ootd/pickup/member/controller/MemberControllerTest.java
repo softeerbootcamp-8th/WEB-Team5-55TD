@@ -81,6 +81,24 @@ class MemberControllerTest {
   }
 
   @Test
+  void 가입_닉네임의_앞뒤_공백을_제외하면_2자_미만일_경우_회원을_생성하지_않는다() throws Exception {
+    String request =
+        """
+        {
+          "loginId": "pickup-user",
+          "nickname": " 가 ",
+          "password": "password1"
+        }
+        """;
+
+    mockMvc
+        .perform(post("/members").contentType(MediaType.APPLICATION_JSON).content(request))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(memberService);
+  }
+
+  @Test
   void 인증된_회원이_내_정보를_조회하면_200과_회원정보를_반환한다() throws Exception {
     // given
     MyProfileResponse response = new MyProfileResponse(1L, "pickup-user", "피카츄", null);
@@ -170,6 +188,21 @@ class MemberControllerTest {
         .andExpect(status().isBadRequest());
 
     then(memberService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 닉네임의_앞뒤_공백을_제외하면_2자_미만일_경우_400을_반환한다() throws Exception {
+    String request = "{\"nickname\":\" 가 \"}";
+
+    mockMvc
+        .perform(
+            patch("/members/me")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+        .andExpect(status().isBadRequest());
+
+    then(profileApplicationService).shouldHaveNoInteractions();
   }
 
   @Test

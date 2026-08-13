@@ -32,6 +32,7 @@ describe("회원 입력 정책", () => {
     expect(isValidNickname("가나")).toBe(true);
     expect(isValidNickname("ab")).toBe(true);
     expect(isValidNickname(" 가나 ")).toBe(true);
+    expect(isValidNickname(" 가 ")).toBe(false);
     expect(isValidNickname("가")).toBe(false);
     expect(isValidNickname(" ")).toBe(false);
     expect(isValidNickname("가".repeat(8))).toBe(true);

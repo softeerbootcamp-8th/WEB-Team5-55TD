@@ -18,6 +18,12 @@ public record UpdateMyProfileRequest(
         String password,
     @Valid ProfileImageUpdateRequest profileImageUpdate) {
 
+  public UpdateMyProfileRequest {
+    if (nickname != null) {
+      nickname = nickname.strip();
+    }
+  }
+
   @AssertTrue(message = "수정할 회원 정보를 입력해야 합니다.")
   @JsonIgnore
   public boolean isAnyFieldPresent() {
