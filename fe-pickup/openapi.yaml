@@ -2499,6 +2499,10 @@ components:
         consignmentId:
           type: integer
           format: int64
+        title:
+          type: string
+        description:
+          type: string
         card:
           $ref: "#/components/schemas/GetCardDetailResponse"
         grade:
@@ -2575,6 +2579,8 @@ components:
         consignmentId:
           type: integer
           format: int64
+        title:
+          type: string
         card:
           $ref: "#/components/schemas/GetCardDetailResponse"
         grade:
