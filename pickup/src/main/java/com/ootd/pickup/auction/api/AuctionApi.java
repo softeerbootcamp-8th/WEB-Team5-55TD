@@ -73,7 +73,7 @@ public interface AuctionApi {
                             """))),
         @ApiResponse(
             responseCode = "400",
-            description = "요청 값 검증 실패 (필수 값 누락, 시작가/최소 낙찰가 오류, 과거 일정 등)",
+            description = "요청 값 검증 실패 (필수 값 누락, 시작가/최소 낙찰가 오류, 과거 일정, 제목 100자/설명" + " 1000자 초과 등)",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "403",

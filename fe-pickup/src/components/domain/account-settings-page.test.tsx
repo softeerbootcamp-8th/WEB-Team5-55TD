@@ -130,7 +130,7 @@ describe("AccountSettingsPage", () => {
     });
   });
 
-  it("회원 탈퇴 버튼을 누르면 비밀번호 확인 모달이 열리고 탈퇴 요청을 보낸다", async () => {
+  it("회원 탈퇴 버튼을 누르면 확인 모달이 열리고 '네'를 눌러야 탈퇴 요청을 보낸다", async () => {
     const { AccountSettingsPage } =
       await import("@/components/domain/account-settings-page");
     profileState = {
@@ -141,17 +141,28 @@ describe("AccountSettingsPage", () => {
     render(<AccountSettingsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "회원 탈퇴" }));
-    expect(screen.getByText("회원 탈퇴 하시겠어요?")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "탈퇴하기" })).toBeDisabled();
+    expect(
+      screen.getByText("정말로 회원 탈퇴 하시겠습니까?"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName.toLowerCase() === "p" &&
+          (element.textContent ?? "").includes(
+            "많은 포켓몬들이 tester님을 기다리고 있어요",
+          ),
+      ),
+    ).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("비밀번호"), {
-      target: { value: "pw1234" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "탈퇴하기" }));
-    expect(withdrawMutate).toHaveBeenCalledWith("pw1234");
+    fireEvent.click(screen.getByRole("button", { name: "아니오" }));
+    expect(
+      screen.queryByText("정말로 회원 탈퇴 하시겠습니까?"),
+    ).not.toBeInTheDocument();
+    expect(withdrawMutate).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "취소" }));
-    expect(screen.queryByText("회원 탈퇴 하시겠어요?")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "회원 탈퇴" }));
+    fireEvent.click(screen.getByRole("button", { name: "네" }));
+    expect(withdrawMutate).toHaveBeenCalledWith();
   });
 
   it("카카오 가입 회원에게는 비밀번호 변경 항목을 보여주지 않는다", async () => {
