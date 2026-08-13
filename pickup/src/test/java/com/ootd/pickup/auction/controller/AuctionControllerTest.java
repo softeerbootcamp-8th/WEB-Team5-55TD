@@ -303,7 +303,8 @@ class AuctionControllerTest {
         500L,
         10000L,
         null,
-        false);
+        false,
+        null);
   }
 
   private AuctionListItemResponse createListItem() {

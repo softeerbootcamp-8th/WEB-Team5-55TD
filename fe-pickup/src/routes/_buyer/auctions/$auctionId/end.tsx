@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { AxiosError } from "axios";
+import { motion } from "framer-motion";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
@@ -23,11 +24,15 @@ export const Route = createFileRoute("/_buyer/auctions/$auctionId/end")({
   component: AuctionEndPage,
 });
 
+/** 결과 화면 등장 연출 — 입찰 화면에서 곧장 전환되어도 결과가 부드럽게 나타나도록 한다. */
+const REVEAL_TRANSITION = { type: "spring", stiffness: 420, damping: 32, mass: 0.7 } as const;
+
 /** DESIGN.md · auction end.html — 낙찰/유찰 결과. 조회자 본인의 낙찰 여부를 기준으로 표시한다. */
 function AuctionEndPage() {
   const { auction } = Route.useLoaderData();
   const sold = auction.won;
   const iWon = auction.myBidWon;
+  const winnerLabel = iWon ? "나" : auction.winnerNicknameMasked;
 
   const headline = iWon
     ? "낙찰되었습니다"
@@ -42,7 +47,12 @@ function AuctionEndPage() {
 
   return (
     <PageContainer className="flex flex-col items-center gap-8 py-16">
-      <div className="flex flex-col items-center gap-3 text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={REVEAL_TRANSITION}
+        className="flex flex-col items-center gap-3 text-center"
+      >
         {iWon ? (
           <CheckCircle2 className="size-14 text-[var(--color-success)]" />
         ) : (
@@ -50,9 +60,14 @@ function AuctionEndPage() {
         )}
         <h1 className="text-3xl font-bold">{headline}</h1>
         <p className="text-sm text-[var(--color-text-sub)]">{description}</p>
-      </div>
+      </motion.div>
 
-      <div className="flex w-full max-w-md flex-col items-center gap-5 rounded-[var(--radius-lg)] border border-border bg-card p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...REVEAL_TRANSITION, delay: 0.08 }}
+        className="flex w-full max-w-md flex-col items-center gap-5 rounded-[var(--radius-lg)] border border-border bg-card p-6"
+      >
         <CardThumb
           cardName={auction.cardName}
           grade={auction.grade}
@@ -71,8 +86,9 @@ function AuctionEndPage() {
             value={sold ? formatWon(auction.currentPrice) : "유찰"}
             emphasize
           />
+          {sold && winnerLabel && <RowLine label="낙찰자" value={winnerLabel} />}
         </dl>
-      </div>
+      </motion.div>
 
       <div className="flex w-full max-w-md gap-3">
         <Button variant="secondary" className="flex-1" asChild>

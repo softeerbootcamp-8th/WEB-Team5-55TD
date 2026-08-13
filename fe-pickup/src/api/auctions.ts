@@ -49,6 +49,8 @@ export interface AuctionDetailView extends AuctionDetail {
   won: boolean;
   /** 조회자 본인이 이 경매의 낙찰자인지. */
   myBidWon: boolean;
+  /** 마스킹된 낙찰자 닉네임. 낙찰 상태가 아니면 undefined. */
+  winnerNicknameMasked?: string;
 }
 
 export type AuctionSort =
@@ -233,6 +235,7 @@ interface AuctionDetailResponse extends AuctionListItemResponse {
   majorDefect?: string | null;
   bidIncrement?: number | null;
   myBidWon?: boolean;
+  winnerNicknameMasked?: string | null;
 }
 
 function isListItem(value: unknown): value is AuctionListItemResponse {
@@ -279,6 +282,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     inspectedAt: item.certificate?.inspectedAt ?? undefined,
     won: item.auctionStatus === "WON",
     myBidWon: item.myBidWon ?? false,
+    winnerNicknameMasked: item.winnerNicknameMasked ?? undefined,
   };
 }
 

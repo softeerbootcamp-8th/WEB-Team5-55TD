@@ -2,7 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
-function auctionOf(won: boolean, myBidWon: boolean) {
+function auctionOf(
+  won: boolean,
+  myBidWon: boolean,
+  winnerNicknameMasked?: string,
+) {
   return {
     id: "1",
     cardName: "Charizard",
@@ -11,6 +15,7 @@ function auctionOf(won: boolean, myBidWon: boolean) {
     myBidWon,
     currentPrice: 12000,
     thumbnailUrl: undefined,
+    winnerNicknameMasked,
   };
 }
 
@@ -60,5 +65,31 @@ describe("경매 종료 라우트", () => {
     expect(
       screen.getByRole("heading", { name: "유찰되었습니다" }),
     ).toBeInTheDocument();
+  });
+
+  it("본인이_낙찰자면_낙찰자_행에_나를_표시한다", async () => {
+    auction = auctionOf(true, true, "닉***임");
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/end");
+    const Component = Route.options.component as React.ComponentType;
+    render(<Component />);
+    expect(screen.getByText("낙찰자")).toBeInTheDocument();
+    expect(screen.getByText("나")).toBeInTheDocument();
+  });
+
+  it("다른_회원이_낙찰자면_마스킹된_닉네임을_표시한다", async () => {
+    auction = auctionOf(true, false, "닉***임");
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/end");
+    const Component = Route.options.component as React.ComponentType;
+    render(<Component />);
+    expect(screen.getByText("낙찰자")).toBeInTheDocument();
+    expect(screen.getByText("닉***임")).toBeInTheDocument();
+  });
+
+  it("유찰된_경매는_낙찰자_행을_표시하지_않는다", async () => {
+    auction = auctionOf(false, false);
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/end");
+    const Component = Route.options.component as React.ComponentType;
+    render(<Component />);
+    expect(screen.queryByText("낙찰자")).not.toBeInTheDocument();
   });
 });

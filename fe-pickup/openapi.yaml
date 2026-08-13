@@ -2569,6 +2569,8 @@ components:
           format: int64
         myBidWon:
           type: boolean
+        winnerNicknameMasked:
+          type: string
     GetAuctionBidsRequest:
       type: object
       properties:
