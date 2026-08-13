@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.*;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -26,11 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-class AuctionSchedulerJpaRepositoryIntegrationTest {
+class AuctionRepositorySchedulerIntegrationTest {
 
   private static final long RESERVE_PRICE = 15000L;
 
-  @Autowired private AuctionSchedulerJpaRepository auctionSchedulerJpaRepository;
+  @Autowired private AuctionRepository auctionRepository;
 
   @Autowired private AuctionJpaRepository auctionJpaRepository;
 
@@ -49,7 +50,7 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+        auctionRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
             AuctionStatus.SCHEDULED, Limit.of(100));
 
     // then
@@ -67,7 +68,7 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+        auctionRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
             AuctionStatus.ONGOING, Limit.of(100));
 
     // then
@@ -83,7 +84,7 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+        auctionRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
             AuctionStatus.ONGOING, Limit.of(100));
 
     // then
@@ -99,7 +100,7 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+        auctionRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
             AuctionStatus.SCHEDULED, Limit.of(2));
 
     // then
@@ -115,7 +116,7 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+        auctionRepository.findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
             AuctionStatus.ONGOING, Limit.of(100));
 
     // then
@@ -133,7 +134,7 @@ class AuctionSchedulerJpaRepositoryIntegrationTest {
 
     // when
     List<Long> auctionIds =
-        auctionSchedulerJpaRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+        auctionRepository.findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
             AuctionStatus.SCHEDULED, Limit.of(100));
 
     // then
