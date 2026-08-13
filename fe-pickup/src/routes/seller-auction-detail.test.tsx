@@ -14,6 +14,7 @@ const auction = {
   endsAt: new Date(Date.now() + 3600000).toISOString(),
 };
 let nickname = "seller";
+const connectionStatus = "connected";
 let bidsQueryResult: Record<string, unknown> = {
   isPending: false,
   isError: false,
@@ -32,6 +33,10 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => bidsQueryResult,
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+vi.mock("@/hooks/use-auction-bid-updates", () => ({
+  useAuctionBidUpdates: () => connectionStatus,
 }));
 vi.mock("@/lib/auth", () => ({ useNickname: () => nickname }));
 vi.mock("@/api/auctions", () => ({ getAuctionDetail: vi.fn() }));

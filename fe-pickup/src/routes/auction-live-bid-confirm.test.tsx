@@ -69,7 +69,7 @@ vi.mock("@/api/bids", () => ({
   getBidRequestResult: vi.fn().mockResolvedValue({ status: "PENDING" }),
 }));
 vi.mock("@/hooks/use-auction-bid-updates", () => ({
-  useAuctionBidUpdates: () => {},
+  useAuctionBidUpdates: () => "connected",
 }));
 vi.mock("@/lib/auth", () => ({
   useIsAuthenticated: () => true,

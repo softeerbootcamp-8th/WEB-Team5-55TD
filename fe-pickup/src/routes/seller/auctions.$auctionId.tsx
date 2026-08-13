@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import { ChevronLeft, Lock, Radio } from "lucide-react";
+import { ChevronLeft, Lock } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/domain/status-badge";
 import { EmptyState } from "@/components/domain/section-header";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
+import { ConnectionStatus } from "@/components/domain/connection-status";
 import { BidList } from "@/components/domain/bid-list";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,12 @@ import {
 } from "@/components/ui/dialog";
 import { getAuctionDetail } from "@/api/auctions";
 import { BID_MODAL_SIZE, BID_PREVIEW_SIZE, getAuctionBids } from "@/api/bids";
+import {
+  useAuctionBidUpdates,
+  type AuctionBidUpdatedMessage,
+} from "@/hooks/use-auction-bid-updates";
 import { useNickname } from "@/lib/auth";
+import { AuctionStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/seller/auctions/$auctionId")({
   loader: async ({ params }) => {
@@ -44,12 +50,13 @@ function SellerAuctionPage() {
   const isOwner =
     !myNickname || !auction.sellerNickname || myNickname === auction.sellerNickname;
   const [allBidsOpen, setAllBidsOpen] = useState(false);
+  const [liveCurrentPrice, setLiveCurrentPrice] = useState<number>();
+  const queryClient = useQueryClient();
 
   // 실시간 경매 화면(live.tsx)의 "최근 N건 미리보기 + 전체보기 모달" 구조를 쓰지만,
   // 여기서는 미리보기용으로 따로 6건만 조회하지 않고 모달과 같은 쿼리를 재사용한다 —
   // 6건만 받아오면 입찰 횟수도 6건을 넘는 순간 전부 "6+"처럼 뭉개져 표시되므로,
-  // 한 번에 최대 100건을 받아 그중 앞 6건만 미리보기로 자른다. 이 화면은 종료된
-  // 경매도 다루는 읽기 전용 모니터링이라 live.tsx의 폴링·웹소켓 갱신은 필요 없다.
+  // 한 번에 최대 100건을 받아 그중 앞 6건만 미리보기로 자른다.
   const bidsQuery = useQuery({
     queryKey: ["auction-bids", auction.id],
     queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
@@ -60,6 +67,28 @@ function SellerAuctionPage() {
   const bidCount = bidsQuery.data
     ? `${bids.length}${bidsQuery.data.hasNext ? "+" : ""}`
     : undefined;
+
+  // 진행 중인 경매만 실시간으로 지켜본다 — 종료된 경매는 갱신될 일이 없다.
+  const isLive = auction.status === AuctionStatus.LIVE;
+  const refreshBids = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ["auction-bids", auction.id],
+    });
+  }, [auction.id, queryClient]);
+  const applyBidUpdate = useCallback(
+    (message: AuctionBidUpdatedMessage) => {
+      // 경매 상세는 라우터 로더가 한 번만 읽어오므로 현재가는 이벤트 값으로 덮어쓴다.
+      setLiveCurrentPrice(message.currentPrice);
+      refreshBids();
+    },
+    [refreshBids],
+  );
+  const connectionStatus = useAuctionBidUpdates({
+    auctionId: auction.id,
+    enabled: isOwner && isLive,
+    onBidUpdated: applyBidUpdate,
+    onSubscribed: refreshBids,
+  });
 
   if (!isOwner) {
     return (
@@ -77,7 +106,8 @@ function SellerAuctionPage() {
   }
 
   const images = auction.images ?? [];
-  const currentPrice = auction.currentPrice ?? auction.startPrice;
+  const currentPrice =
+    liveCurrentPrice ?? auction.currentPrice ?? auction.startPrice;
 
   return (
     <PageContainer className="grid gap-8 md:grid-cols-[1fr_380px]">
@@ -99,9 +129,7 @@ function SellerAuctionPage() {
             <div className="flex items-center gap-2">
               <GradeBadge grade={auction.grade} />
               <StatusBadge status={auction.status} />
-              <span className="inline-flex items-center gap-1 text-xs text-[var(--color-success)]">
-                <Radio className="size-3.5" /> 실시간 모니터링
-              </span>
+              {isLive && <ConnectionStatus status={connectionStatus} />}
             </div>
             <h1 className="text-2xl font-bold">{auction.cardName}</h1>
 
