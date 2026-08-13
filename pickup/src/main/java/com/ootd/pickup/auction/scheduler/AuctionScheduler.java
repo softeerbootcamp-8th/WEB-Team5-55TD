@@ -1,5 +1,6 @@
 package com.ootd.pickup.auction.scheduler;
 
+import com.ootd.pickup.auction.service.AuctionStatusTransitionService;
 import lombok.RequiredArgsConstructor;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

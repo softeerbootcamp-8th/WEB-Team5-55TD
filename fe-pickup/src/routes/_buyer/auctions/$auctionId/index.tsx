@@ -9,7 +9,9 @@ import { StatusBadge } from "@/components/domain/status-badge";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
+import { MarketPriceChart } from "@/components/domain/market-price-chart";
 import { WatchButton } from "@/components/domain/heart-button";
+import { RelatedAuctionsBanner } from "@/components/domain/related-auctions-banner";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -19,7 +21,7 @@ import {
 } from "@/components/ui/accordion";
 import { getAuctionDetail } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
-import { formatDateTime, formatWon } from "@/lib/format";
+import { formatDate, formatDateTime, formatWon } from "@/lib/format";
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/")({
   loader: async ({ params }) => {
@@ -121,13 +123,22 @@ function AuctionDetailPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold">{auction.cardName}</h1>
+            <h1 className="text-2xl font-bold">{auction.title ?? auction.cardName}</h1>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {auction.cardName}
+            </p>
             <p className="text-sm text-[var(--color-text-sub)]">
               {auction.sellerNickname
                 ? `판매자 · ${auction.sellerNickname}`
                 : "검증된 위탁 상품"}
             </p>
           </div>
+
+          {auction.description && (
+            <div className="text-sm whitespace-pre-wrap text-foreground">
+              {auction.description}
+            </div>
+          )}
 
           <div className="rounded-[var(--radius-lg)] border border-border bg-card p-5">
             {isLive ? (
@@ -158,7 +169,7 @@ function AuctionDetailPage() {
                 </div>
               </div>
             ) : (
-              <Price amount={auction.currentPrice} label="낙찰가" size="lg" />
+              <EndedResult won={auction.won} amount={auction.currentPrice} />
             )}
             {(isLive || isUpcoming) && (
               <p className="mt-3 text-xs text-[var(--color-text-muted)]">
@@ -188,11 +199,7 @@ function AuctionDetailPage() {
                   />
                   <Row
                     label="검수 완료일"
-                    value={
-                      auction.inspectedAt
-                        ? formatDateTime(auction.inspectedAt)
-                        : "-"
-                    }
+                    value={formatDate(auction.inspectedAt)}
                   />
                   <Row
                     label="카드 상태"
@@ -208,6 +215,15 @@ function AuctionDetailPage() {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          <MarketPriceChart
+            cardName={auction.cardName}
+            setName={auction.card?.setName}
+            cardNumber={auction.card?.cardNumber}
+            preferredAgency={auction.grade?.agency}
+            preferredScore={auction.grade?.score}
+            reservePrice={auction.startPrice}
+          />
 
           {/* CTA */}
           {auction.status !== AuctionStatus.ENDED && (
@@ -227,6 +243,8 @@ function AuctionDetailPage() {
         </div>
       </div>
 
+      <RelatedAuctionsBanner auction={auction} />
+
       {lightboxIndex !== null && (
         <ImageLightbox
           images={galleryImages}
@@ -237,6 +255,22 @@ function AuctionDetailPage() {
         />
       )}
     </PageContainer>
+  );
+}
+
+/** 종료된 경매의 결과 — 낙찰이면 낙찰가를, 유찰이면 금액 대신 유찰을 보여준다. */
+function EndedResult({ won, amount }: { won: boolean; amount?: number }) {
+  if (won) {
+    return <Price amount={amount} label="낙찰가" size="lg" />;
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs text-[var(--color-text-muted)]">결과</span>
+      <span className="text-[28px] leading-9 font-bold text-[var(--color-text-muted)]">
+        유찰
+      </span>
+    </div>
   );
 }
 

@@ -3,9 +3,9 @@ import {
   formatWonCompact,
   formatPoint,
   formatCountdown,
+  formatDate,
   formatDateTime,
   relativeTime,
-  maskNickname,
   minBidUnit,
 } from "@/lib/format";
 import { describe, expect, it } from "vitest";
@@ -43,6 +43,19 @@ describe("format utilities", () => {
     expect(formatDateTime("2026-07-22T15:30:00Z")).toBe("2026.07.23 00:30");
   });
 
+  it("formats date-only values without a bogus time, in any timezone", () => {
+    expect(formatDate()).toBe("-");
+    // 검수 완료일은 시간 없는 LocalDate 로 내려온다. 시각이 붙으면 안 된다.
+    expect(formatDate("2026-07-20")).toBe("2026.07.20");
+
+    const originalTimeZone = process.env.TZ;
+    for (const timeZone of ["America/New_York", "UTC", "Asia/Seoul"]) {
+      process.env.TZ = timeZone;
+      expect(formatDate("2026-07-20")).toBe("2026.07.20");
+    }
+    process.env.TZ = originalTimeZone;
+  });
+
   it("formats relative times at each boundary", () => {
     const now = Date.parse("2026-07-22T15:00:00Z");
     expect(relativeTime(new Date(now - 9_000).toISOString(), now)).toBe(
@@ -67,8 +80,10 @@ describe("format utilities", () => {
     expect(maskNickname("abcdefg")).toBe("abc***fg");
   });
 
-  it("rounds the minimum bid unit up to 100 won", () => {
+  it("rounds the minimum bid unit the same way the server stores it", () => {
+    // 서버: Math.round(startingPrice * 0.05)
     expect(minBidUnit(10_000)).toBe(500);
-    expect(minBidUnit(10_001)).toBe(600);
+    expect(minBidUnit(10_001)).toBe(500);
+    expect(minBidUnit(12_345)).toBe(617);
   });
 });

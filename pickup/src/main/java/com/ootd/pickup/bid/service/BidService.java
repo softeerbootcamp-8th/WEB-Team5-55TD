@@ -7,13 +7,14 @@ import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_STARTED;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_SELLER_BID_FORBIDDEN;
 import static com.ootd.pickup.global.exception.ExceptionCode.BELOW_MIN_INCREMENT;
+import static com.ootd.pickup.global.exception.ExceptionCode.ENDED_AUCTION_BIDS_SELLER_ONLY;
 import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 
 import com.ootd.pickup.auction.domain.Auction;
-import com.ootd.pickup.auction.event.AuctionBidUpdatedNotificationEvent;
+import com.ootd.pickup.auction.event.BidRequestSucceededNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.dto.request.GetAuctionBidsRequest;
@@ -22,6 +23,7 @@ import com.ootd.pickup.bid.dto.response.AuctionBidListItemResponse;
 import com.ootd.pickup.bid.dto.response.PlaceBidResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
@@ -32,7 +34,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -50,10 +51,16 @@ public class BidService {
   private final BidRepository bidRepository;
   private final MemberRepository memberRepository;
   private final PointReservationService pointReservationService;
-  private final ApplicationEventPublisher applicationEventPublisher;
+  private final EventPublisher eventPublisher;
 
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
+    return placeBid(auctionId, memberId, request, null);
+  }
+
+  @Transactional
+  public PlaceBidResponse placeBid(
+      Long auctionId, Long memberId, PlaceBidRequest request, Long bidRequestId) {
     Auction auction =
         auctionRepository
             .findByIdForUpdate(auctionId)
@@ -69,19 +76,35 @@ public class BidService {
     // validateAuction이 이미 SCHEDULED를 걸러냈으므로 이 시점의 auction은 항상 ONGOING이라 null이 아니다.
     Long currentPrice = auction.getCurrentPrice();
 
+    log.debug(
+        "입찰가 검증 시작 - auctionId={}, requestedBidPrice={}, currentPrice={}, bidIncrement={}",
+        auctionId,
+        request.bidPrice(),
+        currentPrice,
+        auction.getBidIncrement());
     validateBidPrice(request.bidPrice(), currentPrice, auction.getBidIncrement());
     PreparedBidReservation preparedReservation =
         pointReservationService.prepareReservation(auction, member, request.bidPrice());
-    Bid savedBid = bidRepository.save(Bid.create(auction, member, request.bidPrice()));
+    Bid savedBid =
+        bidRepository.save(Bid.create(auction, member, request.bidPrice(), bidRequestId));
     pointReservationService.reserveHighestBid(auction, preparedReservation, savedBid, member);
 
+    Long previousHighestBidId = auction.getWinningBidId();
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
     if (auction.extendEndAtForSoftClose(bidAt)) {
       log.info("마감 임박 입찰로 경매를 연장했습니다 - auctionId={}, endedAt={}", auctionId, auction.getEndedAt());
     }
     auctionRepository.save(auction);
-    applicationEventPublisher.publishEvent(
-        AuctionBidUpdatedNotificationEvent.fromEntity(auction, savedBid));
+    eventPublisher.publish(
+        BidRequestSucceededNotificationEvent.fromEntity(auction, savedBid, bidRequestId));
+
+    log.info(
+        "입찰이 접수됐습니다 - auctionId={}, bidId={}, memberId={}, bidPrice={}, previousHighestBidId={}",
+        auctionId,
+        savedBid.getBidId(),
+        memberId,
+        savedBid.getBidPrice(),
+        previousHighestBidId);
 
     return PlaceBidResponse.from(savedBid);
   }
@@ -110,7 +133,16 @@ public class BidService {
 
   public CursorPageResponse<AuctionBidListItemResponse, String> getAuctionBids(
       Long auctionId, Long viewerMemberId, GetAuctionBidsRequest request) {
-    auctionRepository.findById(auctionId).orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+    Auction auction =
+        auctionRepository
+            .findById(auctionId)
+            .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
+
+    // 종료된 경매의 입찰 내역은 판매자에게만 남긴다. 진행 중에는 경쟁 상황을 보여줘야 하지만,
+    // 끝난 뒤에는 구매자에게 더 보여줄 이유가 없고 낙찰가 주변 입찰 분포만 노출된다.
+    if (auction.getAuctionStatus().isTerminal() && !isSeller(auction, viewerMemberId)) {
+      throw new PickUpException(ENDED_AUCTION_BIDS_SELLER_ONLY);
+    }
 
     int size = resolveSize(request.size());
     Long cursorBidId = decodeCursor(request.cursor());
@@ -124,6 +156,16 @@ public class BidService {
 
     String nextCursor = hasNext ? String.valueOf(page.getLast().getBidId()) : null;
     return CursorPageResponse.from(items, hasNext, nextCursor);
+  }
+
+  private boolean isSeller(Auction auction, Long viewerMemberId) {
+    return viewerMemberId != null
+        && auction.getConsignment().getSellerMember().getMemberId().equals(viewerMemberId);
+  }
+
+  /** 최고 입찰자인 상태로 탈퇴하면 경매가 종료돼도 낙찰자에게 연락할 수 없게 되므로 탈퇴를 막는다. */
+  public boolean hasActiveBid(Long memberId) {
+    return bidRepository.existsCurrentHighestBidByMemberId(memberId);
   }
 
   private Long decodeCursor(String cursor) {

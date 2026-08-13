@@ -12,6 +12,8 @@ let profileState: {
 };
 const refetch = vi.fn();
 const updateMutate = vi.fn();
+const withdrawMutate = vi.fn();
+const navigate = vi.fn();
 
 vi.mock("@/api/generated/member/member", () => ({
   getGetMyProfileQueryKey: () => ["profile"],
@@ -20,12 +22,20 @@ vi.mock("@/api/generated/member/member", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ setQueryData: vi.fn() }),
+  useMutation: () => ({ mutate: withdrawMutate, isPending: false }),
+}));
+vi.mock("@tanstack/react-router", () => ({
+  useNavigate: () => navigate,
 }));
 vi.mock("@/api/image-upload", () => ({
   IMAGE_ACCEPT: "image/*",
   getImageValidationError: () => null,
   uploadImage: vi.fn(),
 }));
+vi.mock("@/api/member", () => ({
+  withdrawMember: vi.fn(),
+}));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 describe("AccountSettingsPage", () => {
   it("loading, error, empty profile 상태를 표시한다", async () => {
@@ -103,5 +113,31 @@ describe("AccountSettingsPage", () => {
     expect(updateMutate).toHaveBeenCalledWith({
       data: { nickname: "tester2", currentPassword: "1234", password: "1234" },
     });
+  });
+
+  it("회원 탈퇴 버튼을 누르면 비밀번호 확인 모달이 열리고 탈퇴 요청을 보낸다", async () => {
+    const { AccountSettingsPage } =
+      await import("@/components/domain/account-settings-page");
+    profileState = {
+      isLoading: false,
+      isError: false,
+      data: { memberId: 1, nickname: "tester", profileImageUrl: undefined },
+    };
+    render(<AccountSettingsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "회원 탈퇴" }));
+    expect(screen.getByText("회원 탈퇴 하시겠어요?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "탈퇴하기" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("비밀번호"), {
+      target: { value: "pw1234" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "탈퇴하기" }));
+    expect(withdrawMutate).toHaveBeenCalledWith("pw1234");
+
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    expect(
+      screen.queryByText("회원 탈퇴 하시겠어요?"),
+    ).not.toBeInTheDocument();
   });
 });

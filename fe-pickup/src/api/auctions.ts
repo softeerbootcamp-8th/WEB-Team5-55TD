@@ -1,6 +1,7 @@
 import type { AuctionDetail, AuctionSummary, Grade } from "@/lib/types";
 import { AuctionStatus } from "@/lib/types";
 import { axiosInstance } from "@/api/mutator/custom-instance";
+import { minBidUnit } from "@/lib/format";
 
 type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
@@ -17,6 +18,7 @@ interface CardResponse {
 interface AuctionListItemResponse {
   auctionId: number;
   consignmentId: number;
+  title?: string;
   card: CardResponse;
   grade?: string | null;
   auctionStatus: ApiAuctionStatus;
@@ -62,6 +64,9 @@ export interface AuctionSearchParams {
   sort: AuctionSort;
   cursor?: string;
   size?: number;
+  sellerId?: number;
+  cardId?: number;
+  excludeAuctionId?: number;
 }
 
 function toUiStatus(status: ApiAuctionStatus): AuctionStatus {
@@ -93,6 +98,7 @@ export function computeEndsAt(item: {
 function toSummary(item: AuctionListItemResponse): AuctionSummary {
   return {
     id: String(item.auctionId),
+    title: item.title,
     cardName: item.card.cardName,
     thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
     status: toUiStatus(item.auctionStatus),
@@ -110,6 +116,8 @@ export interface CreateAuctionPayload {
   consignmentId: string;
   startingPrice: number;
   reserve: number;
+  title: string;
+  description?: string;
   /** UTC ISO-8601(Z 접미사) — 예: "2026-08-01T01:00:00Z". KST 입력값 변환은 lib/timezone.ts 참고 */
   scheduledStartAt: string;
 }
@@ -137,16 +145,16 @@ export async function registerAuction(
       startingPrice: payload.startingPrice,
       reserve: payload.reserve,
       scheduledStartAt: payload.scheduledStartAt,
+      title: payload.title,
+      description: payload.description,
     },
   );
   return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
 }
 
-export async function searchAuctions(params: AuctionSearchParams): Promise<{
-  items: AuctionSummary[];
-  hasNext: boolean;
-  cursor?: string;
-}> {
+async function fetchAuctionPage(
+  params: AuctionSearchParams,
+): Promise<AuctionPageResponse> {
   const { data } = await axiosInstance.get<AuctionPageResponse>("/auctions", {
     params: {
       q: params.q || undefined,
@@ -154,11 +162,24 @@ export async function searchAuctions(params: AuctionSearchParams): Promise<{
       sort: params.sort,
       cursor: params.cursor,
       size: params.size ?? 20,
+      sellerId: params.sellerId,
+      cardId: params.cardId,
+      excludeAuctionId: params.excludeAuctionId,
     },
     paramsSerializer: {
       indexes: null,
     },
   });
+
+  return data;
+}
+
+export async function searchAuctions(params: AuctionSearchParams): Promise<{
+  items: AuctionSummary[];
+  hasNext: boolean;
+  cursor?: string;
+}> {
+  const data = await fetchAuctionPage(params);
 
   return {
     items: data.items.map(toSummary),
@@ -201,6 +222,8 @@ interface ConsignmentImageResponse {
 }
 
 interface AuctionDetailResponse extends AuctionListItemResponse {
+  description?: string | null;
+  sellerId?: number | null;
   sellerNickname?: string | null;
   certificate?: CertificateResponse | null;
   images?: ConsignmentImageResponse[] | null;
@@ -240,9 +263,11 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
 
   return {
     ...summary,
+    description: item.description ?? undefined,
     grade,
+    sellerId: item.sellerId != null ? String(item.sellerId) : undefined,
     sellerNickname: item.sellerNickname ?? undefined,
-    minBidUnit: item.bidIncrement ?? Math.round(item.startingPrice * 0.05),
+    minBidUnit: item.bidIncrement ?? minBidUnit(item.startingPrice),
     images: (item.images ?? []).map((image) => image.imageUrl),
     bidCount: 0,
     card: item.card,
@@ -259,7 +284,7 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
   return {
     ...summary,
     sellerNickname: "",
-    minBidUnit: Math.round(item.startingPrice * 0.05),
+    minBidUnit: minBidUnit(item.startingPrice),
     images: [item.thumbnailUrl, item.card.imageUrl].filter(
       (url): url is string => Boolean(url),
     ),
@@ -294,22 +319,16 @@ export async function getAuctionDetail(
       throw error;
     }
 
-    const page = await searchAuctions({
+    const page = await fetchAuctionPage({
       status: ["SCHEDULED", "ONGOING", "WON", "PASSED"],
       sort: "RECENT",
       size: 100,
     });
-    const summary = page.items.find((item) => item.id === auctionId);
-    if (!summary) throw error;
+    const item = page.items.find(
+      (listItem) => String(listItem.auctionId) === auctionId,
+    );
+    if (!item) throw error;
 
-    return {
-      ...summary,
-      sellerNickname: "",
-      minBidUnit: Math.round((summary.startPrice ?? 0) * 0.05),
-      images: summary.thumbnailUrl ? [summary.thumbnailUrl] : [],
-      bidCount: 0,
-      won: false,
-      myBidWon: false,
-    };
+    return detailFromListItem(item);
   }
 }

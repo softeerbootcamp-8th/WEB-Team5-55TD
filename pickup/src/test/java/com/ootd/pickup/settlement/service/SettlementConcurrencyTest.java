@@ -216,7 +216,7 @@ class SettlementConcurrencyTest {
                 .cardNumber("001")
                 .setName("테스트 세트")
                 .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
+                .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/card.png")
                 .build());
     Consignment consignment =
@@ -228,6 +228,8 @@ class SettlementConcurrencyTest {
                 .build());
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now())

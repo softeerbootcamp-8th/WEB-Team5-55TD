@@ -2,10 +2,12 @@ package com.ootd.pickup.auction.repository.auction;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.consignments.domain.Consignment;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.data.domain.Limit;
 
 public interface AuctionRepository {
   Auction save(Auction auction);
@@ -14,10 +16,23 @@ public interface AuctionRepository {
 
   Optional<Auction> findByIdForUpdate(Long auctionId);
 
+  int incrementWatchCountById(Long auctionId);
+
+  int decrementWatchCountById(Long auctionId);
+
+  int resetWatchCountById(Long auctionId);
+
   long countBySellerMemberIdAndStatus(Long sellerMemberId, AuctionStatus status);
 
   List<Auction> searchAuctions(
-      String q, List<AuctionStatus> statuses, AuctionSort sort, AuctionCursor cursor, int limit);
+      String q,
+      List<AuctionStatus> statuses,
+      AuctionSort sort,
+      AuctionCursor cursor,
+      int limit,
+      Long sellerId,
+      Long cardId,
+      Long excludeAuctionId);
 
   Optional<Auction> findByIdWithConsignmentAndCard(Long auctionId);
 
@@ -25,4 +40,20 @@ public interface AuctionRepository {
       Long sellerMemberId, List<AuctionStatus> statuses, SalesCursor cursor, int limit);
 
   Map<Long, AuctionSummary> findAuctionSummariesByConsignmentIn(List<Consignment> consignments);
+
+  List<Long> findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+      AuctionStatus auctionStatus, Limit limit);
+
+  List<Long> findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+      AuctionStatus auctionStatus, Limit limit);
+
+  int updateAuctionStatusToOngoingByIdIn(List<Long> auctionIds);
+
+  int updateAuctionStatusToWonByIdIn(List<Long> auctionIds);
+
+  int updateAuctionStatusToPassedByIdIn(List<Long> auctionIds);
+
+  List<Auction> findAllWithConsignmentAndSellerMemberByIdIn(List<Long> auctionIds);
+
+  List<Bid> findAllBidsWithMemberByIdIn(List<Long> bidIds);
 }

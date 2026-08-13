@@ -6,9 +6,12 @@ import { axiosInstance } from "@/api/mutator/custom-instance";
 type BidStatus = "HIGHEST" | "OUTBID" | "WON";
 type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
-/** 입찰 내역 미리보기(최근 N건) / 전체보기 모달에서 공통으로 쓰는 조회 크기. */
+/** 셀러 경매 상세 등에서 쓰는 미리보기(최근 N건) / 전체보기 모달 조회 크기. */
 export const BID_PREVIEW_SIZE = 6;
 export const BID_MODAL_SIZE = 100;
+
+/** 구매자 실시간 경매 화면의 입찰 목록 — 개수 제한 없이 스크롤로 이어서 불러온다. */
+export const REALTIME_BID_PAGE_SIZE = 20;
 
 export interface PlacedBid {
   bidId: number;
@@ -30,6 +33,32 @@ export async function placeBid(
   return data;
 }
 
+type BidRequestStatus = "PENDING" | "SUCCEEDED" | "FAILED";
+
+export interface PlacedBidRequest {
+  bidRequestId: number;
+  auctionId: number;
+  memberId: number;
+  bidPrice: number;
+  status: BidRequestStatus;
+  createdAt: string;
+}
+
+/**
+ * 입찰 요청을 접수한다. 이 호출이 성공(202)해도 입찰이 확정된 것은 아니다 — 실제 처리 결과는
+ * WebSocket으로 비동기 전달된다(성공: 경매 topic 브로드캐스트, 실패: 유니캐스트).
+ */
+export async function createBidRequest(
+  auctionId: string,
+  bidPrice: number,
+): Promise<PlacedBidRequest> {
+  const { data } = await axiosInstance.post<PlacedBidRequest>(
+    `/auctions/${auctionId}/bid-requests`,
+    { bidPrice },
+  );
+  return data;
+}
+
 /** 백엔드가 내려주는 한글 메시지(ExceptionResponse.message)를 그대로 보여준다. */
 export function getBidErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {
@@ -42,7 +71,7 @@ export function getBidErrorMessage(error: unknown): string {
 
 interface AuctionBidListItemResponse {
   bidId: number;
-  nicknameMasked: string;
+  nickname: string;
   bidPrice: number;
   createdAt: string;
   isMine: boolean;
@@ -95,7 +124,7 @@ export interface MyBidsParams {
 function toBid(item: AuctionBidListItemResponse): Bid {
   return {
     id: String(item.bidId),
-    maskedNickname: item.nicknameMasked,
+    nickname: item.nickname,
     amount: item.bidPrice,
     createdAt: item.createdAt,
     isMine: item.isMine,

@@ -36,11 +36,13 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ConsignmentService {
@@ -92,6 +94,11 @@ public class ConsignmentService {
     }
     consignmentImageRepository.saveAll(images);
 
+    log.info(
+        "위탁 상품을 등록했습니다 - consignmentId={}, sellerMemberId={}, cardId={}",
+        consignment.getConsignmentId(),
+        sellerMemberId,
+        card.getCardId());
     return RegisterConsignmentResponse.of(consignment, certificate);
   }
 
@@ -287,7 +294,14 @@ public class ConsignmentService {
     certificateRepository.deleteByConsignment(consignment);
     consignmentImageRepository.deleteAllByConsignment(consignment);
     consignmentRepository.deleteById(consignmentId);
+    log.info("위탁 상품을 삭제했습니다 - consignmentId={}, sellerMemberId={}", consignmentId, sellerMemberId);
     return imageObjectKeys;
+  }
+
+  /** 경매가 예정/진행 중인 상품을 셀러로 등록해 두면, 탈퇴 후 그 경매를 아무도 관리할 수 없게 되므로 탈퇴를 막는다. */
+  public boolean hasActiveConsignment(Long sellerMemberId) {
+    return consignmentRepository.existsBySellerMemberIdAndStatus(
+        sellerMemberId, ConsignmentStatus.IN_AUCTION);
   }
 
   private Certificate getCertificate(Consignment consignment) {

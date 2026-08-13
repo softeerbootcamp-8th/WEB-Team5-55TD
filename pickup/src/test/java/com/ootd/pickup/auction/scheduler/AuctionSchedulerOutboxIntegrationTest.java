@@ -17,8 +17,8 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaRepository;
 import com.ootd.pickup.global.event.AggregateType;
 import com.ootd.pickup.global.event.EventType;
-import com.ootd.pickup.global.event.outbox.OutboxEventEntity;
-import com.ootd.pickup.global.event.outbox.OutboxEventJpaRepository;
+import com.ootd.pickup.global.event.messagequeue.outbox.OutboxEventEntity;
+import com.ootd.pickup.global.event.messagequeue.outbox.OutboxEventJpaRepository;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
 import java.time.LocalDateTime;
@@ -229,7 +229,7 @@ class AuctionSchedulerOutboxIntegrationTest {
                 .cardNumber(unique)
                 .setName("Outbox 적재 테스트 세트")
                 .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
+                .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/outbox.png")
                 .build());
     Consignment consignment =
@@ -242,6 +242,8 @@ class AuctionSchedulerOutboxIntegrationTest {
     Auction auction =
         auctionJpaRepository.saveAndFlush(
             Auction.builder()
+                .title("테스트 제목")
+                .description("테스트 설명")
                 .consignment(consignment)
                 .startedAt(startedAt)
                 .endedAt(endedAt)

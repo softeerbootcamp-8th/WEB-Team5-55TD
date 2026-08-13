@@ -159,6 +159,8 @@ class SettlementServiceTest {
     Consignment consignment = Consignment.builder().status(ConsignmentStatus.IN_AUCTION).build();
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now())

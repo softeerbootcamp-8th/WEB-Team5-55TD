@@ -87,6 +87,8 @@ jobs:
 
       APP_ENV_WEBSOCKET_ALLOWED_ORIGINS: ${{ vars.WEBSOCKET_ALLOWED_ORIGINS }}
 
+      APP_ENV_EVENT_SQS_QUEUE_URL: ${{ secrets.EVENT_SQS_QUEUE_URL }}
+
       APP_ENV_DD_SERVICE: pickup-api
       APP_ENV_DD_ENV: production
       APP_ENV_DD_VERSION: ${{ github.sha }}
@@ -135,6 +137,7 @@ jobs:
           check_format IMAGE_MEDIA_BASE_URL '^https://[A-Za-z0-9.-]+$'
           check_format IMAGE_UPLOAD_URL_TTL '^[1-9][0-9]*[smhd]$'
           check_format WEBSOCKET_ALLOWED_ORIGINS '^https://[A-Za-z0-9.-]+$'
+          check_format EVENT_SQS_QUEUE_URL '^https://sqs\.[a-z0-9-]+\.amazonaws\.com/[0-9]{12}/[A-Za-z0-9_-]+\.fifo$'
           check_format DD_SERVICE '^pickup-api$'
           check_format DD_ENV '^production$'
           check_format DD_VERSION '^[0-9a-f]{40}$'

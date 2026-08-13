@@ -163,7 +163,7 @@ class SalesHistoryIntegrationTest {
             .cardNumber("4/102")
             .setName("Base Set")
             .language(Language.JAPANESE)
-            .rarity(Rarity.MINT)
+            .rarity(Rarity.RARE_HOLO)
             .imageUrl("https://image.example.com/card.png")
             .build();
     cardJpaRepository.save(card);
@@ -181,6 +181,8 @@ class SalesHistoryIntegrationTest {
       Consignment consignment, AuctionStatus status, Long startingPrice, LocalDateTime endedAt) {
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusDays(1))
             .endedAt(endedAt)

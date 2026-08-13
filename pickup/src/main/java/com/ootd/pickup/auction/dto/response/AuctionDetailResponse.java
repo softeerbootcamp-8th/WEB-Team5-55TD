@@ -14,6 +14,8 @@ import java.util.List;
 public record AuctionDetailResponse(
     Long auctionId,
     Long consignmentId,
+    String title,
+    String description,
     GetCardDetailResponse card,
     String grade,
     AuctionStatus auctionStatus,
@@ -25,6 +27,7 @@ public record AuctionDetailResponse(
     long watchCount,
     boolean watched,
     String thumbnailUrl,
+    Long sellerId,
     String sellerNickname,
     CertificateResponse certificate,
     List<ConsignmentImageResponse> images,
@@ -50,6 +53,8 @@ public record AuctionDetailResponse(
     return new AuctionDetailResponse(
         auction.getAuctionId(),
         consignment.getConsignmentId(),
+        auction.getTitle(),
+        auction.getDescription(),
         GetCardDetailResponse.from(consignment.getCard()),
         certificate.getGradeDisplay(),
         auction.getAuctionStatus(),
@@ -61,6 +66,7 @@ public record AuctionDetailResponse(
         watchCount,
         watched,
         resolveThumbnailUrl(images, imageUrlResolver),
+        consignment.getSellerMember().getMemberId(),
         consignment.getSellerMember().getNickname(),
         CertificateResponse.from(certificate),
         images.stream()

@@ -8,8 +8,16 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("./heart-button", () => ({
-  HeartButton: () => <button aria-label="관심 등록" type="button" />,
-  WatchButton: () => <button aria-label="관심 등록" type="button" />,
+  HeartButton: () => (
+    <button data-testid="heart" aria-label="관심 등록" type="button" />
+  ),
+  WatchButton: ({ watched }: { watched: boolean }) => (
+    <button
+      data-testid="watch"
+      aria-label={watched ? "관심 해제" : "관심 등록"}
+      type="button"
+    />
+  ),
 }));
 
 const base = { id: "a1", cardName: "Charizard", watchCount: 10 };
@@ -41,5 +49,20 @@ describe("AuctionCard", () => {
     const { AuctionCard } = await import("./auction-card");
     render(<AuctionCard auction={{ ...base, status: "ENDED" }} />);
     expect(screen.getByText("유찰")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["watched 값이 없어도", undefined, "관심 등록"],
+    ["관심 등록된 경매는", true, "관심 해제"],
+  ])("%s 서버 연동 하트를 렌더한다", async (_case, watched, label) => {
+    const { AuctionCard } = await import("./auction-card");
+    render(
+      <AuctionCard
+        auction={{ ...base, status: "LIVE", watchCount: 328, watched }}
+      />,
+    );
+    expect(screen.getByTestId("watch")).toBeInTheDocument();
+    expect(screen.queryByTestId("heart")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
   });
 });

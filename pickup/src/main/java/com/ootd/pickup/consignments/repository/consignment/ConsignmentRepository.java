@@ -18,4 +18,10 @@ public interface ConsignmentRepository {
 
   List<Consignment> findAllBySellerMemberIdAndStatusAndCursor(
       Long sellerMemberId, ConsignmentStatus status, Long cursor, int size);
+
+  boolean existsBySellerMemberIdAndStatus(Long sellerMemberId, ConsignmentStatus consignmentStatus);
+
+  int updateStatusToSoldByAuctionIdIn(List<Long> auctionIds);
+
+  int updateStatusToRegisterableByAuctionIdIn(List<Long> auctionIds);
 }
