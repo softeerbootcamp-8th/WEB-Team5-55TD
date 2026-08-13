@@ -26,7 +26,6 @@ import com.ootd.pickup.global.slack.SlackErrorNotifier;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
-import com.ootd.pickup.member.dto.WithdrawMemberRequest;
 import com.ootd.pickup.member.service.MemberService;
 import com.ootd.pickup.member.service.ProfileApplicationService;
 import com.ootd.pickup.point.domain.PointTransactionType;
@@ -417,69 +416,36 @@ class MemberControllerTest {
   }
 
   @Test
-  void 인증된_회원이_비밀번호와_함께_탈퇴를_요청하면_204를_반환한다() throws Exception {
-    // given
-    WithdrawMemberRequest request = new WithdrawMemberRequest("password1234");
-
+  void 인증된_회원이_탈퇴를_요청하면_204를_반환한다() throws Exception {
     // when & then
     mockMvc
         .perform(
             delete("/members/me")
-                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
         .andExpect(status().isNoContent());
 
-    then(memberService).should().withdrawMember(1L, request);
-  }
-
-  @Test
-  void 비밀번호_없이_탈퇴를_요청하면_400을_반환한다() throws Exception {
-    // given
-    String request = "{}";
-
-    // when & then
-    mockMvc
-        .perform(
-            delete("/members/me")
-                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(request))
-        .andExpect(status().isBadRequest());
-
-    then(memberService).shouldHaveNoInteractions();
+    then(memberService).should().withdrawMember(1L);
   }
 
   @Test
   void 진행중인_경매나_입찰이_있으면_탈퇴는_409를_반환한다() throws Exception {
     // given
-    WithdrawMemberRequest request = new WithdrawMemberRequest("password1234");
     willThrow(new PickUpException(MEMBER_WITHDRAW_NOT_ALLOWED))
         .given(memberService)
-        .withdrawMember(1L, request);
+        .withdrawMember(1L);
 
     // when & then
     mockMvc
         .perform(
             delete("/members/me")
-                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
         .andExpect(status().isConflict());
   }
 
   @Test
   void 인증정보가_없으면_탈퇴_요청은_401을_반환한다() throws Exception {
-    // given
-    WithdrawMemberRequest request = new WithdrawMemberRequest("password1234");
-
     // when & then
-    mockMvc
-        .perform(
-            delete("/members/me")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isUnauthorized());
+    mockMvc.perform(delete("/members/me")).andExpect(status().isUnauthorized());
 
     then(memberService).shouldHaveNoInteractions();
   }
