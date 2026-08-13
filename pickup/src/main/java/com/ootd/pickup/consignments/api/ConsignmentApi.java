@@ -123,6 +123,8 @@ public interface ConsignmentApi {
       description =
           """
             내가 등록한 상품 목록을 판매 상태(status)로 필터링하여 조회합니다.
+            auctionStatus를 함께 전달하면 상품에 연결된 가장 최근 경매의 상태까지 일치하는 상품만 조회합니다.
+            예를 들어 경매 예정은 status=IN_AUCTION&auctionStatus=SCHEDULED로 조회합니다.
             상품 ID 내림차순으로 조회하며, 다음 페이지 조회 시 이전 응답의 cursor를 전달합니다.
             """,
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),

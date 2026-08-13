@@ -108,9 +108,15 @@ function toUiStatus(
     case "SOLD":
       return ProductStatus.SOLD;
     case "IN_AUCTION":
-      return auctionStatus === "ONGOING"
-        ? ProductStatus.AUCTION_LIVE
-        : ProductStatus.AUCTION_UPCOMING;
+      if (auctionStatus === "SCHEDULED") {
+        return ProductStatus.AUCTION_UPCOMING;
+      }
+      if (auctionStatus === "ONGOING") {
+        return ProductStatus.AUCTION_LIVE;
+      }
+      throw new Error(
+        `IN_AUCTION 상품의 경매 상태가 올바르지 않습니다: ${auctionStatus ?? "null"}`,
+      );
     case "REGISTERABLE":
       return auctionStatus === "PASSED"
         ? ProductStatus.REAPPLICABLE
@@ -168,13 +174,18 @@ function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
 
 async function fetchConsignmentPage(
   status: ApiConsignmentStatus,
-  params?: { cursor?: number; size?: number },
+  params?: {
+    auctionStatus?: ApiAuctionSubStatus;
+    cursor?: number;
+    size?: number;
+  },
 ) {
   const { data } = await axiosInstance.get<
     CursorPageResponse<ConsignmentListItemResponse>
   >("/consignments", {
     params: {
       status,
+      auctionStatus: params?.auctionStatus,
       cursor: params?.cursor,
       size: params?.size ?? 50,
     },
@@ -184,6 +195,7 @@ async function fetchConsignmentPage(
 
 export async function getMyConsignments(params: {
   status: ApiConsignmentStatus;
+  auctionStatus?: ApiAuctionSubStatus;
   cursor?: number;
   size?: number;
 }): Promise<{
