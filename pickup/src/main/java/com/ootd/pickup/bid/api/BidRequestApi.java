@@ -1,6 +1,7 @@
 package com.ootd.pickup.bid.api;
 
 import com.ootd.pickup.bid.dto.request.CreateBidRequestRequest;
+import com.ootd.pickup.bid.dto.response.BidRequestResultResponse;
 import com.ootd.pickup.bid.dto.response.CreateBidRequestResponse;
 import com.ootd.pickup.global.config.SwaggerConfig;
 import com.ootd.pickup.global.exception.dto.response.ExceptionResponse;
@@ -79,4 +80,25 @@ public interface BidRequestApi {
       })
   ResponseEntity<CreateBidRequestResponse> createBidRequest(
       Long auctionId, Long memberId, CreateBidRequestRequest createBidRequestRequest);
+
+  @Operation(
+      summary = "입찰 요청 처리 결과 조회",
+      description = "WebSocket 알림을 받지 못한 경우 자신의 입찰 요청 처리 상태를 조회합니다. 다른 회원의 요청은 조회할 수 없습니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "입찰 요청 상태 조회 성공",
+            content = @Content(schema = @Schema(implementation = BidRequestResultResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 필요",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "본인의 입찰 요청을 찾을 수 없음",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
+  ResponseEntity<BidRequestResultResponse> getBidRequestResult(
+      Long auctionId, Long bidRequestId, Long memberId);
 }

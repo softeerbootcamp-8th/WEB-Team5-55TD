@@ -37,6 +37,7 @@ import {
   createBidRequest,
   getAuctionBids,
   getBidErrorMessage,
+  getBidRequestResult,
   REALTIME_BID_PAGE_SIZE,
 } from "@/api/bids";
 import { getGetMyPointBalanceQueryKey } from "@/api/generated/member/member";
@@ -59,7 +60,8 @@ import {
 
 const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
 const POLLING_JITTER_MILLIS = 3_000;
-const BID_REQUEST_RESULT_TIMEOUT_MILLIS = 10_000;
+const BID_REQUEST_RESULT_POLL_INTERVAL_MILLIS = 1_000;
+const BID_REQUEST_RESULT_TIMEOUT_MILLIS = 60_000;
 
 function pollingInterval() {
   return (
@@ -332,10 +334,67 @@ function LiveAuctionPage() {
   useEffect(() => {
     if (!isBidRequestPending) return;
 
-    const timeoutId = window.setTimeout(() => {
-      if (pendingBidRequestIdRef.current === null) return;
+    const bidRequestId = pendingBidRequestIdRef.current;
+    if (bidRequestId === null) return;
+
+    let cancelled = false;
+    let pollTimerId: number | undefined;
+
+    const isStillPending = () =>
+      !cancelled && pendingBidRequestIdRef.current === bidRequestId;
+
+    const clearPendingRequest = () => {
       pendingBidRequestIdRef.current = null;
       setIsBidRequestPending(false);
+    };
+
+    const pollResult = async () => {
+      try {
+        const result = await getBidRequestResult(auction.id, bidRequestId);
+        if (!isStillPending()) return;
+
+        if (result.status === "SUCCEEDED") {
+          clearPendingRequest();
+          setAmount("");
+          refreshSnapshot();
+          void queryClient.invalidateQueries({
+            queryKey: getGetMyPointBalanceQueryKey(),
+          });
+          toast.success("입찰 성공", {
+            description: `${formatWon(result.bidPrice)}에 입찰했습니다.`,
+          });
+          return;
+        }
+
+        if (result.status === "FAILED") {
+          clearPendingRequest();
+          refreshSnapshot();
+          setFail(
+            result.failureMessage ??
+              "입찰에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+          );
+          return;
+        }
+      } catch {
+        // 일시적인 조회 실패는 다음 폴링에서 재시도한다.
+      }
+
+      if (isStillPending()) {
+        pollTimerId = window.setTimeout(
+          pollResult,
+          BID_REQUEST_RESULT_POLL_INTERVAL_MILLIS,
+        );
+      }
+    };
+
+    pollTimerId = window.setTimeout(
+      pollResult,
+      BID_REQUEST_RESULT_POLL_INTERVAL_MILLIS,
+    );
+
+    const timeoutId = window.setTimeout(() => {
+      if (!isStillPending()) return;
+      clearPendingRequest();
       refreshSnapshot();
       toast.error("입찰 결과 확인 지연", {
         description:
@@ -343,8 +402,12 @@ function LiveAuctionPage() {
       });
     }, BID_REQUEST_RESULT_TIMEOUT_MILLIS);
 
-    return () => window.clearTimeout(timeoutId);
-  }, [isBidRequestPending, refreshSnapshot]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      if (pollTimerId !== undefined) window.clearTimeout(pollTimerId);
+    };
+  }, [auction.id, isBidRequestPending, queryClient, refreshSnapshot]);
 
   const bidMutation = useMutation({
     mutationFn: (bidPrice: number) => createBidRequest(auction.id, bidPrice),

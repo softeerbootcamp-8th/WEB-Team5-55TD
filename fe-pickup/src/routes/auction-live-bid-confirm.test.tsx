@@ -62,6 +62,7 @@ vi.mock("@/api/bids", () => ({
   getAuctionBids: vi.fn(),
   getBidErrorMessage: vi.fn(),
   createBidRequest: vi.fn(),
+  getBidRequestResult: vi.fn().mockResolvedValue({ status: "PENDING" }),
 }));
 vi.mock("@/hooks/use-auction-bid-updates", () => ({
   useAuctionBidUpdates: () => {},

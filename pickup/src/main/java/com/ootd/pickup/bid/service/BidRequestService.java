@@ -1,9 +1,11 @@
 package com.ootd.pickup.bid.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_FOUND;
+import static com.ootd.pickup.global.exception.ExceptionCode.BID_REQUEST_NOT_FOUND;
 
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.BidRequest;
+import com.ootd.pickup.bid.dto.response.BidRequestResultResponse;
 import com.ootd.pickup.bid.dto.response.CreateBidRequestResponse;
 import com.ootd.pickup.bid.event.BidRequestCreatedMessageQueueEvent;
 import com.ootd.pickup.bid.repository.BidRequestRepository;
@@ -36,5 +38,19 @@ public class BidRequestService {
     eventProducer.produce(BidRequestCreatedMessageQueueEvent.fromEntity(bidRequest));
 
     return CreateBidRequestResponse.from(bidRequest);
+  }
+
+  @Transactional(readOnly = true)
+  public BidRequestResultResponse getBidRequestResult(
+      Long auctionId, Long bidRequestId, Long memberId) {
+    BidRequest bidRequest =
+        bidRequestRepository
+            .findById(bidRequestId)
+            .filter(
+                request ->
+                    request.getAuctionId().equals(auctionId)
+                        && request.getMemberId().equals(memberId))
+            .orElseThrow(() -> new PickUpException(BID_REQUEST_NOT_FOUND));
+    return BidRequestResultResponse.from(bidRequest);
   }
 }

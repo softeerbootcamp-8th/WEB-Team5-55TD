@@ -90,6 +90,8 @@ public enum ExceptionCode {
       HttpStatus.CONFLICT,
       ClientExceptionCode.BELOW_MIN_INCREMENT,
       "현재가에서 최소 입찰 단위 이상 높게 입찰해야 합니다."),
+  BID_REQUEST_NOT_FOUND(
+      HttpStatus.NOT_FOUND, ClientExceptionCode.BID_REQUEST_NOT_FOUND, "입찰 요청을 찾을 수 없습니다."),
   CONSIGNMENT_DELETE_OWNER_MISMATCH(
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.CONSIGNMENT_DELETE_OWNER_MISMATCH,

@@ -33,7 +33,7 @@ export async function placeBid(
   return data;
 }
 
-type BidRequestStatus = "PENDING" | "SUCCEEDED" | "FAILED";
+export type BidRequestStatus = "PENDING" | "SUCCEEDED" | "FAILED";
 
 export interface PlacedBidRequest {
   bidRequestId: number;
@@ -42,6 +42,16 @@ export interface PlacedBidRequest {
   bidPrice: number;
   status: BidRequestStatus;
   createdAt: string;
+}
+
+export interface BidRequestResult {
+  bidRequestId: number;
+  auctionId: number;
+  bidPrice: number;
+  status: BidRequestStatus;
+  failureCode?: string | null;
+  failureMessage?: string | null;
+  processedAt?: string | null;
 }
 
 /**
@@ -55,6 +65,17 @@ export async function createBidRequest(
   const { data } = await axiosInstance.post<PlacedBidRequest>(
     `/auctions/${auctionId}/bid-requests`,
     { bidPrice },
+  );
+  return data;
+}
+
+/** WebSocket 결과 알림 유실에 대비해 접수한 입찰 요청의 최종 상태를 조회한다. */
+export async function getBidRequestResult(
+  auctionId: string,
+  bidRequestId: number,
+): Promise<BidRequestResult> {
+  const { data } = await axiosInstance.get<BidRequestResult>(
+    `/auctions/${auctionId}/bid-requests/${bidRequestId}`,
   );
   return data;
 }
