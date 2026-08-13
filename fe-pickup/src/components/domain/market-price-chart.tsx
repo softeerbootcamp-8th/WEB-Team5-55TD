@@ -42,8 +42,11 @@ interface MarketPriceChartProps {
   reservePrice?: number;
 }
 
-const WIDTH = 720;
-const HEIGHT = 240;
+// 페이지 전체 폭에 걸쳐 표시되므로(OOTD-477/480), 720:240(3:1)처럼 가파른 비율은
+// 실제 렌더 폭(~1100px)에서 세로가 380px 안팎까지 늘어나 다른 카드보다 과도하게 커
+// 보인다(OOTD-520). 가로로 완만한 배너 형태(4.8:1)로 낮춰 균형을 맞춘다.
+const WIDTH = 960;
+const HEIGHT = 200;
 const PADDING = { top: 16, right: 16, bottom: 28, left: 58 };
 
 function tierLabel(tier: string) {
