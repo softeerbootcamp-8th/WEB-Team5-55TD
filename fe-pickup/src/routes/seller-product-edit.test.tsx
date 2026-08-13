@@ -98,12 +98,29 @@ describe("셀러 상품 수정", () => {
     const { Route } = await import("@/routes/seller/products/$productId_.edit");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
-    const defectInput = screen.getByPlaceholderText(
-      "예: 뒷면 우하단 미세 스크래치",
-    );
+    const defectInput =
+      screen.getByPlaceholderText("예: 뒷면 우하단 미세 스크래치");
     expect(defectInput).toHaveAttribute("maxLength", "255");
     expect(screen.getByText("0/255")).toBeInTheDocument();
     fireEvent.change(defectInput, { target: { value: "모서리 마모" } });
     expect(screen.getByText("6/255")).toBeInTheDocument();
+  });
+
+  it("감정일에 미래 날짜를 입력하면 저장할 수 없다", async () => {
+    queryState = { data: product, isPending: false, isError: false };
+    const { Route } = await import("@/routes/seller/products/$productId_.edit");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    const tomorrow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    fireEvent.change(
+      document.querySelector('input[type="date"]') as HTMLInputElement,
+      { target: { value: tomorrow } },
+    );
+    expect(
+      screen.getByText("현재 날짜보다 이후일 수 없습니다."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "저장하기" })).toBeDisabled();
   });
 });

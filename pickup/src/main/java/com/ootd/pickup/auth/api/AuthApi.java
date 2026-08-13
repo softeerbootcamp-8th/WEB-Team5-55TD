@@ -42,7 +42,24 @@ public interface AuthApi {
 
   @Operation(
       summary = "카카오 로그인",
-      description = "카카오 인가 코드를 검증하고 최초 로그인 시 자동 가입한 뒤 서비스 토큰 쿠키를 발급합니다.")
+      description =
+          "카카오 인가 코드를 검증하고 최초 로그인 시 랜덤 닉네임으로 자동 가입한 뒤 서비스 토큰 쿠키를 발급합니다. "
+              + "최초 가입 회원은 응답의 needsNickname 이 true 입니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "카카오 로그인 성공",
+            headers =
+                @Header(
+                    name = "Set-Cookie",
+                    description = "access-token과 refresh-token 쿠키를 발급합니다.",
+                    schema = @Schema(type = "string")),
+            content = @Content(schema = @Schema(implementation = LoginResponseBody.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "카카오 인가 코드 검증 실패",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+      })
   ResponseEntity<LoginResponseBody> kakaoLogin(KakaoLoginRequest request);
 
   @Operation(

@@ -840,6 +840,87 @@ class AuctionServiceTest {
   }
 
   @Test
+  void 낙찰된_경매를_조회하면_마스킹된_낙찰자_닉네임이_반환된다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.SOLD, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.WON,
+            LocalDateTime.now().minusHours(2),
+            LocalDateTime.now().minusHours(1));
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    Bid winningBid = Bid.create(auction, createMember(9L), 10000L);
+    ReflectionTestUtils.setField(winningBid, "bidId", 50L);
+    auction.updateWinningBid(50L, 10000L);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), eq(List.of(1L))))
+        .willReturn(Map.of());
+    given(bidRepository.findById(50L)).willReturn(Optional.of(winningBid));
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
+
+    // then
+    assertThat(response.winnerNicknameMasked()).isEqualTo("닉***임");
+  }
+
+  @Test
+  void 유찰된_경매를_조회하면_winnerNicknameMasked가_null이다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.SOLD, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.PASSED,
+            LocalDateTime.now().minusHours(2),
+            LocalDateTime.now().minusHours(1));
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), eq(List.of(1L))))
+        .willReturn(Map.of());
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
+
+    // then
+    assertThat(response.winnerNicknameMasked()).isNull();
+  }
+
+  @Test
+  void 진행중인_경매를_조회하면_winnerNicknameMasked가_null이다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.IN_AUCTION, null);
+    Auction auction =
+        createAuction(
+            1L, consignment, AuctionStatus.ONGOING, LocalDateTime.now().minusHours(1), null);
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), eq(List.of(1L))))
+        .willReturn(Map.of());
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
+
+    // then
+    assertThat(response.winnerNicknameMasked()).isNull();
+  }
+
+  @Test
   void 입찰이_있는_경매_상세를_조회하면_currentPrice와_nextMinBid가_반영된다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.IN_AUCTION, null);

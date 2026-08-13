@@ -88,6 +88,7 @@ describe("auctions api", () => {
         },
         bidIncrement: 1000,
         myBidWon: true,
+        winnerNicknameMasked: "닉***임",
       },
     });
     await expect(api.getAuctionDetail("7")).resolves.toMatchObject({
@@ -98,6 +99,7 @@ describe("auctions api", () => {
       images: ["front.jpg"],
       sellerProfileImageUrl: "seller-profile.jpg",
       grade: { agency: "BGS", score: "9", serial: "S1" },
+      winnerNicknameMasked: "닉***임",
     });
   });
 

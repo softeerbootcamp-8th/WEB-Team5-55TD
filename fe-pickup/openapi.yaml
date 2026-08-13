@@ -871,7 +871,8 @@ paths:
       tags:
       - Consignment
       summary: 상품 상세 조회
-      description: 상품 ID로 상품 상세 정보를 조회합니다.
+      description: 상품 ID로 내가 등록한 상품의 상세 정보를 조회합니다. 다른 셀러가 등록한
+        상품은 조회할 수 없습니다.
       operationId: getConsignment
       parameters:
       - name: consignmentId
@@ -922,12 +923,26 @@ paths:
                       imageOrder: 2
                       imageUrl: https://example.com/cards/10-back.png
                     auctionRegistered: false
+        "401":
+          description: 인증이 필요함 (access-token 쿠키 없음/만료)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "403":
+          description: 본인이 등록한 상품이 아님
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
         "404":
           description: 상품을 찾을 수 없음
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ExceptionResponse"
+      security:
+      - access-token-cookie: []
     delete:
       tags:
       - Consignment
@@ -1780,6 +1795,8 @@ components:
           type: string
         profileImageUrl:
           type: string
+        needsNickname:
+          type: boolean
     LoginRequest:
       type: object
       properties:
@@ -1821,6 +1838,7 @@ components:
         startingPrice:
           type: integer
           format: int64
+          minimum: 1000
         reserve:
           type: integer
           format: int64
@@ -1960,6 +1978,9 @@ components:
           type: string
         profileImageUrl:
           type: string
+        oauthProvider:
+          type: string
+          description: 소셜 가입 회원의 제공자(예 KAKAO). 일반 회원은 값이 없다.
     ProfileImageUpdateRequest:
       type: object
       properties:
@@ -2571,6 +2592,8 @@ components:
           format: int64
         myBidWon:
           type: boolean
+        winnerNicknameMasked:
+          type: string
     GetAuctionBidsRequest:
       type: object
       properties:

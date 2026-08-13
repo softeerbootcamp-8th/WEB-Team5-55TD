@@ -19,6 +19,7 @@ import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
+import { ConnectionStatus } from "@/components/domain/connection-status";
 import { BidList, RealtimeBidList } from "@/components/domain/bid-list";
 import { Avatar } from "@/components/domain/avatar";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ import {
   type AuctionBidUpdatedMessage,
   type BidRequestFailedMessage,
 } from "@/hooks/use-auction-bid-updates";
-import { isAuthenticated, useIsAuthenticated } from "@/lib/auth";
+import { isAuthenticated, useIsAuthenticated, useNickname } from "@/lib/auth";
 import {
   setSkipBidConfirm,
   shouldSkipBidConfirm,
@@ -64,6 +65,8 @@ const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
 const POLLING_JITTER_MILLIS = 3_000;
 const BID_REQUEST_RESULT_POLL_INTERVAL_MILLIS = 1_000;
 const BID_REQUEST_RESULT_TIMEOUT_MILLIS = 60_000;
+// 경매 종료 감지 즉시 결과 화면으로 튀지 않도록, 짧게 멈췄다가 전환한다.
+const AUCTION_END_TRANSITION_DELAY_MILLIS = 500;
 
 function pollingInterval() {
   return (
@@ -108,6 +111,7 @@ function LiveAuctionPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isAuthenticated = useIsAuthenticated();
+  const myNickname = useNickname();
   const auctionQuery = useQuery({
     queryKey: ["auction-detail", initialAuction.id],
     queryFn: () => getAuctionDetail(initialAuction.id),
@@ -123,6 +127,9 @@ function LiveAuctionPage() {
   });
   const auction = auctionQuery.data;
   const minUnit = auction.minBidUnit ?? 0;
+  // 닉네임을 모르면 막지 않는다 — 최종 차단은 서버가 한다.
+  const isMyAuction =
+    !!myNickname && myNickname === (auction.sellerNickname ?? null);
 
   const [realtimeSnapshot, setRealtimeSnapshot] = useState({
     auctionId: auction.id,
@@ -343,7 +350,7 @@ function LiveAuctionPage() {
     [refreshSnapshot],
   );
 
-  useAuctionBidUpdates({
+  const connectionStatus = useAuctionBidUpdates({
     auctionId: auction.id,
     latestBidId,
     onBidUpdated: applyBidUpdate,
@@ -471,12 +478,27 @@ function LiveAuctionPage() {
     placeBid();
   }, [closeBidConfirm, dontShowConfirmAgain, parsedAmount, placeBid]);
 
+  const endTransitionTimeoutRef = useRef<number | null>(null);
+
+  // 경매가 끝나는 순간 바로 화면을 갈아치우면 결과가 툭 튀어나오는 느낌을 준다.
+  // 짧게 지연했다가 전환해 종료 → 결과 화면 전환이 자연스럽게 이어지도록 한다.
   const goEnd = useCallback(() => {
-    navigate({
-      to: "/auctions/$auctionId/end",
-      params: { auctionId: auction.id },
-    });
+    if (endTransitionTimeoutRef.current !== null) return;
+    endTransitionTimeoutRef.current = window.setTimeout(() => {
+      navigate({
+        to: "/auctions/$auctionId/end",
+        params: { auctionId: auction.id },
+      });
+    }, AUCTION_END_TRANSITION_DELAY_MILLIS);
   }, [auction.id, navigate]);
+
+  useEffect(() => {
+    return () => {
+      if (endTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(endTransitionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (auction.status === AuctionStatus.ENDED) {
@@ -495,10 +517,17 @@ function LiveAuctionPage() {
             imageUrl={auction.thumbnailUrl}
           />
           <div className="flex flex-col gap-3">
-            <GradeBadge grade={auction.grade} />
-            <h1 className="text-2xl font-bold">{auction.title ?? auction.cardName}</h1>
+            <div className="flex items-center gap-2">
+              <GradeBadge grade={auction.grade} />
+              <ConnectionStatus status={connectionStatus} />
+            </div>
+            <h1 className="text-2xl font-bold">
+              {auction.title ?? auction.cardName}
+            </h1>
             {auction.title && (
-              <p className="text-sm text-[var(--color-text-sub)]">{auction.cardName}</p>
+              <p className="text-sm text-[var(--color-text-sub)]">
+                {auction.cardName}
+              </p>
             )}
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
               <Avatar
@@ -527,8 +556,13 @@ function LiveAuctionPage() {
         {isAuthenticated ? (
           <div className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-[var(--color-text-sub)]">
+              <span className="flex items-center gap-2 text-[var(--color-text-sub)]">
                 최소 다음 입찰가
+                {isMyAuction && (
+                  <span className="rounded-[var(--radius-pill)] bg-[var(--color-surface-2)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+                    자신의 상품
+                  </span>
+                )}
               </span>
               <span className="tabular font-semibold text-foreground">
                 {formatWon(minNext)}
@@ -541,6 +575,7 @@ function LiveAuctionPage() {
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={`${minNext.toLocaleString("ko-KR")} 이상`}
                 className="tabular"
+                disabled={isMyAuction}
               />
               <Button
                 type="button"
@@ -548,7 +583,10 @@ function LiveAuctionPage() {
                 size="icon"
                 onClick={onIncrementClick}
                 disabled={
-                  minUnit <= 0 || bidMutation.isPending || isBidRequestPending
+                  isMyAuction ||
+                  minUnit <= 0 ||
+                  bidMutation.isPending ||
+                  isBidRequestPending
                 }
                 aria-label={`최소 입찰 단위(${formatWon(minUnit)})만큼 추가`}
                 className="shrink-0"
@@ -559,6 +597,7 @@ function LiveAuctionPage() {
               <Button
                 onClick={onBidClick}
                 disabled={
+                  isMyAuction ||
                   parsedAmount === null ||
                   bidMutation.isPending ||
                   isBidRequestPending
@@ -578,13 +617,16 @@ function LiveAuctionPage() {
                   size="sm"
                   variant="secondary"
                   onClick={() => setAmount(String(recommended))}
+                  disabled={isMyAuction}
                 >
                   {formatWon(recommended)}
                 </Button>
               ))}
             </div>
             <p className="text-xs text-[var(--color-text-muted)]">
-              입찰은 취소할 수 없습니다.
+              {isMyAuction
+                ? "자신이 등록한 경매에는 입찰할 수 없습니다."
+                : "입찰은 취소할 수 없습니다."}
             </p>
           </div>
         ) : (
