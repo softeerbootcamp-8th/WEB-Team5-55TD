@@ -52,6 +52,8 @@ describe("auctions api", () => {
     });
     await expect(
       api.registerAuction({
+        title: "test title",
+        description: "test description",
         consignmentId: "3",
         startingPrice: 1000,
         reserve: 1500,

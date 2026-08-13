@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/domain/status-badge";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
+import { MarketPriceChart } from "@/components/domain/market-price-chart";
 import { WatchButton } from "@/components/domain/heart-button";
 import { RelatedAuctionsBanner } from "@/components/domain/related-auctions-banner";
 import { Avatar } from "@/components/domain/avatar";
@@ -85,24 +86,27 @@ function AuctionDetailPage() {
           </button>
           {images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
-              {images.map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setLightboxIndex(i)}
-                  className="group relative block rounded-[var(--radius-md)] text-left"
-                >
-                  <CardThumb
-                    cardName={auction.cardName}
-                    imageUrl={img}
-                    aspect="aspect-square"
-                    label={i === 0 ? "앞" : i === 1 ? "뒤" : `${i + 1}`}
-                  />
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
-                    <Expand className="size-4 text-white drop-shadow" />
-                  </span>
-                </button>
-              ))}
+              {images.slice(1).map((img, index) => {
+                const imageIndex = index + 1;
+                return (
+                  <button
+                    key={imageIndex}
+                    type="button"
+                    onClick={() => setLightboxIndex(imageIndex)}
+                    className="group relative block rounded-[var(--radius-md)] text-left"
+                  >
+                    <CardThumb
+                      cardName={auction.cardName}
+                      imageUrl={img}
+                      aspect="aspect-square"
+                      label={imageIndex === 1 ? "뒤" : `${imageIndex + 1}`}
+                    />
+                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
+                      <Expand className="size-4 text-white drop-shadow" />
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -123,7 +127,10 @@ function AuctionDetailPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold">{auction.cardName}</h1>
+            <h1 className="text-2xl font-bold">{auction.title ?? auction.cardName}</h1>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {auction.cardName}
+            </p>
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
               <Avatar
                 src={auction.sellerProfileImageUrl}
@@ -138,6 +145,12 @@ function AuctionDetailPage() {
               </span>
             </div>
           </div>
+
+          {auction.description && (
+            <div className="text-sm whitespace-pre-wrap text-foreground">
+              {auction.description}
+            </div>
+          )}
 
           <div className="rounded-[var(--radius-lg)] border border-border bg-card p-5">
             {isLive ? (
@@ -214,6 +227,15 @@ function AuctionDetailPage() {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          <MarketPriceChart
+            cardName={auction.cardName}
+            setName={auction.card?.setName}
+            cardNumber={auction.card?.cardNumber}
+            preferredAgency={auction.grade?.agency}
+            preferredScore={auction.grade?.score}
+            reservePrice={auction.startPrice}
+          />
 
           {/* CTA */}
           {auction.status !== AuctionStatus.ENDED && (
