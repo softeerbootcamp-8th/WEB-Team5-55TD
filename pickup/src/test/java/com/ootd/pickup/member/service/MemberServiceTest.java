@@ -210,6 +210,21 @@ class MemberServiceTest {
   }
 
   @Test
+  void 소셜_가입_회원이_닉네임을_수정해도_응답에_가입_제공자가_남는다() {
+    // given
+    Member member = Member.createOAuth("KAKAO", "12345", "kakao_12345", null);
+    UpdateMyProfileRequest request = new UpdateMyProfileRequest("픽업회원", null, null, null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(memberRepository.existsByNickname("픽업회원")).willReturn(false);
+
+    // when
+    MyProfileResponse response = memberService.updateMyProfile(1L, request, null).response();
+
+    // then
+    assertThat(response.oauthProvider()).isEqualTo("KAKAO");
+  }
+
+  @Test
   void 비밀번호를_수정하면_BCrypt_해시로_저장된다() {
     // given
     String currentPassword = "old-password";
