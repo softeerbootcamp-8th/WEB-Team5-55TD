@@ -117,6 +117,54 @@ class AuctionControllerTest {
   }
 
   @Test
+  void 제목이_100자를_초과하면_400을_반환한다() throws Exception {
+    // given
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            100L,
+            10000L,
+            15000L,
+            LocalDateTime.now().plusDays(1),
+            "가".repeat(101),
+            "Description");
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(auctionService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 설명이_1000자를_초과하면_400을_반환한다() throws Exception {
+    // given
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            100L,
+            10000L,
+            15000L,
+            LocalDateTime.now().plusDays(1),
+            "Title",
+            "가".repeat(1001));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(auctionService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 판매자_본인이_아니면_403을_반환한다() throws Exception {
     // given
     CreateAuctionRequest request = createRequest(LocalDateTime.now().plusDays(1));
