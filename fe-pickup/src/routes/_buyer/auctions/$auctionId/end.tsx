@@ -32,15 +32,17 @@ function AuctionEndPage() {
   const { auction } = Route.useLoaderData();
   const sold = auction.won;
   const iWon = auction.myBidWon;
-  const winnerLabel = iWon ? "나" : auction.winnerNicknameMasked;
 
+  // 낙찰자를 헤드라인에 직접 노출한다 — 본인이면 축하 문구, 타인이면 닉네임을 그대로 주어로 세운다.
   const headline = iWon
-    ? "낙찰되었습니다"
+    ? "축하합니다!"
     : sold
-      ? "낙찰자가 결정되었습니다"
+      ? auction.winnerNicknameMasked
+        ? `${auction.winnerNicknameMasked}님 낙찰!`
+        : "낙찰자가 결정되었습니다"
       : "유찰되었습니다";
   const description = iWon
-    ? "경매가 낙찰로 종료되었습니다."
+    ? `${auction.cardName}, 넌 내 거야!`
     : sold
       ? "다른 회원이 낙찰받아 종료되었습니다."
       : "낙찰 없이 종료되었습니다.";
@@ -86,7 +88,6 @@ function AuctionEndPage() {
             value={sold ? formatWon(auction.currentPrice) : "유찰"}
             emphasize
           />
-          {sold && winnerLabel && <RowLine label="낙찰자" value={winnerLabel} />}
         </dl>
       </motion.div>
 
