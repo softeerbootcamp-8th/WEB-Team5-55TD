@@ -1677,6 +1677,7 @@ components:
           $ref: "#/components/schemas/CardState"
         majorDefect:
           type: string
+          maxLength: 255
         certificate:
           $ref: "#/components/schemas/CertificateRequest"
         images:
@@ -1997,6 +1998,7 @@ components:
           $ref: "#/components/schemas/CardState"
         majorDefect:
           type: string
+          maxLength: 255
         certificate:
           $ref: "#/components/schemas/CertificateRequest"
         images:

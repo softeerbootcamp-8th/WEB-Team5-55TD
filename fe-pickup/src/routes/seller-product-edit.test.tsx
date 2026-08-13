@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentType, ReactNode } from "react";
 
@@ -91,5 +91,19 @@ describe("셀러 상품 수정", () => {
     expect(screen.getByText("이미지 첨부 영역")).toBeInTheDocument();
     expect(screen.getByDisplayValue("상")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "저장하기" })).toBeEnabled();
+  });
+
+  it("주요 결함 입력란에 글자수 제한과 카운터를 표시한다", async () => {
+    queryState = { data: product, isPending: false, isError: false };
+    const { Route } = await import("@/routes/seller/products/$productId_.edit");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    const defectInput = screen.getByPlaceholderText(
+      "예: 뒷면 우하단 미세 스크래치",
+    );
+    expect(defectInput).toHaveAttribute("maxLength", "255");
+    expect(screen.getByText("0/255")).toBeInTheDocument();
+    fireEvent.change(defectInput, { target: { value: "모서리 마모" } });
+    expect(screen.getByText("6/255")).toBeInTheDocument();
   });
 });
