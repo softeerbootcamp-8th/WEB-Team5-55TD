@@ -22,6 +22,7 @@ import {
 import { getAuctionDetail } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
 import { formatDate, formatDateTime, formatWon } from "@/lib/format";
+import { getCardStateLabel } from "@/lib/card-state";
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/")({
   loader: async ({ params }) => {
@@ -206,7 +207,7 @@ function AuctionDetailPage() {
                   />
                   <Row
                     label="카드 상태"
-                    value={auction.cardState ?? "-"}
+                    value={getCardStateLabel(auction.cardState)}
                     full
                   />
                   <Row

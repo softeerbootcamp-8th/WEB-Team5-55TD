@@ -42,7 +42,7 @@ const base = {
   endsAt: "2099-01-01T11:00:00",
   card: { setName: "Base", cardNumber: "1", language: "EN", rarity: "Rare" },
   inspectedAt: "2026-01-01",
-  cardState: "NM",
+  cardState: "HIGH",
   majorDefect: "없음",
 };
 
@@ -56,6 +56,7 @@ describe("구매자 경매 상세", () => {
     render(<Component />);
     expect(screen.getByRole("heading", { name: "Mewtwo" })).toBeInTheDocument();
     expect(screen.getByText("현재가")).toBeInTheDocument();
+    expect(screen.getByText("상")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button")[0]);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     cleanup();

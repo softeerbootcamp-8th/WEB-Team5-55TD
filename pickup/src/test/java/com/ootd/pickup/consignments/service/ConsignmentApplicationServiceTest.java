@@ -145,11 +145,11 @@ class ConsignmentApplicationServiceTest {
 
   private RegisterConsignmentRequest registerRequest() {
     return new RegisterConsignmentRequest(
-        1L, null, null, List.of(new ConsignmentImageRequest(TEMPORARY_OBJECT_KEY)));
+        1L, null, null, null, List.of(new ConsignmentImageRequest(TEMPORARY_OBJECT_KEY)));
   }
 
   private ModifyConsignmentRequest modifyRequest() {
     return new ModifyConsignmentRequest(
-        null, null, List.of(new ConsignmentImageRequest(TEMPORARY_OBJECT_KEY)));
+        null, null, null, List.of(new ConsignmentImageRequest(TEMPORARY_OBJECT_KEY)));
   }
 }

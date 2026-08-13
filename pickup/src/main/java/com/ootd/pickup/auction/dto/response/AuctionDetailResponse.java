@@ -3,6 +3,7 @@ package com.ootd.pickup.auction.dto.response;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
@@ -31,7 +32,7 @@ public record AuctionDetailResponse(
     String sellerNickname,
     CertificateResponse certificate,
     List<ConsignmentImageResponse> images,
-    String cardState,
+    CardState cardState,
     String majorDefect,
     Long bidIncrement,
     Long nextMinBid,
@@ -72,7 +73,7 @@ public record AuctionDetailResponse(
         images.stream()
             .map(image -> ConsignmentImageResponse.from(image, imageUrlResolver))
             .toList(),
-        certificate.getGrade().getDisplayName(),
+        consignment.getCardState(),
         consignment.getMajorDefect(),
         auction.getBidIncrement(),
         nextMinBid(auction, currentPrice),

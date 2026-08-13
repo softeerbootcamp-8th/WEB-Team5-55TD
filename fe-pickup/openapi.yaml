@@ -1494,7 +1494,7 @@ paths:
                     - consignmentImageId: 1
                       imageOrder: 0
                       imageUrl: https://example.com/consignments/100-front.png
-                    cardState: Gem Mint
+                    cardState: HIGH
                     majorDefect: null
                     bidIncrement: 500
                     nextMinBid: 10000
@@ -1661,12 +1661,20 @@ components:
           format: int64
         temporaryObjectKey:
           type: string
+    CardState:
+      type: string
+      enum:
+      - HIGH
+      - MEDIUM
+      - LOW
     RegisterConsignmentRequest:
       type: object
       properties:
         cardId:
           type: integer
           format: int64
+        cardState:
+          $ref: "#/components/schemas/CardState"
         majorDefect:
           type: string
         certificate:
@@ -1679,6 +1687,7 @@ components:
           minItems: 2
       required:
       - cardId
+      - cardState
       - certificate
       - images
     CertificateResponse:
@@ -1713,6 +1722,8 @@ components:
         sellerMemberId:
           type: integer
           format: int64
+        cardState:
+          $ref: "#/components/schemas/CardState"
         majorDefect:
           type: string
         status:
@@ -1982,6 +1993,8 @@ components:
     ModifyConsignmentRequest:
       type: object
       properties:
+        cardState:
+          $ref: "#/components/schemas/CardState"
         majorDefect:
           type: string
         certificate:
@@ -1993,6 +2006,7 @@ components:
           maxItems: 5
           minItems: 2
       required:
+      - cardState
       - certificate
       - images
     ConsignmentImageResponse:
@@ -2034,6 +2048,8 @@ components:
           $ref: "#/components/schemas/GetCardDetailResponse"
         sellerMemberNickname:
           type: string
+        cardState:
+          $ref: "#/components/schemas/CardState"
         majorDefect:
           type: string
         status:
@@ -2077,6 +2093,8 @@ components:
         sellerMemberId:
           type: integer
           format: int64
+        cardState:
+          $ref: "#/components/schemas/CardState"
         majorDefect:
           type: string
         status:
@@ -2526,7 +2544,7 @@ components:
           items:
             $ref: "#/components/schemas/ConsignmentImageResponse"
         cardState:
-          type: string
+          $ref: "#/components/schemas/CardState"
         majorDefect:
           type: string
         bidIncrement:
