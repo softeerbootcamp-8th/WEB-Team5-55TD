@@ -65,6 +65,9 @@ describe("셀러 경매 신청", () => {
     const { Route } = await import("@/routes/seller/apply.$productId");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
+    fireEvent.change(screen.getByPlaceholderText("경매 제목을 입력해 주세요"), {
+      target: { value: "테스트 경매 제목" },
+    });
     fireEvent.change(screen.getByPlaceholderText("1,000,000"), {
       target: { value: "10000" },
     });
@@ -92,6 +95,9 @@ describe("셀러 경매 신청", () => {
     const Component = Route.options.component as ComponentType;
     render(<Component />);
 
+    fireEvent.change(screen.getByPlaceholderText("경매 제목을 입력해 주세요"), {
+      target: { value: "테스트 경매 제목" },
+    });
     fireEvent.change(screen.getByPlaceholderText("1,000,000"), {
       target: { value: "20000" },
     });

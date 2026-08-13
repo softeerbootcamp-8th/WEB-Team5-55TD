@@ -9,7 +9,7 @@ import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
 import { assignPokemonAvatars } from "@/lib/pokemon-avatars";
 
 function displayNameOf(bid: Bid): string {
-  return bid.isMine ? "나" : bid.maskedNickname;
+  return bid.isMine ? "나" : bid.nickname;
 }
 
 /** 입찰 내역 행 (DESIGN.md §5.9). 본인 입찰은 액센트 강조. */

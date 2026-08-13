@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/domain/status-badge";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
+import { MarketPriceChart } from "@/components/domain/market-price-chart";
 import { WatchButton } from "@/components/domain/heart-button";
 import { RelatedAuctionsBanner } from "@/components/domain/related-auctions-banner";
 import { Button } from "@/components/ui/button";
@@ -122,13 +123,22 @@ function AuctionDetailPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold">{auction.cardName}</h1>
+            <h1 className="text-2xl font-bold">{auction.title ?? auction.cardName}</h1>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {auction.cardName}
+            </p>
             <p className="text-sm text-[var(--color-text-sub)]">
               {auction.sellerNickname
                 ? `판매자 · ${auction.sellerNickname}`
                 : "검증된 위탁 상품"}
             </p>
           </div>
+
+          {auction.description && (
+            <div className="text-sm whitespace-pre-wrap text-foreground">
+              {auction.description}
+            </div>
+          )}
 
           <div className="rounded-[var(--radius-lg)] border border-border bg-card p-5">
             {isLive ? (
@@ -205,6 +215,15 @@ function AuctionDetailPage() {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          <MarketPriceChart
+            cardName={auction.cardName}
+            setName={auction.card?.setName}
+            cardNumber={auction.card?.cardNumber}
+            preferredAgency={auction.grade?.agency}
+            preferredScore={auction.grade?.score}
+            reservePrice={auction.startPrice}
+          />
 
           {/* CTA */}
           {auction.status !== AuctionStatus.ENDED && (
