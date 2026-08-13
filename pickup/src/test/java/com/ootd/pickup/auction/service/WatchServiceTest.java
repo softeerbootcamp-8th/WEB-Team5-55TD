@@ -61,6 +61,7 @@ class WatchServiceTest {
     assertThat(response.auctionId()).isEqualTo(100L);
     assertThat(response.createdAt()).isNotNull();
     then(watchRepository).should().flush();
+    then(auctionRepository).should().incrementWatchCountById(100L);
   }
 
   @Test
@@ -109,11 +110,15 @@ class WatchServiceTest {
 
   @Test
   void 관심을_해제하면_회원과_경매가_일치하는_관심을_삭제한다() {
+    // given
+    given(watchRepository.deleteByMemberIdAndAuctionId(1L, 100L)).willReturn(1);
+
     // when
     watchService.deleteWatch(1L, 100L);
 
     // then
     then(watchRepository).should().deleteByMemberIdAndAuctionId(1L, 100L);
+    then(auctionRepository).should().decrementWatchCountById(100L);
   }
 
   @Test
@@ -126,6 +131,7 @@ class WatchServiceTest {
 
     // then
     then(watchRepository).should().deleteByMemberIdAndAuctionId(1L, 100L);
+    then(auctionRepository).should(never()).decrementWatchCountById(anyLong());
   }
 
   @Test
@@ -135,6 +141,7 @@ class WatchServiceTest {
 
     // then
     then(watchRepository).should().deleteByAuctionId(100L);
+    then(auctionRepository).should().resetWatchCountById(100L);
   }
 
   private Member createMember(Long memberId) {
@@ -144,7 +151,7 @@ class WatchServiceTest {
   }
 
   private Auction createAuction(Long auctionId) {
-    Auction auction = Auction.builder().build();
+    Auction auction = Auction.builder().title("테스트 제목").description("테스트 설명").build();
     ReflectionTestUtils.setField(auction, "auctionId", auctionId);
     return auction;
   }

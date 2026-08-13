@@ -1,6 +1,6 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronDown, Search } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
 import { AuctionCard } from "@/components/domain/auction-card";
@@ -63,17 +63,39 @@ function AuctionListPage() {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim());
 
-  const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["auctions", filter, sort, deferredQuery],
-    queryFn: () =>
-      searchAuctions({
-        q: deferredQuery || undefined,
-        status: API_STATUS[filter],
-        sort: API_SORT[sort],
-        size: 100,
-      }),
-  });
-  const list = data?.items ?? [];
+  const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      queryKey: ["auctions", filter, sort, deferredQuery],
+      queryFn: ({ pageParam }) =>
+        searchAuctions({
+          q: deferredQuery || undefined,
+          status: API_STATUS[filter],
+          sort: API_SORT[sort],
+          cursor: pageParam,
+          size: 20,
+        }),
+      initialPageParam: undefined as string | undefined,
+      getNextPageParam: (lastPage) =>
+        lastPage.hasNext ? lastPage.cursor : undefined,
+    });
+  const list = data?.pages.flatMap((page) => page.items) ?? [];
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -145,11 +167,22 @@ function AuctionListPage() {
           description="검색어나 필터를 바꿔보세요."
         />
       ) : (
-        <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
-          {list.map((a) => (
-            <AuctionCard key={a.id} auction={a} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
+            {list.map((a) => (
+              <AuctionCard key={a.id} auction={a} />
+            ))}
+          </div>
+          {hasNextPage && (
+            <div ref={sentinelRef} className="py-4 text-center">
+              {isFetchingNextPage && (
+                <p className="text-sm text-[var(--color-text-sub)]">
+                  불러오는 중
+                </p>
+              )}
+            </div>
+          )}
+        </>
       )}
     </PageContainer>
   );

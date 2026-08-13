@@ -263,6 +263,8 @@ class AuctionSchedulerNotificationIntegrationTest {
           Auction auction =
               auctionJpaRepository.save(
                   Auction.builder()
+                      .title("테스트 제목")
+                      .description("테스트 설명")
                       .consignment(consignment)
                       .startedAt(startedAt)
                       .endedAt(endedAt)

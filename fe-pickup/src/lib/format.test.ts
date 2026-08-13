@@ -6,7 +6,6 @@ import {
   formatDate,
   formatDateTime,
   relativeTime,
-  maskNickname,
   minBidUnit,
 } from "@/lib/format";
 import { describe, expect, it } from "vitest";
@@ -74,11 +73,6 @@ describe("format utilities", () => {
     expect(relativeTime(new Date(now - 172_800_000).toISOString(), now)).toBe(
       "2일 전",
     );
-  });
-
-  it("masks short and long nicknames", () => {
-    expect(maskNickname("abc")).toBe("abc***");
-    expect(maskNickname("abcdefg")).toBe("abc***fg");
   });
 
   it("rounds the minimum bid unit up to 100 won", () => {

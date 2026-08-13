@@ -354,7 +354,7 @@ class MemberServiceTest {
     // given
     Member member = Member.create("pickup-user", "password-hash", "픽업회원");
     ReflectionTestUtils.setField(member, "memberId", 1L);
-    Auction auction = Auction.builder().build();
+    Auction auction = Auction.builder().title("테스트 제목").description("테스트 설명").build();
     ReflectionTestUtils.setField(auction, "auctionId", 1L);
     PointTransaction newest = PointTransaction.forAuctionPayout(member, 1_000L, 3_000L, auction);
     PointTransaction next = PointTransaction.forAuctionPayment(member, 500L, 2_000L, auction);
@@ -819,6 +819,8 @@ class MemberServiceTest {
       Long auctionId, Consignment consignment, AuctionStatus status, Long startingPrice) {
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now().plusHours(1))

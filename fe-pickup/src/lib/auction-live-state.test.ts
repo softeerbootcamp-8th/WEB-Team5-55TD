@@ -8,7 +8,7 @@ const snapshot: AuctionBidsSnapshot = {
   items: [
     {
       id: "5",
-      maskedNickname: "기존",
+      nickname: "기존",
       amount: 10_000,
       createdAt: "2026-08-11T00:00:00",
     },
@@ -19,7 +19,7 @@ const snapshot: AuctionBidsSnapshot = {
 
 const latestBid = {
   bidId: 6,
-  nicknameMasked: "새 입찰자",
+  nickname: "새 입찰자",
   bidPrice: 10_500,
   createdAt: "2026-08-11T00:00:01",
 };
@@ -30,7 +30,7 @@ describe("mergeLatestBid", () => {
       items: [
         {
           id: "6",
-          maskedNickname: "새 입찰자",
+          nickname: "새 입찰자",
           amount: 10_500,
           createdAt: "2026-08-11T00:00:01",
           isMine: false,
@@ -48,7 +48,7 @@ describe("mergeLatestBid", () => {
         ...snapshot,
         items: Array.from({ length: 7 }, (_, index) => ({
           id: String(index + 1),
-          maskedNickname: "입찰자",
+          nickname: "입찰자",
           amount: index,
           createdAt: "2026-08-11T00:00:00",
         })),

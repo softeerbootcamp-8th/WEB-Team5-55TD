@@ -103,7 +103,8 @@ class AuctionServiceTest {
 
     LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1).withHour(13).withMinute(30);
     CreateAuctionRequest request =
-        new CreateAuctionRequest(consignmentId, 10000L, 15000L, scheduledStartAt);
+        new CreateAuctionRequest(
+            consignmentId, 10000L, 15000L, scheduledStartAt, "Title", "Description");
 
     // when
     CreateAuctionResponse response = auctionService.registerAuction(memberId, request);
@@ -131,7 +132,12 @@ class AuctionServiceTest {
 
     CreateAuctionRequest request =
         new CreateAuctionRequest(
-            notExistConsignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1));
+            notExistConsignmentId,
+            10000L,
+            15000L,
+            LocalDateTime.now().plusDays(1),
+            "Title",
+            "Description");
 
     // when & then
     assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
@@ -151,7 +157,8 @@ class AuctionServiceTest {
         .willReturn(Optional.of(consignment));
 
     CreateAuctionRequest request =
-        new CreateAuctionRequest(consignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1));
+        new CreateAuctionRequest(
+            consignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
 
     // when & then
     assertThatThrownBy(() -> auctionService.registerAuction(requesterMemberId, request))
@@ -170,7 +177,8 @@ class AuctionServiceTest {
         .willReturn(Optional.of(consignment));
 
     CreateAuctionRequest request =
-        new CreateAuctionRequest(consignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1));
+        new CreateAuctionRequest(
+            consignmentId, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
 
     // when & then
     assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
@@ -197,7 +205,9 @@ class AuctionServiceTest {
             consignmentId,
             9_223_372_036_000_000_000L,
             9_223_372_036_000_000_000L,
-            LocalDateTime.now().plusDays(1));
+            LocalDateTime.now().plusDays(1),
+            "Title",
+            "Description");
 
     // when & then
     assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
@@ -206,6 +216,27 @@ class AuctionServiceTest {
             e ->
                 assertThat(((PickUpException) e).getMessage())
                     .isEqualTo(ExceptionCode.STARTING_PRICE_TOO_LARGE.getMessage()));
+    assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.REGISTERABLE);
+    then(auctionRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 희망_시작가가_최소_희망_낙찰가보다_크면_경매가_저장되지_않는다() {
+    // given
+    Long memberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, memberId, ConsignmentStatus.REGISTERABLE, null);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(consignmentId, 15_001L, 15_000L, LocalDateTime.now().plusDays(1));
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.STARTING_PRICE_EXCEEDS_RESERVE_PRICE.getMessage());
     assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.REGISTERABLE);
     then(auctionRepository).shouldHaveNoInteractions();
   }
@@ -802,6 +833,8 @@ class AuctionServiceTest {
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.IN_AUCTION, null);
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now().plusHours(1))
@@ -932,6 +965,8 @@ class AuctionServiceTest {
       LocalDateTime endedAt) {
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(startedAt)
             .endedAt(endedAt)

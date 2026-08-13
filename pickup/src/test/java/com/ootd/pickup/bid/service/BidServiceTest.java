@@ -286,7 +286,7 @@ class BidServiceTest {
   }
 
   @Test
-  void 경매_입찰_내역을_조회하면_최근_입찰_순으로_마스킹된_닉네임과_함께_반환된다() {
+  void 경매_입찰_내역을_조회하면_최근_입찰_순으로_닉네임과_함께_반환된다() {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
@@ -308,7 +308,7 @@ class BidServiceTest {
 
     AuctionBidListItemResponse first = response.items().get(0);
     assertThat(first.bidId()).isEqualTo(101L);
-    assertThat(first.nicknameMasked()).isEqualTo("닉네임***임2");
+    assertThat(first.nickname()).isEqualTo("닉네임2");
     assertThat(first.bidPrice()).isEqualTo(11_000L);
     assertThat(first.isMine()).isTrue();
 
@@ -446,6 +446,8 @@ class BidServiceTest {
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(endedAt)
