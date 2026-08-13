@@ -5,7 +5,6 @@ import static com.ootd.pickup.global.exception.ExceptionCode.KAKAO_AUTHENTICATIO
 import com.ootd.pickup.auth.dto.KakaoLoginRequest;
 import com.ootd.pickup.auth.kakao.KakaoClient;
 import com.ootd.pickup.global.exception.PickUpException;
-import com.ootd.pickup.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
@@ -13,7 +12,6 @@ import org.springframework.web.client.RestClientException;
 @Service
 @RequiredArgsConstructor
 public class KakaoAuthService {
-  private static final String PROVIDER = "KAKAO";
   private final KakaoClient kakaoClient;
   private final KakaoMemberService kakaoMemberService;
   private final AuthService authService;
@@ -25,7 +23,7 @@ public class KakaoAuthService {
     } catch (RestClientException | KakaoClient.KakaoAuthenticationException exception) {
       throw new PickUpException(KAKAO_AUTHENTICATION_FAILED);
     }
-    Member member = kakaoMemberService.findOrCreate(kakaoUser);
-    return authService.issueLogin(member);
+    KakaoMemberService.KakaoMemberResult result = kakaoMemberService.findOrCreate(kakaoUser);
+    return authService.issueLogin(result.member(), result.created());
   }
 }

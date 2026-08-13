@@ -1779,6 +1779,8 @@ components:
           type: string
         profileImageUrl:
           type: string
+        needsNickname:
+          type: boolean
     LoginRequest:
       type: object
       properties:
