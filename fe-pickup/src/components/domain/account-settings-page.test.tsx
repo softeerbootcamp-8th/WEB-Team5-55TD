@@ -79,39 +79,52 @@ describe("AccountSettingsPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("tester")).toBeInTheDocument();
     expect(screen.getByLabelText("새 비밀번호")).toBeInTheDocument();
+    // 닉네임은 2자부터 허용된다.
     fireEvent.change(screen.getByDisplayValue("tester"), {
-      target: { value: "abc" },
+      target: { value: "가" },
+    });
+    expect(screen.getByText("닉네임은 2~8자여야 합니다.")).toBeInTheDocument();
+    fireEvent.change(screen.getByDisplayValue("가"), {
+      target: { value: "가나" },
     });
     expect(
-      screen.getByText("닉네임은 4자 이상이어야 합니다."),
-    ).toBeInTheDocument();
-    fireEvent.change(screen.getByDisplayValue("abc"), {
+      screen.queryByText("닉네임은 2~8자여야 합니다."),
+    ).not.toBeInTheDocument();
+    fireEvent.change(screen.getByDisplayValue("가나"), {
       target: { value: "tester2" },
     });
-    fireEvent.change(screen.getByLabelText("현재 비밀번호"), {
-      target: { value: "12" },
-    });
     fireEvent.change(screen.getByLabelText("새 비밀번호"), {
-      target: { value: "1234" },
+      target: { value: "12345678" },
     });
     fireEvent.change(screen.getByLabelText("새 비밀번호 확인"), {
       target: { value: "5678" },
     });
+    // 숫자만 8자는 두 종류 조합 규칙에 걸린다.
     expect(
-      screen.getByText("현재 비밀번호는 4자 이상 입력해 주세요."),
+      screen.getByText(
+        "새 비밀번호는 영문·숫자·특수문자 중 2가지 이상 조합 8~16자여야 합니다.",
+      ),
     ).toBeInTheDocument();
+    expect(screen.getByText("현재 비밀번호를 입력해 주세요.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("새 비밀번호"), {
+      target: { value: "pickup12!" },
+    });
     expect(
       screen.getByText("새 비밀번호가 일치하지 않습니다."),
     ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("현재 비밀번호"), {
-      target: { value: "1234" },
+      target: { value: "oldpass12!" },
     });
     fireEvent.change(screen.getByLabelText("새 비밀번호 확인"), {
-      target: { value: "1234" },
+      target: { value: "pickup12!" },
     });
     fireEvent.click(screen.getByRole("button", { name: "저장하기" }));
     expect(updateMutate).toHaveBeenCalledWith({
-      data: { nickname: "tester2", currentPassword: "1234", password: "1234" },
+      data: {
+        nickname: "tester2",
+        currentPassword: "oldpass12!",
+        password: "pickup12!",
+      },
     });
   });
 

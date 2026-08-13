@@ -1,6 +1,7 @@
 package com.ootd.pickup.bid.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_FOUND;
+import static com.ootd.pickup.global.exception.ExceptionCode.BID_REQUEST_NOT_FOUND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,6 +14,7 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.BidRequest;
 import com.ootd.pickup.bid.domain.BidRequestStatus;
+import com.ootd.pickup.bid.dto.response.BidRequestResultResponse;
 import com.ootd.pickup.bid.dto.response.CreateBidRequestResponse;
 import com.ootd.pickup.bid.event.BidRequestCreatedMessageQueueEvent;
 import com.ootd.pickup.bid.repository.BidRequestRepository;
@@ -88,5 +90,47 @@ class BidRequestServiceTest {
                     .isEqualTo(AUCTION_NOT_FOUND.getClientExceptionCode().name()));
     then(bidRequestRepository).should(never()).save(any(BidRequest.class));
     then(eventProducer).should(never()).produce(any());
+  }
+
+  @Test
+  void 본인의_입찰_요청이면_처리_결과를_조회한다() {
+    BidRequest bidRequest = BidRequest.create(1L, 2L, 10_500L);
+    ReflectionTestUtils.setField(bidRequest, "bidRequestId", 10L);
+    bidRequest.succeed();
+    given(bidRequestRepository.findById(10L)).willReturn(Optional.of(bidRequest));
+
+    BidRequestResultResponse response = bidRequestService.getBidRequestResult(1L, 10L, 2L);
+
+    assertThat(response.bidRequestId()).isEqualTo(10L);
+    assertThat(response.status()).isEqualTo(BidRequestStatus.SUCCEEDED);
+    assertThat(response.processedAt()).isNotNull();
+  }
+
+  @Test
+  void 다른_회원의_입찰_요청은_찾을_수_없는_것처럼_응답한다() {
+    BidRequest bidRequest = BidRequest.create(1L, 2L, 10_500L);
+    ReflectionTestUtils.setField(bidRequest, "bidRequestId", 10L);
+    given(bidRequestRepository.findById(10L)).willReturn(Optional.of(bidRequest));
+
+    assertThatThrownBy(() -> bidRequestService.getBidRequestResult(1L, 10L, 3L))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            exception ->
+                assertThat(((PickUpException) exception).getExceptionCodeName())
+                    .isEqualTo(BID_REQUEST_NOT_FOUND.getClientExceptionCode().name()));
+  }
+
+  @Test
+  void 다른_경매의_입찰_요청은_찾을_수_없는_것처럼_응답한다() {
+    BidRequest bidRequest = BidRequest.create(1L, 2L, 10_500L);
+    ReflectionTestUtils.setField(bidRequest, "bidRequestId", 10L);
+    given(bidRequestRepository.findById(10L)).willReturn(Optional.of(bidRequest));
+
+    assertThatThrownBy(() -> bidRequestService.getBidRequestResult(2L, 10L, 2L))
+        .isInstanceOf(PickUpException.class)
+        .satisfies(
+            exception ->
+                assertThat(((PickUpException) exception).getExceptionCodeName())
+                    .isEqualTo(BID_REQUEST_NOT_FOUND.getClientExceptionCode().name()));
   }
 }

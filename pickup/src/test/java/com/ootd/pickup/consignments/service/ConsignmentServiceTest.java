@@ -10,6 +10,7 @@ import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
 import com.ootd.pickup.cards.service.CardManageService;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.domain.Consignment;
@@ -110,6 +111,7 @@ class ConsignmentServiceTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             cardId,
+            CardState.HIGH,
             "모서리에 약간의 마모",
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -125,6 +127,9 @@ class ConsignmentServiceTest {
     // then
     assertThat(response.consignmentId()).isEqualTo(100L);
     assertThat(response.sellerMemberId()).isEqualTo(sellerMemberId);
+    // 카드 실물 상태는 감정 등급(certificate.grade)과 별개로 저장된다.
+    assertThat(response.cardState()).isEqualTo(CardState.HIGH);
+    assertThat(response.cardState()).isNotEqualTo(response.certificate().gradeCode());
     assertThat(response.majorDefect()).isEqualTo("모서리에 약간의 마모");
     assertThat(response.status()).isEqualTo(ConsignmentStatus.REGISTERABLE);
     assertThat(response.card().cardId()).isEqualTo(cardId);
@@ -159,6 +164,7 @@ class ConsignmentServiceTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             notExistCardId,
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -185,6 +191,7 @@ class ConsignmentServiceTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             cardId,
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "S급", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -211,6 +218,7 @@ class ConsignmentServiceTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             10L,
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -249,6 +257,7 @@ class ConsignmentServiceTest {
     RegisterConsignmentRequest request =
         new RegisterConsignmentRequest(
             cardId,
+            CardState.HIGH,
             "모서리에 약간의 마모",
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -371,6 +380,7 @@ class ConsignmentServiceTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             "새로운 흠집 설명",
             new CertificateRequest("PSA-99999999", "PSA", "9", LocalDate.of(2026, 7, 1)),
             List.of(
@@ -432,6 +442,7 @@ class ConsignmentServiceTest {
         .willAnswer(invocation -> invocation.getArgument(0));
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -463,6 +474,7 @@ class ConsignmentServiceTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -490,6 +502,7 @@ class ConsignmentServiceTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -518,6 +531,7 @@ class ConsignmentServiceTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -545,6 +559,7 @@ class ConsignmentServiceTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "S급", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -572,6 +587,7 @@ class ConsignmentServiceTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "GIA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -601,6 +617,7 @@ class ConsignmentServiceTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(
@@ -634,6 +651,7 @@ class ConsignmentServiceTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             null,
             new CertificateRequest("OTHER-SERIAL-NUMBER", "PSA", "10", LocalDate.of(2026, 6, 30)),
             List.of(

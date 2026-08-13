@@ -1,13 +1,18 @@
 package com.ootd.pickup.consignments.repository.consignment;
 
+import static com.ootd.pickup.auction.domain.QAuction.auction;
 import static com.ootd.pickup.cards.domain.QCard.*;
 import static com.ootd.pickup.consignments.domain.QConsignment.*;
 
+import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +25,7 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
 
   private final ConsignmentJpaRepository consignmentJpaRepository;
   private final JPAQueryFactory queryFactory;
+  private final EntityManager entityManager;
 
   @Override
   public Consignment save(Consignment consignment) {
@@ -93,5 +99,42 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
       Long sellerMemberId, ConsignmentStatus consignmentStatus) {
     return consignmentJpaRepository.existsBySellerMember_MemberIdAndStatus(
         sellerMemberId, consignmentStatus);
+  }
+
+  @Override
+  public int updateStatusToSoldByAuctionIdIn(List<Long> auctionIds) {
+    int updated =
+        (int)
+            queryFactory
+                .update(consignment)
+                .set(consignment.status, ConsignmentStatus.SOLD)
+                .where(
+                    consignment.consignmentId.in(consignmentIdsOf(auctionIds, AuctionStatus.WON)),
+                    consignment.status.eq(ConsignmentStatus.IN_AUCTION))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public int updateStatusToRegisterableByAuctionIdIn(List<Long> auctionIds) {
+    int updated =
+        (int)
+            queryFactory
+                .update(consignment)
+                .set(consignment.status, ConsignmentStatus.REGISTERABLE)
+                .where(
+                    consignment.consignmentId.in(
+                        consignmentIdsOf(auctionIds, AuctionStatus.PASSED)),
+                    consignment.status.eq(ConsignmentStatus.IN_AUCTION))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  private JPQLQuery<Long> consignmentIdsOf(List<Long> auctionIds, AuctionStatus auctionStatus) {
+    return JPAExpressions.select(auction.consignment.consignmentId)
+        .from(auction)
+        .where(auction.auctionId.in(auctionIds), auction.auctionStatus.eq(auctionStatus));
   }
 }

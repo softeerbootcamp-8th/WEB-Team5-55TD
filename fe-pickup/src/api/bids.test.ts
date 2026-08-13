@@ -7,6 +7,34 @@ vi.mock("@/api/mutator/custom-instance", () => ({
 }));
 
 describe("bids api", () => {
+  it("입찰자의 프로필 이미지 URL을 화면 모델로 변환한다", async () => {
+    const { getAuctionBids } = await import("@/api/bids");
+    get.mockResolvedValue({
+      data: {
+        items: [
+          {
+            bidId: 1,
+            nickname: "피카츄마스터",
+            profileImageUrl: "https://images.test/profile.webp",
+            bidPrice: 1000,
+            createdAt: "2026-08-13T00:00:00",
+            isMine: false,
+          },
+        ],
+        hasNext: false,
+      },
+    });
+
+    await expect(getAuctionBids("1")).resolves.toMatchObject({
+      items: [
+        {
+          profileImageUrl: "https://images.test/profile.webp",
+          nickname: "피카츄마스터",
+        },
+      ],
+    });
+  });
+
   it("returns server bid error and fallback messages", async () => {
     const { getBidErrorMessage, placeBid } = await import("@/api/bids");
     const error = new AxiosError("bad");
@@ -35,5 +63,19 @@ describe("bids api", () => {
     expect(post).toHaveBeenCalledWith("/auctions/1/bid-requests", {
       bidPrice: 1000,
     });
+  });
+
+  it("입찰 요청 처리 결과를 조회한다", async () => {
+    const { getBidRequestResult } = await import("@/api/bids");
+    get.mockResolvedValue({
+      data: { bidRequestId: 7, bidPrice: 10500, status: "SUCCEEDED" },
+    });
+
+    await expect(getBidRequestResult("1", 7)).resolves.toEqual({
+      bidRequestId: 7,
+      bidPrice: 10500,
+      status: "SUCCEEDED",
+    });
+    expect(get).toHaveBeenCalledWith("/auctions/1/bid-requests/7");
   });
 });

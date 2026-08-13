@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -24,6 +25,7 @@ public class RefreshTokenRedisRepository implements RefreshTokenRepository {
 
   private final StringRedisTemplate redisTemplate;
 
+  @Async
   @Override
   public void save(String tokenHash, Long memberId, Duration ttl) {
     try {
@@ -32,6 +34,7 @@ public class RefreshTokenRedisRepository implements RefreshTokenRepository {
       redisTemplate.expire(memberKey(memberId), ttl);
     } catch (DataAccessException exception) {
       log.error("리프레시 토큰 저장소 장애로 저장을 생략합니다 - operation=save, memberId={}", memberId, exception);
+      throw new PickUpException(ExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE);
     }
   }
 
@@ -56,6 +59,7 @@ public class RefreshTokenRedisRepository implements RefreshTokenRepository {
     return Optional.of(Long.valueOf(memberId));
   }
 
+  @Async
   @Override
   public void delete(String tokenHash) {
     try {
@@ -66,9 +70,11 @@ public class RefreshTokenRedisRepository implements RefreshTokenRepository {
       }
     } catch (DataAccessException exception) {
       log.error("리프레시 토큰 저장소 장애로 삭제를 생략합니다 - operation=delete", exception);
+      throw new PickUpException(ExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE);
     }
   }
 
+  @Async
   @Override
   public void deleteByMemberId(Long memberId) {
     try {
@@ -82,6 +88,7 @@ public class RefreshTokenRedisRepository implements RefreshTokenRepository {
           "리프레시 토큰 저장소 장애로 회원 토큰 일괄 회수를 생략합니다 - operation=deleteByMemberId, memberId={}",
           memberId,
           exception);
+      throw new PickUpException(ExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE);
     }
   }
 

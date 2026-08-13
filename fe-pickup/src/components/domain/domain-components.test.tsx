@@ -20,11 +20,10 @@ describe("공통 도메인 컴포넌트", () => {
     );
     expect(screen.getByText("현재가")).toBeInTheDocument();
     expect(screen.getByText("128만원")).toBeInTheDocument();
-    expect(screen.getByText("128만원")).toHaveClass("text-[var(--color-price)]");
-    expect(screen.getByText("128만원")).toHaveAttribute(
-      "title",
-      "1,280,000원",
+    expect(screen.getByText("128만원")).toHaveClass(
+      "text-[var(--color-price)]",
     );
+    expect(screen.getByText("128만원")).toHaveAttribute("title", "1,280,000원");
 
     rerender(<Price amount={1280000} emphasize={false} />);
     expect(screen.getByText("128만원")).toHaveClass("text-foreground");
@@ -57,6 +56,21 @@ describe("공통 도메인 컴포넌트", () => {
     expect(
       screen.getByRole("img", { name: "alice 프로필 이미지" }),
     ).toHaveAttribute("src", "/avatar.png");
+  });
+
+  it("프로필 이미지 로드가 실패하면 지정된 대체 이미지를 보여준다", () => {
+    render(
+      <Avatar
+        nickname="alice"
+        src="/broken-profile.png"
+        fallbackSrc="/pokemon.png"
+      />,
+    );
+    const image = screen.getByRole("img", { name: "alice 프로필 이미지" });
+
+    fireEvent.error(image);
+
+    expect(image).toHaveAttribute("src", "/pokemon.png");
   });
 
   it("카드 썸네일에 등급과 라벨을 표시하고 이미지 로딩 후 텍스트를 숨긴다", () => {

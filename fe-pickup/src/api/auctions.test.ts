@@ -52,6 +52,8 @@ describe("auctions api", () => {
     });
     await expect(
       api.registerAuction({
+        title: "test title",
+        description: "test description",
         consignmentId: "3",
         startingPrice: 1000,
         reserve: 1500,
@@ -77,6 +79,7 @@ describe("auctions api", () => {
         watchCount: 0,
         watched: false,
         images: [{ imageUrl: "front.jpg" }],
+        sellerProfileImageUrl: "seller-profile.jpg",
         certificate: {
           serialNumber: "S1",
           certificationBody: "BGS",
@@ -93,6 +96,7 @@ describe("auctions api", () => {
       myBidWon: true,
       minBidUnit: 1000,
       images: ["front.jpg"],
+      sellerProfileImageUrl: "seller-profile.jpg",
       grade: { agency: "BGS", score: "9", serial: "S1" },
     });
   });

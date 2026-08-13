@@ -95,7 +95,10 @@ public class MemberService {
     log.info(
         "회원가입했습니다 - memberId={}, loginId={}", savedMember.getMemberId(), savedMember.getLoginId());
     return new MemberResponse(
-        savedMember.getMemberId(), savedMember.getLoginId(), savedMember.getNickname(), null);
+        savedMember.getMemberId(),
+        savedMember.getLoginId(),
+        savedMember.getNickname(),
+        savedMember.getExternalProfileImageUrl());
   }
 
   @Transactional(readOnly = true)
@@ -314,8 +317,7 @@ public class MemberService {
   }
 
   private MyProfileResponse toMyProfileResponse(Member member) {
-    return MyProfileResponse.from(
-        member, imageUrlResolver.resolve(member.getProfileImageObjectKey()));
+    return MyProfileResponse.from(member, member.getResolvedProfileImageUrl(imageUrlResolver));
   }
 
   public void withdrawMember(Long memberId, WithdrawMemberRequest withdrawMemberRequest) {

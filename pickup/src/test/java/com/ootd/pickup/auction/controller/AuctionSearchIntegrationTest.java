@@ -7,6 +7,7 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchJpaRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
@@ -50,6 +51,7 @@ class AuctionSearchIntegrationTest {
   @Autowired private CertificateJpaRepository certificateJpaRepository;
   @Autowired private ConsignmentImageJpaRepository consignmentImageJpaRepository;
   @Autowired private AuctionJpaRepository auctionJpaRepository;
+  @Autowired private AuctionRepository auctionRepository;
   @Autowired private WatchJpaRepository watchJpaRepository;
 
   @Test
@@ -144,6 +146,91 @@ class AuctionSearchIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.items[0].auctionId").value(targetAuction.getAuctionId()));
+  }
+
+  @Test
+  void 검색어의_LIKE_와일드카드는_리터럴로_취급된다() throws Exception {
+    // given
+    Card underscoreCard = createCard("리자몽_EX", "4/102", "Base Set", Language.JAPANESE);
+    Card anyCharCard = createCard("리자몽1EX", "5/102", "Base Set", Language.JAPANESE);
+    Auction underscoreAuction =
+        createAuction(createConsignment(underscoreCard), AuctionStatus.SCHEDULED, 1000L, null);
+    createAuction(createConsignment(anyCharCard), AuctionStatus.SCHEDULED, 2000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽_EX"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(underscoreAuction.getAuctionId()));
+  }
+
+  @Test
+  void 검색어가_퍼센트뿐이면_전체가_아니라_아무것도_찾지_못한다() throws Exception {
+    // given
+    createAuction(
+        createConsignment(createCard("리자몽", "4/102", "Base Set", Language.JAPANESE)),
+        AuctionStatus.SCHEDULED,
+        1000L,
+        null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "%"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0));
+  }
+
+  @Test
+  void 상태를_여러_개_지정하면_OR로_합쳐서_조회한다() throws Exception {
+    // given — 종료 탭 하나가 WON·PASSED 두 상태를 함께 보내는 것과 같은 형태다.
+    Consignment consignment = createConsignment();
+    Auction won = createAuction(consignment, AuctionStatus.WON, 1000L, null);
+    Auction passed = createAuction(createConsignment(), AuctionStatus.PASSED, 2000L, null);
+    createAuction(createConsignment(), AuctionStatus.ONGOING, 3000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("status", "WON").param("status", "PASSED"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(
+            jsonPath("$.items[*].auctionId")
+                .value(
+                    org.hamcrest.Matchers.containsInAnyOrder(
+                        won.getAuctionId().intValue(), passed.getAuctionId().intValue())));
+  }
+
+  @Test
+  void 같은_상태를_여러_번_보내도_결과는_같다() throws Exception {
+    // given
+    createAuction(createConsignment(), AuctionStatus.ONGOING, 1000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("status", "ONGOING").param("status", "ONGOING"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1));
+  }
+
+  @Test
+  void 상태를_상태_종류보다_많이_보내면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("status", "ONGOING")
+                .param("status", "SCHEDULED")
+                .param("status", "WON")
+                .param("status", "PASSED")
+                .param("status", "ONGOING"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 알_수_없는_상태를_보내면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc.perform(get("/auctions").param("status", "UNKNOWN")).andExpect(status().isBadRequest());
   }
 
   @Test
@@ -348,6 +435,8 @@ class AuctionSearchIntegrationTest {
       Consignment consignment, AuctionStatus status, Long startingPrice, LocalDateTime endedAt) {
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().plusDays(1))
             .endedAt(endedAt)
@@ -361,6 +450,8 @@ class AuctionSearchIntegrationTest {
 
   private void createWatch(Auction auction, Member member) {
     watchJpaRepository.save(Watch.builder().auction(auction).member(member).build());
+    watchJpaRepository.flush();
+    auctionRepository.incrementWatchCountById(auction.getAuctionId());
   }
 
   private void createConsignmentImage(Consignment consignment, int order, String url) {

@@ -237,6 +237,7 @@ public interface AuctionApi {
                               "thumbnailUrl": "https://example.com/consignments/100-front.png",
                               "sellerId": 42,
                               "sellerNickname": "카드마스터샵",
+                              "sellerProfileImageUrl": "https://example.com/members/42/profile.png",
                               "certificate": {
                                 "certificateId": 1,
                                 "serialNumber": "PSA-84213907",
@@ -251,7 +252,7 @@ public interface AuctionApi {
                                   "imageUrl": "https://example.com/consignments/100-front.png"
                                 }
                               ],
-                              "cardState": "Gem Mint",
+                              "cardState": "HIGH",
                               "majorDefect": null,
                               "bidIncrement": 500,
                               "nextMinBid": 10000,

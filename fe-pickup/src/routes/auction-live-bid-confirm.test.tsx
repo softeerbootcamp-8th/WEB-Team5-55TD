@@ -10,6 +10,8 @@ const auction = {
   startPrice: 10000,
   minBidUnit: 500,
   endsAt: "2099-01-01T11:00:00",
+  sellerNickname: "seller",
+  sellerProfileImageUrl: "seller-profile.jpg",
 };
 
 const mutate = vi.fn(
@@ -62,6 +64,7 @@ vi.mock("@/api/bids", () => ({
   getAuctionBids: vi.fn(),
   getBidErrorMessage: vi.fn(),
   createBidRequest: vi.fn(),
+  getBidRequestResult: vi.fn().mockResolvedValue({ status: "PENDING" }),
 }));
 vi.mock("@/hooks/use-auction-bid-updates", () => ({
   useAuctionBidUpdates: () => {},
@@ -84,6 +87,14 @@ describe("입찰 확인 팝업 다시 보지 않기", () => {
   });
   afterEach(() => {
     localStorage.clear();
+  });
+
+  it("판매자_프로필_이미지를_보여준다", async () => {
+    await renderLivePage();
+
+    expect(
+      screen.getByRole("img", { name: "seller 프로필 이미지" }),
+    ).toHaveAttribute("src", "seller-profile.jpg");
   });
 
   it("다시_보지_않기를_체크하고_확인하면_저장되고_입찰이_접수된다", async () => {

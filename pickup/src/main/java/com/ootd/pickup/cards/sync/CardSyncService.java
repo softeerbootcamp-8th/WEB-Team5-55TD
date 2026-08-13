@@ -11,6 +11,7 @@ import com.ootd.pickup.cards.sync.domain.CardSetSyncStatus;
 import com.ootd.pickup.cards.sync.repository.CardSetSyncRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,11 +108,11 @@ public class CardSyncService {
               .filter(sourceCardIds::contains)
               .count();
       if (failures == 0 && synchronizedCount == expectedCardCount) {
-        sync.complete(LocalDateTime.now());
+        sync.complete(LocalDateTime.now(ZoneOffset.UTC));
         log.info("카드 세트 동기화 완료 - setId={}, cardCount={}", detail.id(), synchronizedCount);
       } else {
         sync.partial(
-            LocalDateTime.now(),
+            LocalDateTime.now(ZoneOffset.UTC),
             "expected="
                 + expectedCardCount
                 + ", actual="
@@ -127,7 +128,7 @@ public class CardSyncService {
       }
       cardSetSyncRepository.save(sync);
     } catch (RuntimeException exception) {
-      sync.partial(LocalDateTime.now(), exception.getMessage());
+      sync.partial(LocalDateTime.now(ZoneOffset.UTC), exception.getMessage());
       cardSetSyncRepository.save(sync);
       log.error(
           "카드 세트 동기화 실패 - setId={}, reason={}", summary.id(), exception.getMessage(), exception);
