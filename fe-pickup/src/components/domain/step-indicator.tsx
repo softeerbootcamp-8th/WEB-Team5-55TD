@@ -18,7 +18,7 @@ export function StepIndicator({
         const active = i === current;
         return (
           <li key={label} className="flex flex-1 items-center last:flex-none">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <span
                 className={cn(
                   "tabular flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
@@ -34,6 +34,7 @@ export function StepIndicator({
               <span
                 className={cn(
                   "text-sm whitespace-nowrap",
+                  !active && "hidden sm:inline",
                   active
                     ? "font-semibold text-foreground"
                     : done
@@ -47,7 +48,7 @@ export function StepIndicator({
             {i < steps.length - 1 && (
               <span
                 className={cn(
-                  "mx-3 h-px flex-1",
+                  "mx-1.5 h-px flex-1 sm:mx-3",
                   done ? "bg-primary" : "bg-border",
                 )}
               />
