@@ -35,7 +35,7 @@ export interface AuctionBidUpdatedMessage {
   endedAt: string | null;
   latestBid: {
     bidId: number;
-    nicknameMasked: string;
+    nickname: string;
     bidPrice: number;
     createdAt: string;
   };
@@ -92,7 +92,7 @@ function parseMessage(frame: IMessage): AuctionBidUpdatedMessage | null {
     typeof value.occurredAt === "string" &&
     typeof latestBid.bidId === "number" &&
     latestBid.bidId > 0 &&
-    typeof latestBid.nicknameMasked === "string" &&
+    typeof latestBid.nickname === "string" &&
     typeof latestBid.bidPrice === "number" &&
     Number.isFinite(latestBid.bidPrice) &&
     typeof latestBid.createdAt === "string";

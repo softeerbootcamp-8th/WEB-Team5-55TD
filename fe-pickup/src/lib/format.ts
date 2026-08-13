@@ -124,6 +124,7 @@ export function maskNickname(nickname: string): string {
  * 서버가 경매를 만들 때 저장하는 bidIncrement 와 같은 식이어야 한다. 신청 화면은 아직
  * 경매가 없어 서버 값을 받아올 수 없으므로 같은 계산을 여기서 한 번 더 한다.
  */
+
 export function minBidUnit(startPrice: number): number {
   return Math.round(startPrice * 0.05);
 }

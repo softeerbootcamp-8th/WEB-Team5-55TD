@@ -75,6 +75,10 @@ public enum ExceptionCode {
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.AUCTION_SELLER_BID_FORBIDDEN,
       "판매자는 본인의 경매에 입찰할 수 없습니다."),
+  ENDED_AUCTION_BIDS_SELLER_ONLY(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.ENDED_AUCTION_BIDS_SELLER_ONLY,
+      "종료된 경매의 입찰 내역은 판매자만 조회할 수 있습니다."),
   OUTBID_EXISTS(HttpStatus.CONFLICT, ClientExceptionCode.OUTBID_EXISTS, "이미 더 높은 입찰이 존재합니다."),
   BELOW_MIN_INCREMENT(
       HttpStatus.CONFLICT,
@@ -127,6 +131,10 @@ public enum ExceptionCode {
   POINT_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.POINT_NOT_FOUND, "포인트 정보를 찾을 수 없습니다."),
   INSUFFICIENT_BID_LIMIT(
       HttpStatus.CONFLICT, ClientExceptionCode.INSUFFICIENT_BID_LIMIT, "보유 포인트가 입찰 금액보다 적습니다."),
+  STARTING_PRICE_EXCEEDS_RESERVE_PRICE(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.STARTING_PRICE_EXCEEDS_RESERVE_PRICE,
+      "희망 시작가는 최소 희망 낙찰가보다 클 수 없습니다."),
   STARTING_PRICE_TOO_LARGE(
       HttpStatus.BAD_REQUEST,
       ClientExceptionCode.STARTING_PRICE_TOO_LARGE,

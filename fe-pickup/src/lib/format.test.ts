@@ -6,7 +6,6 @@ import {
   formatDate,
   formatDateTime,
   relativeTime,
-  maskNickname,
   minBidUnit,
 } from "@/lib/format";
 import { describe, expect, it } from "vitest";

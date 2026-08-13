@@ -66,7 +66,7 @@ export function Gnb({ role }: { role: Role }) {
   const nickname = profileQuery.data?.nickname ?? storedNickname ?? "회원";
   const items = NAV[role];
 
-  const pointBalance = pointBalanceQuery.data?.availablePointBalance;
+  const pointBalance = pointBalanceQuery.data?.pointBalance;
   const pointBalanceLabel = pointBalanceQuery.isLoading
     ? "조회 중"
     : pointBalanceQuery.isError

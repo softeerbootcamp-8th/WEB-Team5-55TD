@@ -18,6 +18,7 @@ interface CardResponse {
 interface AuctionListItemResponse {
   auctionId: number;
   consignmentId: number;
+  title?: string;
   card: CardResponse;
   grade?: string | null;
   auctionStatus: ApiAuctionStatus;
@@ -97,6 +98,7 @@ export function computeEndsAt(item: {
 function toSummary(item: AuctionListItemResponse): AuctionSummary {
   return {
     id: String(item.auctionId),
+    title: item.title,
     cardName: item.card.cardName,
     thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
     status: toUiStatus(item.auctionStatus),
@@ -114,6 +116,8 @@ export interface CreateAuctionPayload {
   consignmentId: string;
   startingPrice: number;
   reserve: number;
+  title: string;
+  description?: string;
   /** UTC ISO-8601(Z 접미사) — 예: "2026-08-01T01:00:00Z". KST 입력값 변환은 lib/timezone.ts 참고 */
   scheduledStartAt: string;
 }
@@ -141,6 +145,8 @@ export async function registerAuction(
       startingPrice: payload.startingPrice,
       reserve: payload.reserve,
       scheduledStartAt: payload.scheduledStartAt,
+      title: payload.title,
+      description: payload.description,
     },
   );
   return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
@@ -216,6 +222,7 @@ interface ConsignmentImageResponse {
 }
 
 interface AuctionDetailResponse extends AuctionListItemResponse {
+  description?: string | null;
   sellerId?: number | null;
   sellerNickname?: string | null;
   certificate?: CertificateResponse | null;
@@ -256,6 +263,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
 
   return {
     ...summary,
+    description: item.description ?? undefined,
     grade,
     sellerId: item.sellerId != null ? String(item.sellerId) : undefined,
     sellerNickname: item.sellerNickname ?? undefined,
