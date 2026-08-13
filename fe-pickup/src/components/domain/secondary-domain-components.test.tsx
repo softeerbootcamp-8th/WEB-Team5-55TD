@@ -129,4 +129,36 @@ describe("추가 도메인 컴포넌트", () => {
     fireEvent.click(rerendered.getByRole("button", { name: /삭제/ }));
     expect(onChange).toHaveBeenCalledWith([]);
   });
+
+  it("이미지 필드는 앞면·뒷면 안내와 등록 여부 체크리스트를 표시한다", () => {
+    const { rerender } = render(
+      <ConsignmentImageFields images={[]} onChange={vi.fn()} onError={vi.fn()} />,
+    );
+    expect(
+      screen.getByText(/사진을 모두 첨부해 주세요\./),
+    ).toBeInTheDocument();
+    // 아직 등록된 이미지가 없으면 앞면·뒷면 모두 미완료 상태다.
+    expect(screen.getByText("앞면 사진")).toHaveClass(
+      "text-[var(--color-text-muted)]",
+    );
+    expect(screen.getByText("뒷면 사진")).toHaveClass(
+      "text-[var(--color-text-muted)]",
+    );
+
+    const front = { kind: "new" as const, file: new File([], "front.jpg") };
+    const back = { kind: "new" as const, file: new File([], "back.jpg") };
+    rerender(
+      <ConsignmentImageFields
+        images={[front, back]}
+        onChange={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("앞면 사진")).toHaveClass(
+      "text-[var(--color-success)]",
+    );
+    expect(screen.getByText("뒷면 사진")).toHaveClass(
+      "text-[var(--color-success)]",
+    );
+  });
 });
