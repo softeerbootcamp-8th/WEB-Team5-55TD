@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from "react";
+import { formatWon } from "@/lib/format";
 export interface GradePriceSeries {
   tier: string;
   points: { date: string; price: number }[];
@@ -116,7 +117,7 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
             등급별 시세
           </h2>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            최근 90일 · PokeTrace/eBay · USD
+            최근 90일 · PokeTrace/eBay · 원화 환산
           </p>
         </div>
         <div
@@ -203,7 +204,7 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
                 fontSize="11"
                 fill="var(--color-text-muted)"
               >
-                ${Math.round(value).toLocaleString()}
+                {formatWon(Math.round(value))}
               </text>
             </g>
           );
