@@ -1,5 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  type InfiniteData,
+  type UseInfiniteQueryResult,
+} from "@tanstack/react-query";
 import { PageContainer } from "@/components/layout/page";
 import { CardThumb } from "@/components/domain/card-thumb";
 import { GradeBadge } from "@/components/domain/grade-badge";
@@ -11,6 +15,7 @@ import { getMyBids, getMyWins } from "@/api/bids";
 import type { MyBidItem } from "@/lib/types";
 import { MyBidStatus } from "@/lib/types";
 import { formatWon } from "@/lib/format";
+import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
 
 interface MyBidsPage {
   items: MyBidItem[];
@@ -34,13 +39,19 @@ const STATUS_META: Record<
 
 /** DESIGN.md · mypage.html — 입찰 내역 / 낙찰 내역 */
 function BidHistoryPage() {
-  const bidsQuery = useQuery({
+  const bidsQuery = useInfiniteQuery({
     queryKey: ["my-bids"],
-    queryFn: () => getMyBids({ size: 100 }),
+    queryFn: ({ pageParam }) => getMyBids({ cursor: pageParam, size: 20 }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNext ? lastPage.cursor : undefined,
   });
-  const winsQuery = useQuery({
+  const winsQuery = useInfiniteQuery({
     queryKey: ["my-wins"],
-    queryFn: () => getMyWins({ size: 100 }),
+    queryFn: ({ pageParam }) => getMyWins({ cursor: pageParam, size: 20 }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNext ? lastPage.cursor : undefined,
   });
 
   return (
@@ -80,12 +91,25 @@ function BidHistorySection({
   errorTitle,
   emptyTitle,
 }: {
-  query: UseQueryResult<MyBidsPage>;
+  query: UseInfiniteQueryResult<InfiniteData<MyBidsPage>>;
   loadingLabel: string;
   errorTitle: string;
   emptyTitle: string;
 }) {
-  const { data, isPending, isError, refetch } = query;
+  const {
+    data,
+    isPending,
+    isError,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = query;
+
+  const sentinelRef = useLoadMoreSentinel({
+    enabled: Boolean(hasNextPage) && !isFetchingNextPage,
+    onIntersect: fetchNextPage,
+  });
 
   if (isPending) {
     return (
@@ -113,11 +137,26 @@ function BidHistorySection({
     );
   }
 
-  const items = data.items;
-  return items.length ? (
-    <BidTable items={items} />
-  ) : (
-    <EmptyState title={emptyTitle} />
+  const items = data.pages.flatMap((page) => page.items);
+  if (!items.length) {
+    return <EmptyState title={emptyTitle} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <BidTable items={items} />
+      {hasNextPage && (
+        <div ref={sentinelRef} className="flex flex-col items-center gap-2 py-2">
+          <Button
+            variant="secondary"
+            disabled={isFetchingNextPage}
+            onClick={() => fetchNextPage()}
+          >
+            {isFetchingNextPage ? "불러오는 중" : "더 보기"}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
