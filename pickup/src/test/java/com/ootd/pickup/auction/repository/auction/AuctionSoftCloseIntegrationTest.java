@@ -66,13 +66,15 @@ class AuctionSoftCloseIntegrationTest {
   }
 
   private Auction saveAuction(LocalDateTime endedAt) {
-    Member seller = memberJpaRepository.save(Member.create("seller", "password", "판매자"));
+    String unique = Long.toString(System.nanoTime());
+    Member seller =
+        memberJpaRepository.save(Member.create("seller-" + unique, "password", "판매자-" + unique));
     Card card =
         cardJpaRepository.save(
             Card.builder()
-                .cardName("테스트 카드")
-                .cardNumber("001")
-                .setName("테스트 세트")
+                .cardName("테스트 카드 " + unique)
+                .cardNumber("001-" + unique)
+                .setName("테스트 세트 " + unique)
                 .language(Language.KOREAN)
                 .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/card.png")
