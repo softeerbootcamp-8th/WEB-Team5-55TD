@@ -30,9 +30,14 @@ function KakaoTalkIcon() {
         d="M12 3.25c-4.97 0-9 3.14-9 7.02 0 2.52 1.75 4.74 4.43 5.96l-.9 3.28a.48.48 0 0 0 .72.53l3.78-2.57c.32.04.64.06.97.06 4.97 0 9-3.14 9-7.02s-4.03-7.26-9-7.26Z"
         fill="#191919"
       />
-      <circle cx="8.6" cy="10.4" r="1" fill="#FEE500" />
-      <circle cx="12" cy="10.4" r="1" fill="#FEE500" />
-      <circle cx="15.4" cy="10.4" r="1" fill="#FEE500" />
+      <circle cx="9.1" cy="10.2" r="1" fill="#FEE500" />
+      <circle cx="14.9" cy="10.2" r="1" fill="#FEE500" />
+      <path
+        d="M9.5 13.1c1.45 1.1 3.55 1.1 5 0"
+        stroke="#FEE500"
+        strokeWidth="1.15"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

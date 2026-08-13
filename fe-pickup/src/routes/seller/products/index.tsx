@@ -9,7 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getMyConsignments } from "@/api/consignments";
-import type { ApiConsignmentStatus, ConsignmentSummary } from "@/api/consignments";
+import type {
+  ApiConsignmentStatus,
+  ConsignmentSummary,
+} from "@/api/consignments";
 import { ProductStatus } from "@/lib/types";
 import { PRODUCT_STATUS_META } from "@/lib/status";
 
@@ -32,20 +35,18 @@ export const Route = createFileRoute("/seller/products/")({
   component: ProductListPage,
 });
 
-async function fetchAllByStatus(status: ApiConsignmentStatus) {
+async function fetchAllByStatus(
+  status: ApiConsignmentStatus,
+  auctionStatus?: "SCHEDULED" | "ONGOING",
+) {
   const items: ConsignmentSummary[] = [];
   let cursor: number | undefined;
   do {
-    const page = await getMyConsignments({ status, cursor });
+    const page = await getMyConsignments({ status, auctionStatus, cursor });
     items.push(...page.items);
     cursor = page.hasNext ? page.cursor : undefined;
   } while (cursor !== undefined);
   return items;
-}
-
-async function fetchByStatuses(statuses: ApiConsignmentStatus[]) {
-  const pages = await Promise.all(statuses.map(fetchAllByStatus));
-  return pages.flat();
 }
 
 /** DESIGN.md · product list.html — 등록 가능 / 경매 예정 / 판매 완료 (검수·반려 없음) */
@@ -57,26 +58,24 @@ function ProductListPage() {
   const registerableQuery = useQuery({
     queryKey: ["consignments", "my", "REGISTERABLE"],
     // 유찰(재신청 가능)도 이제 REGISTERABLE 하나로 합쳐져 함께 내려온다.
-    queryFn: () => fetchByStatuses(["REGISTERABLE"]),
+    queryFn: () => fetchAllByStatus("REGISTERABLE"),
   });
-  // 경매 예정/진행 중은 모두 IN_AUCTION이라 한 번에 조회하고, 연결된 경매 상태로 화면에서 나눈다.
-  const inAuctionQuery = useQuery({
-    queryKey: ["consignments", "my", "IN_AUCTION"],
-    queryFn: () => fetchByStatuses(["IN_AUCTION"]),
+  const upcomingQuery = useQuery({
+    queryKey: ["consignments", "my", "IN_AUCTION", "SCHEDULED"],
+    queryFn: () => fetchAllByStatus("IN_AUCTION", "SCHEDULED"),
+  });
+  const ongoingQuery = useQuery({
+    queryKey: ["consignments", "my", "IN_AUCTION", "ONGOING"],
+    queryFn: () => fetchAllByStatus("IN_AUCTION", "ONGOING"),
   });
   const soldQuery = useQuery({
     queryKey: ["consignments", "my", "SOLD"],
-    queryFn: () => fetchByStatuses(["SOLD"]),
+    queryFn: () => fetchAllByStatus("SOLD"),
   });
 
   const registerable = registerableQuery.data ?? [];
-  const inAuction = inAuctionQuery.data ?? [];
-  const upcoming = inAuction.filter(
-    (item) => item.status === ProductStatus.AUCTION_UPCOMING,
-  );
-  const ongoing = inAuction.filter(
-    (item) => item.status === ProductStatus.AUCTION_LIVE,
-  );
+  const upcoming = upcomingQuery.data ?? [];
+  const ongoing = ongoingQuery.data ?? [];
   const sold = soldQuery.data ?? [];
 
   return (
@@ -90,7 +89,7 @@ function ProductListPage() {
         </div>
         <Button asChild className="self-start">
           <Link to="/seller/register">
-            <Plus /> 카드 등록
+            <Plus /> 상품 등록
           </Link>
         </Button>
       </div>
@@ -121,15 +120,15 @@ function ProductListPage() {
         <TabsContent value="upcoming">
           <ProductGrid
             items={upcoming}
-            isLoading={inAuctionQuery.isPending}
-            isError={inAuctionQuery.isError}
+            isLoading={upcomingQuery.isPending}
+            isError={upcomingQuery.isError}
           />
         </TabsContent>
         <TabsContent value="ongoing">
           <ProductGrid
             items={ongoing}
-            isLoading={inAuctionQuery.isPending}
-            isError={inAuctionQuery.isError}
+            isLoading={ongoingQuery.isPending}
+            isError={ongoingQuery.isError}
           />
         </TabsContent>
         <TabsContent value="sold">
@@ -193,12 +192,14 @@ function ProductGrid({
                 인증서 {p.grade?.serial}
               </span>
               <Button size="sm" variant="secondary" asChild className="mt-1">
-                {p.auctionId ? (
+                {p.auctionId && p.status !== ProductStatus.REAPPLICABLE ? (
                   <Link
                     to="/seller/auctions/$auctionId"
                     params={{ auctionId: p.auctionId }}
                   >
-                    {p.status === ProductStatus.SOLD ? "낙찰 상세" : "경매 상세"}
+                    {p.status === ProductStatus.SOLD
+                      ? "낙찰 상세"
+                      : "경매 상세"}
                   </Link>
                 ) : (
                   <Link

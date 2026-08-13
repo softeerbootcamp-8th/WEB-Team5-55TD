@@ -13,7 +13,13 @@ function displayNameOf(bid: Bid): string {
 }
 
 /** 입찰 내역 행 (DESIGN.md §5.9). 본인 입찰은 액센트 강조. */
-export function BidRow({ bid }: { bid: Bid }) {
+export function BidRow({
+  bid,
+  fallbackAvatarUrl,
+}: {
+  bid: Bid;
+  fallbackAvatarUrl?: string;
+}) {
   const mine = bid.isMine;
   const displayName = displayNameOf(bid);
   return (
@@ -27,6 +33,7 @@ export function BidRow({ bid }: { bid: Bid }) {
     >
       <Avatar
         src={bid.profileImageUrl}
+        fallbackSrc={fallbackAvatarUrl}
         nickname={displayName}
         className="size-8 shrink-0"
         initialClassName="text-xs"
@@ -57,6 +64,10 @@ export function BidList({
   bids: Bid[];
   className?: string;
 }) {
+  // 프로필 이미지가 없는 입찰자도 실시간 목록과 같은 포켓몬 아바타로 채운다.
+  // 같은 입찰자가 여러 번 등장하는 목록이므로 입찰자 키 기준으로 한 번만 배정한다.
+  const avatarAssignments = assignPokemonAvatars(bids.map(bidderKey));
+
   if (bids.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
@@ -67,7 +78,11 @@ export function BidList({
   return (
     <ul className={cn("flex flex-col gap-1", className)}>
       {bids.map((b) => (
-        <BidRow key={b.id} bid={b} />
+        <BidRow
+          key={b.id}
+          bid={b}
+          fallbackAvatarUrl={avatarAssignments.get(bidderKey(b))}
+        />
       ))}
     </ul>
   );

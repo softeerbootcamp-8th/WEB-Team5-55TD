@@ -11,7 +11,6 @@ import { getMyConsignments } from "@/api/consignments";
 import { getMySalesHistory } from "@/api/sales";
 import { getMySellerStats } from "@/api/seller-stats";
 import { formatWon } from "@/lib/format";
-import { ProductStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/seller/")({
   component: SellerHome,
@@ -36,13 +35,14 @@ function SellerHome() {
     isPending: isLiveLoading,
     isError: isLiveError,
   } = useQuery({
-    queryKey: ["consignments", "my", "IN_AUCTION"],
+    queryKey: ["consignments", "my", "IN_AUCTION", "ONGOING"],
     queryFn: () =>
-      getMyConsignments({ status: "IN_AUCTION" }).then((r) => r.items),
+      getMyConsignments({
+        status: "IN_AUCTION",
+        auctionStatus: "ONGOING",
+      }).then((r) => r.items),
   });
-  const liveProducts = inAuctionProducts?.filter(
-    (item) => item.status === ProductStatus.AUCTION_LIVE,
-  );
+  const liveProducts = inAuctionProducts;
 
   const {
     data: recentSales,
@@ -64,7 +64,7 @@ function SellerHome() {
         </div>
         <Button asChild className="self-start">
           <Link to="/seller/register">
-            <Plus /> 카드 등록
+            <Plus /> 상품 등록
           </Link>
         </Button>
       </div>
@@ -79,9 +79,7 @@ function SellerHome() {
             <span className="text-xs text-[var(--color-text-muted)]">
               {s.label}
             </span>
-            <span className="tabular text-2xl font-bold">
-              {s.value ?? "-"}
-            </span>
+            <span className="tabular text-2xl font-bold">{s.value ?? "-"}</span>
           </div>
         ))}
       </div>

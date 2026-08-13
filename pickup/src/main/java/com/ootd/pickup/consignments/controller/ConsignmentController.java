@@ -50,9 +50,10 @@ public class ConsignmentController implements ConsignmentApi {
 
   @GetMapping("/{consignmentId}")
   @Override
+  @RequireAuthentication
   public ResponseEntity<GetConsignmentDetailResponse> getConsignment(
-      @PathVariable Long consignmentId) {
-    return ResponseEntity.ok(consignmentService.getConsignment(consignmentId));
+      @PathVariable Long consignmentId, @MemberId Long sellerMemberId) {
+    return ResponseEntity.ok(consignmentService.getConsignment(consignmentId, sellerMemberId));
   }
 
   @PatchMapping("/{consignmentId}")

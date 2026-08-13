@@ -16,6 +16,7 @@ interface SalesCardResponse {
 interface SalesHistoryItemResponse {
   auctionId: number;
   card: SalesCardResponse;
+  thumbnailUrl?: string | null;
   grade?: string | null;
   winningPrice?: number | null;
   resultType: ApiSalesResultType;
@@ -48,7 +49,7 @@ function toSummary(item: SalesHistoryItemResponse): SalesHistoryItem {
   return {
     auctionId: String(item.auctionId),
     cardName: item.card.cardName,
-    thumbnailUrl: item.card.imageUrl ?? undefined,
+    thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
     grade: parseGrade(item.grade),
     finalPrice: item.winningPrice ?? undefined,
     resultType: item.resultType,

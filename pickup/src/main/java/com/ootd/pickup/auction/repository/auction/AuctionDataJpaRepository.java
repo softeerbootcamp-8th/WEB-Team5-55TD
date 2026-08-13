@@ -109,6 +109,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   @Override
   public List<Auction> searchAuctions(
       String q,
+      AuctionSearchField searchField,
       List<AuctionStatus> statuses,
       AuctionSort sort,
       AuctionCursor cursor,
@@ -123,7 +124,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
         .join(consignment.card, card)
         .fetchJoin()
         .where(
-            keywordMatches(q),
+            keywordMatches(q, searchField),
             statusIn(statuses),
             sellerIdEq(sellerId),
             cardIdEq(cardId),
@@ -146,16 +147,32 @@ public class AuctionDataJpaRepository implements AuctionRepository {
     return excludeAuctionId == null ? null : auction.auctionId.ne(excludeAuctionId);
   }
 
-  private BooleanExpression keywordMatches(String q) {
+  private BooleanExpression keywordMatches(String q, AuctionSearchField searchField) {
     if (!StringUtils.hasText(q)) {
       return null;
     }
 
-    BooleanExpression nameOrSet =
-        card.cardName.containsIgnoreCase(q).or(card.setName.containsIgnoreCase(q));
-    return matchLanguage(q)
-        .map(language -> nameOrSet.or(card.language.eq(language)))
-        .orElse(nameOrSet);
+    return switch (searchField) {
+      case AUCTION_TITLE -> auction.title.containsIgnoreCase(q);
+      case CARD_NAME -> card.cardName.containsIgnoreCase(q);
+      case SELLER -> sellerNicknameMatches(q);
+      case ALL -> anyFieldMatches(q);
+    };
+  }
+
+  private BooleanExpression anyFieldMatches(String q) {
+    BooleanExpression matched =
+        auction
+            .title
+            .containsIgnoreCase(q)
+            .or(card.cardName.containsIgnoreCase(q))
+            .or(card.setName.containsIgnoreCase(q))
+            .or(sellerNicknameMatches(q));
+    return matchLanguage(q).map(language -> matched.or(card.language.eq(language))).orElse(matched);
+  }
+
+  private BooleanExpression sellerNicknameMatches(String q) {
+    return consignment.sellerMember.nickname.containsIgnoreCase(q);
   }
 
   private Optional<Language> matchLanguage(String q) {

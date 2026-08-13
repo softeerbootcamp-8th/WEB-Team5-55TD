@@ -9,11 +9,13 @@ import com.ootd.pickup.auction.dto.response.SaleHistoryItemResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.auction.SalesCursor;
 import com.ootd.pickup.consignments.domain.Certificate;
+import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
 import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
 import com.ootd.pickup.global.util.EpochMillis;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,8 @@ public class SalesService {
 
   private final AuctionRepository auctionRepository;
   private final CertificateManageService certificateManageService;
+  private final ConsignmentImageRepository consignmentImageRepository;
+  private final ImageUrlResolver imageUrlResolver;
 
   public CursorPageResponse<SaleHistoryItemResponse, String> getSalesHistory(
       Long sellerMemberId, GetSalesHistoryRequest request) {
@@ -59,11 +63,23 @@ public class SalesService {
     Map<Long, Certificate> certificatesByConsignmentId =
         certificateManageService.getCertificatesByConsignmentId(consignmentIds);
 
+    Map<Long, String> thumbnails =
+        consignmentImageRepository
+            .findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(consignmentIds)
+            .stream()
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    image -> image.getConsignment().getConsignmentId(),
+                    image -> imageUrlResolver.resolve(image.getObjectKey()),
+                    (first, ignored) -> first));
+
     return auctions.stream()
         .map(
             a ->
                 SaleHistoryItemResponse.of(
-                    a, certificatesByConsignmentId.get(a.getConsignment().getConsignmentId())))
+                    a,
+                    certificatesByConsignmentId.get(a.getConsignment().getConsignmentId()),
+                    thumbnails.get(a.getConsignment().getConsignmentId())))
         .toList();
   }
 

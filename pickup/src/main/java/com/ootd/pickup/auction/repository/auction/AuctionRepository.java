@@ -29,6 +29,7 @@ public interface AuctionRepository {
 
   List<Auction> searchAuctions(
       String q,
+      AuctionSearchField searchField,
       List<AuctionStatus> statuses,
       AuctionSort sort,
       AuctionCursor cursor,

@@ -5,6 +5,7 @@ import static com.ootd.pickup.cards.domain.QCard.*;
 import static com.ootd.pickup.consignments.domain.QConsignment.*;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.auction.domain.QAuction;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -63,8 +64,12 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
   }
 
   @Override
-  public List<Consignment> findAllBySellerMemberIdAndStatusAndCursor(
-      Long sellerMemberId, ConsignmentStatus status, Long cursor, int size) {
+  public List<Consignment> findAllBySellerMemberIdAndStatusAndLatestAuctionStatusAndCursor(
+      Long sellerMemberId,
+      ConsignmentStatus status,
+      AuctionStatus latestAuctionStatus,
+      Long cursor,
+      int size) {
     return queryFactory
         .selectFrom(consignment)
         .join(consignment.card, card)
@@ -72,10 +77,30 @@ public class ConsignmentDataJpaRepository implements ConsignmentRepository {
         .where(
             consignment.sellerMember.memberId.eq(sellerMemberId),
             statusEq(status),
+            latestAuctionStatusEq(latestAuctionStatus),
             consignmentIdLt(cursor))
         .orderBy(consignment.consignmentId.desc())
         .limit(size)
         .fetch();
+  }
+
+  private BooleanExpression latestAuctionStatusEq(AuctionStatus latestAuctionStatus) {
+    if (latestAuctionStatus == null) {
+      return null;
+    }
+
+    QAuction targetAuction = new QAuction("targetAuction");
+    QAuction latestAuction = new QAuction("latestAuction");
+    return JPAExpressions.selectOne()
+        .from(targetAuction)
+        .where(
+            targetAuction.consignment.eq(consignment),
+            targetAuction.auctionStatus.eq(latestAuctionStatus),
+            targetAuction.auctionId.eq(
+                JPAExpressions.select(latestAuction.auctionId.max())
+                    .from(latestAuction)
+                    .where(latestAuction.consignment.eq(consignment))))
+        .exists();
   }
 
   private BooleanExpression statusEq(ConsignmentStatus status) {

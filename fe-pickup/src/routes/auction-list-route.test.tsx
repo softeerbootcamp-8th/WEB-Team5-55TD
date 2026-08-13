@@ -134,7 +134,9 @@ describe("경매 목록 라우트", () => {
   it("검색·정렬·필터 UI와 로딩 상태를 표시한다", async () => {
     await renderAuctionListPage();
     expect(screen.getByRole("heading", { name: "경매" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("카드명으로 검색")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("경매명 · 카드명 · 판매자로 검색"),
+    ).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "진행 중" })).toBeInTheDocument();
     expect(screen.getByText("경매를 불러오는 중입니다.")).toBeInTheDocument();
   });
@@ -212,12 +214,45 @@ describe("경매 목록 라우트", () => {
       await waitFor(() =>
         expect(searchAuctionsMock).toHaveBeenLastCalledWith({
           q: undefined,
+          searchField: "ALL",
           status,
           sort: apiSort,
           cursor: undefined,
           size: 20,
         }),
       );
+    },
+  );
+
+  it.each([
+    { label: "경매명", apiField: "AUCTION_TITLE", placeholder: "경매명으로 검색" },
+    { label: "카드명", apiField: "CARD_NAME", placeholder: "카드명으로 검색" },
+    { label: "판매자", apiField: "SELLER", placeholder: "판매자로 검색" },
+    {
+      label: "통합",
+      apiField: "ALL",
+      placeholder: "경매명 · 카드명 · 판매자로 검색",
+    },
+  ])(
+    "$label 선택 시 $apiField 조건으로 조회하고 안내 문구를 바꾼다",
+    async ({ label, apiField, placeholder }) => {
+      const { Route } = await import("@/routes/_buyer/auctions/index");
+      const Component = Route.options.component as React.ComponentType;
+      render(<Component />);
+
+      if (label !== "통합") {
+        fireEvent.keyDown(screen.getByRole("button", { name: /통합/ }), {
+          key: "Enter",
+        });
+        fireEvent.click(await screen.findByRole("menuitem", { name: label }));
+      }
+
+      await waitFor(() =>
+        expect(searchAuctionsMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({ searchField: apiField }),
+        ),
+      );
+      expect(screen.getByPlaceholderText(placeholder)).toBeInTheDocument();
     },
   );
 

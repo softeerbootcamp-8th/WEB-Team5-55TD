@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Client, type IMessage } from "@stomp/stompjs";
 
 const HEARTBEAT_INTERVAL_MILLIS = 10_000;
@@ -7,6 +7,13 @@ const MAX_RECONNECT_DELAY_MILLIS = 30_000;
 const RECONNECT_JITTER_MILLIS = 1_000;
 const PROCESSED_EVENT_LIMIT = 100;
 const AUCTION_STATUSES = new Set(["SCHEDULED", "ONGOING", "WON", "PASSED"]);
+// 이 횟수까지 재연결에 실패하면(누적 약 30초) 복구를 포기한 것으로 보고 사용자에게 끊김을 알린다.
+// 재시도 자체는 뒤에서 계속되므로, 복구되면 다시 connected 로 돌아온다.
+const RECONNECT_ATTEMPTS_BEFORE_DISCONNECTED = 5;
+
+/** 실시간 화면의 웹소켓 연결 상태 (DESIGN.md §5.11) */
+export type RealtimeConnectionStatus =
+  "connected" | "reconnecting" | "disconnected";
 
 export function calculateReconnectDelay(
   attempt: number,
@@ -56,6 +63,8 @@ export interface BidRequestFailedMessage {
 interface UseAuctionBidUpdatesOptions {
   auctionId: string;
   latestBidId?: number;
+  /** 종료된 경매처럼 실시간 갱신이 필요 없는 화면에서는 false 로 두어 연결하지 않는다. */
+  enabled?: boolean;
   onBidUpdated: (message: AuctionBidUpdatedMessage) => void;
   onBidFailed?: (message: BidRequestFailedMessage) => void;
   onSubscribed: () => void;
@@ -136,10 +145,14 @@ function parseMessage(frame: IMessage): AuctionBidUpdatedMessage | null {
 export function useAuctionBidUpdates({
   auctionId,
   latestBidId,
+  enabled = true,
   onBidUpdated,
   onBidFailed,
   onSubscribed,
-}: UseAuctionBidUpdatesOptions) {
+}: UseAuctionBidUpdatesOptions): RealtimeConnectionStatus {
+  // 최초 연결 전과 재연결 중은 사용자에게 같은 의미("아직 실시간이 아님")라 한 상태로 묶는다.
+  const [connectionStatus, setConnectionStatus] =
+    useState<RealtimeConnectionStatus>("reconnecting");
   const latestBidIdRef = useRef(latestBidId);
   const onBidUpdatedRef = useRef(onBidUpdated);
   const onBidFailedRef = useRef(onBidFailed);
@@ -166,6 +179,8 @@ export function useAuctionBidUpdates({
   }, [onBidFailed, onBidUpdated, onSubscribed]);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const processedEventIds = new Set<string>();
     const processedEventOrder: string[] = [];
     let reconnectAttempt = 0;
@@ -200,6 +215,11 @@ export function useAuctionBidUpdates({
       if (isDisposed || reconnectTimer !== undefined || isReconnecting) return;
 
       reconnectAttempt += 1;
+      setConnectionStatus(
+        reconnectAttempt > RECONNECT_ATTEMPTS_BEFORE_DISCONNECTED
+          ? "disconnected"
+          : "reconnecting",
+      );
       reconnectTimer = window.setTimeout(() => {
         reconnectTimer = undefined;
         if (isDisposed) return;
@@ -251,6 +271,7 @@ export function useAuctionBidUpdates({
         }
         onBidFailedRef.current?.(message);
       });
+      setConnectionStatus("connected");
       onSubscribedRef.current();
     };
     client.onStompError = (frame) => {
@@ -276,5 +297,7 @@ export function useAuctionBidUpdates({
       }
       void client.deactivate();
     };
-  }, [auctionId]);
+  }, [auctionId, enabled]);
+
+  return connectionStatus;
 }

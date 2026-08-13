@@ -33,15 +33,16 @@ export function formatPoint(amount?: number): string {
   return `${amount.toLocaleString("ko-KR")}P`;
 }
 
-/** 남은 시간 → "HH : MM : SS" (DESIGN.md §5.5). 종료 시 "00 : 00 : 00" */
+/** 남은 시간 → "DD : HH : MM : SS" (DESIGN.md §5.5). 종료 시 모두 0 */
 export function formatCountdown(msLeft: number): string {
   const clamped = Math.max(0, msLeft);
   const total = Math.floor(clamped / 1000);
-  const h = Math.floor(total / 3600);
+  const d = Math.floor(total / 86_400);
+  const h = Math.floor((total % 86_400) / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(h)} : ${pad(m)} : ${pad(s)}`;
+  return `${pad(d)} : ${pad(h)} : ${pad(m)} : ${pad(s)}`;
 }
 
 /**
@@ -106,8 +107,6 @@ export function relativeTime(iso: string, now = Date.now()): string {
   return `${day}일 전`;
 }
 
-
-
 /**
  * 최소 입찰 단위 = 시작가의 5%, 원 단위 반올림 (DESIGN.md §6).
  *
@@ -118,3 +117,6 @@ export function relativeTime(iso: string, now = Date.now()): string {
 export function minBidUnit(startPrice: number): number {
   return Math.round(startPrice * 0.05);
 }
+
+/** 경매 희망 시작가 하한 (DESIGN.md §6). 서버의 CreateAuctionRequest 검증과 같은 값이어야 한다. */
+export const MINIMUM_STARTING_PRICE = 1_000;
