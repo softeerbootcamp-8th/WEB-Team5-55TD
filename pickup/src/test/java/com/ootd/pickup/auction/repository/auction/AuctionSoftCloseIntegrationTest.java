@@ -89,6 +89,7 @@ class AuctionSoftCloseIntegrationTest {
     return auctionJpaRepository.saveAndFlush(
         Auction.builder()
             .consignment(consignment)
+            .title("테스트 경매 " + unique)
             .startedAt(endedAt.minusDays(7))
             .endedAt(endedAt)
             .auctionStatus(AuctionStatus.ONGOING)
