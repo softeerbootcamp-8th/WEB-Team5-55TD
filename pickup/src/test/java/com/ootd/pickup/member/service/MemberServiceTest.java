@@ -382,7 +382,10 @@ class MemberServiceTest {
     // given
     Member member = Member.create("pickup-user", "password-hash", "픽업회원");
     ReflectionTestUtils.setField(member, "memberId", 1L);
-    Auction auction = Auction.builder().title("테스트 제목").description("테스트 설명").build();
+    Consignment consignment =
+        Consignment.builder().sellerMember(Member.create("sellerId", "password", "판매자")).build();
+    Auction auction =
+        Auction.builder().title("테스트 제목").description("테스트 설명").consignment(consignment).build();
     ReflectionTestUtils.setField(auction, "auctionId", 1L);
     PointTransaction newest = PointTransaction.forAuctionPayout(member, 1_000L, 3_000L, auction);
     PointTransaction next = PointTransaction.forAuctionPayment(member, 500L, 2_000L, auction);

@@ -74,6 +74,10 @@ public class Auction {
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
+  // 등록 시점의 판매자 닉네임 스냅샷. 판매자가 탈퇴해 Member.nickname이 비워져도 과거 경매의 표시 닉네임을 보존한다.
+  @Column(name = "seller_nickname_snapshot", nullable = false)
+  private String sellerNicknameSnapshot;
+
   @Builder
   public Auction(
       Consignment consignment,
@@ -97,6 +101,7 @@ public class Auction {
     this.watchCount = 0L;
     this.legacyUnreservedBid = false;
     this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
+    this.sellerNicknameSnapshot = consignment.getSellerMember().getNickname();
   }
 
   public Long getRemainingSeconds() {

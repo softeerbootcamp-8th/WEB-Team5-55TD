@@ -2,6 +2,8 @@ package com.ootd.pickup.auction.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.ootd.pickup.consignments.domain.Consignment;
+import com.ootd.pickup.member.domain.Member;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +16,7 @@ class AuctionTest {
         Auction.builder()
             .title("테스트 제목")
             .description("테스트 설명")
-            .consignment(null)
+            .consignment(createConsignment())
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now().plusHours(1))
             .auctionStatus(AuctionStatus.ONGOING)
@@ -38,7 +40,7 @@ class AuctionTest {
         Auction.builder()
             .title("테스트 제목")
             .description("테스트 설명")
-            .consignment(null)
+            .consignment(createConsignment())
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now().plusHours(1))
             .auctionStatus(AuctionStatus.ONGOING)
@@ -99,7 +101,7 @@ class AuctionTest {
     return Auction.builder()
         .title("테스트 제목")
         .description("테스트 설명")
-        .consignment(null)
+        .consignment(createConsignment())
         .startedAt(endedAt.minusDays(7))
         .endedAt(endedAt)
         .auctionStatus(AuctionStatus.ONGOING)
@@ -113,7 +115,7 @@ class AuctionTest {
     return Auction.builder()
         .title("테스트 제목")
         .description("테스트 설명")
-        .consignment(null)
+        .consignment(createConsignment())
         .startedAt(LocalDateTime.now().minusHours(1))
         .endedAt(endedAt)
         .auctionStatus(status)
@@ -121,5 +123,9 @@ class AuctionTest {
         .reservePrice(15_000L)
         .bidIncrement(500L)
         .build();
+  }
+
+  private Consignment createConsignment() {
+    return Consignment.builder().sellerMember(Member.create("sellerId", "password", "판매자")).build();
   }
 }

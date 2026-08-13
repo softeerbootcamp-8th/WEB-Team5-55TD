@@ -327,6 +327,27 @@ class BidServiceTest {
   }
 
   @Test
+  void 탈퇴한_입찰자의_닉네임은_목록에서_익명화된다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Member withdrawnBidder = createMember(3L);
+    Bid bid = createBid(auction, withdrawnBidder, 10_500L, 100L);
+    withdrawnBidder.withdraw();
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(bidRepository.findAllByAuctionId(1L, null, 21)).willReturn(List.of(bid));
+
+    // when
+    CursorPageResponse<AuctionBidListItemResponse, String> response =
+        bidService.getAuctionBids(1L, null, new GetAuctionBidsRequest(null, 20));
+
+    // then
+    assertThat(response.items())
+        .extracting(AuctionBidListItemResponse::nickname)
+        .containsExactly("탈퇴한 회원");
+  }
+
+  @Test
   void 비로그인_상태로_조회하면_isMine이_모두_false다() {
     // given
     Auction auction =

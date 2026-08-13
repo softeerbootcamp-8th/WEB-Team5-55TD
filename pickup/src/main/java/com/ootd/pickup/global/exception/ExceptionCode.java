@@ -164,7 +164,9 @@ public enum ExceptionCode {
   MEMBER_WITHDRAW_NOT_ALLOWED(
       HttpStatus.CONFLICT,
       ClientExceptionCode.MEMBER_WITHDRAW_NOT_ALLOWED,
-      "진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
+      "진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다."),
+  WITHDRAWN_MEMBER_LOGIN_DENIED(
+      HttpStatus.UNAUTHORIZED, ClientExceptionCode.WITHDRAWN_MEMBER_LOGIN_DENIED, "탈퇴한 회원입니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

@@ -60,4 +60,33 @@ class MemberTest {
     // then
     assertThat(matched).isFalse();
   }
+
+  @Test
+  void 탈퇴하면_로그인아이디_비밀번호_닉네임이_비워진다() {
+    // given
+    Member member = Member.create("loginId", "password-hash", "nickname");
+
+    // when
+    member.withdraw();
+
+    // then
+    assertThat(member.isWithdrawn()).isTrue();
+    assertThat(member.getWithdrawnAt()).isNotNull();
+    assertThat(member.getLoginId()).isNull();
+    assertThat(member.getPassword()).isNull();
+    assertThat(member.getNickname()).isNull();
+  }
+
+  @Test
+  void 탈퇴하면_카카오_식별자도_비워진다() {
+    // given
+    Member member = Member.createOAuth("KAKAO", "kakao-subject", "nickname", null);
+
+    // when
+    member.withdraw();
+
+    // then
+    assertThat(member.getOauthProvider()).isNull();
+    assertThat(member.getOauthSubject()).isNull();
+  }
 }

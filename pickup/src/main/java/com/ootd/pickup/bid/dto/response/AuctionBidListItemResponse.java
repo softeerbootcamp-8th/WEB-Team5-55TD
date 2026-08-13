@@ -1,6 +1,7 @@
 package com.ootd.pickup.bid.dto.response;
 
 import com.ootd.pickup.bid.domain.Bid;
+import com.ootd.pickup.global.util.WithdrawnMemberDisplay;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.time.LocalDateTime;
 
@@ -16,7 +17,7 @@ public record AuctionBidListItemResponse(
       Bid bid, Long viewerMemberId, ImageUrlResolver imageUrlResolver) {
     return new AuctionBidListItemResponse(
         bid.getBidId(),
-        bid.getMember().getNickname(),
+        WithdrawnMemberDisplay.resolveNickname(bid.getMember(), bid.getBidderNicknameSnapshot()),
         imageUrlResolver.resolve(bid.getMember().getProfileImageObjectKey()),
         bid.getBidPrice(),
         bid.getCreatedAt(),

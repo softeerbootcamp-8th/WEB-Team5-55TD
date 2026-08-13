@@ -95,6 +95,19 @@ class AuthServiceTest {
   }
 
   @Test
+  void 탈퇴한_회원은_로그인_토큰을_발급받지_못한다() {
+    Member member = createMember("pickup-user", "password1234");
+    member.withdraw();
+
+    assertThatThrownBy(() -> authService.issueLogin(member))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("탈퇴한 회원입니다.");
+
+    then(accessTokenGenerator).shouldHaveNoInteractions();
+    then(refreshTokenGenerator).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 리프레시_토큰을_해시로_변환해_삭제한다() {
     given(refreshTokenGenerator.hash("refresh-token")).willReturn("refresh-token-hash");
 
