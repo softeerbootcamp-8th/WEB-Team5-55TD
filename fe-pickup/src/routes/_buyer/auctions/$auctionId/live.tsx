@@ -496,7 +496,10 @@ function LiveAuctionPage() {
           />
           <div className="flex flex-col gap-3">
             <GradeBadge grade={auction.grade} />
-            <h1 className="text-2xl font-bold">{auction.cardName}</h1>
+            <h1 className="text-2xl font-bold">{auction.title ?? auction.cardName}</h1>
+            {auction.title && (
+              <p className="text-sm text-[var(--color-text-sub)]">{auction.cardName}</p>
+            )}
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
               <Avatar
                 src={auction.sellerProfileImageUrl}
