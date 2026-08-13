@@ -83,7 +83,6 @@ public class MemberService {
 
     String passwordHash = hashPassword(memberRequest.password());
     Member member = Member.create(memberRequest.loginId(), passwordHash, memberRequest.nickname());
-    member.setExternalProfileImageUrl(memberRequest.profileImage());
 
     Member savedMember;
     try {
