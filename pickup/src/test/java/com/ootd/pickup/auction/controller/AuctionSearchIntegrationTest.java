@@ -7,6 +7,7 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchJpaRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
@@ -50,6 +51,7 @@ class AuctionSearchIntegrationTest {
   @Autowired private CertificateJpaRepository certificateJpaRepository;
   @Autowired private ConsignmentImageJpaRepository consignmentImageJpaRepository;
   @Autowired private AuctionJpaRepository auctionJpaRepository;
+  @Autowired private AuctionRepository auctionRepository;
   @Autowired private WatchJpaRepository watchJpaRepository;
 
   @Test
@@ -361,6 +363,8 @@ class AuctionSearchIntegrationTest {
 
   private void createWatch(Auction auction, Member member) {
     watchJpaRepository.save(Watch.builder().auction(auction).member(member).build());
+    watchJpaRepository.flush();
+    auctionRepository.incrementWatchCountById(auction.getAuctionId());
   }
 
   private void createConsignmentImage(Consignment consignment, int order, String url) {

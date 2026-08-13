@@ -59,6 +59,9 @@ public class Auction {
   @Column(name = "winning_price")
   private Long winningPrice;
 
+  @Column(name = "watch_count", nullable = false)
+  private long watchCount;
+
   @Column(name = "legacy_unreserved_bid", nullable = false)
   private boolean legacyUnreservedBid;
 
@@ -81,6 +84,7 @@ public class Auction {
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
+    this.watchCount = 0L;
     this.legacyUnreservedBid = false;
     this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
   }

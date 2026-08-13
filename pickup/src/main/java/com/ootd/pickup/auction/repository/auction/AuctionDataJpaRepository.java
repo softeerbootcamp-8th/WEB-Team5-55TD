@@ -1,7 +1,6 @@
 package com.ootd.pickup.auction.repository.auction;
 
 import static com.ootd.pickup.auction.domain.QAuction.auction;
-import static com.ootd.pickup.auction.domain.QWatch.watch;
 import static com.ootd.pickup.cards.domain.QCard.card;
 import static com.ootd.pickup.consignments.domain.QConsignment.consignment;
 import static com.ootd.pickup.member.domain.QMember.member;
@@ -15,11 +14,10 @@ import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.DateTimeExpression;
-import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -37,6 +35,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
   private final AuctionJpaRepository auctionJpaRepository;
   private final JPAQueryFactory queryFactory;
+  private final EntityManager entityManager;
 
   @Override
   public Auction save(Auction newAuction) {
@@ -46,6 +45,45 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   @Override
   public Optional<Auction> findById(Long auctionId) {
     return auctionJpaRepository.findById(auctionId);
+  }
+
+  @Override
+  public int incrementWatchCountById(Long auctionId) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.watchCount, auction.watchCount.add(1L))
+                .where(auction.auctionId.eq(auctionId))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public int decrementWatchCountById(Long auctionId) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.watchCount, auction.watchCount.subtract(1L))
+                .where(auction.auctionId.eq(auctionId), auction.watchCount.gt(0L))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public int resetWatchCountById(Long auctionId) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.watchCount, 0L)
+                .where(auction.auctionId.eq(auctionId))
+                .execute();
+    entityManager.clear();
+    return updated;
   }
 
   @Override
@@ -130,21 +168,13 @@ public class AuctionDataJpaRepository implements AuctionRepository {
     return auction.auctionStatus.in(statuses);
   }
 
-  private NumberExpression<Long> watchCountExpression() {
-    return Expressions.asNumber(
-        JPAExpressions.select(watch.count())
-            .from(watch)
-            .where(watch.auction.auctionId.eq(auction.auctionId)));
-  }
-
   private DateTimeExpression<LocalDateTime> endedAtSortExpression() {
     return auction.endedAt.coalesce(AuctionCursor.SENTINEL_END_AT);
   }
 
   private OrderSpecifier<?>[] orderSpecifiers(AuctionSort sort) {
     return switch (sort) {
-      case POPULAR ->
-          new OrderSpecifier<?>[] {watchCountExpression().desc(), auction.auctionId.desc()};
+      case POPULAR -> new OrderSpecifier<?>[] {auction.watchCount.desc(), auction.auctionId.desc()};
       case PRICE_ASC ->
           new OrderSpecifier<?>[] {auction.startingPrice.asc(), auction.auctionId.asc()};
       case PRICE_DESC ->
@@ -164,10 +194,12 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
     return switch (sort) {
       case POPULAR ->
-          watchCountExpression()
+          auction
+              .watchCount
               .lt(cursor.sortValue())
               .or(
-                  watchCountExpression()
+                  auction
+                      .watchCount
                       .eq(cursor.sortValue())
                       .and(auction.auctionId.lt(cursor.auctionId())));
       case PRICE_ASC ->
