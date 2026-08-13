@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.client.RestClientException;
 
 @ExtendWith(MockitoExtension.class)
@@ -76,6 +77,45 @@ class KakaoAuthServiceTest {
         .hasMessage("카카오 인증에 실패했습니다.");
 
     then(kakaoMemberService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 회원_조회_생성_중_유니크_제약_충돌이_나면_새_트랜잭션으로_재시도한다() {
+    KakaoLoginRequest request = new KakaoLoginRequest("auth-code", "https://pickup.test/callback");
+    KakaoClient.KakaoUser kakaoUser = new KakaoClient.KakaoUser("kakao-subject", null);
+    Member member = createMember("용감한피카츄07", 1L);
+    KakaoMemberService.KakaoMemberResult result =
+        new KakaoMemberService.KakaoMemberResult(member, false);
+    LoginResponse loginResponse =
+        new LoginResponse(
+            new LoginResponseBody(1L, "kakao_kakao-subject", member.getNickname(), null, false),
+            new AccessToken("access-token", Instant.now().plusSeconds(900)),
+            "refresh-token");
+    given(kakaoClient.authenticate(request)).willReturn(kakaoUser);
+    given(kakaoMemberService.findOrCreate(kakaoUser))
+        .willThrow(new DataIntegrityViolationException("동시 가입 충돌"))
+        .willReturn(result);
+    given(authService.issueLogin(member, false)).willReturn(loginResponse);
+
+    LoginResponse response = kakaoAuthService.login(request);
+
+    assertThat(response).isEqualTo(loginResponse);
+    then(kakaoMemberService).should(times(2)).findOrCreate(kakaoUser);
+  }
+
+  @Test
+  void 재시도해도_계속_충돌하면_예외를_전파한다() {
+    KakaoLoginRequest request = new KakaoLoginRequest("auth-code", "https://pickup.test/callback");
+    KakaoClient.KakaoUser kakaoUser = new KakaoClient.KakaoUser("kakao-subject", null);
+    given(kakaoClient.authenticate(request)).willReturn(kakaoUser);
+    given(kakaoMemberService.findOrCreate(kakaoUser))
+        .willThrow(new DataIntegrityViolationException("동시 가입 충돌"));
+
+    assertThatThrownBy(() -> kakaoAuthService.login(request))
+        .isInstanceOf(DataIntegrityViolationException.class);
+
+    then(kakaoMemberService).should(times(3)).findOrCreate(kakaoUser);
+    then(authService).shouldHaveNoInteractions();
   }
 
   private Member createMember(String nickname, Long memberId) {
