@@ -20,6 +20,7 @@ import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
 import { BidList, RealtimeBidList } from "@/components/domain/bid-list";
+import { Avatar } from "@/components/domain/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -496,9 +497,17 @@ function LiveAuctionPage() {
           <div className="flex flex-col gap-3">
             <GradeBadge grade={auction.grade} />
             <h1 className="text-2xl font-bold">{auction.cardName}</h1>
-            <p className="text-sm text-[var(--color-text-sub)]">
-              판매자 · {auction.sellerNickname || "검증된 위탁 상품"}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
+              <Avatar
+                src={auction.sellerProfileImageUrl}
+                nickname={auction.sellerNickname || "판매자"}
+                className="size-7"
+                initialClassName="text-xs"
+              />
+              <span>
+                판매자 · {auction.sellerNickname || "검증된 위탁 상품"}
+              </span>
+            </div>
             <div className="mt-2 flex items-end justify-between rounded-[var(--radius-lg)] border border-border bg-card p-5">
               <Price amount={currentPrice} label="현재가" size="lg" />
               <div className="flex flex-col items-end gap-0.5">

@@ -37,6 +37,7 @@ const base = {
   thumbnailUrl: "thumb.jpg",
   images: ["front.jpg", "back.jpg"],
   sellerNickname: "seller",
+  sellerProfileImageUrl: "seller-profile.jpg",
   minBidUnit: 500,
   startsAt: "2099-01-01T10:00:00",
   endsAt: "2099-01-01T11:00:00",
@@ -55,6 +56,9 @@ describe("구매자 경매 상세", () => {
     const Component = Route.options.component as ComponentType;
     render(<Component />);
     expect(screen.getByRole("heading", { name: "Mewtwo" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "seller 프로필 이미지" }),
+    ).toHaveAttribute("src", "seller-profile.jpg");
     expect(screen.getByText("현재가")).toBeInTheDocument();
     expect(screen.getByText("상")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button")[0]);

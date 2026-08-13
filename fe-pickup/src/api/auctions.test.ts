@@ -79,6 +79,7 @@ describe("auctions api", () => {
         watchCount: 0,
         watched: false,
         images: [{ imageUrl: "front.jpg" }],
+        sellerProfileImageUrl: "seller-profile.jpg",
         certificate: {
           serialNumber: "S1",
           certificationBody: "BGS",
@@ -95,6 +96,7 @@ describe("auctions api", () => {
       myBidWon: true,
       minBidUnit: 1000,
       images: ["front.jpg"],
+      sellerProfileImageUrl: "seller-profile.jpg",
       grade: { agency: "BGS", score: "9", serial: "S1" },
     });
   });

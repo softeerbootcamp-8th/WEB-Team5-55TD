@@ -36,6 +36,7 @@ export interface AuctionSummary {
 export type AuctionDetail = AuctionSummary & {
   sellerId?: string;
   sellerNickname?: string;
+  sellerProfileImageUrl?: string;
   minBidUnit?: number;
   images?: string[];
   bidCount?: number;

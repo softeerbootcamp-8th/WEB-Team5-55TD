@@ -12,6 +12,7 @@ import { Countdown } from "@/components/domain/countdown";
 import { MarketPriceChart } from "@/components/domain/market-price-chart";
 import { WatchButton } from "@/components/domain/heart-button";
 import { RelatedAuctionsBanner } from "@/components/domain/related-auctions-banner";
+import { Avatar } from "@/components/domain/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -131,11 +132,19 @@ function AuctionDetailPage() {
             <p className="text-sm text-[var(--color-text-muted)]">
               {auction.cardName}
             </p>
-            <p className="text-sm text-[var(--color-text-sub)]">
-              {auction.sellerNickname
-                ? `판매자 · ${auction.sellerNickname}`
-                : "검증된 위탁 상품"}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
+              <Avatar
+                src={auction.sellerProfileImageUrl}
+                nickname={auction.sellerNickname || "판매자"}
+                className="size-7"
+                initialClassName="text-xs"
+              />
+              <span>
+                {auction.sellerNickname
+                  ? `판매자 · ${auction.sellerNickname}`
+                  : "검증된 위탁 상품"}
+              </span>
+            </div>
           </div>
 
           {auction.description && (

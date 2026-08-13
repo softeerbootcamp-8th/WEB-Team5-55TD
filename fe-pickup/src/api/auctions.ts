@@ -226,6 +226,7 @@ interface AuctionDetailResponse extends AuctionListItemResponse {
   description?: string | null;
   sellerId?: number | null;
   sellerNickname?: string | null;
+  sellerProfileImageUrl?: string | null;
   certificate?: CertificateResponse | null;
   images?: ConsignmentImageResponse[] | null;
   cardState?: CardState | null;
@@ -268,6 +269,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     grade,
     sellerId: item.sellerId != null ? String(item.sellerId) : undefined,
     sellerNickname: item.sellerNickname ?? undefined,
+    sellerProfileImageUrl: item.sellerProfileImageUrl ?? undefined,
     minBidUnit: item.bidIncrement ?? minBidUnit(item.startingPrice),
     images: (item.images ?? []).map((image) => image.imageUrl),
     bidCount: 0,
