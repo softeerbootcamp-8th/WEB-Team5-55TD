@@ -1,15 +1,23 @@
 package com.ootd.pickup.bid.dto.response;
 
 import com.ootd.pickup.bid.domain.Bid;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.time.LocalDateTime;
 
 public record AuctionBidListItemResponse(
-    Long bidId, String nickname, Long bidPrice, LocalDateTime createdAt, boolean isMine) {
+    Long bidId,
+    String nickname,
+    String profileImageUrl,
+    Long bidPrice,
+    LocalDateTime createdAt,
+    boolean isMine) {
 
-  public static AuctionBidListItemResponse of(Bid bid, Long viewerMemberId) {
+  public static AuctionBidListItemResponse of(
+      Bid bid, Long viewerMemberId, ImageUrlResolver imageUrlResolver) {
     return new AuctionBidListItemResponse(
         bid.getBidId(),
         bid.getMember().getNickname(),
+        imageUrlResolver.resolve(bid.getMember().getProfileImageObjectKey()),
         bid.getBidPrice(),
         bid.getCreatedAt(),
         viewerMemberId != null && viewerMemberId.equals(bid.getMember().getMemberId()));

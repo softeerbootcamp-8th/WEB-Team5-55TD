@@ -2137,6 +2137,8 @@ components:
           format: int64
         nickname:
           type: string
+        profileImageUrl:
+          type: string
         bidPrice:
           type: integer
           format: int64

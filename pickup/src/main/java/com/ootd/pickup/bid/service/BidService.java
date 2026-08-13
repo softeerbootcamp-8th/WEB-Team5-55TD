@@ -25,6 +25,7 @@ import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.service.PointReservationService;
@@ -52,6 +53,7 @@ public class BidService {
   private final MemberRepository memberRepository;
   private final PointReservationService pointReservationService;
   private final EventPublisher eventPublisher;
+  private final ImageUrlResolver imageUrlResolver;
 
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
@@ -152,7 +154,9 @@ public class BidService {
     List<Bid> page = hasNext ? fetched.subList(0, size) : fetched;
 
     List<AuctionBidListItemResponse> items =
-        page.stream().map(bid -> AuctionBidListItemResponse.of(bid, viewerMemberId)).toList();
+        page.stream()
+            .map(bid -> AuctionBidListItemResponse.of(bid, viewerMemberId, imageUrlResolver))
+            .toList();
 
     String nextCursor = hasNext ? String.valueOf(page.getLast().getBidId()) : null;
     return CursorPageResponse.from(items, hasNext, nextCursor);

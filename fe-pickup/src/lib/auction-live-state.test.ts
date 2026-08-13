@@ -31,6 +31,7 @@ describe("mergeLatestBid", () => {
         {
           id: "6",
           nickname: "새 입찰자",
+          profileImageUrl: undefined,
           amount: 10_500,
           createdAt: "2026-08-11T00:00:01",
           isMine: false,
@@ -61,6 +62,46 @@ describe("mergeLatestBid", () => {
     expect(result?.items).toHaveLength(6);
     expect(result?.items[0]).toMatchObject({ id: "3", isMine: true });
     expect(result?.items.filter((item) => item.id === "3")).toHaveLength(1);
+  });
+
+  it("같은 입찰자의 웹소켓 갱신에는 기존 프로필 이미지를 유지한다", () => {
+    const result = mergeLatestBid(
+      {
+        ...snapshot,
+        items: [
+          {
+            ...snapshot.items[0],
+            nickname: "피카츄마스터",
+            profileImageUrl: "/profile.webp",
+          },
+        ],
+      },
+      { ...latestBid, nickname: "피카츄마스터" },
+      false,
+      6,
+    );
+
+    expect(result?.items[0].profileImageUrl).toBe("/profile.webp");
+  });
+
+  it("본인 여부가 누락된 웹소켓 갱신에도 기존 본인 표시를 유지한다", () => {
+    const result = mergeLatestBid(
+      {
+        ...snapshot,
+        items: [
+          {
+            ...snapshot.items[0],
+            nickname: "피카츄마스터",
+            isMine: true,
+          },
+        ],
+      },
+      { ...latestBid, nickname: "피카츄마스터" },
+      false,
+      6,
+    );
+
+    expect(result?.items[0].isMine).toBe(true);
   });
 
   it("cache가 없으면 새 query를 만들지 않는다", () => {

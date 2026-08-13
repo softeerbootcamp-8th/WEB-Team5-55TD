@@ -106,17 +106,7 @@ export function relativeTime(iso: string, now = Date.now()): string {
   return `${day}일 전`;
 }
 
-/**
- * 닉네임 마스킹: 앞 3글자 + *** + 뒤 2글자 (DESIGN.md §6, 예: bid***23)
- * 본인은 호출부에서 "나"로 대체한다.
- */
-export function maskNickname(nickname: string): string {
-  if (nickname.length <= 5) {
-    const head = nickname.slice(0, Math.min(3, nickname.length));
-    return `${head}***`;
-  }
-  return `${nickname.slice(0, 3)}***${nickname.slice(-2)}`;
-}
+
 
 /**
  * 최소 입찰 단위 = 시작가의 5%, 원 단위 반올림 (DESIGN.md §6).
