@@ -45,7 +45,7 @@ export type AuctionDetail = AuctionSummary & {
 
 export interface Bid {
   id: string;
-  maskedNickname: string;
+  nickname: string;
   amount: number;
   createdAt: string;
   isMine?: boolean;
