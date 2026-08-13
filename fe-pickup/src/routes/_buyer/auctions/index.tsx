@@ -42,6 +42,15 @@ const SORT_LABEL: Record<Sort, string> = {
   recent: "최신순",
 };
 
+const DEFAULT_SORT: Sort = "popular";
+
+/** 상태 탭별로 고를 수 있는 정렬 기준. 시각이 이미 지나 의미가 없는 기준은 뺀다. */
+const SORT_OPTIONS: Record<Filter, Sort[]> = {
+  LIVE: ["popular", "priceAsc", "priceDesc", "endingSoon", "recent"],
+  UPCOMING: ["popular", "priceAsc", "priceDesc", "startingSoon", "recent"],
+  ENDED: ["popular", "priceAsc", "priceDesc", "recent"],
+};
+
 const API_STATUS: Record<
   Filter,
   ("SCHEDULED" | "ONGOING" | "WON" | "PASSED")[]
@@ -77,10 +86,17 @@ const SEARCH_PLACEHOLDER: Record<AuctionSearchField, string> = {
 /** DESIGN.md · auction list.html — 검색 · 정렬 · 진행/예정/종료 필터 */
 function AuctionListPage() {
   const [filter, setFilter] = useState<Filter>("LIVE");
-  const [sort, setSort] = useState<Sort>("popular");
+  const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [query, setQuery] = useState("");
   const [searchField, setSearchField] = useState<AuctionSearchField>("ALL");
   const deferredQuery = useDeferredValue(query.trim());
+
+  function selectFilter(next: Filter) {
+    setFilter(next);
+    if (!SORT_OPTIONS[next].includes(sort)) {
+      setSort(DEFAULT_SORT);
+    }
+  }
 
   const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useInfiniteQuery({
@@ -160,7 +176,7 @@ function AuctionListPage() {
 
       {/* 필터 + 정렬 */}
       <div className="flex items-center justify-between">
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+        <Tabs value={filter} onValueChange={(v) => selectFilter(v as Filter)}>
           <TabsList>
             <TabsTrigger value={AuctionStatus.LIVE}>진행 중</TabsTrigger>
             <TabsTrigger value={AuctionStatus.UPCOMING}>예정</TabsTrigger>
@@ -174,7 +190,7 @@ function AuctionListPage() {
             <ChevronDown className="size-4 text-[var(--color-text-muted)]" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {(Object.keys(SORT_LABEL) as Sort[]).map((key) => (
+            {SORT_OPTIONS[filter].map((key) => (
               <DropdownMenuItem key={key} onSelect={() => setSort(key)}>
                 {SORT_LABEL[key]}
               </DropdownMenuItem>
