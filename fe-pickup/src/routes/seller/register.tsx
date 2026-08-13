@@ -161,7 +161,7 @@ function RegisterWizard() {
 
   return (
     <PageContainer className="flex max-w-2xl flex-col gap-8">
-      <h1 className="text-2xl font-bold">카드 등록</h1>
+      <h1 className="text-2xl font-bold">상품 등록</h1>
       <StepIndicator steps={STEPS} current={step} />
 
       <div className="rounded-[var(--radius-lg)] border border-border bg-card p-6">
