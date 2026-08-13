@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { todayDateInputValue } from "@/lib/timezone";
 import { useSearchCards } from "@/api/generated/card/card";
 import { registerConsignment } from "@/api/generated/consignment/consignment";
 import {
@@ -89,6 +90,8 @@ function RegisterWizard() {
   const [inspectedAt, setInspectedAt] = useState("");
   const [cardState, setCardState] = useState<CardState | "">("");
   const [majorDefect, setMajorDefect] = useState("");
+  const [today] = useState(todayDateInputValue);
+  const inspectedAtValid = inspectedAt.length === 0 || inspectedAt <= today;
 
   const [images, setImages] = useState<ConsignmentImageValue[]>([]);
 
@@ -99,7 +102,8 @@ function RegisterWizard() {
         ? grade.length > 0 &&
           cardState.length > 0 &&
           serialNumber.trim().length > 0 &&
-          inspectedAt.length > 0
+          inspectedAt.length > 0 &&
+          inspectedAtValid
         : step === 2
           ? images.length >= 2
           : true;
@@ -301,8 +305,14 @@ function RegisterWizard() {
                 <Input
                   type="date"
                   value={inspectedAt}
+                  max={today}
                   onChange={(e) => setInspectedAt(e.target.value)}
                 />
+                {!inspectedAtValid && (
+                  <p className="text-xs text-[var(--color-danger)]">
+                    현재 날짜보다 이후일 수 없습니다.
+                  </p>
+                )}
               </Field>
             </div>
             <Field label="카드 상태" required>

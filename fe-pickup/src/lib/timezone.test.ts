@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   kstLocalInputToUtcIso,
+  todayDateInputValue,
   utcInstantToKstLocalInput,
 } from "@/lib/timezone";
 
@@ -29,5 +30,14 @@ describe("utcInstantToKstLocalInput", () => {
     expect(utcInstantToKstLocalInput("2026-08-01T15:30:00Z")).toBe(
       "2026-08-02T00:30",
     );
+  });
+});
+
+describe("todayDateInputValue", () => {
+  it("returns today's KST date as YYYY-MM-DD", () => {
+    const expected = new Date(Date.now() + 9 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    expect(todayDateInputValue()).toBe(expected);
   });
 });
