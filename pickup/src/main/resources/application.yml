@@ -92,6 +92,8 @@ scheduler:
     enabled: ${SCHEDULER_OUTBOX_CLEANUP_ENABLED:false}
     cron: ${SCHEDULER_OUTBOX_CLEANUP_CRON:0 0 4 * * *}
     retention-days: ${SCHEDULER_OUTBOX_CLEANUP_RETENTION_DAYS:14}
+    batch-size: ${SCHEDULER_OUTBOX_CLEANUP_BATCH_SIZE:500}
+    max-deletes-per-run: ${SCHEDULER_OUTBOX_CLEANUP_MAX_DELETES_PER_RUN:50000}
   card-sync:
     enabled: ${SCHEDULER_CARD_SYNC_ENABLED:true}
     cron: ${SCHEDULER_CARD_SYNC_CRON:0 0 */6 * * *}
