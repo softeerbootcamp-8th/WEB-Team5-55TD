@@ -45,6 +45,18 @@ describe("구매자 홈", () => {
     expect(screen.getByText("진행 중인 경매")).toBeInTheDocument();
     expect(screen.getByText("곧 시작하는 경매")).toBeInTheDocument();
   });
+  it("대표 경매에 title이 있으면 카드 이름 대신 title을 표시한다", async () => {
+    cleanup();
+    queries = [
+      { isPending: false, data: { ...auction, title: "뮤츠 1급 감정 경매" } },
+      { isPending: false, data: { items: [auction] } },
+      { isPending: false, data: { items: [auction] } },
+    ];
+    const { Route } = await import("@/routes/_buyer/home");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    expect(screen.getByText("뮤츠 1급 감정 경매")).toBeInTheDocument();
+  });
   it("목록이 비어 있으면 빈 상태를 표시한다", async () => {
     cleanup();
     queries = [

@@ -59,7 +59,9 @@ function HomePage() {
                 관심 {featured.watchCount}
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold">{featured.cardName}</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">
+              {featured.title ?? featured.cardName}
+            </h1>
             <div className="flex items-end gap-8">
               <Price amount={featured.currentPrice} label="현재가" size="lg" />
               <div className="flex flex-col gap-0.5">
