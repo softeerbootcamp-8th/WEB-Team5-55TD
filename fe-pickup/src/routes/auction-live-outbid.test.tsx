@@ -41,7 +41,7 @@ vi.mock("@tanstack/react-query", () => ({
           pages: [
             {
               items: [
-                { id: "5", maskedNickname: "me", amount: 10000, isMine: true },
+                { id: "5", nickname: "me", amount: 10000, isMine: true },
               ],
               hasNext: false,
             },
@@ -115,7 +115,7 @@ describe("실시간 경매 추월 알림", () => {
 
     act(() => {
       onBidUpdated?.({
-        latestBid: { bidId: 6, nicknameMasked: "다른회원", bidPrice: 10500 },
+        latestBid: { bidId: 6, nickname: "다른회원", bidPrice: 10500 },
         currentPrice: 10500,
         endedAt: null,
       });
@@ -136,7 +136,7 @@ describe("실시간 경매 추월 알림", () => {
 
     act(() => {
       onBidUpdated?.({
-        latestBid: { bidId: 5, nicknameMasked: "me", bidPrice: 10000 },
+        latestBid: { bidId: 5, nickname: "me", bidPrice: 10000 },
         currentPrice: 10000,
         endedAt: null,
       });
@@ -154,7 +154,7 @@ describe("실시간 경매 추월 알림", () => {
     act(() => {
       onBidUpdated?.({
         bidRequestId: 42,
-        latestBid: { bidId: 7, nicknameMasked: "me", bidPrice: 10500 },
+        latestBid: { bidId: 7, nickname: "me", bidPrice: 10500 },
         currentPrice: 10500,
         endedAt: null,
       });

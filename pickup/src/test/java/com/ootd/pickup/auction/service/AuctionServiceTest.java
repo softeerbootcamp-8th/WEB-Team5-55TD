@@ -221,6 +221,27 @@ class AuctionServiceTest {
   }
 
   @Test
+  void 희망_시작가가_최소_희망_낙찰가보다_크면_경매가_저장되지_않는다() {
+    // given
+    Long memberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, memberId, ConsignmentStatus.REGISTERABLE, null);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(consignmentId, 15_001L, 15_000L, LocalDateTime.now().plusDays(1));
+
+    // when & then
+    assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.STARTING_PRICE_EXCEEDS_RESERVE_PRICE.getMessage());
+    assertThat(consignment.getStatus()).isEqualTo(ConsignmentStatus.REGISTERABLE);
+    then(auctionRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
   void limit이_있으면_커서_없이_상위_N개만_반환한다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.IN_AUCTION, null);
