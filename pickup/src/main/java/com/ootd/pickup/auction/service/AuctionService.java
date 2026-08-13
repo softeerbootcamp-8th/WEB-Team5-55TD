@@ -26,9 +26,11 @@ import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
+import com.ootd.pickup.global.util.NicknameMasker;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -182,7 +184,9 @@ public class AuctionService {
         watchRepository
             .findWatchSummariesByAuctionIds(viewerMemberId, List.of(auctionId))
             .getOrDefault(auctionId, WatchSummary.EMPTY);
-    boolean myBidWon = resolveMyBidWon(auction, viewerMemberId);
+    Optional<Bid> winningBid = findWinningBid(auction);
+    boolean myBidWon = resolveMyBidWon(winningBid, viewerMemberId);
+    String winnerNicknameMasked = resolveWinnerNicknameMasked(winningBid);
 
     return AuctionDetailResponse.of(
         auction,
@@ -192,24 +196,34 @@ public class AuctionService {
         watchSummary.watchedByViewer(),
         auction.getCurrentPrice(),
         imageUrlResolver,
-        myBidWon);
+        myBidWon,
+        winnerNicknameMasked);
   }
 
   /**
-   * 조회자 본인이 이 경매의 낙찰자인지 판정한다. 판정 근거는 {@link Bid#getBidStatus()}와 같다 — Auction의 winningBidId가 이 경매의
-   * 유일한 낙찰 근거다.
+   * 이 경매의 낙찰 입찰을 조회한다. 판정 근거는 {@link Bid#getBidStatus()}와 같다 — Auction의 winningBidId가 이 경매의 유일한 낙찰
+   * 근거다. 낙찰(WON) 상태가 아니면 빈 값이다.
    */
-  private boolean resolveMyBidWon(Auction auction, Long viewerMemberId) {
-    if (viewerMemberId == null
-        || auction.getAuctionStatus() != AuctionStatus.WON
-        || auction.getWinningBidId() == null) {
+  private Optional<Bid> findWinningBid(Auction auction) {
+    if (auction.getAuctionStatus() != AuctionStatus.WON || auction.getWinningBidId() == null) {
+      return Optional.empty();
+    }
+    return bidRepository.findById(auction.getWinningBidId());
+  }
+
+  /** 조회자 본인이 이 경매의 낙찰자인지 판정한다. 비로그인 상태거나 낙찰자가 아니면 false. */
+  private boolean resolveMyBidWon(Optional<Bid> winningBid, Long viewerMemberId) {
+    if (viewerMemberId == null) {
       return false;
     }
-
-    return bidRepository
-        .findById(auction.getWinningBidId())
+    return winningBid
         .map(bid -> bid.getMember().getMemberId().equals(viewerMemberId))
         .orElse(false);
+  }
+
+  /** 낙찰자의 마스킹된 닉네임을 계산한다. 낙찰 입찰이 없으면 null. */
+  private String resolveWinnerNicknameMasked(Optional<Bid> winningBid) {
+    return winningBid.map(bid -> NicknameMasker.mask(bid.getMember().getNickname())).orElse(null);
   }
 
   private Consignment getConsignment(Long consignmentId) {

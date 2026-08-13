@@ -65,6 +65,8 @@ const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
 const POLLING_JITTER_MILLIS = 3_000;
 const BID_REQUEST_RESULT_POLL_INTERVAL_MILLIS = 1_000;
 const BID_REQUEST_RESULT_TIMEOUT_MILLIS = 60_000;
+// 경매 종료 감지 즉시 결과 화면으로 튀지 않도록, 짧게 멈췄다가 전환한다.
+const AUCTION_END_TRANSITION_DELAY_MILLIS = 500;
 
 function pollingInterval() {
   return (
@@ -476,12 +478,27 @@ function LiveAuctionPage() {
     placeBid();
   }, [closeBidConfirm, dontShowConfirmAgain, parsedAmount, placeBid]);
 
+  const endTransitionTimeoutRef = useRef<number | null>(null);
+
+  // 경매가 끝나는 순간 바로 화면을 갈아치우면 결과가 툭 튀어나오는 느낌을 준다.
+  // 짧게 지연했다가 전환해 종료 → 결과 화면 전환이 자연스럽게 이어지도록 한다.
   const goEnd = useCallback(() => {
-    navigate({
-      to: "/auctions/$auctionId/end",
-      params: { auctionId: auction.id },
-    });
+    if (endTransitionTimeoutRef.current !== null) return;
+    endTransitionTimeoutRef.current = window.setTimeout(() => {
+      navigate({
+        to: "/auctions/$auctionId/end",
+        params: { auctionId: auction.id },
+      });
+    }, AUCTION_END_TRANSITION_DELAY_MILLIS);
   }, [auction.id, navigate]);
+
+  useEffect(() => {
+    return () => {
+      if (endTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(endTransitionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (auction.status === AuctionStatus.ENDED) {
