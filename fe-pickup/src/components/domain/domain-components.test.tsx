@@ -122,7 +122,7 @@ describe("공통 도메인 컴포넌트", () => {
         onEnd={onEnd}
       />,
     );
-    expect(screen.getByText("00 : 00 : 01")).toBeInTheDocument();
+    expect(screen.getByText("00 : 00 : 00 : 01")).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1000));
     expect(onEnd).toHaveBeenCalledOnce();
     act(() => vi.advanceTimersByTime(2000));
