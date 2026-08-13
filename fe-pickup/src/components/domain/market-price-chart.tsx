@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from "react";
+import { formatWon } from "@/lib/format";
 export interface GradePriceSeries {
   tier: string;
   points: { date: string; price: number }[];
@@ -58,7 +59,6 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
   const [tiers, setTiers] = useState<string[]>([]);
   const [selectedTier, setSelectedTier] = useState("");
   const [series, setSeries] = useState<GradePriceSeries | null>(null);
-  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     const mockTiers = ["PSA_10", "PSA_9", "BGS_9_5", "BGS_9", "CGC_10", "CGC_9"];
@@ -103,7 +103,7 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
     setSeries({ tier: selectedTier, points });
   }, [props.cardName, selectedTier, props.reservePrice]);
 
-  if (hidden || !series) return null;
+  if (!series) return null;
 
   return (
     <section
@@ -116,7 +116,7 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
             등급별 시세
           </h2>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            최근 90일 · PokeTrace/eBay · USD
+            최근 90일 · PokeTrace/eBay · 원화 환산
           </p>
         </div>
         <div
@@ -128,8 +128,6 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
               key={tier}
               type="button"
               onClick={() => {
-                setHidden(false);
-                setSeries(null);
                 setSelectedTier(tier);
               }}
               aria-pressed={selectedTier === tier}
@@ -144,12 +142,13 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
           ))}
         </div>
       </div>
-      <PriceSvg series={series} />
+      <PriceSvg key={series.tier} series={series} />
     </section>
   );
 }
 
 function PriceSvg({ series }: { series: GradePriceSeries }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const chart = useMemo(() => {
     const values = series.points.map((point) => point.price);
     const min = Math.min(...values);
@@ -165,6 +164,8 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
     return {
       min,
       max,
+      x,
+      y,
       path: series.points
         .map(
           (point, index) => `${index ? "L" : "M"}${x(index)},${y(point.price)}`,
@@ -174,6 +175,11 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
   }, [series]);
   const first = series.points[0];
   const last = series.points.at(-1)!;
+  const hoveredPoint = hoveredIndex == null ? undefined : series.points[hoveredIndex];
+  const hoveredX = hoveredIndex == null ? undefined : chart.x(hoveredIndex);
+  const hoveredY = hoveredPoint == null ? undefined : chart.y(hoveredPoint.price);
+  const tooltipX = hoveredX == null ? 0 : Math.min(Math.max(hoveredX - 72, PADDING.left), WIDTH - 160);
+  const tooltipY = hoveredY == null ? 0 : Math.max(PADDING.top, hoveredY - 48);
 
   return (
     <div className="mt-5 overflow-hidden">
@@ -203,19 +209,84 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
                 fontSize="11"
                 fill="var(--color-text-muted)"
               >
-                ${Math.round(value).toLocaleString()}
+                {formatWon(Math.round(value))}
               </text>
             </g>
           );
         })}
         <path
           d={chart.path}
+          pathLength="1"
           fill="none"
           stroke="var(--color-buyer)"
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
+        >
+          <animate
+            attributeName="stroke-dasharray"
+            from="0 1"
+            to="1 0"
+            dur="700ms"
+            fill="freeze"
+          />
+        </path>
+        <rect
+          x={PADDING.left}
+          y={PADDING.top}
+          width={WIDTH - PADDING.left - PADDING.right}
+          height={HEIGHT - PADDING.top - PADDING.bottom}
+          fill="transparent"
+          onPointerMove={(event) => {
+            const bounds = event.currentTarget.getBoundingClientRect();
+            const ratio = (event.clientX - bounds.left) / bounds.width;
+            const index = Math.round(
+              Math.max(0, Math.min(1, ratio)) * (series.points.length - 1),
+            );
+            setHoveredIndex(index);
+          }}
+          onPointerLeave={() => setHoveredIndex(null)}
+          aria-label="시세 데이터 포인트"
         />
+        {hoveredPoint && hoveredX != null && hoveredY != null && (
+          <g pointerEvents="none">
+            <line
+              x1={hoveredX}
+              x2={hoveredX}
+              y1={PADDING.top}
+              y2={HEIGHT - PADDING.bottom}
+              stroke="var(--color-buyer)"
+              strokeDasharray="3 3"
+              opacity="0.5"
+            />
+            <circle
+              cx={hoveredX}
+              cy={hoveredY}
+              r="5"
+              fill="var(--color-buyer)"
+              stroke="var(--color-card)"
+              strokeWidth="2"
+            />
+            <rect
+              x={tooltipX}
+              y={tooltipY}
+              width="144"
+              height="34"
+              rx="6"
+              fill="var(--color-foreground)"
+              opacity="0.94"
+            />
+            <text
+              x={tooltipX + 72}
+              y={tooltipY + 14}
+              textAnchor="middle"
+              fontSize="10"
+              fill="var(--color-background)"
+            >
+              {hoveredPoint.date} · {formatWon(hoveredPoint.price)}
+            </text>
+          </g>
+        )}
         <text
           x={PADDING.left}
           y={HEIGHT - 6}
@@ -239,7 +310,7 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
           {tierLabel(series.tier)} 기준
         </span>
         <span className="font-num text-lg font-semibold">
-          ${last.price.toLocaleString()}
+          {formatWon(last.price)}
         </span>
       </div>
     </div>

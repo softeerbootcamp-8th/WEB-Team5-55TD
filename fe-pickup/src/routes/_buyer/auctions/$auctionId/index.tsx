@@ -229,15 +229,6 @@ function AuctionDetailPage() {
             </AccordionItem>
           </Accordion>
 
-          <MarketPriceChart
-            cardName={auction.cardName}
-            setName={auction.card?.setName}
-            cardNumber={auction.card?.cardNumber}
-            preferredAgency={auction.grade?.agency}
-            preferredScore={auction.grade?.score}
-            reservePrice={auction.startPrice}
-          />
-
           {/* CTA */}
           {auction.status !== AuctionStatus.ENDED && (
             <Button size="lg" asChild className="w-full">
@@ -255,6 +246,15 @@ function AuctionDetailPage() {
           )}
         </div>
       </div>
+
+      <MarketPriceChart
+        cardName={auction.cardName}
+        setName={auction.card?.setName}
+        cardNumber={auction.card?.cardNumber}
+        preferredAgency={auction.grade?.agency}
+        preferredScore={auction.grade?.score}
+        reservePrice={auction.startPrice}
+      />
 
       <RelatedAuctionsBanner auction={auction} />
 
