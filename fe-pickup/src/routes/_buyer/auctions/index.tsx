@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronDown, Search } from "lucide-react";
@@ -19,6 +19,7 @@ import {
   type AuctionSort,
 } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
+import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
 
 export const Route = createFileRoute("/_buyer/auctions/")({
   component: AuctionListPage,
@@ -98,40 +99,35 @@ function AuctionListPage() {
     }
   }
 
-  const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useInfiniteQuery({
-      queryKey: ["auctions", filter, sort, deferredQuery, searchField],
-      queryFn: ({ pageParam }) =>
-        searchAuctions({
-          q: deferredQuery || undefined,
-          searchField,
-          status: API_STATUS[filter],
-          sort: API_SORT[sort],
-          cursor: pageParam,
-          size: 20,
-        }),
-      initialPageParam: undefined as string | undefined,
-      getNextPageParam: (lastPage) =>
-        lastPage.hasNext ? lastPage.cursor : undefined,
-    });
+  const {
+    data,
+    isPending,
+    isError,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["auctions", filter, sort, deferredQuery, searchField],
+    queryFn: ({ pageParam }) =>
+      searchAuctions({
+        q: deferredQuery || undefined,
+        searchField,
+        status: API_STATUS[filter],
+        sort: API_SORT[sort],
+        cursor: pageParam,
+        size: 20,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNext ? lastPage.cursor : undefined,
+  });
   const list = data?.pages.flatMap((page) => page.items) ?? [];
 
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasNextPage) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { rootMargin: "200px" },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const sentinelRef = useLoadMoreSentinel({
+    enabled: Boolean(hasNextPage) && !isFetchingNextPage,
+    onIntersect: fetchNextPage,
+  });
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -231,12 +227,16 @@ function AuctionListPage() {
             ))}
           </div>
           {hasNextPage && (
-            <div ref={sentinelRef} className="py-4 text-center">
-              {isFetchingNextPage && (
-                <p className="text-sm text-[var(--color-text-sub)]">
-                  불러오는 중
-                </p>
-              )}
+            <div className="flex flex-col items-center py-4">
+              <div ref={sentinelRef} aria-hidden className="h-px" />
+              <button
+                type="button"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="text-sm font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:text-[var(--color-text-muted)] disabled:no-underline"
+              >
+                {isFetchingNextPage ? "불러오는 중" : "경매 더 보기"}
+              </button>
             </div>
           )}
         </>
