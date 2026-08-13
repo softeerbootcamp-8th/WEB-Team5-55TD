@@ -94,7 +94,7 @@ export function Gnb({ role }: { role: Role }) {
             to={role === "seller" ? "/seller" : "/home"}
             className="flex items-center gap-2 text-lg font-bold"
           >
-            <Logo role={role} className="size-5" />
+            <Logo className="size-5" />
             PickUp
             {role === "seller" && (
               <span className="rounded-[var(--radius-pill)] bg-[var(--color-seller-weak)] px-2 py-0.5 text-xs font-medium text-[var(--color-seller)]">
