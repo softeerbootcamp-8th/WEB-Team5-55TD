@@ -59,7 +59,6 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
   const [tiers, setTiers] = useState<string[]>([]);
   const [selectedTier, setSelectedTier] = useState("");
   const [series, setSeries] = useState<GradePriceSeries | null>(null);
-  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     const mockTiers = ["PSA_10", "PSA_9", "BGS_9_5", "BGS_9", "CGC_10", "CGC_9"];
@@ -104,7 +103,7 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
     setSeries({ tier: selectedTier, points });
   }, [props.cardName, selectedTier, props.reservePrice]);
 
-  if (hidden || !series) return null;
+  if (!series) return null;
 
   return (
     <section
@@ -129,8 +128,6 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
               key={tier}
               type="button"
               onClick={() => {
-                setHidden(false);
-                setSeries(null);
                 setSelectedTier(tier);
               }}
               aria-pressed={selectedTier === tier}
