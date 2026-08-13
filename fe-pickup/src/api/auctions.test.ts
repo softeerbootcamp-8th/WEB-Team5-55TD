@@ -16,6 +16,38 @@ const card = {
 };
 
 describe("auctions api", () => {
+  it("검색어가 없으면 searchField를 보내지 않는다", async () => {
+    get.mockResolvedValue({ data: { hasNext: false, items: [] } });
+    const api = await import("@/api/auctions");
+
+    await api.searchAuctions({
+      status: ["ONGOING"],
+      sort: "POPULAR",
+      searchField: "SELLER",
+    });
+
+    expect(get).toHaveBeenLastCalledWith(
+      "/auctions",
+      expect.objectContaining({
+        params: expect.objectContaining({ searchField: undefined }),
+      }),
+    );
+
+    await api.searchAuctions({
+      status: ["ONGOING"],
+      sort: "POPULAR",
+      q: "민제",
+      searchField: "SELLER",
+    });
+
+    expect(get).toHaveBeenLastCalledWith(
+      "/auctions",
+      expect.objectContaining({
+        params: expect.objectContaining({ q: "민제", searchField: "SELLER" }),
+      }),
+    );
+  });
+
   it("경매 목록과 등록 응답을 UI 모델로 변환한다", async () => {
     get.mockResolvedValueOnce({
       data: {
