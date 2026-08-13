@@ -231,7 +231,13 @@ class AuctionServiceTest {
         .willReturn(Optional.of(consignment));
 
     CreateAuctionRequest request =
-        new CreateAuctionRequest(consignmentId, 15_001L, 15_000L, LocalDateTime.now().plusDays(1));
+        new CreateAuctionRequest(
+            consignmentId,
+            15_001L,
+            15_000L,
+            LocalDateTime.now().plusDays(1),
+            "Title",
+            "Description");
 
     // when & then
     assertThatThrownBy(() -> auctionService.registerAuction(memberId, request))
