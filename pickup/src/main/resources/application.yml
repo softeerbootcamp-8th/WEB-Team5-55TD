@@ -38,6 +38,10 @@ spring:
       pool:
         size: 2
 async:
+  default-pool:
+    core-pool-size: ${ASYNC_DEFAULT_CORE_POOL_SIZE:2}
+    max-pool-size: ${ASYNC_DEFAULT_MAX_POOL_SIZE:4}
+    queue-capacity: ${ASYNC_DEFAULT_QUEUE_CAPACITY:50}
   slack-notification:
     core-pool-size: ${ASYNC_SLACK_CORE_POOL_SIZE:2}
     max-pool-size: ${ASYNC_SLACK_MAX_POOL_SIZE:8}
