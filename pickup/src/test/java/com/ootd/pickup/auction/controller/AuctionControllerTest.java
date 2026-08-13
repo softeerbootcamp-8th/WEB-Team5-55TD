@@ -121,12 +121,7 @@ class AuctionControllerTest {
     // given
     CreateAuctionRequest request =
         new CreateAuctionRequest(
-            100L,
-            10000L,
-            15000L,
-            LocalDateTime.now().plusDays(1),
-            "가".repeat(101),
-            "Description");
+            100L, 10000L, 15000L, LocalDateTime.now().plusDays(1), "가".repeat(101), "Description");
 
     // when & then
     mockMvc
@@ -145,12 +140,7 @@ class AuctionControllerTest {
     // given
     CreateAuctionRequest request =
         new CreateAuctionRequest(
-            100L,
-            10000L,
-            15000L,
-            LocalDateTime.now().plusDays(1),
-            "Title",
-            "가".repeat(1001));
+            100L, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "가".repeat(1001));
 
     // when & then
     mockMvc
