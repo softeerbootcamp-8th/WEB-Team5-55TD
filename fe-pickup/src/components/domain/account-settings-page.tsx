@@ -51,7 +51,6 @@ const PROFILE_ERROR_MESSAGE = "계정 정보를 불러오지 못했습니다.";
 const UPDATE_ERROR_MESSAGE = "계정 정보를 저장하지 못했습니다.";
 const WITHDRAW_ERROR_MESSAGE =
   "회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해 주세요.";
-const INVALID_PASSWORD_MESSAGE = "비밀번호가 일치하지 않습니다.";
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
   return (
@@ -94,7 +93,7 @@ export function AccountSettingsPage() {
             key={`${profile.memberId ?? "me"}:${profile.nickname}:${profile.profileImageUrl ?? ""}`}
             profile={profile}
           />
-          <WithdrawMemberSection />
+          <WithdrawMemberSection nickname={profile.nickname} />
         </>
       )}
     </PageContainer>
@@ -383,15 +382,13 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
   );
 }
 
-/** 회원 탈퇴 — 비밀번호 확인 모달을 거쳐 DELETE /members/me 호출 */
-function WithdrawMemberSection() {
+/** 회원 탈퇴 — "정말로 탈퇴하시겠습니까?" 확인 모달에서 "네"를 눌러야 DELETE /members/me 호출 */
+function WithdrawMemberSection({ nickname }: { nickname: string }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [password, setPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const withdrawMutation = useMutation({
-    mutationFn: (password: string) => withdrawMember(password),
+    mutationFn: () => withdrawMember(),
     onSuccess: () => {
       setOpen(false);
       setAuthenticated(false);
@@ -399,10 +396,6 @@ function WithdrawMemberSection() {
       navigate({ to: "/login" });
     },
     onError: (error: AxiosError<ExceptionResponse>) => {
-      if (error.response?.data?.error === "INVALID_PASSWORD") {
-        setErrorMessage(INVALID_PASSWORD_MESSAGE);
-        return;
-      }
       setOpen(false);
       toast.error(getErrorMessage(error, WITHDRAW_ERROR_MESSAGE));
     },
@@ -411,17 +404,6 @@ function WithdrawMemberSection() {
   const closeDialog = (nextOpen: boolean) => {
     if (withdrawMutation.isPending) return;
     setOpen(nextOpen);
-    if (!nextOpen) {
-      setPassword("");
-      setErrorMessage(null);
-    }
-  };
-
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!password || withdrawMutation.isPending) return;
-    setErrorMessage(null);
-    withdrawMutation.mutate(password);
   };
 
   return (
@@ -448,54 +430,32 @@ function WithdrawMemberSection() {
       <Dialog open={open} onOpenChange={closeDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>회원 탈퇴 하시겠어요?</DialogTitle>
+            <DialogTitle>정말로 회원 탈퇴 하시겠습니까?</DialogTitle>
             <DialogDescription>
-              탈퇴하면 계정 정보가 삭제되고 복구할 수 없습니다. 계속하려면
-              비밀번호를 입력해 주세요.
+              많은 포켓몬들이 <strong className="font-semibold text-foreground">{nickname}</strong>
+              님을 기다리고 있어요
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={submit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="withdraw-password">비밀번호</Label>
-              <Input
-                id="withdraw-password"
-                type="password"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  setErrorMessage(null);
-                }}
-                placeholder="비밀번호를 입력해 주세요"
-                autoComplete="current-password"
-                aria-invalid={!!errorMessage}
-                autoFocus
-              />
-              {errorMessage && (
-                <p className="text-xs text-[var(--color-danger)]">
-                  {errorMessage}
-                </p>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex-1"
-                onClick={() => closeDialog(false)}
-                disabled={withdrawMutation.isPending}
-              >
-                취소
-              </Button>
-              <Button
-                type="submit"
-                variant="destructive"
-                className="flex-1"
-                disabled={!password || withdrawMutation.isPending}
-              >
-                {withdrawMutation.isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
-              </Button>
-            </DialogFooter>
-          </form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => closeDialog(false)}
+              disabled={withdrawMutation.isPending}
+            >
+              아니오
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="flex-1"
+              onClick={() => withdrawMutation.mutate()}
+              disabled={withdrawMutation.isPending}
+            >
+              {withdrawMutation.isPending ? "탈퇴 처리 중..." : "네"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>

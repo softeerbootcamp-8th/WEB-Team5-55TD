@@ -13,7 +13,6 @@ import com.ootd.pickup.member.dto.MemberResponse;
 import com.ootd.pickup.member.dto.MyProfileResponse;
 import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
-import com.ootd.pickup.member.dto.WithdrawMemberRequest;
 import com.ootd.pickup.point.dto.request.ChargePointRequest;
 import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
 import com.ootd.pickup.point.dto.response.PointChargeResponse;
@@ -264,18 +263,14 @@ public interface MemberApi {
   @Operation(
       summary = "회원 탈퇴",
       description =
-          "비밀번호 확인 후 회원을 탈퇴 처리합니다. 로그인 아이디는 비워져 재로그인할 수 없게 되며, 셀러로 등록한 상품이 경매 예정/진행 중이거나 최고 입찰자인"
-              + " 경매가 있으면 탈퇴할 수 없습니다.",
+          "회원을 탈퇴 처리합니다. 로그인 아이디는 비워져 재로그인할 수 없게 되며, 셀러로 등록한 상품이 경매 예정/진행 중이거나 최고 입찰자인 경매가"
+              + " 있으면 탈퇴할 수 없습니다.",
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {
         @ApiResponse(responseCode = "204", description = "탈퇴 성공"),
         @ApiResponse(
-            responseCode = "400",
-            description = "요청 값 검증 실패",
-            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-        @ApiResponse(
             responseCode = "401",
-            description = "인증 필요 또는 비밀번호 불일치",
+            description = "인증 필요",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "404",
@@ -286,6 +281,5 @@ public interface MemberApi {
             description = "이미 탈퇴한 회원 또는 진행 중인 경매/입찰이 있어 탈퇴할 수 없음",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
-  ResponseEntity<Void> withdrawMember(
-      @Parameter(hidden = true) Long memberId, WithdrawMemberRequest request);
+  ResponseEntity<Void> withdrawMember(@Parameter(hidden = true) Long memberId);
 }

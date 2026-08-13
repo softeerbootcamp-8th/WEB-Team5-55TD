@@ -45,7 +45,6 @@ import com.ootd.pickup.member.dto.PointBalanceResponse;
 import com.ootd.pickup.member.dto.ProfileImageAction;
 import com.ootd.pickup.member.dto.ProfileImageUpdateRequest;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
-import com.ootd.pickup.member.dto.WithdrawMemberRequest;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.domain.PointTransaction;
@@ -692,17 +691,16 @@ class MemberServiceTest {
   }
 
   @Test
-  void 올바른_비밀번호로_탈퇴하면_회원_상태가_WITHDRAWN으로_전환된다() {
+  void 탈퇴하면_회원_상태가_WITHDRAWN으로_전환된다() {
     // given
-    String password = "password1234";
-    Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
+    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
     writeMemberId(member, 1L);
     given(memberManageService.getMemberById(1L)).willReturn(member);
     given(consignmentService.hasActiveConsignment(1L)).willReturn(false);
     given(bidService.hasActiveBid(1L)).willReturn(false);
 
     // when
-    memberService.withdrawMember(1L, new WithdrawMemberRequest(password));
+    memberService.withdrawMember(1L);
 
     // then
     assertThat(member.isWithdrawn()).isTrue();
@@ -712,34 +710,15 @@ class MemberServiceTest {
   }
 
   @Test
-  void 비밀번호가_일치하지_않으면_탈퇴하지_않는다() {
-    // given
-    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
-    writeMemberId(member, 1L);
-    given(memberManageService.getMemberById(1L)).willReturn(member);
-
-    // when & then
-    assertThatThrownBy(
-            () -> memberService.withdrawMember(1L, new WithdrawMemberRequest("wrong-password")))
-        .isInstanceOf(PickUpException.class)
-        .hasMessage("비밀번호가 일치하지 않습니다.");
-    assertThat(member.isWithdrawn()).isFalse();
-    then(consignmentService).shouldHaveNoInteractions();
-    then(bidService).shouldHaveNoInteractions();
-    then(authService).shouldHaveNoInteractions();
-  }
-
-  @Test
   void 이미_탈퇴한_회원이_다시_탈퇴하면_예외가_발생한다() {
     // given
-    String password = "password1234";
-    Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
+    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
     writeMemberId(member, 1L);
     member.withdraw();
     given(memberManageService.getMemberById(1L)).willReturn(member);
 
     // when & then
-    assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
+    assertThatThrownBy(() -> memberService.withdrawMember(1L))
         .isInstanceOf(PickUpException.class)
         .hasMessage("이미 탈퇴한 회원입니다.");
     then(authService).shouldHaveNoInteractions();
@@ -748,14 +727,13 @@ class MemberServiceTest {
   @Test
   void 경매_예정_또는_진행_중인_상품을_등록해_두면_탈퇴할_수_없다() {
     // given
-    String password = "password1234";
-    Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
+    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
     writeMemberId(member, 1L);
     given(memberManageService.getMemberById(1L)).willReturn(member);
     given(consignmentService.hasActiveConsignment(1L)).willReturn(true);
 
     // when & then
-    assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
+    assertThatThrownBy(() -> memberService.withdrawMember(1L))
         .isInstanceOf(PickUpException.class)
         .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
     assertThat(member.isWithdrawn()).isFalse();
@@ -766,15 +744,14 @@ class MemberServiceTest {
   @Test
   void 최고_입찰_중인_경매가_있으면_탈퇴할_수_없다() {
     // given
-    String password = "password1234";
-    Member member = Member.create("pickup-user", hashPassword(password), "픽업회원");
+    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
     writeMemberId(member, 1L);
     given(memberManageService.getMemberById(1L)).willReturn(member);
     given(consignmentService.hasActiveConsignment(1L)).willReturn(false);
     given(bidService.hasActiveBid(1L)).willReturn(true);
 
     // when & then
-    assertThatThrownBy(() -> memberService.withdrawMember(1L, new WithdrawMemberRequest(password)))
+    assertThatThrownBy(() -> memberService.withdrawMember(1L))
         .isInstanceOf(PickUpException.class)
         .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
     assertThat(member.isWithdrawn()).isFalse();
