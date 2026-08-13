@@ -372,6 +372,7 @@ class MemberControllerTest {
         new AuctionListItemResponse(
             10L,
             2L,
+            "Test Title",
             new GetCardDetailResponse(
                 1L,
                 "리자몽 1st Edition Holo",

@@ -79,9 +79,7 @@ describe("consignments api", () => {
       },
     });
     const { getMyConsignments } = await import("@/api/consignments");
-    await expect(
-      getMyConsignments({ status: "IN_AUCTION" }),
-    ).resolves.toEqual({
+    await expect(getMyConsignments({ status: "IN_AUCTION" })).resolves.toEqual({
       hasNext: true,
       cursor: 4,
       items: [
@@ -132,6 +130,7 @@ describe("consignments api", () => {
         status: "REGISTERABLE",
         certificate: cert,
         auctionRegistered: false,
+        cardState: "MEDIUM",
         majorDefect: null,
         images: [
           { consignmentImageId: 2, imageOrder: 2, imageUrl: "back" },
@@ -144,6 +143,7 @@ describe("consignments api", () => {
     await expect(getMyConsignmentDetail("8")).resolves.toMatchObject({
       id: "8",
       thumbnailUrl: "front",
+      cardState: "MEDIUM",
       images: [{ consignmentImageId: 1 }, { consignmentImageId: 2 }],
       auctionRegistered: false,
     });

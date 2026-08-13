@@ -9,6 +9,7 @@ import { login } from "@/api/generated/authentication/authentication";
 import type { ExceptionResponse, LoginRequest } from "@/api/generated/model";
 import { setAuthenticated, setNickname } from "@/lib/auth";
 import { Logo } from "@/components/logo";
+import { startKakaoLogin } from "@/lib/kakao-auth";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -16,7 +17,26 @@ export const Route = createFileRoute("/login")({
 
 const DEFAULT_ERROR_MESSAGE = "아이디 또는 비밀번호를 확인해 주세요.";
 
-/** DESIGN.md · login.html — 아이디·비밀번호를 입력하면 활성. 형식 검증은 가입에서만 한다. */
+
+function KakaoTalkIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5 shrink-0"
+      fill="none"
+    >
+      <path
+        d="M12 3.25c-4.97 0-9 3.14-9 7.02 0 2.52 1.75 4.74 4.43 5.96l-.9 3.28a.48.48 0 0 0 .72.53l3.78-2.57c.32.04.64.06.97.06 4.97 0 9-3.14 9-7.02s-4.03-7.26-9-7.26Z"
+        fill="#191919"
+      />
+      <circle cx="8.6" cy="10.4" r="1" fill="#FEE500" />
+      <circle cx="12" cy="10.4" r="1" fill="#FEE500" />
+      <circle cx="15.4" cy="10.4" r="1" fill="#FEE500" />
+    </svg>
+  );
+}
+
 function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -100,6 +120,29 @@ function LoginPage() {
           {isPending ? "로그인 중..." : "로그인"}
         </Button>
       </form>
+
+      <div className="flex items-center gap-3 text-xs text-[var(--color-text-sub)]">
+        <span className="h-px flex-1 bg-border" />
+        <span>또는</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <Button
+        type="button"
+        size="lg"
+        className="w-full justify-center gap-2 bg-[#FEE500] text-[#191919] hover:bg-[#F4DC00]"
+        onClick={() => {
+          try {
+            startKakaoLogin();
+          } catch (error) {
+            setErrorMessage(
+              error instanceof Error ? error.message : DEFAULT_ERROR_MESSAGE,
+            );
+          }
+        }}
+      >
+        <KakaoTalkIcon />
+        카카오로 계속하기
+      </Button>
 
       <p className="text-center text-sm text-[var(--color-text-sub)]">
         아직 회원이 아니신가요?{" "}

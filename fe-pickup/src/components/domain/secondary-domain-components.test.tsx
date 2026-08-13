@@ -15,7 +15,7 @@ describe("추가 도메인 컴포넌트", () => {
         <BidRow
           bid={{
             id: "1",
-            maskedNickname: "ab***12",
+            nickname: "alpha12",
             amount: 10500,
             createdAt: now,
           }}
@@ -23,7 +23,7 @@ describe("추가 도메인 컴포넌트", () => {
         <BidRow
           bid={{
             id: "2",
-            maskedNickname: "me",
+            nickname: "me",
             amount: 11000,
             createdAt: now,
             isMine: true,
@@ -31,7 +31,7 @@ describe("추가 도메인 컴포넌트", () => {
         />
       </ul>,
     );
-    expect(screen.getByText("ab***12")).toBeInTheDocument();
+    expect(screen.getByText("alpha12")).toBeInTheDocument();
     // 본인 입찰 행: 아바타 이니셜과 닉네임 라벨이 둘 다 "나"라 중복되므로, 라벨
     // 쪽(truncate 클래스)으로 셀렉터를 좁혀 확인한다.
     const myRow = screen.getAllByRole("listitem")[1];

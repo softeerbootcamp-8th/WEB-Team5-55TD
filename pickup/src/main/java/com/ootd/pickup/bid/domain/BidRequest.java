@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -57,7 +58,7 @@ public class BidRequest {
     this.memberId = memberId;
     this.bidPrice = bidPrice;
     this.status = BidRequestStatus.PENDING;
-    this.createdAt = LocalDateTime.now();
+    this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public static BidRequest create(Long auctionId, Long memberId, Long bidPrice) {
@@ -66,13 +67,13 @@ public class BidRequest {
 
   public void succeed() {
     this.status = BidRequestStatus.SUCCEEDED;
-    this.processedAt = LocalDateTime.now();
+    this.processedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public void fail(String failureCode, String failureMessage) {
     this.status = BidRequestStatus.FAILED;
     this.failureCode = failureCode;
     this.failureMessage = failureMessage;
-    this.processedAt = LocalDateTime.now();
+    this.processedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 }

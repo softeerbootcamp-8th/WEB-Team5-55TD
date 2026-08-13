@@ -5,6 +5,7 @@ import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.NotificationEvent;
 import com.ootd.pickup.global.exception.PickUpException;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
@@ -35,7 +36,7 @@ public record BidRequestFailedNotificationEvent(
         event.bidPrice(),
         exception.getExceptionCodeName(),
         exception.getMessage(),
-        LocalDateTime.now());
+        LocalDateTime.now(ZoneOffset.UTC));
   }
 
   @Override

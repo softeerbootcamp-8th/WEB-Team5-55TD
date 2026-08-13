@@ -26,6 +26,7 @@ import {
 import type { ExceptionResponse } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
 import { PRODUCT_STATUS_META } from "@/lib/status";
+import { getCardStateLabel } from "@/lib/card-state";
 
 const DEFAULT_DELETE_ERROR_MESSAGE =
   "상품 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.";
@@ -172,6 +173,10 @@ function ProductDetailPage() {
             <Row label="인증기관" value={product.grade?.agency ?? "-"} />
             <Row label="감정 등급" value={product.grade?.score ?? "-"} />
             <Row label="인증서 일련번호" value={product.grade?.serial ?? "-"} />
+            <Row
+              label="카드 상태"
+              value={getCardStateLabel(product.cardState)}
+            />
             <Row label="주요 결함" value={product.majorDefect ?? "-"} full />
           </dl>
 

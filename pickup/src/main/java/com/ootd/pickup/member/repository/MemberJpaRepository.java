@@ -8,6 +8,8 @@ public interface MemberJpaRepository extends JpaRepository<Member, Long> {
 
   Optional<Member> findByLoginId(String loginId);
 
+  Optional<Member> findByOauthProviderAndOauthSubject(String provider, String subject);
+
   boolean existsByLoginId(String loginId);
 
   boolean existsByNickname(String nickname);

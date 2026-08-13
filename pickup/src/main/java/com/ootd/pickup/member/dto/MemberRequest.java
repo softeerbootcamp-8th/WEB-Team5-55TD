@@ -28,5 +28,6 @@ public record MemberRequest(
     if (nickname != null) {
       nickname = nickname.strip();
     }
+
   }
 }
