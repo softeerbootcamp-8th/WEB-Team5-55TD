@@ -3,6 +3,7 @@ package com.ootd.pickup.consignments.dto.response;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.repository.auction.AuctionSummary;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
@@ -13,7 +14,7 @@ public record GetMyConsignmentsResponse(
     Long auctionId,
     GetCardDetailResponse card,
     Long sellerMemberId,
-    String cardState,
+    CardState cardState,
     String majorDefect,
     ConsignmentStatus status,
     AuctionStatus auctionStatus,

@@ -46,7 +46,7 @@ public interface ConsignmentApi {
                                   """
                         {
                           "cardId": 10,
-                          "cardState": "모서리 미세 스크래치",
+                          "cardState": "HIGH",
                           "majorDefect": "모서리에 약간의 마모",
                           "certificate": {
                             "serialNumber": "PSA-84213907",
@@ -84,7 +84,7 @@ public interface ConsignmentApi {
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberId": 1,
-                              "cardState": "모서리 미세 스크래치",
+                              "cardState": "HIGH",
                               "majorDefect": "모서리에 약간의 마모",
                               "status": "REGISTERABLE",
                               "certificate": {
@@ -157,7 +157,7 @@ public interface ConsignmentApi {
                                     "imageUrl": "https://example.com/cards/10.png"
                                   },
                                   "sellerMemberId": 1,
-                                  "cardState": "모서리 미세 스크래치",
+                                  "cardState": "HIGH",
                                   "majorDefect": "모서리에 약간의 마모",
                                   "status": "REGISTERABLE",
                                   "auctionStatus": null,
@@ -215,7 +215,7 @@ public interface ConsignmentApi {
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberNickname": "피카츄",
-                              "cardState": "모서리 미세 스크래치",
+                              "cardState": "HIGH",
                               "majorDefect": "모서리에 약간의 마모",
                               "status": "REGISTERABLE",
                               "auctionStatus": null,
@@ -267,7 +267,7 @@ public interface ConsignmentApi {
                               value =
                                   """
                         {
-                          "cardState": "모서리 미세 스크래치",
+                          "cardState": "HIGH",
                           "majorDefect": "모서리에 약간의 마모",
                           "certificate": {
                             "serialNumber": "PSA-84213907",
@@ -305,7 +305,7 @@ public interface ConsignmentApi {
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberNickname": "피카츄",
-                              "cardState": "모서리 미세 스크래치",
+                              "cardState": "HIGH",
                               "majorDefect": "모서리에 약간의 마모",
                               "status": "REGISTERABLE",
                               "auctionStatus": null,

@@ -17,12 +17,16 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useSearchCards } from "@/api/generated/card/card";
 import { registerConsignment } from "@/api/generated/consignment/consignment";
-import { CreateImageUploadRequestPurpose } from "@/api/generated/model";
+import {
+  CardState,
+  CreateImageUploadRequestPurpose,
+} from "@/api/generated/model";
 import type {
   ExceptionResponse,
   SearchCardsResponse,
 } from "@/api/generated/model";
 import { uploadImage } from "@/api/image-upload";
+import { CARD_STATE_OPTIONS, getCardStateLabel } from "@/lib/card-state";
 
 export const Route = createFileRoute("/seller/register")({
   component: RegisterWizard,
@@ -83,7 +87,7 @@ function RegisterWizard() {
   const [grade, setGrade] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
   const [inspectedAt, setInspectedAt] = useState("");
-  const [cardState, setCardState] = useState("");
+  const [cardState, setCardState] = useState<CardState | "">("");
   const [majorDefect, setMajorDefect] = useState("");
 
   const [images, setImages] = useState<ConsignmentImageValue[]>([]);
@@ -93,6 +97,7 @@ function RegisterWizard() {
       ? selectedCard !== null
       : step === 1
         ? grade.length > 0 &&
+          cardState.length > 0 &&
           serialNumber.trim().length > 0 &&
           inspectedAt.length > 0
         : step === 2
@@ -104,6 +109,10 @@ function RegisterWizard() {
 
   const { mutate: submitRegister, isPending: isSubmitting } = useMutation({
     mutationFn: async (cardId: number) => {
+      if (!cardState) {
+        throw new Error("카드 상태를 선택해 주세요.");
+      }
+
       const temporaryObjectKeys = await Promise.all(
         images.map((image) => {
           if (image.kind !== "new") {
@@ -118,7 +127,7 @@ function RegisterWizard() {
 
       return registerConsignment({
         cardId,
-        cardState: cardState.trim() || undefined,
+        cardState,
         majorDefect: majorDefect.trim() || undefined,
         certificate: {
           serialNumber: serialNumber.trim(),
@@ -296,12 +305,20 @@ function RegisterWizard() {
                 />
               </Field>
             </div>
-            <Field label="카드 상태">
-              <Input
+            <Field label="카드 상태" required>
+              <Select
                 value={cardState}
-                onChange={(e) => setCardState(e.target.value)}
-                placeholder="예: 민트, 모서리 미세 마모"
-              />
+                onChange={(e) => setCardState(e.target.value as CardState)}
+              >
+                <option value="" disabled>
+                  상태 선택
+                </option>
+                {CARD_STATE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
             </Field>
             <Field label="주요 결함 (손상 상세)">
               <Input
@@ -343,7 +360,10 @@ function RegisterWizard() {
               />
               <Summary label="일련번호" value={serialNumber} />
               <Summary label="감정일" value={inspectedAt} />
-              <Summary label="카드 상태" value={cardState || "-"} />
+              <Summary
+                label="카드 상태"
+                value={getCardStateLabel(cardState || undefined)}
+              />
               <Summary label="주요 결함" value={majorDefect || "-"} />
               <Summary label="이미지" value={`${images.length}장`} />
             </dl>

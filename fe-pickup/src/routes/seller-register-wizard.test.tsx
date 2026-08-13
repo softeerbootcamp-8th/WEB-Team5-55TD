@@ -73,6 +73,9 @@ describe("셀러 등록 위저드", () => {
     fireEvent.change(screen.getByDisplayValue("등급 선택"), {
       target: { value: "GEM_MINT" },
     });
+    fireEvent.change(screen.getByDisplayValue("상태 선택"), {
+      target: { value: "HIGH" },
+    });
     fireEvent.change(screen.getByPlaceholderText("PSA-84213907"), {
       target: { value: "PSA-1" },
     });
@@ -87,6 +90,7 @@ describe("셀러 등록 위저드", () => {
     fireEvent.click(screen.getByRole("button", { name: "다음 단계" }));
     expect(screen.getByText("입력 정보 최종 확인")).toBeInTheDocument();
     expect(screen.getByText("Charizard")).toBeInTheDocument();
+    expect(screen.getByText("상")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "등록 완료" }));
     expect(mutate).toHaveBeenCalledWith(1);
   });

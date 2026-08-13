@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { Grade } from "@/lib/types";
+import type { CardState } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
 import { axiosInstance } from "@/api/mutator/custom-instance";
 
@@ -65,7 +66,7 @@ export interface ConsignmentDetail extends ConsignmentSummary {
   cardNumber: string;
   language: string;
   rarity: string;
-  cardState?: string;
+  cardState?: CardState;
   majorDefect?: string;
   images: ConsignmentImage[];
   auctionRegistered: boolean;
@@ -88,7 +89,7 @@ interface ConsignmentDetailResponse {
   consignmentId: number;
   card: ConsignmentCardResponse;
   sellerMemberNickname: string;
-  cardState?: string | null;
+  cardState?: CardState | null;
   majorDefect?: string | null;
   status: ApiConsignmentStatus;
   auctionStatus?: ApiAuctionSubStatus | null;

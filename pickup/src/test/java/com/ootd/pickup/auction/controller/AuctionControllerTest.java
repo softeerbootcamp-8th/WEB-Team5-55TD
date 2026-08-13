@@ -15,6 +15,7 @@ import com.ootd.pickup.auction.dto.response.CertificateResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.service.AuctionService;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
 import com.ootd.pickup.global.auth.Authentication;
@@ -250,7 +251,7 @@ class AuctionControllerTest {
         .andExpect(jsonPath("$.auctionId").value(1L))
         .andExpect(jsonPath("$.consignmentId").value(100L))
         .andExpect(jsonPath("$.grade").value("PSA 10"))
-        .andExpect(jsonPath("$.cardState").value("Gem Mint"))
+        .andExpect(jsonPath("$.cardState").value("HIGH"))
         .andExpect(jsonPath("$.sellerId").value(42L))
         .andExpect(jsonPath("$.sellerNickname").value("카드마스터샵"))
         .andExpect(jsonPath("$.certificate.serialNumber").value("PSA-84213907"))
@@ -291,7 +292,7 @@ class AuctionControllerTest {
         new CertificateResponse(
             1L, "PSA-84213907", CertificationBody.PSA, "10", LocalDate.of(2026, 6, 30)),
         List.of(new ConsignmentImageResponse(1L, 0, "https://img-front")),
-        "Gem Mint",
+        CardState.HIGH,
         null,
         500L,
         10000L,

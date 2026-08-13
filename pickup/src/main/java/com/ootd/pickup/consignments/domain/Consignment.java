@@ -39,8 +39,9 @@ public class Consignment {
   @JoinColumn(name = "seller_member_id", nullable = false)
   private Member sellerMember;
 
-  @Column(name = "card_state")
-  private String cardState;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "card_state", length = 16)
+  private CardState cardState;
 
   @Column(name = "major_defect")
   private String majorDefect;
@@ -53,7 +54,7 @@ public class Consignment {
   public Consignment(
       Card card,
       Member sellerMember,
-      String cardState,
+      CardState cardState,
       String majorDefect,
       ConsignmentStatus status) {
     this.card = card;
@@ -71,7 +72,7 @@ public class Consignment {
     return status.isDeletable();
   }
 
-  public void updateCardState(String cardState) {
+  public void updateCardState(CardState cardState) {
     this.cardState = cardState;
   }
 

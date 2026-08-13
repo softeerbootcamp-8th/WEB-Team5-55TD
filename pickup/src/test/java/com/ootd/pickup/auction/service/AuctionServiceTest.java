@@ -18,6 +18,7 @@ import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.domain.Consignment;
@@ -49,7 +50,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class AuctionServiceTest {
 
-  private static final String CARD_STATE = "모서리 미세 스크래치";
+  private static final CardState CARD_STATE = CardState.HIGH;
 
   @Mock private ConsignmentRepository consignmentRepository;
 

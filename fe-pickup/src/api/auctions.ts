@@ -1,4 +1,5 @@
 import type { AuctionDetail, AuctionSummary, Grade } from "@/lib/types";
+import type { CardState } from "@/api/generated/model";
 import { AuctionStatus } from "@/lib/types";
 import { axiosInstance } from "@/api/mutator/custom-instance";
 
@@ -39,7 +40,7 @@ interface AuctionPageResponse {
 
 export interface AuctionDetailView extends AuctionDetail {
   card?: CardResponse;
-  cardState?: string;
+  cardState?: CardState;
   majorDefect?: string;
   inspectedAt?: string;
   /** 경매 전체의 낙찰 여부 (WON). 낙찰자가 누구인지와 무관하게 경매 자체의 결과다. */
@@ -219,7 +220,7 @@ interface AuctionDetailResponse extends AuctionListItemResponse {
   sellerNickname?: string | null;
   certificate?: CertificateResponse | null;
   images?: ConsignmentImageResponse[] | null;
-  cardState?: string | null;
+  cardState?: CardState | null;
   majorDefect?: string | null;
   bidIncrement?: number | null;
   myBidWon?: boolean;
