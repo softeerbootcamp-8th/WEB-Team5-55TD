@@ -60,6 +60,7 @@ import {
   mergeLatestBid,
   type AuctionBidsSnapshot,
 } from "@/lib/auction-live-state";
+import { pokemonAvatarForKey } from "@/lib/pokemon-avatars";
 
 const ACTIVE_POLLING_INTERVAL_MILLIS = 15_000;
 const POLLING_JITTER_MILLIS = 3_000;
@@ -532,6 +533,9 @@ function LiveAuctionPage() {
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
               <Avatar
                 src={auction.sellerProfileImageUrl}
+                fallbackSrc={pokemonAvatarForKey(
+                  auction.sellerId ?? auction.sellerNickname ?? "판매자",
+                )}
                 nickname={auction.sellerNickname || "판매자"}
                 className="size-7"
                 initialClassName="text-xs"
