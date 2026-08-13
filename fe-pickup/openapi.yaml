@@ -1820,6 +1820,7 @@ components:
         startingPrice:
           type: integer
           format: int64
+          minimum: 1000
         reserve:
           type: integer
           format: int64

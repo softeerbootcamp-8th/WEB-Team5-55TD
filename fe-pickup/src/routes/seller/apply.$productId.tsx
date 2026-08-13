@@ -23,7 +23,12 @@ import { registerAuction } from "@/api/auctions";
 import { getMyConsignmentDetail } from "@/api/consignments";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
-import { formatDateTime, formatWon, minBidUnit } from "@/lib/format";
+import {
+  formatDateTime,
+  formatWon,
+  minBidUnit,
+  MINIMUM_STARTING_PRICE,
+} from "@/lib/format";
 import {
   kstLocalInputToUtcIso,
   utcInstantToKstLocalInput,
@@ -66,8 +71,15 @@ function AuctionApplyPage() {
 
   const startValue = parsePositivePrice(startPrice);
   const reserveValue = parsePositivePrice(reserve);
+  const startPriceTooLow =
+    startValue !== null && startValue < MINIMUM_STARTING_PRICE;
+  const reserveBelowStart =
+    startValue !== null && reserveValue !== null && startValue > reserveValue;
   const priceRangeValid =
-    startValue !== null && reserveValue !== null && startValue <= reserveValue;
+    startValue !== null &&
+    !startPriceTooLow &&
+    reserveValue !== null &&
+    !reserveBelowStart;
   const unit = startValue ? minBidUnit(startValue) : 0;
   const scheduleValue = schedule
     ? Date.parse(kstLocalInputToUtcIso(schedule))
@@ -205,6 +217,12 @@ function AuctionApplyPage() {
               시작가는 0보다 큰 안전한 범위의 정수로 입력해 주세요.
             </p>
           )}
+          {startPriceTooLow && (
+            <p className="text-xs text-[var(--color-danger)]">
+              시작가는 {formatWon(MINIMUM_STARTING_PRICE)} 이상으로 입력해
+              주세요.
+            </p>
+          )}
           <p className="text-xs text-[var(--color-text-muted)]">
             최소 입찰 단위는 시작가의 5%로 시스템이 결정합니다 —{" "}
             <span className="tabular font-semibold text-foreground">
@@ -230,7 +248,7 @@ function AuctionApplyPage() {
               최소 희망 낙찰가는 0보다 큰 안전한 범위의 정수로 입력해 주세요.
             </p>
           )}
-          {startValue !== null && reserveValue !== null && !priceRangeValid && (
+          {reserveBelowStart && (
             <p className="text-xs text-[var(--color-danger)]">
               최소 희망 낙찰가는 희망 시작가 이상으로 입력해 주세요.
             </p>

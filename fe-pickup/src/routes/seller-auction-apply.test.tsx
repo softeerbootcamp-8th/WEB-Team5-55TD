@@ -122,4 +122,68 @@ describe("셀러 경매 신청", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "경매 신청" })).toBeDisabled();
   });
+
+  it("희망 시작가가 1,000원 미만이면 신청할 수 없다", async () => {
+    query = { isPending: false, data: product };
+    const { Route } = await import("@/routes/seller/apply.$productId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    fireEvent.change(screen.getByPlaceholderText("경매 제목을 입력해 주세요"), {
+      target: { value: "테스트 경매 제목" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("1,000,000"), {
+      target: { value: "999" },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText("구매자에게 공개되지 않습니다"),
+      { target: { value: "15000" } },
+    );
+    fireEvent.change(
+      document.querySelector(
+        'input[type="datetime-local"]',
+      ) as HTMLInputElement,
+      { target: { value: "2099-01-01T10:00" } },
+    );
+
+    expect(
+      screen.getByText("시작가는 1,000원 이상으로 입력해 주세요."),
+    ).toBeInTheDocument();
+    // 낙찰가는 시작가보다 크므로 낙찰가 오류까지 같이 뜨면 안 된다.
+    expect(
+      screen.queryByText(
+        "최소 희망 낙찰가는 희망 시작가 이상으로 입력해 주세요.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "경매 신청" })).toBeDisabled();
+  });
+
+  it("희망 시작가가 정확히 1,000원이면 신청할 수 있다", async () => {
+    query = { isPending: false, data: product };
+    const { Route } = await import("@/routes/seller/apply.$productId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    fireEvent.change(screen.getByPlaceholderText("경매 제목을 입력해 주세요"), {
+      target: { value: "테스트 경매 제목" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("1,000,000"), {
+      target: { value: "1000" },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText("구매자에게 공개되지 않습니다"),
+      { target: { value: "15000" } },
+    );
+    fireEvent.change(
+      document.querySelector(
+        'input[type="datetime-local"]',
+      ) as HTMLInputElement,
+      { target: { value: "2099-01-01T10:00" } },
+    );
+
+    expect(
+      screen.queryByText("시작가는 1,000원 이상으로 입력해 주세요."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "경매 신청" })).toBeEnabled();
+  });
 });
