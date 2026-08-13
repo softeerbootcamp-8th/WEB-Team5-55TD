@@ -1,6 +1,7 @@
 import type { AuctionDetail, AuctionSummary, Grade } from "@/lib/types";
 import { AuctionStatus } from "@/lib/types";
 import { axiosInstance } from "@/api/mutator/custom-instance";
+import { minBidUnit } from "@/lib/format";
 
 type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
@@ -266,7 +267,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     grade,
     sellerId: item.sellerId != null ? String(item.sellerId) : undefined,
     sellerNickname: item.sellerNickname ?? undefined,
-    minBidUnit: item.bidIncrement ?? Math.round(item.startingPrice * 0.05),
+    minBidUnit: item.bidIncrement ?? minBidUnit(item.startingPrice),
     images: (item.images ?? []).map((image) => image.imageUrl),
     bidCount: 0,
     card: item.card,
@@ -283,7 +284,7 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
   return {
     ...summary,
     sellerNickname: "",
-    minBidUnit: Math.round(item.startingPrice * 0.05),
+    minBidUnit: minBidUnit(item.startingPrice),
     images: [item.thumbnailUrl, item.card.imageUrl].filter(
       (url): url is string => Boolean(url),
     ),

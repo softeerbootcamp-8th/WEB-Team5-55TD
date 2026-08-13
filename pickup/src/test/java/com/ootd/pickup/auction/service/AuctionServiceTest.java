@@ -123,6 +123,35 @@ class AuctionServiceTest {
   }
 
   @Test
+  void 시작가가_100원으로_나누어떨어지지_않아도_최소_입찰_단위는_시작가의_5퍼센트_반올림이다() {
+    // given
+    Long memberId = 1L;
+    Long consignmentId = 10L;
+    Consignment consignment =
+        createConsignment(consignmentId, memberId, ConsignmentStatus.REGISTERABLE, null);
+    given(consignmentRepository.findConsignmentById(consignmentId))
+        .willReturn(Optional.of(consignment));
+    given(auctionRepository.save(any(Auction.class)))
+        .willAnswer(
+            invocation -> {
+              Auction auction = invocation.getArgument(0);
+              ReflectionTestUtils.setField(auction, "auctionId", 1L);
+              return auction;
+            });
+
+    LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1).withHour(13).withMinute(30);
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(consignmentId, 12_345L, 20_000L, scheduledStartAt);
+
+    // when
+    CreateAuctionResponse response = auctionService.registerAuction(memberId, request);
+
+    // then
+    // 프론트의 minBidUnit(=Math.round(startPrice * 0.05))과 같은 값이어야 한다.
+    assertThat(response.bidIncrement()).isEqualTo(617L);
+  }
+
+  @Test
   void 존재하지_않는_위탁상품이면_예외가_발생한다() {
     // given
     Long memberId = 1L;
