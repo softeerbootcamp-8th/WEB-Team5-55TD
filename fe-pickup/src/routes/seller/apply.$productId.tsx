@@ -259,8 +259,8 @@ function AuctionApplyPage() {
       </div>
 
       <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
-        신청 후에는 수정·삭제할 수 없습니다. 종료 5분 내 입찰이 발생하면 마지막
-        입찰부터 5분간 자동 연장되며, 유찰 시 재신청이 가능합니다.
+        신청 후에는 수정·삭제할 수 없습니다. 종료 5분 내 입찰이 발생하면 종료
+        시각이 5분 연장되며, 유찰 시 재신청이 가능합니다.
       </p>
 
       <Button

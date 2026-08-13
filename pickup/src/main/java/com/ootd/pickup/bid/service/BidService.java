@@ -93,7 +93,7 @@ public class BidService {
 
     Long previousHighestBidId = auction.getWinningBidId();
     auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
-    if (auction.extendEndAtForSoftClose(bidAt)) {
+    if (auctionRepository.extendEndAtIfClosingSoon(auction, bidAt)) {
       log.info("마감 임박 입찰로 경매를 연장했습니다 - auctionId={}, endedAt={}", auctionId, auction.getEndedAt());
     }
     auctionRepository.save(auction);

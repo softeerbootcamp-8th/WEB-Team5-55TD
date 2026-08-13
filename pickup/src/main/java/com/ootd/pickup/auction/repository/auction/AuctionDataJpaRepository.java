@@ -7,6 +7,7 @@ import static com.ootd.pickup.consignments.domain.QConsignment.consignment;
 import static com.ootd.pickup.member.domain.QMember.member;
 
 import com.ootd.pickup.auction.domain.Auction;
+import com.ootd.pickup.auction.domain.AuctionSchedulePolicy;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.cards.domain.Language;
@@ -19,6 +20,7 @@ import com.querydsl.core.types.dsl.DateTimeExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.querydsl.jpa.impl.JPAUpdateClause;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
@@ -259,6 +261,35 @@ public class AuctionDataJpaRepository implements AuctionRepository {
                     .where(auction.auctionId.eq(auctionId)))
             .setLockMode(LockModeType.PESSIMISTIC_WRITE)
             .fetchOne());
+  }
+
+  @Override
+  public boolean extendEndAtIfClosingSoon(Auction targetAuction, LocalDateTime bidAt) {
+    LocalDateTime currentEndAt = targetAuction.getEndedAt();
+    if (currentEndAt == null) {
+      return false;
+    }
+
+    LocalDateTime softCloseBoundary = bidAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+    LocalDateTime extendedEndAt = currentEndAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+    long updatedRows =
+        new JPAUpdateClause(entityManager, auction)
+            .set(auction.endedAt, extendedEndAt)
+            .where(
+                auction.auctionId.eq(targetAuction.getAuctionId()),
+                auction.auctionStatus.eq(AuctionStatus.ONGOING),
+                auction.endedAt.eq(currentEndAt),
+                auction.endedAt.gt(bidAt),
+                auction.endedAt.lt(softCloseBoundary))
+            .execute();
+    if (updatedRows != 1) {
+      return false;
+    }
+
+    // 벌크 UPDATE는 영속성 컨텍스트를 우회하므로 이후 조회가 이전 종료 시각을 보지 않게 한다.
+    entityManager.clear();
+    targetAuction.extendEndAtBySoftCloseWindow();
+    return true;
   }
 
   @Override
