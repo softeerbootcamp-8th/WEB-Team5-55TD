@@ -59,6 +59,18 @@ class RefreshTokenRedisRepositoryTest {
   }
 
   @Test
+  void 소비한_토큰은_재사용_탐지를_위해_사용_흔적을_남긴다() {
+    // given
+    when(valueOperations.getAndDelete("auth:refresh:token-hash")).thenReturn("1");
+
+    // when
+    refreshTokenRepository.consume("token-hash");
+
+    // then
+    verify(valueOperations).set("auth:refresh:used:token-hash", "1", Duration.ofMinutes(5));
+  }
+
+  @Test
   void 존재하지_않는_리프레시_토큰을_조회하면_빈_값을_반환한다() {
     // given
     when(valueOperations.getAndDelete("auth:refresh:token-hash")).thenReturn(null);
@@ -66,6 +78,36 @@ class RefreshTokenRedisRepositoryTest {
     // when & then
     assertThat(refreshTokenRepository.consume("token-hash")).isEmpty();
     verify(setOperations, never()).remove(anyString(), anyString());
+  }
+
+  @Test
+  void 이미_소비된_토큰이_재사용되면_회원의_모든_리프레시_토큰을_회수한다() {
+    // given — 사용 흔적에 회원 아이디가 남아 있는 상태(=이미 한 번 소비된 토큰)를 재현한다.
+    when(valueOperations.getAndDelete("auth:refresh:token-hash")).thenReturn(null);
+    when(valueOperations.get("auth:refresh:used:token-hash")).thenReturn("1");
+    when(setOperations.members("auth:refresh:member:1"))
+        .thenReturn(Set.of("token-hash", "other-hash"));
+
+    // when
+    assertThat(refreshTokenRepository.consume("token-hash")).isEmpty();
+
+    // then
+    verify(redisTemplate).delete("auth:refresh:token-hash");
+    verify(redisTemplate).delete("auth:refresh:other-hash");
+    verify(redisTemplate).delete("auth:refresh:member:1");
+  }
+
+  @Test
+  void 사용_흔적이_없는_미존재_토큰은_회수를_시도하지_않는다() {
+    // given
+    when(valueOperations.getAndDelete("auth:refresh:token-hash")).thenReturn(null);
+    when(valueOperations.get("auth:refresh:used:token-hash")).thenReturn(null);
+
+    // when
+    assertThat(refreshTokenRepository.consume("token-hash")).isEmpty();
+
+    // then
+    verify(setOperations, never()).members(anyString());
   }
 
   @Test

@@ -442,6 +442,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
                 .where(
                     auction.auctionId.in(auctionIds),
                     auction.auctionStatus.eq(AuctionStatus.ONGOING),
+                    auction.endedAt.loe(DateTimeExpression.currentTimestamp(LocalDateTime.class)),
                     auction.winningPrice.isNotNull(),
                     auction.winningPrice.goe(auction.reservePrice))
                 .execute();
@@ -459,6 +460,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
                 .where(
                     auction.auctionId.in(auctionIds),
                     auction.auctionStatus.eq(AuctionStatus.ONGOING),
+                    auction.endedAt.loe(DateTimeExpression.currentTimestamp(LocalDateTime.class)),
                     auction.winningPrice.isNull().or(auction.winningPrice.lt(auction.reservePrice)))
                 .execute();
     entityManager.clear();

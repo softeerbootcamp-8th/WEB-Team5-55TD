@@ -332,6 +332,7 @@ public class MemberService {
 
     member.withdraw();
     authService.revokeAllRefreshTokens(memberId);
+    authService.denylistAccessTokens(memberId);
     log.info("회원이 탈퇴했습니다 - memberId={}", memberId);
   }
 

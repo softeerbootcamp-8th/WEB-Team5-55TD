@@ -1,6 +1,8 @@
 package com.ootd.pickup.global.auth.filter;
 
+import com.ootd.pickup.auth.repository.AccessTokenDenylistRepository;
 import com.ootd.pickup.auth.token.AccessTokenVerifier;
+import com.ootd.pickup.auth.token.InvalidAccessTokenException;
 import com.ootd.pickup.global.auth.Authentication;
 import com.ootd.pickup.global.auth.AuthenticationAttributes;
 import jakarta.servlet.FilterChain;
@@ -21,6 +23,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
       Set.of("/auth/refresh", "/auth/logout");
 
   private final AccessTokenVerifier accessTokenVerifier;
+  private final AccessTokenDenylistRepository accessTokenDenylistRepository;
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -39,6 +42,9 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     }
 
     Authentication authentication = accessTokenVerifier.verify(accessToken.get());
+    if (accessTokenDenylistRepository.isDenylisted(authentication.memberId())) {
+      throw new InvalidAccessTokenException();
+    }
     request.setAttribute(AuthenticationAttributes.ATTRIBUTE_NAME, authentication);
 
     filterChain.doFilter(request, response);

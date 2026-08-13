@@ -5,6 +5,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.*;
 import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.dto.LoginResponseBody;
 import com.ootd.pickup.auth.dto.RefreshResponseBody;
+import com.ootd.pickup.auth.repository.AccessTokenDenylistRepository;
 import com.ootd.pickup.auth.repository.RefreshTokenRepository;
 import com.ootd.pickup.auth.token.AccessToken;
 import com.ootd.pickup.auth.token.AccessTokenGenerator;
@@ -28,10 +29,14 @@ public class AuthService {
   private final AccessTokenGenerator accessTokenGenerator;
   private final RefreshTokenGenerator refreshTokenGenerator;
   private final RefreshTokenRepository refreshTokenRepository;
+  private final AccessTokenDenylistRepository accessTokenDenylistRepository;
+  private final LoginAttemptLimiter loginAttemptLimiter;
   private final JwtTokenProperties jwtTokenProperties;
   private final ImageUrlResolver imageUrlResolver;
 
   public LoginResponse login(LoginRequest loginRequest) {
+    loginAttemptLimiter.checkAllowed(loginRequest.loginId());
+
     Member member =
         memberRepository
             .findByLoginId(loginRequest.loginId())
@@ -41,6 +46,7 @@ public class AuthService {
       throw new PickUpException(INVALID_PASSWORD);
     }
 
+    loginAttemptLimiter.reset(loginRequest.loginId());
     return issueLogin(member);
   }
 
@@ -80,6 +86,14 @@ public class AuthService {
   /** 회원이 가진 모든 기기의 리프레시 토큰을 회수한다. 탈퇴 후 재로그인을 막기 위해 쓴다. */
   public void revokeAllRefreshTokens(Long memberId) {
     refreshTokenRepository.deleteByMemberId(memberId);
+  }
+
+  /**
+   * 이미 발급된 액세스 토큰은 자체 만료 전까지 서명만으로 유효하다. 탈퇴 시점에 들고 있던 토큰이 만료(access-token-ttl) 전까지 계속 통하는 것을 막기 위해,
+   * 남은 만료 시간만큼 거부 목록에 올려둔다.
+   */
+  public void denylistAccessTokens(Long memberId) {
+    accessTokenDenylistRepository.denylistMember(memberId, jwtTokenProperties.accessTokenTtl());
   }
 
   public RefreshResponse refresh(String refreshToken) {

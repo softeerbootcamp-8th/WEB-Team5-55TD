@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import {
   useInfiniteQuery,
   type InfiniteData,
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getMyBids, getMyWins } from "@/api/bids";
+import { isAuthenticated } from "@/lib/auth";
 import type { MyBidItem } from "@/lib/types";
 import { MyBidStatus } from "@/lib/types";
 import { formatWon } from "@/lib/format";
@@ -24,6 +25,11 @@ interface MyBidsPage {
 }
 
 export const Route = createFileRoute("/_buyer/bids")({
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: "/login" });
+    }
+  },
   component: BidHistoryPage,
 });
 
@@ -146,7 +152,10 @@ function BidHistorySection({
     <div className="flex flex-col gap-3">
       <BidTable items={items} />
       {hasNextPage && (
-        <div ref={sentinelRef} className="flex flex-col items-center gap-2 py-2">
+        <div
+          ref={sentinelRef}
+          className="flex flex-col items-center gap-2 py-2"
+        >
           <Button
             variant="secondary"
             disabled={isFetchingNextPage}
