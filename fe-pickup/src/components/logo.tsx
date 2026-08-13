@@ -12,7 +12,7 @@ const GRADIENT_STOPS: Record<LogoRole, { from: string; to: string }> = {
 
 /**
  * PickUp 심볼 마크 — 파비콘(public/favicon.svg)과 동일한 "P mark" 벡터.
- * 셀러 모드(role="seller")에서는 --color-seller 톤의 보라색 그라디언트로 전환된다.
+ * 셀러 모드(role="seller")에서는 --color-seller 톤의 스카이 블루 그라디언트로 전환된다.
  */
 export function Logo({
   role = "buyer",
