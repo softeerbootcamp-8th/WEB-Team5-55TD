@@ -141,7 +141,7 @@ class AuctionServiceTest {
 
     LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1).withHour(13).withMinute(30);
     CreateAuctionRequest request =
-        new CreateAuctionRequest(consignmentId, 12_345L, 20_000L, scheduledStartAt);
+        new CreateAuctionRequest(consignmentId, 12_345L, 20_000L, scheduledStartAt, "test title", "test description");
 
     // when
     CreateAuctionResponse response = auctionService.registerAuction(memberId, request);

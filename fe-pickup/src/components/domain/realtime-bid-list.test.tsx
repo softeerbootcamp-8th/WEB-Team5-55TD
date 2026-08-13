@@ -7,7 +7,7 @@ const now = new Date().toISOString();
 
 function bid(overrides: Partial<Bid> & { id: string }): Bid {
   return {
-    maskedNickname: "ab***12",
+    nickname: "alpha12",
     amount: 1000,
     createdAt: now,
     ...overrides,
@@ -31,9 +31,9 @@ describe("RealtimeBidList", () => {
     render(
       <RealtimeBidList
         bids={[
-          bid({ id: "3", maskedNickname: "bb***22", amount: 3000 }),
-          bid({ id: "2", maskedNickname: "aa***11", amount: 2000 }),
-          bid({ id: "1", maskedNickname: "bb***22", amount: 1000 }),
+          bid({ id: "3", nickname: "bravo22", amount: 3000 }),
+          bid({ id: "2", nickname: "alpha11", amount: 2000 }),
+          bid({ id: "1", nickname: "bravo22", amount: 1000 }),
         ]}
         hasNext={false}
         isFetchingNextPage={false}
@@ -43,9 +43,9 @@ describe("RealtimeBidList", () => {
 
     const rows = screen.getAllByRole("listitem");
     expect(rows).toHaveLength(2);
-    expect(within(rows[0]).getByText("bb***22")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("bravo22")).toBeInTheDocument();
     expect(within(rows[0]).getByText("3,000원")).toBeInTheDocument();
-    expect(within(rows[1]).getByText("aa***11")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("alpha11")).toBeInTheDocument();
     const avatars = screen.getAllByRole("img");
     expect(avatars[0]).toHaveAttribute("src", "/avatars/pokemon/squirtle.webp");
     expect(avatars[1]).toHaveAttribute("src", "/avatars/pokemon/pikachu.webp");
@@ -55,10 +55,10 @@ describe("RealtimeBidList", () => {
     const { rerender } = render(
       <RealtimeBidList
         bids={[
-          bid({ id: "2", maskedNickname: "aa***11" }),
+          bid({ id: "2", nickname: "alpha11" }),
           bid({
             id: "1",
-            maskedNickname: "bb***22",
+            nickname: "bravo22",
             profileImageUrl: "/profile.webp",
           }),
         ]}
@@ -67,12 +67,12 @@ describe("RealtimeBidList", () => {
         onLoadMore={vi.fn()}
       />,
     );
-    const firstFallback = screen.getByAltText("aa***11 프로필 이미지");
+    const firstFallback = screen.getByAltText("alpha11 프로필 이미지");
     expect(firstFallback).toHaveAttribute(
       "src",
       "/avatars/pokemon/pikachu.webp",
     );
-    expect(screen.getByAltText("bb***22 프로필 이미지")).toHaveAttribute(
+    expect(screen.getByAltText("bravo22 프로필 이미지")).toHaveAttribute(
       "src",
       "/profile.webp",
     );
@@ -80,8 +80,8 @@ describe("RealtimeBidList", () => {
     rerender(
       <RealtimeBidList
         bids={[
-          bid({ id: "3", maskedNickname: "bb***22" }),
-          bid({ id: "2", maskedNickname: "aa***11" }),
+          bid({ id: "3", nickname: "bravo22" }),
+          bid({ id: "2", nickname: "alpha11" }),
         ]}
         hasNext={false}
         isFetchingNextPage={false}
@@ -89,7 +89,7 @@ describe("RealtimeBidList", () => {
       />,
     );
 
-    expect(screen.getByAltText("aa***11 프로필 이미지")).toHaveAttribute(
+    expect(screen.getByAltText("alpha11 프로필 이미지")).toHaveAttribute(
       "src",
       firstFallback.getAttribute("src"),
     );

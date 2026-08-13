@@ -43,7 +43,7 @@ export type AuctionDetail = AuctionSummary & {
 
 export interface Bid {
   id: string;
-  maskedNickname: string;
+  nickname: string;
   profileImageUrl?: string;
   amount: number;
   createdAt: string;

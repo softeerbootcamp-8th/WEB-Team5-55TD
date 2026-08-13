@@ -8,7 +8,7 @@ export interface AuctionBidsSnapshot {
 
 export interface IncomingLatestBid {
   bidId: number;
-  nicknameMasked: string;
+  nickname: string;
   bidPrice: number;
   createdAt: string;
 }
@@ -23,13 +23,13 @@ export function mergeLatestBid(
 
   const previousBid = snapshot.items.find(
     (item) =>
-      item.maskedNickname === latestBid.nicknameMasked ||
+      item.nickname === latestBid.nickname ||
       (isMine && item.isMine),
   );
 
   const bid: Bid = {
     id: String(latestBid.bidId),
-    maskedNickname: latestBid.nicknameMasked,
+    nickname: latestBid.nickname,
     profileImageUrl: previousBid?.profileImageUrl,
     amount: latestBid.bidPrice,
     createdAt: latestBid.createdAt,

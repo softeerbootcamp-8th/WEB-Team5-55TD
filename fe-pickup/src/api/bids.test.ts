@@ -14,7 +14,7 @@ describe("bids api", () => {
         items: [
           {
             bidId: 1,
-            nicknameMasked: "피***터",
+            nickname: "피카츄마스터",
             profileImageUrl: "https://images.test/profile.webp",
             bidPrice: 1000,
             createdAt: "2026-08-13T00:00:00",
@@ -29,7 +29,7 @@ describe("bids api", () => {
       items: [
         {
           profileImageUrl: "https://images.test/profile.webp",
-          maskedNickname: "피***터",
+          nickname: "피카츄마스터",
         },
       ],
     });

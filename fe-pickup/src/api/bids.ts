@@ -71,7 +71,7 @@ export function getBidErrorMessage(error: unknown): string {
 
 interface AuctionBidListItemResponse {
   bidId: number;
-  nicknameMasked: string;
+  nickname: string;
   profileImageUrl?: string | null;
   bidPrice: number;
   createdAt: string;
@@ -125,7 +125,7 @@ export interface MyBidsParams {
 function toBid(item: AuctionBidListItemResponse): Bid {
   return {
     id: String(item.bidId),
-    maskedNickname: item.nicknameMasked,
+    nickname: item.nickname,
     profileImageUrl: item.profileImageUrl ?? undefined,
     amount: item.bidPrice,
     createdAt: item.createdAt,

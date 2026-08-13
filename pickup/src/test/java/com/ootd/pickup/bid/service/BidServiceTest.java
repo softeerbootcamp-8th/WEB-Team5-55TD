@@ -317,7 +317,7 @@ class BidServiceTest {
 
     AuctionBidListItemResponse first = response.items().get(0);
     assertThat(first.bidId()).isEqualTo(101L);
-    assertThat(first.nicknameMasked()).isEqualTo("닉***2");
+    assertThat(first.nickname()).isEqualTo("닉네임2");
     assertThat(first.profileImageUrl()).isEqualTo("https://images.test/profiles/2.webp");
     assertThat(first.bidPrice()).isEqualTo(11_000L);
     assertThat(first.isMine()).isTrue();
