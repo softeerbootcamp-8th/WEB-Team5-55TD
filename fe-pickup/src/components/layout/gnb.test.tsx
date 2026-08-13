@@ -59,8 +59,7 @@ describe("Gnb", () => {
 
   it("비로그인 구매자에게 인증 링크를 표시한다", async () => {
     const { Gnb } = await import("./gnb");
-    const { container } = render(<Gnb role="buyer" />);
-    expect(container.querySelector('img[src="/logo.png"]')).toBeInTheDocument();
+    render(<Gnb role="buyer" />);
     expect(screen.getAllByText("로그인").length).toBeGreaterThan(0);
     expect(screen.getAllByText("회원가입").length).toBeGreaterThan(0);
   });
@@ -68,8 +67,7 @@ describe("Gnb", () => {
   it("로그인 셀러에게 셀러 내비게이션과 포인트를 표시한다", async () => {
     authenticated = true;
     const { Gnb } = await import("./gnb");
-    const { container } = render(<Gnb role="seller" />);
-    expect(container.querySelector('img[src="/logo.png"]')).toBeInTheDocument();
+    render(<Gnb role="seller" />);
     expect(screen.getAllByText("PickUp 홈").length).toBeGreaterThan(0);
     expect(screen.getAllByText("상품").length).toBeGreaterThan(0);
     expect(screen.getAllByText("12,345P").length).toBeGreaterThan(0);

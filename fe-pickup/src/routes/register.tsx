@@ -57,7 +57,7 @@ function RegisterPage() {
     >
       <div className="flex flex-col gap-4">
         <Link to="/home" className="flex items-center gap-2 self-start">
-          <Logo className="size-6" />
+          <Logo role="buyer" className="size-6" />
           <span className="text-lg font-bold">PickUp</span>
         </Link>
         <div className="flex flex-col gap-1">

@@ -50,7 +50,7 @@ function LoginPage() {
     >
       <div className="flex flex-col items-center gap-2 text-center">
         <Link to="/home" className="flex flex-col items-center gap-2">
-          <Logo className="size-8" />
+          <Logo role="buyer" className="size-8" />
           <h1 className="text-2xl font-bold">PickUp</h1>
         </Link>
         <p className="text-sm text-[var(--color-text-sub)]">
