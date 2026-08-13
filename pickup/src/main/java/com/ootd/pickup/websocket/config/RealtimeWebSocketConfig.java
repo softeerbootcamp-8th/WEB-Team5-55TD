@@ -59,8 +59,8 @@ public class RealtimeWebSocketConfig implements WebSocketMessageBrokerConfigurer
     // /user/** 로 보낸 메시지를 로그인한 세션의 Principal(memberId) 기준으로 라우팅한다 (입찰 실패 유니캐스트용).
     registry.setUserDestinationPrefix("/user");
     registry
-        // Broker가 여러 구독자에게 방송하는 영역 -> Simple Broker가 처리
-        .enableSimpleBroker("/topic")
+        // 경매 방송과 회원별 입찰 요청 결과를 Simple Broker가 모두 처리한다.
+        .enableSimpleBroker("/topic", "/queue")
         .setTaskScheduler(realtimeHeartBeatTaskScheduler)
         .setHeartbeatValue(new long[] {HEARTBEAT_INTERVAL_MILLIS, HEARTBEAT_INTERVAL_MILLIS});
   }

@@ -100,7 +100,8 @@ class AuctionControllerTest {
   void 위탁상품ID가_없으면_400을_반환한다() throws Exception {
     // given
     CreateAuctionRequest request =
-        new CreateAuctionRequest(null, 10000L, 15000L, LocalDateTime.now().plusDays(1));
+        new CreateAuctionRequest(
+            null, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
 
     // when & then
     mockMvc
@@ -275,6 +276,8 @@ class AuctionControllerTest {
     return new AuctionDetailResponse(
         1L,
         100L,
+        "Test Title",
+        "Test Description",
         new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "레어 홀로", "https://img"),
         "PSA 10",
         AuctionStatus.SCHEDULED,
@@ -303,6 +306,7 @@ class AuctionControllerTest {
     return new AuctionListItemResponse(
         1L,
         100L,
+        "Test Title",
         new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "레어 홀로", "https://img"),
         "PSA 10",
         AuctionStatus.SCHEDULED,
@@ -317,6 +321,6 @@ class AuctionControllerTest {
   }
 
   private CreateAuctionRequest createRequest(LocalDateTime scheduledStartAt) {
-    return new CreateAuctionRequest(100L, 10000L, 15000L, scheduledStartAt);
+    return new CreateAuctionRequest(100L, 10000L, 15000L, scheduledStartAt, "Title", "Description");
   }
 }

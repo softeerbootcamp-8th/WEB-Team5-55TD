@@ -1,13 +1,14 @@
 package com.ootd.pickup.auction.repository.auction;
 
 import static com.ootd.pickup.auction.domain.QAuction.auction;
-import static com.ootd.pickup.auction.domain.QWatch.watch;
+import static com.ootd.pickup.bid.domain.QBid.bid;
 import static com.ootd.pickup.cards.domain.QCard.card;
 import static com.ootd.pickup.consignments.domain.QConsignment.consignment;
 import static com.ootd.pickup.member.domain.QMember.member;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.global.util.EpochMillis;
@@ -15,11 +16,10 @@ import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.DateTimeExpression;
-import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -37,6 +38,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
   private final AuctionJpaRepository auctionJpaRepository;
   private final JPAQueryFactory queryFactory;
+  private final EntityManager entityManager;
 
   @Override
   public Auction save(Auction newAuction) {
@@ -46,6 +48,45 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   @Override
   public Optional<Auction> findById(Long auctionId) {
     return auctionJpaRepository.findById(auctionId);
+  }
+
+  @Override
+  public int incrementWatchCountById(Long auctionId) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.watchCount, auction.watchCount.add(1L))
+                .where(auction.auctionId.eq(auctionId))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public int decrementWatchCountById(Long auctionId) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.watchCount, auction.watchCount.subtract(1L))
+                .where(auction.auctionId.eq(auctionId), auction.watchCount.gt(0L))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public int resetWatchCountById(Long auctionId) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.watchCount, 0L)
+                .where(auction.auctionId.eq(auctionId))
+                .execute();
+    entityManager.clear();
+    return updated;
   }
 
   @Override
@@ -130,21 +171,13 @@ public class AuctionDataJpaRepository implements AuctionRepository {
     return auction.auctionStatus.in(statuses);
   }
 
-  private NumberExpression<Long> watchCountExpression() {
-    return Expressions.asNumber(
-        JPAExpressions.select(watch.count())
-            .from(watch)
-            .where(watch.auction.auctionId.eq(auction.auctionId)));
-  }
-
   private DateTimeExpression<LocalDateTime> endedAtSortExpression() {
     return auction.endedAt.coalesce(AuctionCursor.SENTINEL_END_AT);
   }
 
   private OrderSpecifier<?>[] orderSpecifiers(AuctionSort sort) {
     return switch (sort) {
-      case POPULAR ->
-          new OrderSpecifier<?>[] {watchCountExpression().desc(), auction.auctionId.desc()};
+      case POPULAR -> new OrderSpecifier<?>[] {auction.watchCount.desc(), auction.auctionId.desc()};
       case PRICE_ASC ->
           new OrderSpecifier<?>[] {auction.startingPrice.asc(), auction.auctionId.asc()};
       case PRICE_DESC ->
@@ -164,10 +197,12 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
     return switch (sort) {
       case POPULAR ->
-          watchCountExpression()
+          auction
+              .watchCount
               .lt(cursor.sortValue())
               .or(
-                  watchCountExpression()
+                  auction
+                      .watchCount
                       .eq(cursor.sortValue())
                       .and(auction.auctionId.lt(cursor.auctionId())));
       case PRICE_ASC ->
@@ -304,5 +339,103 @@ public class AuctionDataJpaRepository implements AuctionRepository {
         .endedAt
         .lt(endedAt)
         .or(auction.endedAt.eq(endedAt).and(auction.auctionId.lt(cursor.auctionId())));
+  }
+
+  @Override
+  public List<Long> findAllIdsByAuctionStatusAndStartedAtLessThanEqualNow(
+      AuctionStatus auctionStatus, Limit limit) {
+    return queryFactory
+        .select(auction.auctionId)
+        .from(auction)
+        .where(
+            auction.auctionStatus.eq(auctionStatus),
+            auction.startedAt.loe(DateTimeExpression.currentTimestamp(LocalDateTime.class)))
+        .orderBy(auction.startedAt.asc(), auction.auctionId.asc())
+        .limit(limit.max())
+        .fetch();
+  }
+
+  @Override
+  public List<Long> findAllIdsByAuctionStatusAndEndedAtLessThanEqualNow(
+      AuctionStatus auctionStatus, Limit limit) {
+    return queryFactory
+        .select(auction.auctionId)
+        .from(auction)
+        .where(
+            auction.auctionStatus.eq(auctionStatus),
+            auction.endedAt.loe(DateTimeExpression.currentTimestamp(LocalDateTime.class)))
+        .orderBy(auction.endedAt.asc(), auction.auctionId.asc())
+        .limit(limit.max())
+        .fetch();
+  }
+
+  @Override
+  public int updateAuctionStatusToOngoingByIdIn(List<Long> auctionIds) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.auctionStatus, AuctionStatus.ONGOING)
+                .where(
+                    auction.auctionId.in(auctionIds),
+                    auction.auctionStatus.eq(AuctionStatus.SCHEDULED))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public int updateAuctionStatusToWonByIdIn(List<Long> auctionIds) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.auctionStatus, AuctionStatus.WON)
+                .where(
+                    auction.auctionId.in(auctionIds),
+                    auction.auctionStatus.eq(AuctionStatus.ONGOING),
+                    auction.winningPrice.isNotNull(),
+                    auction.winningPrice.goe(auction.reservePrice))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public int updateAuctionStatusToPassedByIdIn(List<Long> auctionIds) {
+    int updated =
+        (int)
+            queryFactory
+                .update(auction)
+                .set(auction.auctionStatus, AuctionStatus.PASSED)
+                .where(
+                    auction.auctionId.in(auctionIds),
+                    auction.auctionStatus.eq(AuctionStatus.ONGOING),
+                    auction.winningPrice.isNull().or(auction.winningPrice.lt(auction.reservePrice)))
+                .execute();
+    entityManager.clear();
+    return updated;
+  }
+
+  @Override
+  public List<Auction> findAllWithConsignmentAndSellerMemberByIdIn(List<Long> auctionIds) {
+    return queryFactory
+        .selectFrom(auction)
+        .join(auction.consignment, consignment)
+        .fetchJoin()
+        .join(consignment.sellerMember, member)
+        .fetchJoin()
+        .where(auction.auctionId.in(auctionIds))
+        .fetch();
+  }
+
+  @Override
+  public List<Bid> findAllBidsWithMemberByIdIn(List<Long> bidIds) {
+    return queryFactory
+        .selectFrom(bid)
+        .join(bid.member, member)
+        .fetchJoin()
+        .where(bid.bidId.in(bidIds))
+        .fetch();
   }
 }

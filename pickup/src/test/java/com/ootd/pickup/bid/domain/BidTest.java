@@ -45,6 +45,8 @@ class BidTest {
 
   private Auction createAuction(AuctionStatus auctionStatus) {
     return Auction.builder()
+        .title("테스트 제목")
+        .description("테스트 설명")
         .startedAt(LocalDateTime.now().minusHours(1))
         .endedAt(LocalDateTime.now().plusHours(1))
         .auctionStatus(auctionStatus)
