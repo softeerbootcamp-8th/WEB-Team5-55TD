@@ -61,8 +61,16 @@ export type AuctionSort =
   | "STARTING_SOON"
   | "RECENT";
 
+export type AuctionSearchField =
+  | "ALL"
+  | "AUCTION_TITLE"
+  | "CARD_NAME"
+  | "SELLER";
+
 export interface AuctionSearchParams {
   q?: string;
+  /** q 를 맞춰볼 항목. 생략하면 서버가 ALL 로 처리한다. */
+  searchField?: AuctionSearchField;
   status: ApiAuctionStatus[];
   sort: AuctionSort;
   cursor?: string;
@@ -161,6 +169,7 @@ async function fetchAuctionPage(
   const { data } = await axiosInstance.get<AuctionPageResponse>("/auctions", {
     params: {
       q: params.q || undefined,
+      searchField: params.q ? params.searchField : undefined,
       status: params.status,
       sort: params.sort,
       cursor: params.cursor,

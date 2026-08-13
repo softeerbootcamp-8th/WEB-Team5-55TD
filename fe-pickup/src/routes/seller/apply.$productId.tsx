@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -51,6 +51,7 @@ function parsePositivePrice(value: string): number | null {
 /** DESIGN.md · auction-apply.html — 희망 시작가/낙찰가/일정, 신청 후 수정·삭제 불가 */
 function AuctionApplyPage() {
   const { productId } = Route.useParams();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data: product, isPending } = useQuery({
@@ -102,6 +103,12 @@ function AuctionApplyPage() {
         description,
       }),
     onSuccess: () => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["sellers", "me", "stats"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["consignments", "my"] }),
+      ]);
       toast.success("경매 신청이 완료되었습니다.");
       navigate({ to: "/seller/products/$productId", params: { productId } });
     },

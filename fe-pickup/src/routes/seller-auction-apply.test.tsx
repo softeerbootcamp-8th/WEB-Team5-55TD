@@ -4,6 +4,8 @@ import type { ComponentType, ReactNode } from "react";
 
 let query: Record<string, unknown> = { isPending: true };
 const mutate = vi.fn();
+const invalidateQueries = vi.fn();
+let mutationOptions: { onSuccess?: () => void } = {};
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
     options,
@@ -16,7 +18,11 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => query,
-  useMutation: () => ({ mutate, isPending: false }),
+  useMutation: (options: { onSuccess?: () => void }) => {
+    mutationOptions = options;
+    return { mutate, isPending: false };
+  },
+  useQueryClient: () => ({ invalidateQueries }),
 }));
 vi.mock("@/api/consignments", () => ({ getMyConsignmentDetail: vi.fn() }));
 vi.mock("@/api/auctions", () => ({ registerAuction: vi.fn() }));
@@ -32,7 +38,27 @@ const product = {
 describe("셀러 경매 신청", () => {
   beforeEach(() => {
     query = { isPending: true };
+    mutationOptions = {};
     vi.clearAllMocks();
+  });
+
+  it("경매_신청에_성공하면_상품목록과_셀러통계를_갱신한다", async () => {
+    // given
+    query = { isPending: false, data: product };
+    const { Route } = await import("@/routes/seller/apply.$productId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    // when
+    mutationOptions.onSuccess?.();
+
+    // then
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["sellers", "me", "stats"],
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["consignments", "my"],
+    });
   });
   it("상품 없음·신청 불가 상태를 표시한다", async () => {
     const { Route } = await import("@/routes/seller/apply.$productId");
