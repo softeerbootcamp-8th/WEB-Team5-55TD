@@ -96,6 +96,9 @@ public interface AuctionApi {
       description =
           """
             검색어(q), 경매 상태(status), 정렬(sort) 조건으로 경매 목록을 커서 기반으로 조회합니다.
+            searchField로 검색어를 맞춰볼 항목을 고를 수 있습니다.
+            ALL(기본) = 경매명·카드명·세트명·카드 언어·판매자 닉네임, AUCTION_TITLE = 경매명,
+            CARD_NAME = 카드명, SELLER = 판매자 닉네임. q가 없으면 searchField는 무시됩니다.
             limit이 있으면 커서/hasNext 없이 상위 N개만 반환하는 홈 노출 전용 모드로 동작합니다.
             sellerId/cardId로 같은 판매자·같은 카드의 경매만 좁혀볼 수 있고,
             excludeAuctionId로 특정 경매(예: 현재 보고 있는 상세 화면의 경매)를 결과에서 제외할 수 있습니다.

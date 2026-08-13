@@ -11,6 +11,7 @@ import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionCursor;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionSearchField;
 import com.ootd.pickup.auction.repository.auction.AuctionSort;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
 import com.ootd.pickup.auction.repository.watch.WatchSummary;
@@ -105,6 +106,7 @@ public class AuctionService {
   public CursorPageResponse<AuctionListItemResponse, String> searchAuctions(
       Long viewerMemberId, SearchAuctionsRequest request) {
     AuctionSort sort = AuctionSort.from(request.sort());
+    AuctionSearchField searchField = AuctionSearchField.from(request.searchField());
     List<AuctionStatus> statuses =
         request.status() == null
             ? List.of()
@@ -116,6 +118,7 @@ public class AuctionService {
       List<Auction> auctions =
           auctionRepository.searchAuctions(
               request.q(),
+              searchField,
               statuses,
               sort,
               null,
@@ -132,6 +135,7 @@ public class AuctionService {
     List<Auction> fetched =
         auctionRepository.searchAuctions(
             request.q(),
+            searchField,
             statuses,
             sort,
             decodedCursor,
@@ -161,7 +165,15 @@ public class AuctionService {
   public AuctionListItemResponse getFeaturedAuction(Long viewerMemberId) {
     List<Auction> candidates =
         auctionRepository.searchAuctions(
-            null, List.of(AuctionStatus.ONGOING), AuctionSort.POPULAR, null, 1, null, null, null);
+            null,
+            AuctionSearchField.ALL,
+            List.of(AuctionStatus.ONGOING),
+            AuctionSort.POPULAR,
+            null,
+            1,
+            null,
+            null,
+            null);
     Auction featured =
         candidates.stream()
             .findFirst()
