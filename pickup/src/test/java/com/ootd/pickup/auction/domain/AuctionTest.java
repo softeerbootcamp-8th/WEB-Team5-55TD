@@ -12,6 +12,8 @@ class AuctionTest {
     // given
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(null)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now().plusHours(1))
@@ -34,6 +36,8 @@ class AuctionTest {
     // given
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(null)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now().plusHours(1))
@@ -93,6 +97,8 @@ class AuctionTest {
 
   private Auction ongoingAuction(LocalDateTime endedAt) {
     return Auction.builder()
+        .title("테스트 제목")
+        .description("테스트 설명")
         .consignment(null)
         .startedAt(endedAt.minusDays(7))
         .endedAt(endedAt)
@@ -105,6 +111,8 @@ class AuctionTest {
 
   private Auction auction(AuctionStatus status, LocalDateTime endedAt) {
     return Auction.builder()
+        .title("테스트 제목")
+        .description("테스트 설명")
         .consignment(null)
         .startedAt(LocalDateTime.now().minusHours(1))
         .endedAt(endedAt)

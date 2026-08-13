@@ -21,6 +21,9 @@ vi.mock("@/components/domain/image-lightbox", () => ({
     <div role="dialog">{alt} 확대</div>
   ),
 }));
+vi.mock("@/components/domain/market-price-chart", () => ({
+  MarketPriceChart: () => null,
+}));
 vi.mock("@/components/domain/related-auctions-banner", () => ({
   RelatedAuctionsBanner: () => null,
 }));
@@ -39,7 +42,7 @@ const base = {
   endsAt: "2099-01-01T11:00:00",
   card: { setName: "Base", cardNumber: "1", language: "EN", rarity: "Rare" },
   inspectedAt: "2026-01-01",
-  cardState: "NM",
+  cardState: "HIGH",
   majorDefect: "없음",
 };
 
@@ -53,6 +56,7 @@ describe("구매자 경매 상세", () => {
     render(<Component />);
     expect(screen.getByRole("heading", { name: "Mewtwo" })).toBeInTheDocument();
     expect(screen.getByText("현재가")).toBeInTheDocument();
+    expect(screen.getByText("상")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button")[0]);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     cleanup();
@@ -82,5 +86,24 @@ describe("구매자 경매 상세", () => {
     expect(screen.getByText("유찰")).toBeInTheDocument();
     expect(screen.queryByText("낙찰가")).not.toBeInTheDocument();
     expect(screen.queryByText("20,000원")).not.toBeInTheDocument();
+  });
+
+  it("첫_이미지는_대표_영역에만_한_번_표시한다", async () => {
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/index");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    const renderedImages = screen.getAllByAltText("Mewtwo");
+    expect(renderedImages).toHaveLength(2);
+    expect(
+      renderedImages.filter(
+        (image) => image.getAttribute("src") === "front.jpg",
+      ),
+    ).toHaveLength(1);
+    expect(
+      renderedImages.filter(
+        (image) => image.getAttribute("src") === "back.jpg",
+      ),
+    ).toHaveLength(1);
   });
 });

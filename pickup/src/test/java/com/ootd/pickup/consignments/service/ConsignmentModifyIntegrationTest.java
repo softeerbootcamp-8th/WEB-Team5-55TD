@@ -8,6 +8,7 @@ import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
 import com.ootd.pickup.cards.repository.CardJpaRepository;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.domain.Consignment;
@@ -98,6 +99,7 @@ class ConsignmentModifyIntegrationTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             "동일한 일련번호로 재수정",
             new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 7, 1)),
             List.of(
@@ -166,6 +168,7 @@ class ConsignmentModifyIntegrationTest {
 
     ModifyConsignmentRequest request =
         new ModifyConsignmentRequest(
+            CardState.HIGH,
             null,
             new CertificateRequest("PSA-OTHER-11111111", "PSA", "10", LocalDate.of(2026, 7, 1)),
             List.of(

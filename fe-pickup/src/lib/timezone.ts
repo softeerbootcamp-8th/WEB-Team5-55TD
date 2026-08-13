@@ -16,3 +16,13 @@ export function kstLocalInputToUtcIso(localValue: string): string {
   const utcAsIfLocal = new Date(`${localValue}:00.000Z`);
   return new Date(utcAsIfLocal.getTime() - KST_OFFSET_MILLIS).toISOString();
 }
+
+/**
+ * UTC instant를 `<input type="datetime-local">`이 사용하는 KST 벽시계 문자열로 바꾼다.
+ * 브라우저의 getHours/getTimezoneOffset을 쓰지 않아 실행 환경의 타임존에 영향을 받지 않는다.
+ */
+export function utcInstantToKstLocalInput(instant: string | number): string {
+  const epochMillis =
+    typeof instant === "number" ? instant : new Date(instant).getTime();
+  return new Date(epochMillis + KST_OFFSET_MILLIS).toISOString().slice(0, 16);
+}

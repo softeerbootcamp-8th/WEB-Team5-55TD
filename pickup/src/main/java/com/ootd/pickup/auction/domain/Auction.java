@@ -37,6 +37,12 @@ public class Auction {
   @Column(name = "winning_bid_id")
   private Long winningBidId;
 
+  @Column(name = "title", nullable = false)
+  private String title;
+
+  @Column(name = "description")
+  private String description;
+
   @Column(name = "started_at", nullable = false)
   private LocalDateTime startedAt;
 
@@ -59,6 +65,9 @@ public class Auction {
   @Column(name = "winning_price")
   private Long winningPrice;
 
+  @Column(name = "watch_count", nullable = false)
+  private long watchCount;
+
   @Column(name = "legacy_unreserved_bid", nullable = false)
   private boolean legacyUnreservedBid;
 
@@ -73,7 +82,9 @@ public class Auction {
       AuctionStatus auctionStatus,
       Long startingPrice,
       Long reservePrice,
-      Long bidIncrement) {
+      Long bidIncrement,
+      String title,
+      String description) {
     this.consignment = consignment;
     this.startedAt = startedAt;
     this.endedAt = endedAt;
@@ -81,6 +92,9 @@ public class Auction {
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
+    this.title = title;
+    this.description = description;
+    this.watchCount = 0L;
     this.legacyUnreservedBid = false;
     this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
   }

@@ -1,6 +1,7 @@
 package com.ootd.pickup.consignments.dto.response;
 
 import com.ootd.pickup.cards.dto.response.SearchCardsResponse;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
@@ -9,6 +10,7 @@ public record RegisterConsignmentResponse(
     Long consignmentId,
     SearchCardsResponse card,
     Long sellerMemberId,
+    CardState cardState,
     String majorDefect,
     ConsignmentStatus status,
     CertificateResponse certificate) {
@@ -17,6 +19,7 @@ public record RegisterConsignmentResponse(
         consignment.getConsignmentId(),
         SearchCardsResponse.from(consignment.getCard()),
         consignment.getSellerMember().getMemberId(),
+        consignment.getCardState(),
         consignment.getMajorDefect(),
         consignment.getStatus(),
         CertificateResponse.from(certificate));

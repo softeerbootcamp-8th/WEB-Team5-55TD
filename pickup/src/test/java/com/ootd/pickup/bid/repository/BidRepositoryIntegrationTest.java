@@ -134,6 +134,8 @@ class BidRepositoryIntegrationTest {
                 .build());
     return auctionJpaRepository.save(
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
             .auctionStatus(auctionStatus)
