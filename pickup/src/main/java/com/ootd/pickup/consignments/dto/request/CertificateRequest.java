@@ -6,13 +6,14 @@ import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.Grade;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import java.time.LocalDate;
 
 public record CertificateRequest(
     @NotBlank String serialNumber,
     @NotBlank String certificationBody,
     @NotBlank String grade,
-    @NotNull LocalDate inspectedAt) {
+    @NotNull @PastOrPresent LocalDate inspectedAt) {
   public Certificate toEntity(Consignment consignment) {
     return Certificate.builder()
         .consignment(consignment)
