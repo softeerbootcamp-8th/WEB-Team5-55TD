@@ -1,6 +1,55 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* 홈·경매 목록 카드 이미지 위를 가로지르는 은은한 광택 */
+.auction-card-image-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.auction-card-image-shine::after {
+  position: absolute;
+  top: -25%;
+  left: -70%;
+  width: 42%;
+  height: 150%;
+  content: "";
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgb(255 255 255 / 8%) 32%,
+    rgb(255 255 255 / 58%) 50%,
+    rgb(255 255 255 / 8%) 68%,
+    transparent 100%
+  );
+  filter: blur(2px);
+  transform: skewX(-14deg);
+}
+
+@media (hover: hover) {
+  .group:hover .auction-card-image-shine::after {
+    animation: auction-card-shine 700ms ease-out;
+  }
+}
+
+@keyframes auction-card-shine {
+  from {
+    left: -70%;
+  }
+  to {
+    left: 135%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .auction-card-image-shine::after {
+    animation: none;
+  }
+}
+
 /* =========================================================================
    카디언(Cardian) 디자인 토큰 — Airbnb 리스킨
    DESIGN-airbnb.md 기준. 순백 캔버스 + 잉크(#222) 텍스트 + 단일 Rausch(#ff385c)
@@ -49,7 +98,8 @@
     "Airbnb Cereal VF", "Circular", "Inter", "Pretendard", system-ui,
     -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Helvetica Neue",
     sans-serif;
-  --font-num: "Airbnb Cereal VF", "Inter", "Pretendard", ui-monospace, sans-serif;
+  --font-num:
+    "Airbnb Cereal VF", "Inter", "Pretendard", ui-monospace, sans-serif;
 
   /* ---- 간격 · 반경 (DESIGN-airbnb.md · Layout / rounded) ------------- */
   --space-1: 4px;
