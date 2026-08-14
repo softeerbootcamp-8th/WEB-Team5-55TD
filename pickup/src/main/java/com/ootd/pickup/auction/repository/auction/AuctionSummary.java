@@ -10,4 +10,8 @@ import java.time.LocalDateTime;
  * 여부(유찰 시각)를 판단하려면 연결된 경매의 상태·시각이 필요하다.
  */
 public record AuctionSummary(
-    Long auctionId, AuctionStatus auctionStatus, LocalDateTime startedAt, LocalDateTime endedAt) {}
+    Long auctionId,
+    String title,
+    AuctionStatus auctionStatus,
+    LocalDateTime startedAt,
+    LocalDateTime endedAt) {}
