@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { PageContainer } from "@/components/layout/page";
 import { AuctionCard } from "@/components/domain/auction-card";
@@ -13,6 +13,7 @@ import type {
   WatchItemResponseAuctionStatus,
 } from "@/api/generated/model";
 import { computeEndsAt } from "@/api/auctions";
+import { isAuthenticated } from "@/lib/auth";
 import { AuctionStatus, type AuctionSummary, type Grade } from "@/lib/types";
 import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
 
@@ -46,6 +47,11 @@ function toAuctionSummary(item: WatchItemResponse): AuctionSummary {
 }
 
 export const Route = createFileRoute("/_buyer/watchlist")({
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: "/login" });
+    }
+  },
   component: WatchlistPage,
 });
 
@@ -64,7 +70,7 @@ function WatchlistPage() {
     queryFn: ({ pageParam }) => getMyWatches({ cursor: pageParam, size: 20 }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
-      lastPage.hasNext ? lastPage.cursor ?? undefined : undefined,
+      lastPage.hasNext ? (lastPage.cursor ?? undefined) : undefined,
   });
   const watchlist = (data?.pages.flatMap((page) => page.items ?? []) ?? []).map(
     toAuctionSummary,

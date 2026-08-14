@@ -14,6 +14,7 @@ import com.ootd.pickup.auth.service.KakaoAuthService;
 import com.ootd.pickup.auth.service.LoginResponse;
 import com.ootd.pickup.auth.token.AccessToken;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
+import com.ootd.pickup.global.auth.CsrfTokenGenerator;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import com.ootd.pickup.global.auth.TokenCookieProperties;
 import java.time.Duration;
@@ -43,7 +44,9 @@ class LoginControllerTest {
                     authService,
                     mock(KakaoAuthService.class),
                     new TokenCookieManager(
-                        tokenProperties, new TokenCookieProperties(true, "None"))))
+                        tokenProperties,
+                        new TokenCookieProperties(true, "None"),
+                        new CsrfTokenGenerator())))
             .build();
   }
 
@@ -81,6 +84,11 @@ class LoginControllerTest {
                         allOf(
                             containsString("refresh-token=refresh-token"),
                             containsString("HttpOnly"),
+                            containsString("Secure"),
+                            containsString("SameSite=None")),
+                        allOf(
+                            containsString("csrf-token="),
+                            not(containsString("HttpOnly")),
                             containsString("Secure"),
                             containsString("SameSite=None")))));
   }

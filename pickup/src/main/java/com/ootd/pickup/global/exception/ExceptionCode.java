@@ -164,7 +164,13 @@ public enum ExceptionCode {
   MEMBER_WITHDRAW_NOT_ALLOWED(
       HttpStatus.CONFLICT,
       ClientExceptionCode.MEMBER_WITHDRAW_NOT_ALLOWED,
-      "진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
+      "진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다."),
+  TOO_MANY_LOGIN_ATTEMPTS(
+      HttpStatus.TOO_MANY_REQUESTS,
+      ClientExceptionCode.TOO_MANY_LOGIN_ATTEMPTS,
+      "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요."),
+  CSRF_TOKEN_MISMATCH(
+      HttpStatus.FORBIDDEN, ClientExceptionCode.CSRF_TOKEN_MISMATCH, "CSRF 토큰이 유효하지 않습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

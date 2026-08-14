@@ -1,6 +1,7 @@
 package com.ootd.pickup.global.filter;
 
 import com.ootd.pickup.auth.token.InvalidAccessTokenException;
+import com.ootd.pickup.global.auth.CsrfTokenMismatchException;
 import com.ootd.pickup.global.auth.TokenCookieManager;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.ExceptionResponseFactory;
@@ -30,15 +31,22 @@ public class ExceptionHandlingFilter extends OncePerRequestFilter {
       filterChain.doFilter(request, response);
     } catch (InvalidAccessTokenException exception) {
       writeInvalidAccessTokenResponse(request, response);
+    } catch (CsrfTokenMismatchException exception) {
+      writeExceptionResponse(request, response, ExceptionCode.CSRF_TOKEN_MISMATCH);
     }
   }
 
   private void writeInvalidAccessTokenResponse(
       HttpServletRequest request, HttpServletResponse response) throws IOException {
-    ExceptionCode exceptionCode = ExceptionCode.INVALID_ACCESS_TOKEN;
+    expireAccessTokenCookie(response);
+    writeExceptionResponse(request, response, ExceptionCode.INVALID_ACCESS_TOKEN);
+  }
+
+  private void writeExceptionResponse(
+      HttpServletRequest request, HttpServletResponse response, ExceptionCode exceptionCode)
+      throws IOException {
     ExceptionResponse body = ExceptionResponseFactory.from(exceptionCode, request.getRequestURI());
 
-    expireAccessTokenCookie(response);
     response.setStatus(exceptionCode.getHttpStatus().value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding(StandardCharsets.UTF_8.name());

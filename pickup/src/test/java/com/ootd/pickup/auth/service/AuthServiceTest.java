@@ -6,12 +6,14 @@ import static org.mockito.Mockito.*;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.ootd.pickup.auth.dto.LoginRequest;
+import com.ootd.pickup.auth.repository.AccessTokenDenylistRepository;
 import com.ootd.pickup.auth.repository.RefreshTokenRepository;
 import com.ootd.pickup.auth.token.AccessToken;
 import com.ootd.pickup.auth.token.AccessTokenGenerator;
 import com.ootd.pickup.auth.token.RefreshToken;
 import com.ootd.pickup.auth.token.RefreshTokenGenerator;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
+import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
@@ -36,6 +38,10 @@ class AuthServiceTest {
   @Mock private RefreshTokenGenerator refreshTokenGenerator;
 
   @Mock private RefreshTokenRepository refreshTokenRepository;
+
+  @Mock private AccessTokenDenylistRepository accessTokenDenylistRepository;
+
+  @Mock private LoginAttemptLimiter loginAttemptLimiter;
 
   @Mock private JwtTokenProperties jwtTokenProperties;
 
@@ -65,6 +71,35 @@ class AuthServiceTest {
     then(refreshTokenRepository)
         .should()
         .save("refresh-token-hash", member.getMemberId(), refreshTokenTtl);
+    then(loginAttemptLimiter).should().checkAllowed(request.loginId());
+    then(loginAttemptLimiter).should().reset(request.loginId());
+  }
+
+  @Test
+  void 로그인_시도_횟수를_초과하면_토큰을_발급하지_않는다() {
+    LoginRequest request = new LoginRequest("pickup-user", "password1234");
+    willThrow(new PickUpException(ExceptionCode.TOO_MANY_LOGIN_ATTEMPTS))
+        .given(loginAttemptLimiter)
+        .checkAllowed(request.loginId());
+
+    assertThatThrownBy(() -> authService.login(request))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.TOO_MANY_LOGIN_ATTEMPTS.getMessage());
+
+    then(memberRepository).shouldHaveNoInteractions();
+    then(accessTokenGenerator).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 비밀번호가_틀리면_시도_제한을_초기화하지_않는다() {
+    Member member = createMember("pickup-user", "password1234");
+    LoginRequest request = new LoginRequest(member.getLoginId(), "wrong-password");
+    given(memberRepository.findByLoginId(request.loginId())).willReturn(Optional.of(member));
+
+    assertThatThrownBy(() -> authService.login(request)).isInstanceOf(PickUpException.class);
+
+    then(loginAttemptLimiter).should().checkAllowed(request.loginId());
+    then(loginAttemptLimiter).should(never()).reset(anyString());
   }
 
   @Test
@@ -162,6 +197,16 @@ class AuthServiceTest {
         .hasMessage("유효하지 않은 리프레시 토큰입니다.");
 
     verifyNoInteractions(refreshTokenGenerator, refreshTokenRepository);
+  }
+
+  @Test
+  void 탈퇴_처리시_액세스_토큰_남은_만료시간만큼_거부_목록에_올린다() {
+    Duration accessTokenTtl = Duration.ofMinutes(15);
+    given(jwtTokenProperties.accessTokenTtl()).willReturn(accessTokenTtl);
+
+    authService.denylistAccessTokens(1L);
+
+    then(accessTokenDenylistRepository).should().denylistMember(1L, accessTokenTtl);
   }
 
   private Member createMember(String loginId, String rawPassword) {

@@ -4,7 +4,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { AxiosError } from "axios";
 import { ArrowDownLeft, ArrowUpRight, WalletCards } from "lucide-react";
 import {
@@ -27,9 +27,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { isAuthenticated } from "@/lib/auth";
 import { formatDateTime, formatPoint } from "@/lib/format";
 
 export const Route = createFileRoute("/_buyer/points")({
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: "/login" });
+    }
+  },
   component: PointsPage,
 });
 

@@ -736,6 +736,7 @@ class MemberServiceTest {
     assertThat(member.getLoginId()).isNull();
     assertThat(readPasswordHash(member)).isNull();
     then(authService).should().revokeAllRefreshTokens(1L);
+    then(authService).should().denylistAccessTokens(1L);
   }
 
   @Test

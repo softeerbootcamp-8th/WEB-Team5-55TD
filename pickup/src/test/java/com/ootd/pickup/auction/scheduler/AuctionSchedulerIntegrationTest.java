@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.*;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.repository.BidJpaRepository;
@@ -18,6 +19,7 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaReposit
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,6 +34,8 @@ class AuctionSchedulerIntegrationTest {
   private static final long RESERVE_PRICE = 15000L;
 
   @Autowired private AuctionScheduler auctionScheduler;
+
+  @Autowired private AuctionRepository auctionRepository;
 
   @Autowired private AuctionJpaRepository auctionJpaRepository;
 
@@ -216,6 +220,38 @@ class AuctionSchedulerIntegrationTest {
 
     // then
     assertThat(findStatus(alreadyPassed)).isEqualTo(AuctionStatus.PASSED);
+  }
+
+  @Test
+  void 후보로_뽑힌_뒤_마감연장으로_종료시각이_미래가_된_경매는_낙찰_전이되지_않는다() {
+    // given — 스케줄러가 후보를 뽑은 시점 이후, 마감 임박 입찰로 종료 시각이 미래로 연장된 상황을 재현한다.
+    Auction extended = createAuction(AuctionStatus.ONGOING, past(2), future(1));
+    extended.updateWinningBid(777L, RESERVE_PRICE);
+    auctionJpaRepository.saveAndFlush(extended);
+
+    // when — 이미 지난 종료 시각으로 후보 목록에 담겼다고 가정하고, 전이 쿼리를 직접 호출한다.
+    int updated =
+        auctionRepository.updateAuctionStatusToWonByIdIn(List.of(extended.getAuctionId()));
+
+    // then
+    assertThat(updated).isZero();
+    assertThat(findStatus(extended)).isEqualTo(AuctionStatus.ONGOING);
+  }
+
+  @Test
+  void 후보로_뽑힌_뒤_마감연장으로_종료시각이_미래가_된_경매는_유찰_전이되지_않는다() {
+    // given
+    Auction extended = createAuction(AuctionStatus.ONGOING, past(2), future(1));
+    extended.updateWinningBid(777L, RESERVE_PRICE - 1);
+    auctionJpaRepository.saveAndFlush(extended);
+
+    // when
+    int updated =
+        auctionRepository.updateAuctionStatusToPassedByIdIn(List.of(extended.getAuctionId()));
+
+    // then
+    assertThat(updated).isZero();
+    assertThat(findStatus(extended)).isEqualTo(AuctionStatus.ONGOING);
   }
 
   private LocalDateTime past(int hours) {

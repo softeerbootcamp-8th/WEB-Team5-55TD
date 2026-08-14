@@ -1,5 +1,6 @@
 package com.ootd.pickup.global.auth.config;
 
+import com.ootd.pickup.auth.repository.AccessTokenDenylistRepository;
 import com.ootd.pickup.auth.token.AccessTokenVerifier;
 import com.ootd.pickup.global.auth.TokenCookieProperties;
 import com.ootd.pickup.global.auth.filter.AuthenticationFilter;
@@ -29,12 +30,14 @@ public class AuthenticationWebConfig implements WebMvcConfigurer {
   @Bean
   @ConditionalOnBean(AccessTokenVerifier.class)
   public FilterRegistrationBean<AuthenticationFilter> authenticationFilterRegistration(
-      AccessTokenVerifier accessTokenVerifier) {
-    AuthenticationFilter authenticationFilter = new AuthenticationFilter(accessTokenVerifier);
+      AccessTokenVerifier accessTokenVerifier,
+      AccessTokenDenylistRepository accessTokenDenylistRepository) {
+    AuthenticationFilter authenticationFilter =
+        new AuthenticationFilter(accessTokenVerifier, accessTokenDenylistRepository);
     FilterRegistrationBean<AuthenticationFilter> filterRegistrationBean =
         new FilterRegistrationBean<>(authenticationFilter);
     filterRegistrationBean.addUrlPatterns("/*");
-    filterRegistrationBean.setOrder(1);
+    filterRegistrationBean.setOrder(2);
     return filterRegistrationBean;
   }
 

@@ -26,6 +26,35 @@ const REFRESHABLE_AUTH_ERRORS = new Set([
   "AUTHENTICATION_REQUIRED",
 ]);
 
+const CSRF_COOKIE_NAME = "csrf-token";
+const CSRF_HEADER_NAME = "X-CSRF-Token";
+const SAFE_METHODS = new Set(["get", "head", "options"]);
+
+function readCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * 서버가 이중 제출 쿠키(csrf-token)로 CSRF 를 막으므로, 상태를 바꾸는 요청마다 같은 값을
+ * 헤더에 실어 되돌려 보낸다. 로그인 전에는 쿠키 자체가 없어 자연히 생략된다.
+ */
+export function attachCsrfHeader(
+  config: InternalAxiosRequestConfig,
+): InternalAxiosRequestConfig {
+  const method = config.method?.toLowerCase() ?? "get";
+  if (SAFE_METHODS.has(method)) {
+    return config;
+  }
+  const csrfToken = readCookie(CSRF_COOKIE_NAME);
+  if (csrfToken) {
+    config.headers.set(CSRF_HEADER_NAME, csrfToken);
+  }
+  return config;
+}
+
+axiosInstance.interceptors.request.use(attachCsrfHeader);
+
 interface ApiErrorResponse {
   error?: string;
 }
