@@ -152,7 +152,9 @@ export function useAuctionBidUpdates({
 }: UseAuctionBidUpdatesOptions): RealtimeConnectionStatus {
   // 최초 연결 전과 재연결 중은 사용자에게 같은 의미("아직 실시간이 아님")라 한 상태로 묶는다.
   const [connectionStatus, setConnectionStatus] =
-    useState<RealtimeConnectionStatus>("reconnecting");
+    useState<RealtimeConnectionStatus>(() =>
+      navigator.onLine ? "reconnecting" : "disconnected",
+    );
   const latestBidIdRef = useRef(latestBidId);
   const onBidUpdatedRef = useRef(onBidUpdated);
   const onBidFailedRef = useRef(onBidFailed);
@@ -185,7 +187,9 @@ export function useAuctionBidUpdates({
     const processedEventOrder: string[] = [];
     let reconnectAttempt = 0;
     let reconnectTimer: number | undefined;
-    let isReconnecting = false;
+    let client: Client | undefined;
+    let isOnline = navigator.onLine;
+    let wasHidden = false;
     let isDisposed = false;
 
     function markProcessed(eventId: string): boolean {
@@ -203,16 +207,27 @@ export function useAuctionBidUpdates({
       return true;
     }
 
-    const client = new Client({
-      brokerURL: resolveBrokerUrl(),
-      connectionTimeout: 10_000,
-      heartbeatIncoming: HEARTBEAT_INTERVAL_MILLIS,
-      heartbeatOutgoing: HEARTBEAT_INTERVAL_MILLIS,
-      reconnectDelay: 0,
-    });
+    function clearReconnectTimer() {
+      if (reconnectTimer === undefined) return;
+      window.clearTimeout(reconnectTimer);
+      reconnectTimer = undefined;
+    }
 
-    const scheduleReconnect = () => {
-      if (isDisposed || reconnectTimer !== undefined || isReconnecting) return;
+    function disconnectClient() {
+      const staleClient = client;
+      client = undefined;
+      if (staleClient) {
+        void staleClient.deactivate({ force: true });
+      }
+    }
+
+    function scheduleReconnect() {
+      if (isDisposed || reconnectTimer !== undefined) return;
+      if (!isOnline || !navigator.onLine) {
+        isOnline = false;
+        setConnectionStatus("disconnected");
+        return;
+      }
 
       reconnectAttempt += 1;
       setConnectionStatus(
@@ -222,80 +237,174 @@ export function useAuctionBidUpdates({
       );
       reconnectTimer = window.setTimeout(() => {
         reconnectTimer = undefined;
-        if (isDisposed) return;
-        isReconnecting = true;
-
-        void client.deactivate({ force: true }).then(
-          () => {
-            isReconnecting = false;
-            if (!isDisposed) client.activate();
-          },
-          () => {
-            isReconnecting = false;
-            if (!isDisposed) client.activate();
-          },
-        );
+        connectClient();
       }, calculateReconnectDelay(reconnectAttempt));
-    };
+    }
 
-    client.onConnect = () => {
-      reconnectAttempt = 0;
-      client.subscribe(`/topic/auctions/${auctionId}`, (frame) => {
-        const message = parseMessage(frame);
-        if (!message || String(message.auctionId) !== auctionId) {
-          console.warn("유효하지 않은 경매 WebSocket 메시지를 수신했습니다.");
-          return;
-        }
-        if (!markProcessed(message.eventId)) {
-          return;
-        }
+    function failConnection(failedClient: Client, shouldDeactivate = true) {
+      if (isDisposed || client !== failedClient) return;
 
-        if (
-          latestBidIdRef.current !== undefined &&
-          message.latestBid.bidId <= latestBidIdRef.current
-        ) {
-          return;
-        }
-
-        latestBidIdRef.current = message.latestBid.bidId;
-        onBidUpdatedRef.current(message);
-      });
-      // 입찰 요청이 거절되면(포인트 부족 등) 그 사유는 요청자 본인에게만 온다.
-      client.subscribe("/user/queue/bid-requests", (frame) => {
-        const message = parseFailedMessage(frame);
-        if (!message || String(message.auctionId) !== auctionId) {
-          return;
-        }
-        if (!markProcessed(message.eventId)) {
-          return;
-        }
-        onBidFailedRef.current?.(message);
-      });
-      setConnectionStatus("connected");
-      onSubscribedRef.current();
-    };
-    client.onStompError = (frame) => {
-      console.warn(
-        "경매 STOMP 연결에서 오류가 발생했습니다.",
-        frame.headers.message,
-      );
-    };
-    client.onWebSocketError = () => {
-      console.warn(
-        "경매 WebSocket 연결에 실패했습니다. REST 조회로 복구를 계속합니다.",
-      );
-    };
-    client.onWebSocketClose = () => {
+      client = undefined;
+      if (shouldDeactivate) {
+        void failedClient.deactivate({ force: true });
+      }
       scheduleReconnect();
-    };
+    }
 
-    client.activate();
+    function connectClient() {
+      if (isDisposed || client) return;
+      if (!isOnline || !navigator.onLine) {
+        isOnline = false;
+        setConnectionStatus("disconnected");
+        return;
+      }
+
+      const nextClient = new Client({
+        brokerURL: resolveBrokerUrl(),
+        connectionTimeout: 10_000,
+        heartbeatIncoming: HEARTBEAT_INTERVAL_MILLIS,
+        heartbeatOutgoing: HEARTBEAT_INTERVAL_MILLIS,
+        reconnectDelay: 0,
+        discardWebsocketOnCommFailure: true,
+      });
+      client = nextClient;
+
+      nextClient.onConnect = () => {
+        if (isDisposed || client !== nextClient) return;
+        if (!navigator.onLine) {
+          handleOffline();
+          return;
+        }
+
+        reconnectAttempt = 0;
+        nextClient.subscribe(`/topic/auctions/${auctionId}`, (frame) => {
+          if (isDisposed || client !== nextClient) return;
+          const message = parseMessage(frame);
+          if (!message || String(message.auctionId) !== auctionId) {
+            console.warn("유효하지 않은 경매 WebSocket 메시지를 수신했습니다.");
+            return;
+          }
+          if (!markProcessed(message.eventId)) {
+            return;
+          }
+
+          if (
+            latestBidIdRef.current !== undefined &&
+            message.latestBid.bidId <= latestBidIdRef.current
+          ) {
+            return;
+          }
+
+          latestBidIdRef.current = message.latestBid.bidId;
+          onBidUpdatedRef.current(message);
+        });
+        // 입찰 요청이 거절되면(포인트 부족 등) 그 사유는 요청자 본인에게만 온다.
+        nextClient.subscribe("/user/queue/bid-requests", (frame) => {
+          if (isDisposed || client !== nextClient) return;
+          const message = parseFailedMessage(frame);
+          if (!message || String(message.auctionId) !== auctionId) {
+            return;
+          }
+          if (!markProcessed(message.eventId)) {
+            return;
+          }
+          onBidFailedRef.current?.(message);
+        });
+        setConnectionStatus("connected");
+        onSubscribedRef.current();
+      };
+      nextClient.onStompError = (frame) => {
+        console.warn(
+          "경매 STOMP 연결에서 오류가 발생했습니다.",
+          frame.headers.message,
+        );
+        failConnection(nextClient);
+      };
+      nextClient.onWebSocketError = () => {
+        console.warn(
+          "경매 WebSocket 연결에 실패했습니다. REST 조회로 복구를 계속합니다.",
+        );
+        failConnection(nextClient);
+      };
+      nextClient.onWebSocketClose = () => {
+        failConnection(nextClient, false);
+      };
+      nextClient.onHeartbeatLost = () => {
+        console.warn(
+          "경매 WebSocket 하트비트가 끊겼습니다. 재연결을 시도합니다.",
+        );
+        // STOMP 클라이언트가 이 콜백 직후 소켓을 폐기하므로 중복 deactivate 하지 않는다.
+        failConnection(nextClient, false);
+      };
+
+      nextClient.activate();
+    }
+
+    function handleOffline() {
+      if (isDisposed) return;
+      isOnline = false;
+      reconnectAttempt = 0;
+      clearReconnectTimer();
+      disconnectClient();
+      setConnectionStatus("disconnected");
+    }
+
+    function reconnectFromBrowserEvent() {
+      if (isDisposed) return;
+      if (!navigator.onLine) {
+        handleOffline();
+        return;
+      }
+
+      isOnline = true;
+      reconnectAttempt = 0;
+      clearReconnectTimer();
+      disconnectClient();
+      setConnectionStatus("reconnecting");
+      connectClient();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        wasHidden = true;
+        return;
+      }
+      if (!wasHidden) return;
+
+      wasHidden = false;
+      reconnectFromBrowserEvent();
+    }
+
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) {
+        reconnectFromBrowserEvent();
+      }
+    }
+
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", reconnectFromBrowserEvent);
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    if (isOnline) {
+      setConnectionStatus("reconnecting");
+      connectClient();
+    } else {
+      setConnectionStatus("disconnected");
+    }
+
     return () => {
       isDisposed = true;
-      if (reconnectTimer !== undefined) {
-        window.clearTimeout(reconnectTimer);
+      clearReconnectTimer();
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", reconnectFromBrowserEvent);
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      const activeClient = client;
+      client = undefined;
+      if (activeClient) {
+        void activeClient.deactivate();
       }
-      void client.deactivate();
     };
   }, [auctionId, enabled]);
 
