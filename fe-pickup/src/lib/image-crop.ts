@@ -14,7 +14,7 @@ export interface CropArea {
 
 export type AspectPreset = "square" | "card" | "free";
 
-/** 자유 비율은 값이 없다 — react-easy-crop 에 undefined 를 넘기면 비율을 고정하지 않는다. */
+/** 자유 비율은 크롭 박스의 가로·세로 크기로 결정하므로 고정 비율 값이 없다. */
 export const ASPECT_VALUES: Record<AspectPreset, number | undefined> = {
   square: 1,
   card: 3 / 4,
@@ -55,8 +55,8 @@ export const IMAGE_CROP_PRESETS: Record<ImagePurpose, ImageCropPreset> = {
     output: "jpeg",
     quality: 0.85,
     title: "상품 이미지 자르기",
-    guide: "잘라낸 영역을 정사각(1:1) 1200×1200 JPG로 저장합니다.",
-    hint: "PSA·BGS 슬랩은 등급 라벨이 잘리지 않게 '자유' 비율을 쓰세요.",
+    guide: "잘라낸 영역을 긴 변 최대 1200px JPG로 저장합니다.",
+    hint: "PSA·BGS 슬랩은 '자유'를 선택한 뒤 모서리를 드래그해 등급 라벨까지 포함하세요.",
   },
   PROFILE: {
     aspects: ["square"],
