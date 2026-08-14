@@ -734,6 +734,7 @@ class MemberServiceTest {
     // then
     assertThat(member.isWithdrawn()).isTrue();
     assertThat(member.getLoginId()).isNull();
+    assertThat(member.getNickname()).isEqualTo("(탈퇴한 회원)#1");
     assertThat(readPasswordHash(member)).isNull();
     then(authService).should().revokeAllRefreshTokens(1L);
   }

@@ -27,8 +27,18 @@ public class KakaoMemberService {
   public KakaoMemberResult findOrCreate(KakaoClient.KakaoUser user) {
     return memberRepository
         .findByOauthProviderAndOauthSubject(PROVIDER, user.subject())
-        .map(member -> new KakaoMemberResult(member, false))
+        .map(member -> existingMemberResult(member, user))
         .orElseGet(() -> new KakaoMemberResult(createMember(user), true));
+  }
+
+  private KakaoMemberResult existingMemberResult(Member member, KakaoClient.KakaoUser user) {
+    if (member.isWithdrawn()) {
+      // 배포 전에 탈퇴해 OAuth 정보가 남은 회원도 재가입할 수 있도록 연결을 정리한다.
+      member.clearOAuthIdentity();
+      memberRepository.flush();
+      return new KakaoMemberResult(createMember(user), true);
+    }
+    return new KakaoMemberResult(member, false);
   }
 
   private Member createMember(KakaoClient.KakaoUser user) {

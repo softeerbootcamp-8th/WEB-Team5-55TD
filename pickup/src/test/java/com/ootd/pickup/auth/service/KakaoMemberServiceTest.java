@@ -42,6 +42,28 @@ class KakaoMemberServiceTest {
   }
 
   @Test
+  void 탈퇴한_카카오_회원이면_기존_연결을_해제하고_새_회원으로_가입한다() {
+    KakaoClient.KakaoUser user = new KakaoClient.KakaoUser("kakao-subject", null);
+    Member withdrawnMember = createMember("탈퇴회원", 1L);
+    withdrawnMember.withdraw();
+    Member rejoinedMember = createMember("재가입회원", 2L);
+    given(memberRepository.findByOauthProviderAndOauthSubject("KAKAO", user.subject()))
+        .willReturn(Optional.of(withdrawnMember));
+    given(memberRepository.existsByNickname(anyString())).willReturn(false);
+    given(memberRepository.save(any(Member.class))).willReturn(rejoinedMember);
+
+    KakaoMemberService.KakaoMemberResult result = kakaoMemberService.findOrCreate(user);
+
+    assertThat(result.created()).isTrue();
+    assertThat(result.member()).isEqualTo(rejoinedMember);
+    assertThat(withdrawnMember.getOauthProvider()).isNull();
+    assertThat(withdrawnMember.getOauthSubject()).isNull();
+    then(memberRepository).should().flush();
+    then(memberRepository).should().save(any(Member.class));
+    then(pointRepository).should().save(argThat(point -> point.getMemberId().equals(2L)));
+  }
+
+  @Test
   void 신규_카카오_사용자면_랜덤_닉네임으로_회원과_포인트를_생성한다() {
     KakaoClient.KakaoUser user = new KakaoClient.KakaoUser("kakao-subject", "profile.png");
     Member savedMember = createMember("아무닉네임", 10L);
