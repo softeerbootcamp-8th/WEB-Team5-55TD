@@ -35,6 +35,9 @@ public class WatchService {
     if (auction.getConsignment().getSellerMember().getMemberId().equals(memberId)) {
       throw new PickUpException(AUCTION_SELLER_WATCH_FORBIDDEN);
     }
+    if (auction.getAuctionStatus().isTerminal()) {
+      throw new PickUpException(AUCTION_ENDED);
+    }
 
     Watch watch;
     try {
