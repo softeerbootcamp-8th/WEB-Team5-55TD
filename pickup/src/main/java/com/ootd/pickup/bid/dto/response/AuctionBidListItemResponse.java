@@ -17,7 +17,7 @@ public record AuctionBidListItemResponse(
     return new AuctionBidListItemResponse(
         bid.getBidId(),
         bid.getMember().getNickname(),
-        imageUrlResolver.resolve(bid.getMember().getProfileImageObjectKey()),
+        bid.getMember().getResolvedProfileImageUrl(imageUrlResolver),
         bid.getBidPrice(),
         bid.getCreatedAt(),
         viewerMemberId != null && viewerMemberId.equals(bid.getMember().getMemberId()));

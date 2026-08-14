@@ -43,6 +43,7 @@ export interface AuctionBidUpdatedMessage {
   latestBid: {
     bidId: number;
     nickname: string;
+    profileImageUrl?: string | null;
     bidPrice: number;
     createdAt: string;
   };
@@ -135,6 +136,8 @@ function parseMessage(frame: IMessage): AuctionBidUpdatedMessage | null {
     typeof latestBid.bidId === "number" &&
     latestBid.bidId > 0 &&
     typeof latestBid.nickname === "string" &&
+    (latestBid.profileImageUrl == null ||
+      typeof latestBid.profileImageUrl === "string") &&
     typeof latestBid.bidPrice === "number" &&
     Number.isFinite(latestBid.bidPrice) &&
     typeof latestBid.createdAt === "string";

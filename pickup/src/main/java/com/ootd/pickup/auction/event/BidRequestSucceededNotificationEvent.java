@@ -37,6 +37,11 @@ public record BidRequestSucceededNotificationEvent(
 
   public static BidRequestSucceededNotificationEvent fromEntity(
       Auction auction, Bid winningBid, Long bidRequestId) {
+    return fromEntity(auction, winningBid, bidRequestId, null);
+  }
+
+  public static BidRequestSucceededNotificationEvent fromEntity(
+      Auction auction, Bid winningBid, Long bidRequestId, String profileImageUrl) {
     return new BidRequestSucceededNotificationEvent(
         UUID.randomUUID().toString(),
         auction.getAuctionId(),
@@ -48,7 +53,7 @@ public record BidRequestSucceededNotificationEvent(
         auction.getStartedAt(),
         auction.getEndedAt(),
         auction.getCreatedAt(),
-        WinningBidSnapshot.fromEntity(winningBid),
+        WinningBidSnapshot.fromEntity(winningBid, profileImageUrl),
         bidRequestId,
         LocalDateTime.now(ZoneOffset.UTC));
   }
