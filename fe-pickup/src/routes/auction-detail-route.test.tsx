@@ -78,6 +78,9 @@ describe("구매자 경매 상세", () => {
     render(<Component />);
     expect(screen.getByText("낙찰가")).toBeInTheDocument();
     expect(
+      screen.queryByRole("button", { name: "관심 등록" }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("link", { name: "경매 참여" }),
     ).not.toBeInTheDocument();
   });
