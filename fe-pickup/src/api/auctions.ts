@@ -62,10 +62,7 @@ export type AuctionSort =
   | "RECENT";
 
 export type AuctionSearchField =
-  | "ALL"
-  | "AUCTION_TITLE"
-  | "CARD_NAME"
-  | "SELLER";
+  "ALL" | "AUCTION_TITLE" | "CARD_NAME" | "SELLER";
 
 export interface AuctionSearchParams {
   q?: string;
@@ -283,7 +280,12 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     sellerNickname: item.sellerNickname ?? undefined,
     sellerProfileImageUrl: item.sellerProfileImageUrl ?? undefined,
     minBidUnit: item.bidIncrement ?? minBidUnit(item.startingPrice),
-    images: (item.images ?? []).map((image) => image.imageUrl),
+    // images[0] 이 대표 사진으로 쓰이므로 서버 응답 순서에 기대지 않고 정렬한다
+    // (consignments.ts 도 같은 방식).
+    images: (item.images ?? [])
+      .slice()
+      .sort((left, right) => left.imageOrder - right.imageOrder)
+      .map((image) => image.imageUrl),
     bidCount: 0,
     card: item.card,
     cardState: item.cardState ?? undefined,
@@ -301,9 +303,14 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
     ...summary,
     sellerNickname: "",
     minBidUnit: minBidUnit(item.startingPrice),
-    images: [item.thumbnailUrl, item.card.imageUrl].filter(
-      (url): url is string => Boolean(url),
-    ),
+    // thumbnailUrl 과 card.imageUrl 이 같은 값일 수 있어 중복을 제거한다.
+    images: [
+      ...new Set(
+        [item.thumbnailUrl, item.card.imageUrl].filter((url): url is string =>
+          Boolean(url),
+        ),
+      ),
+    ],
     bidCount: 0,
     card: item.card,
     won: item.auctionStatus === "WON",

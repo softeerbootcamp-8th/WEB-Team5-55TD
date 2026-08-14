@@ -30,6 +30,8 @@ import {
   uploadImage,
 } from "@/api/image-upload";
 import { withdrawMember } from "@/api/member";
+import { useImageCropper } from "@/hooks/use-image-cropper";
+import { IMAGE_CROP_PRESETS } from "@/lib/image-crop";
 import { Avatar } from "@/components/domain/avatar";
 import { PageContainer } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
@@ -184,25 +186,35 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
     },
   });
   const isSaving = isUploadingAvatar || updateProfileMutation.isPending;
+  const { requestCrop, cropper } = useImageCropper(
+    CreateImageUploadRequestPurpose.PROFILE,
+  );
 
-  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleAvatarChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    // await 이후에는 currentTarget 이 null 이므로 먼저 읽고 비운다.
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
     if (!file) return;
 
     const validationError = getImageValidationError(file);
     if (validationError) {
       toast.error(validationError);
-      event.currentTarget.value = "";
       return;
     }
+
+    const [cropped] = await requestCrop([file]);
+    if (!cropped) return;
 
     const reader = new FileReader();
     reader.onload = () => {
       setAvatarUrl(reader.result as string);
-      setAvatarFile(file);
+      setAvatarFile(cropped);
       setIsAvatarChanged(true);
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(cropped);
   };
 
   const resetAvatar = () => {
@@ -281,8 +293,11 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
               type="file"
               accept={IMAGE_ACCEPT}
               className="hidden"
-              onChange={handleAvatarChange}
+              onChange={(event) => void handleAvatarChange(event)}
             />
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {IMAGE_CROP_PRESETS.PROFILE.guide} JPG·PNG·WebP, 최대 10MB.
+            </p>
           </div>
         </div>
 
@@ -392,6 +407,8 @@ function AccountSettingsForm({ profile }: { profile: MyProfileResponse }) {
           </Button>
         </form>
       </CardContent>
+
+      {cropper}
     </Card>
   );
 }
