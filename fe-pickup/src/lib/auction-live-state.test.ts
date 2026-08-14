@@ -84,6 +84,17 @@ describe("mergeLatestBid", () => {
     expect(result?.items[0].profileImageUrl).toBe("/profile.webp");
   });
 
+  it("이전 6개 입찰에 없는 사용자도 웹소켓 프로필 이미지를 표시한다", () => {
+    const result = mergeLatestBid(
+      snapshot,
+      { ...latestBid, profileImageUrl: "/new-bidder.webp" },
+      false,
+      6,
+    );
+
+    expect(result?.items[0].profileImageUrl).toBe("/new-bidder.webp");
+  });
+
   it("본인 여부가 누락된 웹소켓 갱신에도 기존 본인 표시를 유지한다", () => {
     const result = mergeLatestBid(
       {

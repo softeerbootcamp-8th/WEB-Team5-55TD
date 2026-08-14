@@ -98,7 +98,8 @@ public class BidService {
     }
     auctionRepository.save(auction);
     eventPublisher.publish(
-        BidRequestSucceededNotificationEvent.fromEntity(auction, savedBid, bidRequestId));
+        BidRequestSucceededNotificationEvent.fromEntity(
+            auction, savedBid, bidRequestId, member.getResolvedProfileImageUrl(imageUrlResolver)));
 
     log.info(
         "입찰이 접수됐습니다 - auctionId={}, bidId={}, memberId={}, bidPrice={}, previousHighestBidId={}",
