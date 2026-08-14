@@ -58,6 +58,10 @@ public interface AuthApi {
         @ApiResponse(
             responseCode = "401",
             description = "카카오 인가 코드 검증 실패",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "409",
+            description = "이미 탈퇴한 카카오 회원",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<LoginResponseBody> kakaoLogin(KakaoLoginRequest request);

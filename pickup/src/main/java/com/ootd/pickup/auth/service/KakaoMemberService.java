@@ -1,6 +1,9 @@
 package com.ootd.pickup.auth.service;
 
+import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_ALREADY_WITHDRAWN;
+
 import com.ootd.pickup.auth.kakao.KakaoClient;
+import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
@@ -27,8 +30,15 @@ public class KakaoMemberService {
   public KakaoMemberResult findOrCreate(KakaoClient.KakaoUser user) {
     return memberRepository
         .findByOauthProviderAndOauthSubject(PROVIDER, user.subject())
-        .map(member -> new KakaoMemberResult(member, false))
+        .map(this::existingMemberResult)
         .orElseGet(() -> new KakaoMemberResult(createMember(user), true));
+  }
+
+  private KakaoMemberResult existingMemberResult(Member member) {
+    if (member.isWithdrawn()) {
+      throw new PickUpException(MEMBER_ALREADY_WITHDRAWN);
+    }
+    return new KakaoMemberResult(member, false);
   }
 
   private Member createMember(KakaoClient.KakaoUser user) {
