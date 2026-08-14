@@ -1238,11 +1238,17 @@ paths:
       description: 실제 포인트 증감 내역을 최신순 커서 기반으로 조회합니다.
       operationId: getMyPointTransactions
       parameters:
-      - name: getPointTransactionsRequest
+      - name: cursor
         in: query
-        required: true
+        required: false
         schema:
-          $ref: "#/components/schemas/GetPointTransactionsRequest"
+          type: string
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
       responses:
         "200":
           description: 포인트 거래내역 조회 성공

@@ -60,9 +60,7 @@ function PointsPage() {
   const transactionsQuery = useInfiniteQuery({
     queryKey: getGetMyPointTransactionsQueryKey(),
     queryFn: ({ pageParam }) =>
-      getMyPointTransactions({
-        getPointTransactionsRequest: { cursor: pageParam, size: 20 },
-      }),
+      getMyPointTransactions({ cursor: pageParam, size: 20 }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasNext ? lastPage.cursor : undefined,
