@@ -89,7 +89,7 @@ public class OutboxEventRepository {
    * @return 지울 대상 식별자 목록. 없으면 빈 목록
    */
   @Transactional(readOnly = true)
-  public List<String> findIdsByPublishedTrueAndCreatedAtBefore(
+  public List<String> findAllByPublishedTrueAndCreatedAtBefore(
       LocalDateTime threshold, Limit limit) {
     return queryFactory
         .select(outboxEventEntity.id)

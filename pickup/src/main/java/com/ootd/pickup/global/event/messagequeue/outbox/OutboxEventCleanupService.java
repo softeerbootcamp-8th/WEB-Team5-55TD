@@ -34,12 +34,18 @@ public class OutboxEventCleanupService {
   public int deleteExpiredEvents() {
     LocalDateTime threshold =
         LocalDateTime.now(ZoneOffset.UTC).minusDays(outboxEventCleanupProperties.retentionDays());
-    Limit batchSize = Limit.of(outboxEventCleanupProperties.batchSize());
+    int maxDeletesPerRun = outboxEventCleanupProperties.maxDeletesPerRun();
+    int configuredBatchSize = outboxEventCleanupProperties.batchSize();
 
     int totalDeleted = 0;
-    while (totalDeleted < outboxEventCleanupProperties.maxDeletesPerRun()) {
+    while (totalDeleted < maxDeletesPerRun) {
+      // 남은 허용량이 배치 크기보다 작을 수 있다. 그대로 배치 크기만큼 조회하면 이번 호출이
+      // maxDeletesPerRun을 넘겨 지운다.
+      int remaining = maxDeletesPerRun - totalDeleted;
+      Limit batchSize = Limit.of(Math.min(configuredBatchSize, remaining));
+
       List<String> ids =
-          outboxEventRepository.findIdsByPublishedTrueAndCreatedAtBefore(threshold, batchSize);
+          outboxEventRepository.findAllByPublishedTrueAndCreatedAtBefore(threshold, batchSize);
       if (ids.isEmpty()) {
         break;
       }
