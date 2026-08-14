@@ -104,6 +104,7 @@ export interface CardInfo {
 /** 마이페이지 입찰/낙찰 내역 항목 */
 export interface MyBidItem {
   auctionId: string;
+  title?: string;
   cardName: string;
   thumbnailUrl?: string;
   grade?: Grade;

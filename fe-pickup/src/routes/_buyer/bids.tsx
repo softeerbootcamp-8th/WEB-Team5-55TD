@@ -181,7 +181,14 @@ function BidTable({ items }: { items: MyBidItem[] }) {
                 <GradeBadge grade={it.grade} />
                 <Badge variant={meta.variant}>{meta.label}</Badge>
               </div>
-              <span className="text-sm font-semibold">{it.cardName}</span>
+              <span className="text-sm font-semibold">
+                {it.title ?? it.cardName}
+              </span>
+              {it.title && (
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  {it.cardName}
+                </span>
+              )}
             </div>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
               <div className="flex flex-col items-end gap-0.5">
