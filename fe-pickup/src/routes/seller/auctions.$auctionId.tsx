@@ -272,7 +272,7 @@ function SellerAuctionPage() {
       {/* 입찰 내역 (읽기 전용, 최근 6건 미리보기 + 전체보기 모달) */}
       <aside className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">입찰 내역</h2>
+          <h2 className="text-base font-semibold">실시간 순위</h2>
           <button
             type="button"
             onClick={() => setAllBidsOpen(true)}
