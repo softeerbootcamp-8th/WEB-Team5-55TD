@@ -17,6 +17,7 @@ import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.DateTimeExpression;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -194,13 +195,17 @@ public class AuctionDataJpaRepository implements AuctionRepository {
     return auction.endedAt.coalesce(AuctionCursor.SENTINEL_END_AT);
   }
 
+  private NumberExpression<Long> currentPriceSortExpression() {
+    return auction.winningPrice.coalesce(auction.startingPrice);
+  }
+
   private OrderSpecifier<?>[] orderSpecifiers(AuctionSort sort) {
     return switch (sort) {
       case POPULAR -> new OrderSpecifier<?>[] {auction.watchCount.desc(), auction.auctionId.desc()};
       case PRICE_ASC ->
-          new OrderSpecifier<?>[] {auction.startingPrice.asc(), auction.auctionId.asc()};
+          new OrderSpecifier<?>[] {currentPriceSortExpression().asc(), auction.auctionId.asc()};
       case PRICE_DESC ->
-          new OrderSpecifier<?>[] {auction.startingPrice.desc(), auction.auctionId.desc()};
+          new OrderSpecifier<?>[] {currentPriceSortExpression().desc(), auction.auctionId.desc()};
       case ENDING_SOON ->
           new OrderSpecifier<?>[] {endedAtSortExpression().asc(), auction.auctionId.asc()};
       case STARTING_SOON ->
@@ -225,21 +230,17 @@ public class AuctionDataJpaRepository implements AuctionRepository {
                       .eq(cursor.sortValue())
                       .and(auction.auctionId.lt(cursor.auctionId())));
       case PRICE_ASC ->
-          auction
-              .startingPrice
+          currentPriceSortExpression()
               .gt(cursor.sortValue())
               .or(
-                  auction
-                      .startingPrice
+                  currentPriceSortExpression()
                       .eq(cursor.sortValue())
                       .and(auction.auctionId.gt(cursor.auctionId())));
       case PRICE_DESC ->
-          auction
-              .startingPrice
+          currentPriceSortExpression()
               .lt(cursor.sortValue())
               .or(
-                  auction
-                      .startingPrice
+                  currentPriceSortExpression()
                       .eq(cursor.sortValue())
                       .and(auction.auctionId.lt(cursor.auctionId())));
       case ENDING_SOON -> {

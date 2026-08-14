@@ -88,6 +88,49 @@ class AuctionSearchIntegrationTest {
   }
 
   @Test
+  void 진행중_경매를_현재가_오름차순으로_정렬하고_커서로_페이지를_조회한다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    Auction expensive =
+        createAuction(consignment, AuctionStatus.ONGOING, 1000L, LocalDateTime.now().plusHours(1));
+    expensive.updateWinningBid(1L, 5000L);
+    Auction cheap =
+        createAuction(consignment, AuctionStatus.ONGOING, 2000L, LocalDateTime.now().plusHours(1));
+    cheap.updateWinningBid(2L, 3000L);
+    Auction mid =
+        createAuction(consignment, AuctionStatus.ONGOING, 2500L, LocalDateTime.now().plusHours(1));
+    mid.updateWinningBid(3L, 4000L);
+    auctionJpaRepository.flush();
+
+    // when & then
+    String firstPage =
+        mockMvc
+            .perform(
+                get("/auctions")
+                    .param("status", "ONGOING")
+                    .param("sort", "PRICE_ASC")
+                    .param("size", "2"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.hasNext").value(true))
+            .andExpect(jsonPath("$.items[0].auctionId").value(cheap.getAuctionId()))
+            .andExpect(jsonPath("$.items[1].auctionId").value(mid.getAuctionId()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("status", "ONGOING")
+                .param("sort", "PRICE_ASC")
+                .param("size", "2")
+                .param("cursor", extractCursor(firstPage)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.items[0].auctionId").value(expensive.getAuctionId()));
+  }
+
+  @Test
   void 관심수_내림차순으로_정렬한다() throws Exception {
     // given
     Consignment consignment = createConsignment();
