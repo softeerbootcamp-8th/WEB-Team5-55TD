@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentType, ReactNode } from "react";
+import { pokemonAvatarForKey } from "@/lib/pokemon-avatars";
 
 let auction: Record<string, unknown>;
 vi.mock("@tanstack/react-router", () => ({
@@ -90,6 +91,20 @@ describe("구매자 경매 상세", () => {
     expect(screen.getByText("유찰")).toBeInTheDocument();
     expect(screen.queryByText("낙찰가")).not.toBeInTheDocument();
     expect(screen.queryByText("20,000원")).not.toBeInTheDocument();
+  });
+
+  it("판매자 프로필 이미지가 없으면 포켓몬 아바타로 대체한다", async () => {
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/index");
+    const Component = Route.options.component as ComponentType;
+    auction = {
+      ...base,
+      sellerId: "seller-42",
+      sellerProfileImageUrl: undefined,
+    };
+    render(<Component />);
+    expect(
+      screen.getByRole("img", { name: "seller 프로필 이미지" }),
+    ).toHaveAttribute("src", pokemonAvatarForKey("seller-42"));
   });
 
   it("첫_이미지는_대표_영역에만_한_번_표시한다", async () => {

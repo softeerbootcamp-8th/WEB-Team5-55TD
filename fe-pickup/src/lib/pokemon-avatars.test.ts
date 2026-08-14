@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assignPokemonAvatars,
+  pokemonAvatarForKey,
   POKEMON_AVATAR_URLS,
 } from "@/lib/pokemon-avatars";
 
@@ -21,5 +22,23 @@ describe("assignPokemonAvatars", () => {
       new Set(["user-a", "user-b", "user-c"].map((key) => assignments.get(key)))
         .size,
     ).toBe(3);
+  });
+});
+
+describe("pokemonAvatarForKey", () => {
+  it("같은 키에는 항상 같은 포켓몬을 돌려준다", () => {
+    const first = pokemonAvatarForKey("seller-42");
+    const second = pokemonAvatarForKey("seller-42");
+
+    expect(first).toBe(second);
+    expect(POKEMON_AVATAR_URLS).toContain(first);
+  });
+
+  it("다른 키에는 대체로 다른 포켓몬을 돌려준다", () => {
+    const results = new Set(
+      ["seller-1", "seller-2", "seller-3", "seller-4"].map(pokemonAvatarForKey),
+    );
+
+    expect(results.size).toBeGreaterThan(1);
   });
 });

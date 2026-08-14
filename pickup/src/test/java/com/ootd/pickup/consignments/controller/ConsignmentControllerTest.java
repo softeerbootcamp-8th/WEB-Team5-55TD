@@ -244,6 +244,31 @@ class ConsignmentControllerTest {
   }
 
   @Test
+  void 주요_결함이_255자를_초과하면_400을_반환한다() throws Exception {
+    // given
+    RegisterConsignmentRequest request =
+        new RegisterConsignmentRequest(
+            10L,
+            CardState.HIGH,
+            "a".repeat(256),
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/consignments")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void 카드ID가_BIGINT_범위를_초과하면_500이_아닌_400을_반환한다() throws Exception {
     // given
     String requestBody =
@@ -610,6 +635,31 @@ class ConsignmentControllerTest {
         .andExpect(status().isBadRequest());
 
     then(consignmentService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 주요_결함이_255자를_초과하면_수정_요청은_400을_반환한다() throws Exception {
+    // given
+    Long consignmentId = 100L;
+    ModifyConsignmentRequest request =
+        new ModifyConsignmentRequest(
+            CardState.HIGH,
+            "a".repeat(256),
+            new CertificateRequest("PSA-84213907", "PSA", "10", LocalDate.of(2026, 6, 30)),
+            List.of(
+                new ConsignmentImageRequest("https://image.example.com/front.png"),
+                new ConsignmentImageRequest("https://image.example.com/back.png")));
+
+    // when & then
+    mockMvc
+        .perform(
+            patch("/consignments/{consignmentId}", consignmentId)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(consignmentApplicationService).shouldHaveNoInteractions();
   }
 
   @Test

@@ -24,6 +24,7 @@ import { getAuctionDetail } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
 import { formatDate, formatDateTime, formatWon } from "@/lib/format";
 import { getCardStateLabel } from "@/lib/card-state";
+import { pokemonAvatarForKey } from "@/lib/pokemon-avatars";
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/")({
   loader: async ({ params }) => {
@@ -135,6 +136,9 @@ function AuctionDetailPage() {
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
               <Avatar
                 src={auction.sellerProfileImageUrl}
+                fallbackSrc={pokemonAvatarForKey(
+                  auction.sellerId ?? auction.sellerNickname ?? "판매자",
+                )}
                 nickname={auction.sellerNickname || "판매자"}
                 className="size-7"
                 initialClassName="text-xs"

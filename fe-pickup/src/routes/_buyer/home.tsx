@@ -61,7 +61,7 @@ function HomePage() {
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {featured.cardName}
+              {featured.title ?? featured.cardName}
             </h1>
             <div className="flex items-end gap-8">
               <Price amount={featured.currentPrice} label="현재가" size="lg" />

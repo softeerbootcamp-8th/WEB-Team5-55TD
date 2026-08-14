@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronDown, Search } from "lucide-react";
@@ -19,6 +19,7 @@ import {
   type AuctionSort,
 } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
+import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
 
 export const Route = createFileRoute("/_buyer/auctions/")({
   component: AuctionListPage,
@@ -40,6 +41,15 @@ const SORT_LABEL: Record<Sort, string> = {
   endingSoon: "종료 임박순",
   startingSoon: "시작 임박순",
   recent: "최신순",
+};
+
+const DEFAULT_SORT: Sort = "popular";
+
+/** 상태 탭별로 고를 수 있는 정렬 기준. 시각이 이미 지나 의미가 없는 기준은 뺀다. */
+const SORT_OPTIONS: Record<Filter, Sort[]> = {
+  LIVE: ["popular", "priceAsc", "priceDesc", "endingSoon", "recent"],
+  UPCOMING: ["popular", "priceAsc", "priceDesc", "startingSoon", "recent"],
+  ENDED: ["popular", "priceAsc", "priceDesc", "recent"],
 };
 
 const API_STATUS: Record<
@@ -77,45 +87,47 @@ const SEARCH_PLACEHOLDER: Record<AuctionSearchField, string> = {
 /** DESIGN.md · auction list.html — 검색 · 정렬 · 진행/예정/종료 필터 */
 function AuctionListPage() {
   const [filter, setFilter] = useState<Filter>("LIVE");
-  const [sort, setSort] = useState<Sort>("popular");
+  const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [query, setQuery] = useState("");
   const [searchField, setSearchField] = useState<AuctionSearchField>("ALL");
   const deferredQuery = useDeferredValue(query.trim());
 
-  const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useInfiniteQuery({
-      queryKey: ["auctions", filter, sort, deferredQuery, searchField],
-      queryFn: ({ pageParam }) =>
-        searchAuctions({
-          q: deferredQuery || undefined,
-          searchField,
-          status: API_STATUS[filter],
-          sort: API_SORT[sort],
-          cursor: pageParam,
-          size: 20,
-        }),
-      initialPageParam: undefined as string | undefined,
-      getNextPageParam: (lastPage) =>
-        lastPage.hasNext ? lastPage.cursor : undefined,
-    });
+  function selectFilter(next: Filter) {
+    setFilter(next);
+    if (!SORT_OPTIONS[next].includes(sort)) {
+      setSort(DEFAULT_SORT);
+    }
+  }
+
+  const {
+    data,
+    isPending,
+    isError,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["auctions", filter, sort, deferredQuery, searchField],
+    queryFn: ({ pageParam }) =>
+      searchAuctions({
+        q: deferredQuery || undefined,
+        searchField,
+        status: API_STATUS[filter],
+        sort: API_SORT[sort],
+        cursor: pageParam,
+        size: 20,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNext ? lastPage.cursor : undefined,
+  });
   const list = data?.pages.flatMap((page) => page.items) ?? [];
 
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasNextPage) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { rootMargin: "200px" },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const sentinelRef = useLoadMoreSentinel({
+    enabled: Boolean(hasNextPage) && !isFetchingNextPage,
+    onIntersect: fetchNextPage,
+  });
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -160,7 +172,7 @@ function AuctionListPage() {
 
       {/* 필터 + 정렬 */}
       <div className="flex items-center justify-between">
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+        <Tabs value={filter} onValueChange={(v) => selectFilter(v as Filter)}>
           <TabsList>
             <TabsTrigger value={AuctionStatus.LIVE}>진행 중</TabsTrigger>
             <TabsTrigger value={AuctionStatus.UPCOMING}>예정</TabsTrigger>
@@ -174,7 +186,7 @@ function AuctionListPage() {
             <ChevronDown className="size-4 text-[var(--color-text-muted)]" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {(Object.keys(SORT_LABEL) as Sort[]).map((key) => (
+            {SORT_OPTIONS[filter].map((key) => (
               <DropdownMenuItem key={key} onSelect={() => setSort(key)}>
                 {SORT_LABEL[key]}
               </DropdownMenuItem>
@@ -215,12 +227,16 @@ function AuctionListPage() {
             ))}
           </div>
           {hasNextPage && (
-            <div ref={sentinelRef} className="py-4 text-center">
-              {isFetchingNextPage && (
-                <p className="text-sm text-[var(--color-text-sub)]">
-                  불러오는 중
-                </p>
-              )}
+            <div className="flex flex-col items-center py-4">
+              <div ref={sentinelRef} aria-hidden className="h-px" />
+              <button
+                type="button"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="text-sm font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:text-[var(--color-text-muted)] disabled:no-underline"
+              >
+                {isFetchingNextPage ? "불러오는 중" : "경매 더 보기"}
+              </button>
             </div>
           )}
         </>
