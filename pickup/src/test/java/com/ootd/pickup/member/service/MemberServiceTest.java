@@ -544,6 +544,7 @@ class MemberServiceTest {
     assertThat(response.items()).hasSize(1);
     MyBidListItemResponse item = response.items().get(0);
     assertThat(item.auctionId()).isEqualTo(11L);
+    assertThat(item.title()).isEqualTo("테스트 제목");
     assertThat(item.status()).isEqualTo(BidStatus.WON);
     assertThat(item.auctionStatus()).isEqualTo(AuctionStatus.WON);
     assertThat(item.myBidPrice()).isEqualTo(330_000L);
@@ -605,6 +606,7 @@ class MemberServiceTest {
 
     AuctionListItemResponse item = response.items().get(0);
     assertThat(item.auctionId()).isEqualTo(10L);
+    assertThat(item.title()).isEqualTo("테스트 제목");
     assertThat(item.auctionStatus()).isEqualTo(AuctionStatus.SCHEDULED);
     assertThat(item.grade()).isEqualTo("PSA 9");
     assertThat(item.currentPrice()).isNull();
