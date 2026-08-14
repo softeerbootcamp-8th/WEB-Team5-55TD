@@ -1,5 +1,19 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+// 크롭 다이얼로그는 별도 테스트에서 다룬다 — 여기서는 통과시키고 필드 로직만 본다.
+vi.mock("@/hooks/use-image-cropper", () => ({
+  useImageCropper: () => ({
+    requestCrop: async (files: File[]) => files,
+    cropper: null,
+  }),
+}));
 import { BidList, BidRow } from "@/components/domain/bid-list";
 import { ConsignmentImageFields } from "@/components/domain/consignment-image-fields";
 import { ImageLightbox } from "@/components/domain/image-lightbox";
@@ -99,7 +113,7 @@ describe("추가 도메인 컴포넌트", () => {
     expect(onIndexChange).toHaveBeenCalledWith(1);
   });
 
-  it("이미지 필드에서 유효한 새 이미지를 추가하고 삭제한다", () => {
+  it("이미지 필드에서 유효한 새 이미지를 추가하고 삭제한다", async () => {
     const onChange = vi.fn();
     const onError = vi.fn();
     const { container } = render(
@@ -116,7 +130,10 @@ describe("추가 도메인 컴포넌트", () => {
       type: "image/jpeg",
     });
     fireEvent.change(input, { target: { files: [file] } });
-    expect(onChange).toHaveBeenCalledWith([{ kind: "new", file }]);
+    // 크롭 단계를 거치므로 onChange 는 비동기로 호출된다.
+    await waitFor(() =>
+      expect(onChange).toHaveBeenCalledWith([{ kind: "new", file }]),
+    );
 
     const images = [{ kind: "new" as const, file }];
     const rerendered = render(
@@ -132,11 +149,13 @@ describe("추가 도메인 컴포넌트", () => {
 
   it("이미지 필드는 앞면·뒷면 안내와 등록 여부 체크리스트를 표시한다", () => {
     const { rerender } = render(
-      <ConsignmentImageFields images={[]} onChange={vi.fn()} onError={vi.fn()} />,
+      <ConsignmentImageFields
+        images={[]}
+        onChange={vi.fn()}
+        onError={vi.fn()}
+      />,
     );
-    expect(
-      screen.getByText(/사진을 모두 첨부해 주세요\./),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/사진을 모두 첨부해 주세요\./)).toBeInTheDocument();
     // 아직 등록된 이미지가 없으면 앞면·뒷면 모두 미완료 상태다.
     expect(screen.getByText("앞면 사진")).toHaveClass(
       "text-[var(--color-text-muted)]",

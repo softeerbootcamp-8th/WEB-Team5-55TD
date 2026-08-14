@@ -6,7 +6,7 @@ import { ChevronLeft, Gavel, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { PageContainer } from "@/components/layout/page";
-import { CardThumb } from "@/components/domain/card-thumb";
+import { ImageGallery } from "@/components/domain/image-gallery";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { EmptyState } from "@/components/domain/section-header";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,6 @@ function ProductDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [activeImage, setActiveImage] = useState(0);
 
   const {
     data: product,
@@ -105,12 +104,13 @@ function ProductDetailPage() {
     product.status === ProductStatus.REAPPLICABLE;
   const canDelete = canModify;
 
-  // 카드 원본 이미지를 대표 사진으로 우선 노출하고, 위탁 등록 시 첨부한 실물 사진은 썸네일로 보여준다.
-  const gallery = [
-    product.thumbnailUrl,
-    ...product.images.map((image) => image.imageUrl),
-  ].filter((img): img is string => !!img);
-  const mainImage = gallery[activeImage] ?? gallery[0];
+  // thumbnailUrl 은 위탁 이미지가 있으면 그 첫 장과 같은 URL 이라(api/consignments.ts)
+  // 그대로 앞에 붙이면 같은 사진이 썸네일 줄에 두 번 나온다. 실물 사진을 우선 쓰고,
+  // 한 장도 없을 때만 카드 원본 이미지로 대체한다.
+  const consignmentImages = product.images.map((image) => image.imageUrl);
+  const gallery = (
+    consignmentImages.length > 0 ? consignmentImages : [product.thumbnailUrl]
+  ).filter((img): img is string => !!img);
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -122,39 +122,11 @@ function ProductDetailPage() {
       </Link>
 
       <div className="grid gap-8 md:grid-cols-[3fr_2fr]">
-        <div className="flex flex-col gap-3">
-          <CardThumb
-            cardName={product.cardName}
-            grade={product.grade}
-            imageUrl={mainImage}
-            className="w-full"
-          />
-          {gallery.length > 1 && (
-            <div className="grid grid-cols-5 gap-2">
-              {gallery.map((img, i) => (
-                <button
-                  key={img}
-                  type="button"
-                  onClick={() => setActiveImage(i)}
-                  aria-label={`${product.cardName} 이미지 ${i + 1}`}
-                  aria-pressed={i === activeImage}
-                  className="rounded-[var(--radius-md)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <CardThumb
-                    cardName={product.cardName}
-                    imageUrl={img}
-                    aspect="aspect-square"
-                    className={
-                      i === activeImage
-                        ? "ring-2 ring-[var(--color-text-sub)]"
-                        : "opacity-70"
-                    }
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <ImageGallery
+          images={gallery}
+          cardName={product.cardName}
+          grade={product.grade}
+        />
 
         <div className="flex flex-col gap-5">
           <div className="flex items-center gap-2">

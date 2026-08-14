@@ -1,7 +1,16 @@
 import { useEffect, useId, useMemo } from "react";
-import { Check, CircleDashed, ImagePlus, RefreshCw, Trash2 } from "lucide-react";
+import {
+  Check,
+  CircleDashed,
+  ImagePlus,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IMAGE_ACCEPT, getImageValidationError } from "@/api/image-upload";
+import { CreateImageUploadRequestPurpose } from "@/api/generated/model";
+import { useImageCropper } from "@/hooks/use-image-cropper";
+import { IMAGE_CROP_PRESETS } from "@/lib/image-crop";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGES = 5;
@@ -31,8 +40,11 @@ export function ConsignmentImageFields({
   disabled,
 }: ConsignmentImageFieldsProps) {
   const inputIdPrefix = useId();
+  const { requestCrop, cropper } = useImageCropper(
+    CreateImageUploadRequestPurpose.CONSIGNMENT,
+  );
 
-  const addImages = (files: File[]) => {
+  const addImages = async (files: File[]) => {
     if (images.length + files.length > MAX_IMAGES) {
       onError("상품 이미지는 최대 5장까지 등록할 수 있습니다.");
       return;
@@ -46,22 +58,29 @@ export function ConsignmentImageFields({
       return;
     }
 
+    // 어차피 거절될 파일을 크롭시키지 않도록 검증을 먼저 끝낸다.
+    const cropped = await requestCrop(files);
+    if (cropped.length === 0) return;
+
     onChange([
       ...images,
-      ...files.map((file): ConsignmentImageValue => ({ kind: "new", file })),
+      ...cropped.map((file): ConsignmentImageValue => ({ kind: "new", file })),
     ]);
   };
 
-  const replaceImage = (index: number, file: File) => {
+  const replaceImage = async (index: number, file: File) => {
     const validationError = getImageValidationError(file);
     if (validationError) {
       onError(validationError);
       return;
     }
 
+    const [cropped] = await requestCrop([file]);
+    if (!cropped) return;
+
     onChange(
       images.map((image, imageIndex) =>
-        imageIndex === index ? { kind: "new", file } : image,
+        imageIndex === index ? { kind: "new", file: cropped } : image,
       ),
     );
   };
@@ -77,9 +96,8 @@ export function ConsignmentImageFields({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 rounded-[var(--radius-md)] bg-[var(--color-surface-2)] p-4 text-xs text-[var(--color-text-sub)]">
         <p>
-          카드의{" "}
-          <strong className="font-semibold text-foreground">앞면</strong>과{" "}
-          <strong className="font-semibold text-foreground">뒷면</strong>{" "}
+          카드의 <strong className="font-semibold text-foreground">앞면</strong>
+          과 <strong className="font-semibold text-foreground">뒷면</strong>{" "}
           사진을 모두 첨부해 주세요. 처음 등록하는 두 장이 순서대로 앞면·뒷면
           이미지로 저장됩니다.
         </p>
@@ -136,9 +154,11 @@ export function ConsignmentImageFields({
                       className="sr-only"
                       disabled={disabled}
                       onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) replaceImage(index, file);
-                        event.currentTarget.value = "";
+                        // await 이후에는 currentTarget 이 null 이므로 먼저 비운다.
+                        const input = event.currentTarget;
+                        const file = input.files?.[0];
+                        input.value = "";
+                        if (file) void replaceImage(index, file);
                       }}
                     />
                   </label>
@@ -170,8 +190,10 @@ export function ConsignmentImageFields({
               className="sr-only"
               disabled={disabled}
               onChange={(event) => {
-                addImages(Array.from(event.target.files ?? []));
-                event.currentTarget.value = "";
+                const input = event.currentTarget;
+                const files = Array.from(input.files ?? []);
+                input.value = "";
+                void addImages(files);
               }}
             />
           </label>
@@ -179,8 +201,11 @@ export function ConsignmentImageFields({
       )}
 
       <p className="text-xs text-[var(--color-text-muted)]">
-        2~5장의 JPG, PNG, WebP 파일을 등록해 주세요. 파일당 최대 10MB입니다.
+        2~5장의 JPG, PNG, WebP 파일을 등록해 주세요. 파일당 최대 10MB입니다.{" "}
+        {IMAGE_CROP_PRESETS.CONSIGNMENT.guide}
       </p>
+
+      {cropper}
     </div>
   );
 }
@@ -327,13 +352,7 @@ function CardFaceDiagram({ variant }: { variant: "front" | "back" }) {
   );
 }
 
-function ImageChecklistItem({
-  label,
-  done,
-}: {
-  label: string;
-  done: boolean;
-}) {
+function ImageChecklistItem({ label, done }: { label: string; done: boolean }) {
   return (
     <span
       className={cn(

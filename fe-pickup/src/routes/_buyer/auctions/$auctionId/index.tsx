@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { AxiosError } from "axios";
-import { ChevronLeft, Expand } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
-import { CardThumb } from "@/components/domain/card-thumb";
-import { ImageLightbox } from "@/components/domain/image-lightbox";
+import { ImageGallery } from "@/components/domain/image-gallery";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
@@ -46,14 +44,13 @@ function AuctionDetailPage() {
   const isLive = auction.status === AuctionStatus.LIVE;
   const isUpcoming = auction.status === AuctionStatus.UPCOMING;
   const images = auction.images ?? [];
-  // 확대해서 볼 이미지 목록 — 개별 이미지가 없으면 썸네일 한 장으로라도 확대 가능하게 한다.
+  // 개별 이미지가 없으면 썸네일 한 장으로라도 갤러리를 구성한다.
   const galleryImages =
     images.length > 0
       ? images
       : auction.thumbnailUrl
         ? [auction.thumbnailUrl]
         : [];
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -65,53 +62,12 @@ function AuctionDetailPage() {
       </Link>
 
       <div className="grid gap-8 md:grid-cols-2">
-        {/* 이미지 */}
-        <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={() => galleryImages.length > 0 && setLightboxIndex(0)}
-            disabled={galleryImages.length === 0}
-            className="group relative block w-full rounded-[var(--radius-md)] text-left disabled:cursor-default"
-          >
-            <CardThumb
-              cardName={auction.cardName}
-              grade={auction.grade}
-              imageUrl={images[0] ?? auction.thumbnailUrl}
-              label={!images[0] && !auction.thumbnailUrl ? "앞면" : undefined}
-              className="w-full"
-            />
-            {galleryImages.length > 0 && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
-                <Expand className="size-6 text-white drop-shadow" />
-              </span>
-            )}
-          </button>
-          {images.length > 1 && (
-            <div className="grid grid-cols-4 gap-2">
-              {images.slice(1).map((img, index) => {
-                const imageIndex = index + 1;
-                return (
-                  <button
-                    key={imageIndex}
-                    type="button"
-                    onClick={() => setLightboxIndex(imageIndex)}
-                    className="group relative block rounded-[var(--radius-md)] text-left"
-                  >
-                    <CardThumb
-                      cardName={auction.cardName}
-                      imageUrl={img}
-                      aspect="aspect-square"
-                      label={imageIndex === 1 ? "뒤" : `${imageIndex + 1}`}
-                    />
-                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
-                      <Expand className="size-4 text-white drop-shadow" />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        {/* 이미지 (DESIGN.md §5.14) */}
+        <ImageGallery
+          images={galleryImages}
+          cardName={auction.cardName}
+          grade={auction.grade}
+        />
 
         {/* 정보 */}
         <div className="flex flex-col gap-5">
@@ -129,7 +85,9 @@ function AuctionDetailPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold">{auction.title ?? auction.cardName}</h1>
+            <h1 className="text-2xl font-bold">
+              {auction.title ?? auction.cardName}
+            </h1>
             <p className="text-sm text-[var(--color-text-muted)]">
               {auction.cardName}
             </p>
@@ -261,16 +219,6 @@ function AuctionDetailPage() {
       />
 
       <RelatedAuctionsBanner auction={auction} />
-
-      {lightboxIndex !== null && (
-        <ImageLightbox
-          images={galleryImages}
-          index={lightboxIndex}
-          onIndexChange={setLightboxIndex}
-          onOpenChange={(open) => !open && setLightboxIndex(null)}
-          alt={auction.cardName}
-        />
-      )}
     </PageContainer>
   );
 }
