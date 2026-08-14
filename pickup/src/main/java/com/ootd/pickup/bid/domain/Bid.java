@@ -54,12 +54,18 @@ public class Bid {
   @Column(name = "bid_request_id")
   private Long bidRequestId;
 
+  // 입찰 시점의 입찰자 닉네임 스냅샷. 입찰자가 탈퇴해 Member.nickname이 비워져도 과거 입찰의 표시 닉네임을 보존한다.
+  @Column(name = "bidder_nickname_snapshot", nullable = false)
+  @Getter
+  private String bidderNicknameSnapshot;
+
   private Bid(Auction auction, Member member, Long bidPrice, Long bidRequestId) {
     this.auction = auction;
     this.member = member;
     this.bidPrice = bidPrice;
     this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     this.bidRequestId = bidRequestId;
+    this.bidderNicknameSnapshot = member.getNickname();
   }
 
   public static Bid create(Auction auction, Member member, Long bidPrice) {

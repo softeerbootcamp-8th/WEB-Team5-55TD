@@ -64,7 +64,11 @@ class AuctionEndedNotificationEventTest {
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status) {
-    Consignment consignment = Consignment.builder().status(ConsignmentStatus.IN_AUCTION).build();
+    Consignment consignment =
+        Consignment.builder()
+            .sellerMember(Member.create("sellerId", "password", "판매자"))
+            .status(ConsignmentStatus.IN_AUCTION)
+            .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
         Auction.builder()

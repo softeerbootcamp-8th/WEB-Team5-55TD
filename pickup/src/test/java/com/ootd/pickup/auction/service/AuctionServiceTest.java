@@ -936,6 +936,67 @@ class AuctionServiceTest {
   }
 
   @Test
+  void 낙찰자가_탈퇴했으면_마스킹_대신_전체_익명화된_닉네임이_반환된다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.SOLD, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.WON,
+            LocalDateTime.now().minusHours(2),
+            LocalDateTime.now().minusHours(1));
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    Member winner = createMember(9L);
+    Bid winningBid = Bid.create(auction, winner, 10000L);
+    ReflectionTestUtils.setField(winningBid, "bidId", 50L);
+    auction.updateWinningBid(50L, 10000L);
+    winner.withdraw();
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), eq(List.of(1L))))
+        .willReturn(Map.of());
+    given(bidRepository.findById(50L)).willReturn(Optional.of(winningBid));
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
+
+    // then
+    assertThat(response.winnerNicknameMasked()).isEqualTo("탈퇴한 회원");
+  }
+
+  @Test
+  void 판매자가_탈퇴했으면_종료된_경매의_판매자_닉네임이_익명화된다() {
+    // given
+    Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.SOLD, null);
+    Auction auction =
+        createAuction(
+            1L,
+            consignment,
+            AuctionStatus.WON,
+            LocalDateTime.now().minusHours(2),
+            LocalDateTime.now().minusHours(1));
+    consignment.getSellerMember().withdraw();
+    Certificate certificate = createCertificate(consignment, CertificationBody.PSA, Grade.GEM_MINT);
+    given(auctionRepository.findByIdWithConsignmentAndCard(1L)).willReturn(Optional.of(auction));
+    given(certificateRepository.findCertificateByConsignment(consignment))
+        .willReturn(Optional.of(certificate));
+    given(consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment))
+        .willReturn(List.of());
+    given(watchRepository.findWatchSummariesByAuctionIds(isNull(), eq(List.of(1L))))
+        .willReturn(Map.of());
+
+    // when
+    AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
+
+    // then
+    assertThat(response.sellerNickname()).isEqualTo("탈퇴한 회원");
+  }
+
+  @Test
   void 유찰된_경매를_조회하면_winnerNicknameMasked가_null이다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.SOLD, null);

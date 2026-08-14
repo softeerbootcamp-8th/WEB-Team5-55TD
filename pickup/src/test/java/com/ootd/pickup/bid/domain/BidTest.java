@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.consignments.domain.Consignment;
+import com.ootd.pickup.member.domain.Member;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -44,9 +46,12 @@ class BidTest {
   }
 
   private Auction createAuction(AuctionStatus auctionStatus) {
+    Consignment consignment =
+        Consignment.builder().sellerMember(Member.create("sellerId", "password", "판매자")).build();
     return Auction.builder()
         .title("테스트 제목")
         .description("테스트 설명")
+        .consignment(consignment)
         .startedAt(LocalDateTime.now().minusHours(1))
         .endedAt(LocalDateTime.now().plusHours(1))
         .auctionStatus(auctionStatus)
@@ -57,7 +62,7 @@ class BidTest {
   }
 
   private Bid createBid(Auction auction, Long bidId) {
-    Bid bid = Bid.create(auction, null, 10_500L);
+    Bid bid = Bid.create(auction, Member.create("bidderId", "password", "입찰자"), 10_500L);
     ReflectionTestUtils.setField(bid, "bidId", bidId);
     return bid;
   }

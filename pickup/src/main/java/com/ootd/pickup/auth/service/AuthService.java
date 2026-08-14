@@ -55,6 +55,10 @@ public class AuthService {
   }
 
   public LoginResponse issueLogin(Member member, boolean needsNickname) {
+    if (member.isWithdrawn()) {
+      throw new PickUpException(WITHDRAWN_MEMBER_LOGIN_DENIED);
+    }
+
     AccessToken accessToken = accessTokenGenerator.generate(member.getMemberId());
     RefreshToken refreshToken = refreshTokenGenerator.generate();
 

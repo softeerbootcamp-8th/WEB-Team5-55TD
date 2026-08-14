@@ -8,6 +8,7 @@ import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.global.event.AggregateType;
 import com.ootd.pickup.global.event.EventType;
+import com.ootd.pickup.member.domain.Member;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -52,7 +53,11 @@ class AuctionStartedNotificationEventTest {
   }
 
   private Auction createAuction(Long auctionId, AuctionStatus status) {
-    Consignment consignment = Consignment.builder().status(ConsignmentStatus.IN_AUCTION).build();
+    Consignment consignment =
+        Consignment.builder()
+            .sellerMember(Member.create("sellerId", "password", "판매자"))
+            .status(ConsignmentStatus.IN_AUCTION)
+            .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
         Auction.builder()

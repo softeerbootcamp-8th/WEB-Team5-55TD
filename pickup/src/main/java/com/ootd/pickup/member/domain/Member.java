@@ -122,14 +122,17 @@ public class Member {
   }
 
   /**
-   * 탈퇴 처리한다. 로그인 아이디와 비밀번호를 지워 재로그인을 막고, 유니크 제약을 비워 같은 아이디로 재가입할 수 있게 한다. 닉네임은 기존 입찰/상품 내역에 계속
-   * 노출되므로 남겨 둔다.
+   * 탈퇴 처리한다. 로그인 아이디·비밀번호·닉네임·카카오 식별자를 모두 지워 재로그인을 막고 유니크 제약을 비워 같은 정보로 재가입할 수 있게 한다. 기존 경매/입찰 이력에는
+   * 생성 시점 닉네임 스냅샷이 별도로 남아 있으므로 표시에는 영향이 없다.
    */
   public void withdraw() {
     status = MemberStatus.WITHDRAWN;
     withdrawnAt = LocalDateTime.now(ZoneOffset.UTC);
     loginId = null;
     password = null;
+    nickname = null;
+    oauthProvider = null;
+    oauthSubject = null;
     updatedAt = withdrawnAt;
   }
 }

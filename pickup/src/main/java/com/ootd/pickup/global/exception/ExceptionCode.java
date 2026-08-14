@@ -170,7 +170,9 @@ public enum ExceptionCode {
       ClientExceptionCode.TOO_MANY_LOGIN_ATTEMPTS,
       "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요."),
   CSRF_TOKEN_MISMATCH(
-      HttpStatus.FORBIDDEN, ClientExceptionCode.CSRF_TOKEN_MISMATCH, "CSRF 토큰이 유효하지 않습니다.");
+      HttpStatus.FORBIDDEN, ClientExceptionCode.CSRF_TOKEN_MISMATCH, "CSRF 토큰이 유효하지 않습니다."),
+  WITHDRAWN_MEMBER_LOGIN_DENIED(
+      HttpStatus.UNAUTHORIZED, ClientExceptionCode.WITHDRAWN_MEMBER_LOGIN_DENIED, "탈퇴한 회원입니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

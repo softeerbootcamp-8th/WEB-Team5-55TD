@@ -28,6 +28,7 @@ import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
 import com.ootd.pickup.global.util.NicknameMasker;
+import com.ootd.pickup.global.util.WithdrawnMemberDisplay;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 import java.util.Map;
@@ -233,9 +234,15 @@ public class AuctionService {
         .orElse(false);
   }
 
-  /** 낙찰자의 마스킹된 닉네임을 계산한다. 낙찰 입찰이 없으면 null. */
+  /** 낙찰자의 마스킹된 닉네임을 계산한다. 낙찰 입찰이 없으면 null. 낙찰자가 탈퇴했으면 마스킹 대신 전체 익명화 문구를 보여준다. */
   private String resolveWinnerNicknameMasked(Optional<Bid> winningBid) {
-    return winningBid.map(bid -> NicknameMasker.mask(bid.getMember().getNickname())).orElse(null);
+    return winningBid
+        .map(
+            bid ->
+                bid.getMember().isWithdrawn()
+                    ? WithdrawnMemberDisplay.WITHDRAWN_NICKNAME
+                    : NicknameMasker.mask(bid.getBidderNicknameSnapshot()))
+        .orElse(null);
   }
 
   private Consignment getConsignment(Long consignmentId) {

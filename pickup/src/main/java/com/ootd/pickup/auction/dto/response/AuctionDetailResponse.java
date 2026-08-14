@@ -8,6 +8,7 @@ import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
 import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
+import com.ootd.pickup.global.util.WithdrawnMemberDisplay;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -72,7 +73,8 @@ public record AuctionDetailResponse(
         watched,
         resolveThumbnailUrl(images, imageUrlResolver),
         consignment.getSellerMember().getMemberId(),
-        consignment.getSellerMember().getNickname(),
+        WithdrawnMemberDisplay.resolveNickname(
+            consignment.getSellerMember(), auction.getSellerNicknameSnapshot()),
         imageUrlResolver.resolve(consignment.getSellerMember().getProfileImageObjectKey()),
         CertificateResponse.from(certificate),
         images.stream()

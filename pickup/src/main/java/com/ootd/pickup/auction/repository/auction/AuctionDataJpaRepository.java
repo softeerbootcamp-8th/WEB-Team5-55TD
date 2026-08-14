@@ -13,6 +13,7 @@ import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.global.util.EpochMillis;
+import com.ootd.pickup.member.domain.MemberStatus;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -102,7 +103,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
             .fetchJoin()
             .join(consignment.sellerMember, member)
             .fetchJoin()
-            .where(auction.auctionId.eq(auctionId))
+            .where(auction.auctionId.eq(auctionId), sellerNotWithdrawnForActiveAuction())
             .fetchOne());
   }
 
@@ -129,6 +130,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
             sellerIdEq(sellerId),
             cardIdEq(cardId),
             auctionIdNotEq(excludeAuctionId),
+            sellerNotWithdrawnForActiveAuction(),
             keysetPredicate(sort, cursor))
         .orderBy(orderSpecifiers(sort))
         .limit(limit)
@@ -137,6 +139,15 @@ public class AuctionDataJpaRepository implements AuctionRepository {
 
   private BooleanExpression sellerIdEq(Long sellerId) {
     return sellerId == null ? null : consignment.sellerMember.memberId.eq(sellerId);
+  }
+
+  // 탈퇴한 셀러의 진행중/예정 경매는 조회되지 않게 막는다. 종료(WON/PASSED)된 경매는 이력 보존을 위해 계속 노출한다.
+  private BooleanExpression sellerNotWithdrawnForActiveAuction() {
+    return consignment
+        .sellerMember
+        .status
+        .ne(MemberStatus.WITHDRAWN)
+        .or(auction.auctionStatus.notIn(AuctionStatus.ONGOING, AuctionStatus.SCHEDULED));
   }
 
   private BooleanExpression cardIdEq(Long cardId) {

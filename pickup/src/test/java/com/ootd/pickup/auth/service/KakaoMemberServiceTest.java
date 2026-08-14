@@ -59,6 +59,24 @@ class KakaoMemberServiceTest {
   }
 
   @Test
+  void 탈퇴한_카카오_회원과_같은_계정으로_다시_로그인하면_새_회원을_생성한다() {
+    // Member.withdraw()가 oauthProvider/oauthSubject를 비우므로, 실제 DB에서는 탈퇴한 회원을
+    // 더 이상 찾지 못하고(=findByOauthProviderAndOauthSubject가 empty) 신규 가입 경로를 탄다.
+    KakaoClient.KakaoUser user = new KakaoClient.KakaoUser("kakao-subject", "profile.png");
+    Member newMember = createMember("새로가입한닉네임", 20L);
+    given(memberRepository.findByOauthProviderAndOauthSubject("KAKAO", user.subject()))
+        .willReturn(Optional.empty());
+    given(memberRepository.existsByNickname(anyString())).willReturn(false);
+    given(memberRepository.save(any(Member.class))).willReturn(newMember);
+
+    KakaoMemberService.KakaoMemberResult result = kakaoMemberService.findOrCreate(user);
+
+    assertThat(result.created()).isTrue();
+    assertThat(result.member()).isEqualTo(newMember);
+    assertThat(result.member().getMemberId()).isNotEqualTo(1L);
+  }
+
+  @Test
   void 저장_중_유니크_제약이_위반되면_같은_트랜잭션_안에서_재시도하지_않고_즉시_전파한다() {
     // findOrCreate 는 @Transactional 이므로, 여기서 재시도하면 Spring 이 이미 rollback-only 로
     // 표시한 트랜잭션 위에서 재시도하는 셈이 되어 커밋 시점에 UnexpectedRollbackException 으로
