@@ -97,7 +97,7 @@ describe("셀러 경매 상세", () => {
         screen.getByRole("heading", { name: "Mewtwo" }),
       ).toBeInTheDocument();
       expect(screen.getByText("12,000원")).toBeInTheDocument();
-      expect(screen.getByText("입찰 내역")).toBeInTheDocument();
+      expect(screen.getByText("실시간 순위")).toBeInTheDocument();
       expect(screen.getByText("collector88")).toBeInTheDocument();
       expect(screen.getByText("1")).toBeInTheDocument();
       unmount();

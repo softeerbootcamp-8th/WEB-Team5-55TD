@@ -143,6 +143,25 @@ describe("실시간 경매 추월 알림", () => {
     );
   });
 
+  it("다른_탭이나_기기에서_낸_내_입찰은_추월_알림을_띄우지_않는다", async () => {
+    // 이 탭의 pendingBidRequestId와 무관하게(= 다른 탭/기기에서 낸 요청) 도착한 브로드캐스트라도,
+    // 닉네임이 나와 같으면 실제로는 내가 더 높게 입찰한 것이다. bidId만 보고 판단하던 예전
+    // 로직은 이를 "다른 회원에게 추월당함"으로 오인해 잘못된 경고를 띄웠다.
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    act(() => {
+      onBidUpdated?.({
+        latestBid: { bidId: 8, nickname: myNickname, bidPrice: 11000 },
+        currentPrice: 11000,
+        endedAt: null,
+      });
+    });
+
+    expect(toastWarning).not.toHaveBeenCalled();
+  });
+
   it("자신의_입찰이_그대로_최고가면_알림을_보여주지_않는다", async () => {
     const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
     const Component = Route.options.component as ComponentType;

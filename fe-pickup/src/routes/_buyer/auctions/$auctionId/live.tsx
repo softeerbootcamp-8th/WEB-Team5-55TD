@@ -216,21 +216,24 @@ function LiveAuctionPage() {
     ? Number(previewBidItems[0].id)
     : undefined;
 
-  // 실시간 화면에서 추월당했는지 판단하려면 "내가 최고 입찰자였는지"를 알아야 한다.
+  // 실시간 화면에서 추월당했는지 판단하려면 "내 최고 입찰가"를 알아야 한다.
   // 페이지를 새로 열었을 때는 입찰 내역에서, 직접 입찰했을 때는 그 결과에서 채운다.
   const myHighestBidRef = useRef<{ bidId: number; price: number } | null>(null);
   // 방금 접수한 입찰 요청의 id. 성공 브로드캐스트가 이 id와 일치하면 "내 요청"으로 판단해
   // 성공 토스트를 띄운다 — 이 화면은 서버로부터 자신의 memberId를 알 방법이 없다.
   const pendingBidRequestIdRef = useRef<number | null>(null);
-  const topPreviewBid = previewBidItems[0];
+  // 목록에서 "내가 이미 남긴 가장 최근 입찰"을 찾는다 — 전체 최신 입찰(topPreviewBid)이
+  // 아니라 내 입찰만 봐야, 새로고침 시점에 이미 다른 회원에게 추월당한 상태여도(즉 내가
+  // 최상단이 아니어도) 내 최고 입찰가를 놓치지 않는다.
+  const myPreviewBid = previewBidItems.find((bid) => bid.isMine);
   useEffect(() => {
-    if (topPreviewBid?.isMine) {
+    if (myPreviewBid) {
       myHighestBidRef.current = {
-        bidId: Number(topPreviewBid.id),
-        price: topPreviewBid.amount,
+        bidId: Number(myPreviewBid.id),
+        price: myPreviewBid.amount,
       };
     }
-  }, [topPreviewBid]);
+  }, [myPreviewBid]);
 
   const refreshSnapshot = useCallback(() => {
     void queryClient.invalidateQueries({
@@ -255,6 +258,12 @@ function LiveAuctionPage() {
 
   const applyBidUpdate = useCallback(
     (message: AuctionBidUpdatedMessage) => {
+      // 브로드캐스트에는 memberId가 없어 닉네임으로 본인 여부를 판단한다. bidId를 기억해뒀다가
+      // 비교하는 방식은 이 탭에서 낸 요청에만 정확했다 — 다른 탭/기기에서 낸 내 입찰이거나,
+      // 새로고침 시점에 이미 추월당해 있던 경우엔 갱신되지 않아 실시간 목록에 "나"와 내 닉네임이
+      // 서로 다른 사람처럼 중복 표시되는 버그가 있었다.
+      const isMine = !!myNickname && message.latestBid.nickname === myNickname;
+
       if (
         message.bidRequestId !== null &&
         message.bidRequestId === pendingBidRequestIdRef.current
@@ -262,17 +271,13 @@ function LiveAuctionPage() {
         pendingBidRequestIdRef.current = null;
         setIsBidRequestPending(false);
         setAmount("");
-        myHighestBidRef.current = {
-          bidId: message.latestBid.bidId,
-          price: message.currentPrice,
-        };
         queryClient.invalidateQueries({
           queryKey: getGetMyPointBalanceQueryKey(),
         });
         toast.success("입찰 성공", {
           description: `${formatWon(message.currentPrice)}에 입찰했습니다.`,
         });
-      } else {
+      } else if (!isMine) {
         const myHighestBid = myHighestBidRef.current;
         if (
           myHighestBid &&
@@ -284,6 +289,13 @@ function LiveAuctionPage() {
             description: `다른 회원이 ${formatWon(message.currentPrice)}에 입찰했습니다.`,
           });
         }
+      }
+
+      if (isMine) {
+        myHighestBidRef.current = {
+          bidId: message.latestBid.bidId,
+          price: message.currentPrice,
+        };
       }
 
       setRealtimeSnapshot((current) => ({
@@ -298,7 +310,6 @@ function LiveAuctionPage() {
             : (message.endedAt ?? undefined),
       }));
 
-      const isMine = myHighestBidRef.current?.bidId === message.latestBid.bidId;
       queryClient.setQueryData<
         InfiniteData<AuctionBidsSnapshot, string | undefined> | undefined
       >(["auction-bids", auction.id, "preview"], (snapshot) => {
@@ -331,7 +342,7 @@ function LiveAuctionPage() {
           mergeLatestBid(snapshot, message.latestBid, isMine, BID_MODAL_SIZE),
       );
     },
-    [auction.id, queryClient],
+    [auction.id, myNickname, queryClient],
   );
 
   const applyBidFailure = useCallback(
@@ -648,7 +659,7 @@ function LiveAuctionPage() {
       {/* 우: 실시간 입찰 목록(입찰자별 최신 입찰만, 스크롤로 이어서 로드) + 전체 모달 */}
       <aside className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">입찰 내역</h2>
+          <h2 className="text-base font-semibold">실시간 순위</h2>
           <button
             type="button"
             onClick={() => setAllBidsOpen(true)}
