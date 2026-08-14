@@ -122,14 +122,15 @@ public class Member {
   }
 
   /**
-   * 탈퇴 처리한다. 로그인 아이디, 비밀번호, OAuth 연결 정보를 지워 기존 계정의 재로그인을 막고 같은 인증 정보로 신규 가입할 수 있게 한다. 닉네임은 기존 입찰/상품
-   * 내역에 계속 노출되므로 남겨 둔다.
+   * 탈퇴 처리한다. 로그인 아이디, 비밀번호, OAuth 연결 정보를 지워 기존 계정의 재로그인을 막고 같은 인증 정보로 신규 가입할 수 있게 한다. 닉네임은 고유한 탈퇴
+   * 회원 식별값으로 익명화해 기존 닉네임을 다른 회원이 사용할 수 있게 한다.
    */
   public void withdraw() {
     status = MemberStatus.WITHDRAWN;
     withdrawnAt = LocalDateTime.now(ZoneOffset.UTC);
     loginId = null;
     password = null;
+    nickname = "탈퇴회원_" + memberId;
     clearOAuthIdentity();
     updatedAt = withdrawnAt;
   }
