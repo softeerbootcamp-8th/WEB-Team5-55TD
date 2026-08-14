@@ -31,7 +31,12 @@ public record AuctionCursor(AuctionSort sort, long sortValue, long auctionId) {
   public static long sortValueOf(AuctionSort sort, Auction auction, long watchCount) {
     return switch (sort) {
       case POPULAR -> watchCount;
-      case PRICE_ASC, PRICE_DESC -> auction.getStartingPrice();
+        // 화면에 보이는 현재가로 정렬한다. getCurrentPrice()는 예정 경매에서 null 이라
+        // 쓸 수 없고, 정렬식(COALESCE(winning_price, starting_price))과 같은 값이어야 한다.
+      case PRICE_ASC, PRICE_DESC ->
+          auction.getWinningPrice() != null
+              ? auction.getWinningPrice()
+              : auction.getStartingPrice();
       case ENDING_SOON ->
           EpochMillis.from(auction.getEndedAt() != null ? auction.getEndedAt() : SENTINEL_END_AT);
       case STARTING_SOON -> EpochMillis.from(auction.getStartedAt());

@@ -88,6 +88,78 @@ class AuctionSearchIntegrationTest {
   }
 
   @Test
+  void 가격_정렬은_화면에_보이는_현재가를_기준으로_한다() throws Exception {
+    // given — 진행 중 경매는 입찰이 붙으면 현재가(winningPrice)가 시작가와 달라진다.
+    Consignment consignment = createConsignment();
+    Auction noBid = createAuction(consignment, AuctionStatus.ONGOING, 5000L, null);
+    Auction highestBid = createAuction(consignment, AuctionStatus.ONGOING, 1000L, null);
+    highestBid.updateWinningBid(1L, 9000L);
+    Auction midBid = createAuction(consignment, AuctionStatus.ONGOING, 3000L, null);
+    auctionJpaRepository.flush();
+
+    // when & then — 현재가 3000 < 5000 < 9000 순서여야 한다.
+    // 시작가 기준이면 highestBid(1000)가 맨 앞에 와서 화면에는 9000원이 먼저 보인다.
+    mockMvc
+        .perform(get("/auctions").param("sort", "PRICE_ASC").param("size", "3"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].auctionId").value(midBid.getAuctionId()))
+        .andExpect(jsonPath("$.items[0].currentPrice").value(3000))
+        .andExpect(jsonPath("$.items[1].auctionId").value(noBid.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].currentPrice").value(5000))
+        .andExpect(jsonPath("$.items[2].auctionId").value(highestBid.getAuctionId()))
+        .andExpect(jsonPath("$.items[2].currentPrice").value(9000));
+  }
+
+  @Test
+  void 가격_내림차순도_현재가를_기준으로_한다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    Auction noBid = createAuction(consignment, AuctionStatus.ONGOING, 5000L, null);
+    Auction highestBid = createAuction(consignment, AuctionStatus.ONGOING, 1000L, null);
+    highestBid.updateWinningBid(1L, 9000L);
+    auctionJpaRepository.flush();
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("sort", "PRICE_DESC").param("size", "2"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].auctionId").value(highestBid.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(noBid.getAuctionId()));
+  }
+
+  @Test
+  void 현재가_정렬에서도_커서로_다음_페이지가_이어진다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    Auction noBid = createAuction(consignment, AuctionStatus.ONGOING, 5000L, null);
+    Auction highestBid = createAuction(consignment, AuctionStatus.ONGOING, 1000L, null);
+    highestBid.updateWinningBid(1L, 9000L);
+    Auction midBid = createAuction(consignment, AuctionStatus.ONGOING, 3000L, null);
+    auctionJpaRepository.flush();
+
+    // when
+    String firstPage =
+        mockMvc
+            .perform(get("/auctions").param("sort", "PRICE_ASC").param("size", "2"))
+            .andExpect(jsonPath("$.items[0].auctionId").value(midBid.getAuctionId()))
+            .andExpect(jsonPath("$.items[1].auctionId").value(noBid.getAuctionId()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // then — 커서 다음 장에 남은 한 건만 오고 중복되지 않는다.
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("sort", "PRICE_ASC")
+                .param("size", "2")
+                .param("cursor", extractCursor(firstPage)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(highestBid.getAuctionId()));
+  }
+
+  @Test
   void 관심수_내림차순으로_정렬한다() throws Exception {
     // given
     Consignment consignment = createConsignment();
@@ -106,6 +178,55 @@ class AuctionSearchIntegrationTest {
         .andExpect(jsonPath("$.items[0].watchCount").value(2))
         .andExpect(jsonPath("$.items[1].auctionId").value(unpopular.getAuctionId()))
         .andExpect(jsonPath("$.items[1].watchCount").value(0));
+  }
+
+  @Test
+  void 종료_임박순은_먼저_끝나는_순서이고_종료시각이_없으면_뒤로_보낸다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    LocalDateTime base = LocalDateTime.now().plusHours(1);
+    Auction last = createAuction(consignment, AuctionStatus.ONGOING, 1000L, base.plusHours(5));
+    Auction first = createAuction(consignment, AuctionStatus.ONGOING, 1000L, base);
+    Auction noEndAt = createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("sort", "ENDING_SOON").param("size", "3"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].auctionId").value(first.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(last.getAuctionId()))
+        .andExpect(jsonPath("$.items[2].auctionId").value(noEndAt.getAuctionId()));
+  }
+
+  @Test
+  void 시작_임박순은_먼저_시작하는_순서다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    LocalDateTime base = LocalDateTime.now().plusDays(1);
+    Auction later = createScheduledAuction(consignment, base.plusDays(3));
+    Auction sooner = createScheduledAuction(consignment, base);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("sort", "STARTING_SOON").param("size", "2"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].auctionId").value(sooner.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(later.getAuctionId()));
+  }
+
+  @Test
+  void 최신순은_나중에_등록된_경매가_먼저_온다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    Auction older = createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null);
+    Auction newer = createAuction(consignment, AuctionStatus.SCHEDULED, 2000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("sort", "RECENT").param("size", "2"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].auctionId").value(newer.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(older.getAuctionId()));
   }
 
   @Test
@@ -536,6 +657,22 @@ class AuctionSearchIntegrationTest {
   private Member createMember(String nickname) {
     Member member = Member.create("login-" + nickname, "password", nickname);
     return memberJpaRepository.save(member);
+  }
+
+  private Auction createScheduledAuction(Consignment consignment, LocalDateTime startedAt) {
+    Auction auction =
+        Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
+            .consignment(consignment)
+            .startedAt(startedAt)
+            .endedAt(null)
+            .auctionStatus(AuctionStatus.SCHEDULED)
+            .startingPrice(1000L)
+            .reservePrice(1000L)
+            .bidIncrement(50L)
+            .build();
+    return auctionJpaRepository.save(auction);
   }
 
   private Auction createAuction(
