@@ -122,14 +122,22 @@ public class Member {
   }
 
   /**
-   * 탈퇴 처리한다. 로그인 아이디와 비밀번호를 지워 재로그인을 막고, 유니크 제약을 비워 같은 아이디로 재가입할 수 있게 한다. 닉네임은 기존 입찰/상품 내역에 계속
-   * 노출되므로 남겨 둔다.
+   * 탈퇴 처리한다. 로그인 아이디, 비밀번호, OAuth 연결 정보를 지워 기존 계정의 재로그인을 막고 같은 인증 정보로 신규 가입할 수 있게 한다. 닉네임은 기존 입찰/상품
+   * 내역에 계속 노출되므로 남겨 둔다.
    */
   public void withdraw() {
     status = MemberStatus.WITHDRAWN;
     withdrawnAt = LocalDateTime.now(ZoneOffset.UTC);
     loginId = null;
     password = null;
+    clearOAuthIdentity();
     updatedAt = withdrawnAt;
+  }
+
+  /** 탈퇴한 소셜 회원이 같은 소셜 계정으로 새로 가입할 수 있도록 기존 OAuth 연결을 해제한다. */
+  public void clearOAuthIdentity() {
+    oauthProvider = null;
+    oauthSubject = null;
+    externalProfileImageUrl = null;
   }
 }

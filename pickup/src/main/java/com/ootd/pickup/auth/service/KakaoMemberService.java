@@ -1,9 +1,6 @@
 package com.ootd.pickup.auth.service;
 
-import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_ALREADY_WITHDRAWN;
-
 import com.ootd.pickup.auth.kakao.KakaoClient;
-import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
@@ -30,13 +27,16 @@ public class KakaoMemberService {
   public KakaoMemberResult findOrCreate(KakaoClient.KakaoUser user) {
     return memberRepository
         .findByOauthProviderAndOauthSubject(PROVIDER, user.subject())
-        .map(this::existingMemberResult)
+        .map(member -> existingMemberResult(member, user))
         .orElseGet(() -> new KakaoMemberResult(createMember(user), true));
   }
 
-  private KakaoMemberResult existingMemberResult(Member member) {
+  private KakaoMemberResult existingMemberResult(Member member, KakaoClient.KakaoUser user) {
     if (member.isWithdrawn()) {
-      throw new PickUpException(MEMBER_ALREADY_WITHDRAWN);
+      // 배포 전에 탈퇴해 OAuth 정보가 남은 회원도 재가입할 수 있도록 연결을 정리한다.
+      member.clearOAuthIdentity();
+      memberRepository.flush();
+      return new KakaoMemberResult(createMember(user), true);
     }
     return new KakaoMemberResult(member, false);
   }

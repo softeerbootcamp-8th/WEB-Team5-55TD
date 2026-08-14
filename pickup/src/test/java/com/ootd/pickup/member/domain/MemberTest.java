@@ -60,4 +60,16 @@ class MemberTest {
     // then
     assertThat(matched).isFalse();
   }
+
+  @Test
+  void 카카오_회원이_탈퇴하면_OAuth_연결정보를_제거한다() {
+    Member member = Member.createOAuth("KAKAO", "kakao-subject", "카카오회원", "profile.png");
+
+    member.withdraw();
+
+    assertThat(member.isWithdrawn()).isTrue();
+    assertThat(member.getOauthProvider()).isNull();
+    assertThat(member.getOauthSubject()).isNull();
+    assertThat(member.getExternalProfileImageUrl()).isNull();
+  }
 }

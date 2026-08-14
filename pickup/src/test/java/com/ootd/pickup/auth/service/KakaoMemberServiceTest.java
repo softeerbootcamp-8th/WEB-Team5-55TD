@@ -5,8 +5,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
 import com.ootd.pickup.auth.kakao.KakaoClient;
-import com.ootd.pickup.global.exception.ExceptionCode;
-import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.repository.PointRepository;
@@ -44,18 +42,25 @@ class KakaoMemberServiceTest {
   }
 
   @Test
-  void 탈퇴한_카카오_회원이면_로그인을_거절하고_새_회원을_생성하지_않는다() {
+  void 탈퇴한_카카오_회원이면_기존_연결을_해제하고_새_회원으로_가입한다() {
     KakaoClient.KakaoUser user = new KakaoClient.KakaoUser("kakao-subject", null);
     Member withdrawnMember = createMember("탈퇴회원", 1L);
     withdrawnMember.withdraw();
+    Member rejoinedMember = createMember("재가입회원", 2L);
     given(memberRepository.findByOauthProviderAndOauthSubject("KAKAO", user.subject()))
         .willReturn(Optional.of(withdrawnMember));
+    given(memberRepository.existsByNickname(anyString())).willReturn(false);
+    given(memberRepository.save(any(Member.class))).willReturn(rejoinedMember);
 
-    assertThatThrownBy(() -> kakaoMemberService.findOrCreate(user))
-        .isInstanceOf(PickUpException.class)
-        .hasMessage(ExceptionCode.MEMBER_ALREADY_WITHDRAWN.getMessage());
-    then(memberRepository).should(never()).save(any());
-    then(pointRepository).shouldHaveNoInteractions();
+    KakaoMemberService.KakaoMemberResult result = kakaoMemberService.findOrCreate(user);
+
+    assertThat(result.created()).isTrue();
+    assertThat(result.member()).isEqualTo(rejoinedMember);
+    assertThat(withdrawnMember.getOauthProvider()).isNull();
+    assertThat(withdrawnMember.getOauthSubject()).isNull();
+    then(memberRepository).should().flush();
+    then(memberRepository).should().save(any(Member.class));
+    then(pointRepository).should().save(argThat(point -> point.getMemberId().equals(2L)));
   }
 
   @Test
