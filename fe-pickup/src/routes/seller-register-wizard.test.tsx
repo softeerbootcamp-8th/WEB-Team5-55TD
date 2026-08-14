@@ -50,7 +50,7 @@ describe("셀러 등록 위저드", () => {
           cardNumber: "4",
           language: "EN",
           rarity: "Rare",
-          imageUrl: "card.jpg",
+          imageUrl: "https://assets.tcgdex.net/en/swsh/swsh3/136/high.webp",
         },
       ],
     };
@@ -67,6 +67,10 @@ describe("셀러 등록 위저드", () => {
     const search = screen.getByPlaceholderText("카드명 검색 (예: 리자몽)");
     fireEvent.change(search, { target: { value: "char" } });
     await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(screen.getByRole("img", { name: "Charizard" })).toHaveAttribute(
+      "src",
+      "https://assets.tcgdex.net/en/swsh/swsh3/136/low.webp",
+    );
     fireEvent.click(screen.getByRole("button", { name: /Charizard/ }));
     fireEvent.click(screen.getByRole("button", { name: "다음 단계" }));
     expect(screen.getByText(/인증기관\(PSA/)).toBeInTheDocument();

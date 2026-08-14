@@ -1,4 +1,5 @@
 import { CardThumb } from "@/components/domain/card-thumb";
+import { cardThumbnailUrl } from "@/lib/card-image";
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
@@ -206,7 +207,9 @@ function RegisterWizard() {
                       >
                         <CardThumb
                           cardName={card.cardName ?? ""}
-                          imageUrl={card.imageUrl ?? undefined}
+                          imageUrl={cardThumbnailUrl(
+                            card.imageUrl ?? undefined,
+                          )}
                           className="size-12 shrink-0 rounded-[var(--radius-sm)]"
                           aspect="aspect-square"
                         />
@@ -229,7 +232,9 @@ function RegisterWizard() {
                 <div className="flex min-w-0 items-center gap-3">
                   <CardThumb
                     cardName={selectedCard.cardName ?? ""}
-                    imageUrl={selectedCard.imageUrl ?? undefined}
+                    imageUrl={cardThumbnailUrl(
+                      selectedCard.imageUrl ?? undefined,
+                    )}
                     className="size-14 shrink-0 rounded-[var(--radius-sm)]"
                     aspect="aspect-square"
                   />

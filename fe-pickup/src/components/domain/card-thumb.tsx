@@ -45,6 +45,7 @@ export function CardThumb({
         <img
           src={imageUrl}
           alt={cardName}
+          decoding="async"
           className={cn(
             "absolute inset-0 size-full object-cover",
             !loaded && "hidden",
