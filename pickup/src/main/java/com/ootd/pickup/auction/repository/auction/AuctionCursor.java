@@ -31,7 +31,10 @@ public record AuctionCursor(AuctionSort sort, long sortValue, long auctionId) {
   public static long sortValueOf(AuctionSort sort, Auction auction, long watchCount) {
     return switch (sort) {
       case POPULAR -> watchCount;
-      case PRICE_ASC, PRICE_DESC -> auction.getStartingPrice();
+      case PRICE_ASC, PRICE_DESC ->
+          auction.getWinningPrice() != null
+              ? auction.getWinningPrice()
+              : auction.getStartingPrice();
       case ENDING_SOON ->
           EpochMillis.from(auction.getEndedAt() != null ? auction.getEndedAt() : SENTINEL_END_AT);
       case STARTING_SOON -> EpochMillis.from(auction.getStartedAt());
