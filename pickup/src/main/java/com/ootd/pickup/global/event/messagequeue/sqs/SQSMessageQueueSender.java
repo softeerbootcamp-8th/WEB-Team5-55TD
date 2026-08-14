@@ -3,7 +3,6 @@ package com.ootd.pickup.global.event.messagequeue.sqs;
 import com.ootd.pickup.global.event.messagequeue.outbox.MessageQueueSender;
 import com.ootd.pickup.global.event.messagequeue.outbox.OutboxEventScheduler;
 import com.ootd.pickup.global.event.messagequeue.outbox.RelayedOutboxEvent;
-import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

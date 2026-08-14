@@ -9,3 +9,8 @@ image:
     region: ${IMAGE_STORAGE_REGION:}
     media-base-url: ${IMAGE_MEDIA_BASE_URL:}
     upload-url-ttl: ${IMAGE_UPLOAD_URL_TTL:5m}
+
+event:
+  sqs:
+    endpoint: ${EVENT_SQS_ENDPOINT:http://localhost:4566}
+    queue-url: ${EVENT_SQS_QUEUE_URL:http://sqs.ap-northeast-2.localhost.localstack.cloud:4566/000000000000/pickup-events.fifo}

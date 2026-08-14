@@ -1,4 +1,4 @@
-package com.ootd.pickup.global.event.messagequeue.sqs.config;
+package com.ootd.pickup.global.event.messagequeue.sqs;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -69,9 +69,11 @@ class SQSPropertiesTest {
                 new SQSProperties(
                     FIFO_QUEUE_URL,
                     "ap-northeast-2",
+                    null,
                     Duration.ofSeconds(20),
                     Duration.ofMillis(500),
-                    10))
+                    10,
+                    4))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("visibility-timeout");
   }
@@ -86,6 +88,7 @@ class SQSPropertiesTest {
   }
 
   private SQSProperties properties(String queueUrl, Duration waitTime) {
-    return new SQSProperties(queueUrl, "ap-northeast-2", waitTime, Duration.ofSeconds(30), 10);
+    return new SQSProperties(
+        queueUrl, "ap-northeast-2", null, waitTime, Duration.ofSeconds(30), 10, 4);
   }
 }
