@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
 
 import com.ootd.pickup.auction.domain.Auction;
+import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.response.WatchResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
@@ -17,6 +18,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -124,6 +127,24 @@ class WatchServiceTest {
     then(watchRepository).shouldHaveNoInteractions();
   }
 
+  @ParameterizedTest
+  @EnumSource(
+      value = AuctionStatus.class,
+      names = {"WON", "PASSED"})
+  void 종료된_경매에_관심을_등록하면_예외가_발생한다(AuctionStatus status) {
+    // given
+    given(memberManageService.getMemberById(1L)).willReturn(createMember(1L));
+    given(auctionRepository.findById(100L))
+        .willReturn(Optional.of(createAuction(100L, SELLER_ID, status)));
+
+    // when & then
+    assertThatThrownBy(() -> watchService.registerWatch(1L, 100L))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.AUCTION_ENDED.getMessage());
+    then(watchRepository).shouldHaveNoInteractions();
+    then(auctionRepository).should(never()).incrementWatchCountById(anyLong());
+  }
+
   @Test
   void 관심을_해제하면_회원과_경매가_일치하는_관심을_삭제한다() {
     // given
@@ -171,9 +192,18 @@ class WatchServiceTest {
   }
 
   private Auction createAuction(Long auctionId, Long sellerId) {
+    return createAuction(auctionId, sellerId, AuctionStatus.SCHEDULED);
+  }
+
+  private Auction createAuction(Long auctionId, Long sellerId, AuctionStatus status) {
     Consignment consignment = Consignment.builder().sellerMember(createMember(sellerId)).build();
     Auction auction =
-        Auction.builder().consignment(consignment).title("테스트 제목").description("테스트 설명").build();
+        Auction.builder()
+            .consignment(consignment)
+            .auctionStatus(status)
+            .title("테스트 제목")
+            .description("테스트 설명")
+            .build();
     ReflectionTestUtils.setField(auction, "auctionId", auctionId);
     return auction;
   }

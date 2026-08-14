@@ -40,12 +40,14 @@ export function AuctionCard({
           shineOnGroupHover
         />
         <StatusBadge status={status} className="absolute top-2 left-2" />
-        <WatchButton
-          auctionId={auction.id}
-          watched={auction.watched ?? false}
-          count={auction.watchCount}
-          className="absolute top-2 right-2"
-        />
+        {status !== AuctionStatus.ENDED && (
+          <WatchButton
+            auctionId={auction.id}
+            watched={auction.watched ?? false}
+            count={auction.watchCount}
+            className="absolute top-2 right-2"
+          />
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

@@ -76,12 +76,14 @@ function AuctionDetailPage() {
               <StatusBadge status={auction.status} />
               <GradeBadge grade={auction.grade} />
             </div>
-            <WatchButton
-              auctionId={auction.id}
-              count={auction.watchCount}
-              watched={auction.watched ?? false}
-              className="bg-[var(--color-surface-2)] !text-[var(--color-text-sub)]"
-            />
+            {auction.status !== AuctionStatus.ENDED && (
+              <WatchButton
+                auctionId={auction.id}
+                count={auction.watchCount}
+                watched={auction.watched ?? false}
+                className="bg-[var(--color-surface-2)] !text-[var(--color-text-sub)]"
+              />
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
