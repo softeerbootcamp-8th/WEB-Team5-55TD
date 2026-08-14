@@ -25,6 +25,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Member", description = "회원 API")
@@ -128,7 +129,8 @@ public interface MemberApi {
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<CursorPageResponse<PointTransactionItemResponse, String>> getMyPointTransactions(
-      @Parameter(hidden = true) Long memberId, GetPointTransactionsRequest request);
+      @Parameter(hidden = true) Long memberId,
+      @ParameterObject GetPointTransactionsRequest request);
 
   @Operation(
       summary = "포인트 충전",
