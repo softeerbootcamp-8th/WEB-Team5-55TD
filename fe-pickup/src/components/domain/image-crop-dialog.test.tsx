@@ -9,21 +9,38 @@ vi.mock("react-easy-crop", () => ({
   default: ({
     onMediaLoaded,
     onCropComplete,
+    onCropSizeChange,
+    cropSize,
   }: {
     onMediaLoaded: (media: {
+      width: number;
+      height: number;
       naturalWidth: number;
       naturalHeight: number;
     }) => void;
     onCropComplete: (area: unknown, areaPixels: CropArea) => void;
+    onCropSizeChange: (size: { width: number; height: number }) => void;
+    cropSize?: { width: number; height: number };
   }) => (
     <div>
       <button
         type="button"
         onClick={() =>
-          onMediaLoaded({ naturalWidth: 2000, naturalHeight: 1500 })
+          onMediaLoaded({
+            width: 400,
+            height: 300,
+            naturalWidth: 2000,
+            naturalHeight: 1500,
+          })
         }
       >
         mock-loaded
+      </button>
+      <button
+        type="button"
+        onClick={() => onCropSizeChange({ width: 240, height: 180 })}
+      >
+        mock-size
       </button>
       <button
         type="button"
@@ -33,6 +50,9 @@ vi.mock("react-easy-crop", () => ({
       >
         mock-crop
       </button>
+      <span data-testid="crop-size">
+        {cropSize ? `${cropSize.width}×${cropSize.height}` : "auto"}
+      </span>
     </div>
   ),
 }));
@@ -60,6 +80,21 @@ function setup(names: string[], onFinish = vi.fn()) {
     />,
   );
   return onFinish;
+}
+
+function firePointer(
+  element: Element,
+  type: "pointerdown" | "pointermove" | "pointerup",
+  clientX: number,
+  clientY: number,
+) {
+  const event = new Event(type, { bubbles: true });
+  Object.defineProperties(event, {
+    pointerId: { value: 1 },
+    clientX: { value: clientX },
+    clientY: { value: clientY },
+  });
+  fireEvent(element, event);
 }
 
 const loadMedia = () => fireEvent.click(screen.getByText("mock-loaded"));
@@ -145,5 +180,21 @@ describe("이미지 크롭 다이얼로그", () => {
     fireEvent.click(free);
 
     expect(free).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("자유 비율은 모서리를 마우스로 드래그해 영역 크기를 바꾼다", () => {
+    setup(["a.jpg"]);
+    fireEvent.click(screen.getByRole("button", { name: "자유" }));
+    fireEvent.click(screen.getByText("mock-size"));
+
+    expect(screen.getByTestId("crop-size")).toHaveTextContent("240×180");
+    const handle = screen.getByRole("button", {
+      name: "오른쪽 아래 자르기 영역 크기 조절",
+    });
+    firePointer(handle, "pointerdown", 0, 0);
+    firePointer(handle, "pointermove", 20, 10);
+    firePointer(handle, "pointerup", 20, 10);
+
+    expect(screen.getByTestId("crop-size")).toHaveTextContent("280×200");
   });
 });
