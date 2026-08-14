@@ -27,8 +27,15 @@ vi.mock("@/api/generated/member/member", () => ({
   getGetMyWatchesQueryKey: () => ["my-watches"],
 }));
 vi.mock("@/components/domain/auction-card", () => ({
-  AuctionCard: ({ auction }: { auction: { cardName: string } }) => (
-    <article>{auction.cardName}</article>
+  AuctionCard: ({
+    auction,
+  }: {
+    auction: { title?: string; cardName: string };
+  }) => (
+    <article>
+      <strong>{auction.title ?? auction.cardName}</strong>
+      {auction.title && <span>{auction.cardName}</span>}
+    </article>
   ),
 }));
 
@@ -46,6 +53,7 @@ function watchesResult(overrides: Record<string, unknown>) {
 
 const bid = {
   auctionId: "3",
+  title: "피카츄 특별 경매",
   cardName: "Pikachu",
   myBid: 10000,
   currentPrice: 12000,
@@ -108,6 +116,7 @@ describe("구매자 입찰·관심 목록", () => {
       bidsResult({ data: { pages: [{ items: [] }] } }),
     ];
     render(<Component />);
+    expect(screen.getByText("피카츄 특별 경매")).toBeInTheDocument();
     expect(screen.getAllByText("Pikachu").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("tab", { name: "낙찰 내역" }));
     expect(screen.getByRole("tab", { name: "낙찰 내역" })).toBeInTheDocument();
@@ -156,6 +165,7 @@ describe("구매자 입찰·관심 목록", () => {
               items: [
                 {
                   auctionId: 9,
+                  title: "뮤츠 특별 경매",
                   card: { cardName: "Mewtwo" },
                   auctionStatus: "ONGOING",
                   startingPrice: 1000,
@@ -189,7 +199,8 @@ describe("구매자 입찰·관심 목록", () => {
       }),
     ];
     render(<Component />);
-    expect(screen.getAllByText("Mewtwo").length).toBeGreaterThan(0);
+    expect(screen.getByText("뮤츠 특별 경매")).toBeInTheDocument();
+    expect(screen.getByText("Mewtwo")).toBeInTheDocument();
     expect(screen.getByText("Eevee")).toBeInTheDocument();
     expect(screen.getByText("Gengar")).toBeInTheDocument();
     cleanup();

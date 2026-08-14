@@ -35,6 +35,7 @@ describe("consignments api", () => {
           {
             consignmentId: 1,
             auctionId: 2,
+            auctionTitle: "거북왕 특별 경매",
             card,
             sellerMemberId: 3,
             status: "IN_AUCTION",
@@ -91,6 +92,7 @@ describe("consignments api", () => {
         {
           id: "1",
           auctionId: "2",
+          auctionTitle: "거북왕 특별 경매",
           cardName: "Blastoise",
           thumbnailUrl: "card.jpg",
           grade: { agency: "PSA", score: "10", serial: "ABC" },

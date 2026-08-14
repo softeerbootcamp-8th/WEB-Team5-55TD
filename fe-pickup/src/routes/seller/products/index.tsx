@@ -186,8 +186,13 @@ function ProductGrid({
             <div className="flex flex-col gap-2 px-1">
               <GradeBadge grade={p.grade} />
               <h3 className="line-clamp-1 text-sm font-semibold">
-                {p.cardName}
+                {p.auctionTitle ?? p.cardName}
               </h3>
+              {p.auctionTitle && (
+                <span className="line-clamp-1 text-xs text-[var(--color-text-muted)]">
+                  {p.cardName}
+                </span>
+              )}
               <span className="tabular text-xs text-[var(--color-text-muted)]">
                 인증서 {p.grade?.serial}
               </span>

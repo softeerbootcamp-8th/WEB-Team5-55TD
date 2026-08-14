@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import Cropper from "react-easy-crop";
 import type { ImagePurpose } from "@/api/image-upload";
 import { Button } from "@/components/ui/button";
@@ -24,6 +30,46 @@ import {
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
+const MIN_CROP_SIZE = 64;
+
+interface CropSize {
+  width: number;
+  height: number;
+}
+
+interface ResizeDirection {
+  x: -1 | 1;
+  y: -1 | 1;
+  label: string;
+  className: string;
+}
+
+const RESIZE_DIRECTIONS: ResizeDirection[] = [
+  {
+    x: -1,
+    y: -1,
+    label: "왼쪽 위",
+    className: "-top-2 -left-2 cursor-nwse-resize",
+  },
+  {
+    x: 1,
+    y: -1,
+    label: "오른쪽 위",
+    className: "-top-2 -right-2 cursor-nesw-resize",
+  },
+  {
+    x: -1,
+    y: 1,
+    label: "왼쪽 아래",
+    className: "-bottom-2 -left-2 cursor-nesw-resize",
+  },
+  {
+    x: 1,
+    y: 1,
+    label: "오른쪽 아래",
+    className: "-right-2 -bottom-2 cursor-nwse-resize",
+  },
+];
 
 /**
  * 이미지 크기 조절 다이얼로그 (DESIGN.md §5.12).
@@ -46,12 +92,23 @@ export function ImageCropDialog({
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedArea, setCroppedArea] = useState<CropArea | null>(null);
+  const [cropSize, setCropSize] = useState<CropSize | null>(null);
+  const [freeCropSize, setFreeCropSize] = useState<CropSize | null>(null);
   const [naturalSize, setNaturalSize] = useState<{
     width: number;
     height: number;
   } | null>(null);
+  const [mediaSize, setMediaSize] = useState<CropSize | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const doneRef = useRef<File[]>([]);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    size: CropSize;
+    direction: ResizeDirection;
+  } | null>(null);
 
   const file = files[index];
   const objectUrl = useMemo(
@@ -86,7 +143,10 @@ export function ImageCropDialog({
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setCroppedArea(null);
+      setCropSize(null);
+      setFreeCropSize(null);
       setNaturalSize(null);
+      setMediaSize(null);
     },
     [files.length, index, onFinish, release],
   );
@@ -150,6 +210,68 @@ export function ImageCropDialog({
     : false;
   const hasQueue = files.length > 1;
 
+  const startCropResize = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    direction: ResizeDirection,
+  ) => {
+    const size = freeCropSize ?? cropSize;
+    if (!size) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    resizeRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      size,
+      direction,
+    };
+  };
+
+  const resizeCrop = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const resize = resizeRef.current;
+    if (!resize || resize.pointerId !== event.pointerId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const preview = previewRef.current?.getBoundingClientRect();
+    const previewWidth = preview?.width ?? 0;
+    const previewHeight = preview?.height ?? 0;
+    const maxWidth = previewWidth
+      ? Math.min(previewWidth, (mediaSize?.width ?? previewWidth) * zoom)
+      : Number.POSITIVE_INFINITY;
+    const maxHeight = previewHeight
+      ? Math.min(previewHeight, (mediaSize?.height ?? previewHeight) * zoom)
+      : Number.POSITIVE_INFINITY;
+    const width = Math.max(
+      MIN_CROP_SIZE,
+      Math.min(
+        maxWidth,
+        resize.size.width +
+          2 * resize.direction.x * (event.clientX - resize.startX),
+      ),
+    );
+    const height = Math.max(
+      MIN_CROP_SIZE,
+      Math.min(
+        maxHeight,
+        resize.size.height +
+          2 * resize.direction.y * (event.clientY - resize.startY),
+      ),
+    );
+
+    setFreeCropSize({ width: Math.round(width), height: Math.round(height) });
+  };
+
+  const stopCropResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (resizeRef.current?.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    resizeRef.current = null;
+  };
+
   return (
     <Dialog open onOpenChange={(open) => !open && finish([])}>
       <DialogContent className="sm:max-w-lg">
@@ -162,25 +284,64 @@ export function ImageCropDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative h-64 w-full overflow-hidden rounded-[var(--radius-md)] bg-black/80">
+        <div
+          ref={previewRef}
+          className="relative h-64 w-full overflow-hidden rounded-[var(--radius-md)] bg-black/80"
+        >
           {objectUrl && (
             <Cropper
               image={objectUrl}
               crop={crop}
               zoom={zoom}
-              aspect={ASPECT_VALUES[aspectPreset]}
+              aspect={ASPECT_VALUES[aspectPreset] ?? 1}
+              cropSize={
+                aspectPreset === "free"
+                  ? (freeCropSize ?? undefined)
+                  : undefined
+              }
               cropShape={preset.cropShape === "round" ? "round" : "rect"}
               showGrid={preset.cropShape !== "round"}
               onCropChange={setCrop}
               onZoomChange={setZoom}
-              onMediaLoaded={(media) =>
+              onCropSizeChange={(size) => {
+                setCropSize(size);
+                if (aspectPreset === "free") {
+                  setFreeCropSize((current) => current ?? size);
+                }
+              }}
+              onMediaLoaded={(media) => {
+                setMediaSize({ width: media.width, height: media.height });
                 setNaturalSize({
                   width: media.naturalWidth,
                   height: media.naturalHeight,
-                })
-              }
+                });
+              }}
               onCropComplete={(_area, areaPixels) => setCroppedArea(areaPixels)}
             />
+          )}
+          {aspectPreset === "free" && freeCropSize && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+              <div
+                className="relative border-2 border-primary"
+                style={{
+                  width: freeCropSize.width,
+                  height: freeCropSize.height,
+                }}
+              >
+                {RESIZE_DIRECTIONS.map((direction) => (
+                  <button
+                    key={direction.label}
+                    type="button"
+                    aria-label={`${direction.label} 자르기 영역 크기 조절`}
+                    className={`pointer-events-auto absolute size-4 touch-none rounded-full border-2 border-white bg-primary shadow ${direction.className}`}
+                    onPointerDown={(event) => startCropResize(event, direction)}
+                    onPointerMove={resizeCrop}
+                    onPointerUp={stopCropResize}
+                    onPointerCancel={stopCropResize}
+                  />
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
@@ -193,7 +354,12 @@ export function ImageCropDialog({
                 type="button"
                 size="sm"
                 variant={option === aspectPreset ? "default" : "secondary"}
-                onClick={() => setAspectPreset(option)}
+                onClick={() => {
+                  if (option === "free" && !freeCropSize && cropSize) {
+                    setFreeCropSize(cropSize);
+                  }
+                  setAspectPreset(option);
+                }}
                 aria-pressed={option === aspectPreset}
               >
                 {ASPECT_LABELS[option]}

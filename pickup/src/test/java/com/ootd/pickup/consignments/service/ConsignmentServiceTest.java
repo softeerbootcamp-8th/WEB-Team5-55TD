@@ -711,7 +711,9 @@ class ConsignmentServiceTest {
     LocalDateTime endedAt = LocalDateTime.of(2026, 6, 2, 12, 0);
     given(auctionManageService.findAuctionSummariesByConsignments(List.of(consignment)))
         .willReturn(
-            Map.of(100L, new AuctionSummary(300L, AuctionStatus.ONGOING, startedAt, endedAt)));
+            Map.of(
+                100L,
+                new AuctionSummary(300L, "리자몽 특별 경매", AuctionStatus.ONGOING, startedAt, endedAt)));
 
     // when
     CursorPageResponse<GetMyConsignmentsResponse, Long> response =
@@ -724,6 +726,7 @@ class ConsignmentServiceTest {
     GetMyConsignmentsResponse item = response.items().get(0);
     assertThat(item.consignmentId()).isEqualTo(100L);
     assertThat(item.auctionId()).isEqualTo(300L);
+    assertThat(item.auctionTitle()).isEqualTo("리자몽 특별 경매");
     assertThat(item.auctionStatus()).isEqualTo(AuctionStatus.ONGOING);
     assertThat(item.auctionStartedAt()).isEqualTo(startedAt);
     assertThat(item.auctionEndedAt()).isEqualTo(endedAt);
@@ -757,6 +760,7 @@ class ConsignmentServiceTest {
     // then
     GetMyConsignmentsResponse item = response.items().get(0);
     assertThat(item.auctionId()).isNull();
+    assertThat(item.auctionTitle()).isNull();
     assertThat(item.auctionStatus()).isNull();
     assertThat(item.auctionStartedAt()).isNull();
     assertThat(item.auctionEndedAt()).isNull();
@@ -779,8 +783,8 @@ class ConsignmentServiceTest {
     given(auctionManageService.findAuctionSummariesByConsignments(List.of(first, second)))
         .willReturn(
             Map.of(
-                102L, new AuctionSummary(300L, AuctionStatus.SCHEDULED, null, null),
-                101L, new AuctionSummary(301L, AuctionStatus.ONGOING, null, null)));
+                102L, new AuctionSummary(300L, "예정 경매", AuctionStatus.SCHEDULED, null, null),
+                101L, new AuctionSummary(301L, "진행 경매", AuctionStatus.ONGOING, null, null)));
 
     // when
     CursorPageResponse<GetMyConsignmentsResponse, Long> response =

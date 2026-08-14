@@ -35,6 +35,30 @@ describe("bids api", () => {
     });
   });
 
+  it("입찰 내역의 경매 제목을 화면 모델로 변환한다", async () => {
+    const { getMyBids } = await import("@/api/bids");
+    get.mockResolvedValue({
+      data: {
+        items: [
+          {
+            auctionId: 1,
+            title: "피카츄 특별 경매",
+            card: { cardName: "Pikachu" },
+            myBidPrice: 1000,
+            currentPrice: 1200,
+            status: "HIGHEST",
+            auctionStatus: "ONGOING",
+          },
+        ],
+        hasNext: false,
+      },
+    });
+
+    await expect(getMyBids()).resolves.toMatchObject({
+      items: [{ title: "피카츄 특별 경매", cardName: "Pikachu" }],
+    });
+  });
+
   it("returns server bid error and fallback messages", async () => {
     const { getBidErrorMessage, placeBid } = await import("@/api/bids");
     const error = new AxiosError("bad");

@@ -9,6 +9,7 @@ import com.ootd.pickup.consignments.domain.Certificate;
 
 public record MyBidListItemResponse(
     Long auctionId,
+    String title,
     GetCardDetailResponse card,
     String grade,
     Long myBidPrice,
@@ -21,6 +22,7 @@ public record MyBidListItemResponse(
     Auction auction = myLastBid.getAuction();
     return new MyBidListItemResponse(
         auction.getAuctionId(),
+        auction.getTitle(),
         GetCardDetailResponse.from(auction.getConsignment().getCard()),
         certificate != null ? certificate.getGradeDisplay() : null,
         myLastBid.getBidPrice(),

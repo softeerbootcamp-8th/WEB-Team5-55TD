@@ -123,6 +123,7 @@ interface CardResponse {
 
 interface MyBidListItemResponse {
   auctionId: number;
+  title?: string;
   card: CardResponse;
   grade?: string | null;
   myBidPrice: number;
@@ -192,6 +193,7 @@ function toUiBidStatus(
 function toMyBidItem(item: MyBidListItemResponse): MyBidItem {
   return {
     auctionId: String(item.auctionId),
+    title: item.title,
     cardName: item.card.cardName,
     thumbnailUrl: item.card.imageUrl ?? undefined,
     grade: parseGrade(item.grade),

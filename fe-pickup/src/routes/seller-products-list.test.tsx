@@ -30,7 +30,17 @@ describe("셀러 상품 목록", () => {
       {
         isPending: false,
         isError: false,
-        data: [product, { ...product, id: "2", cardName: "Pikachu", status: "SOLD", auctionId: "9" }],
+        data: [
+          product,
+          {
+            ...product,
+            id: "2",
+            cardName: "Pikachu",
+            auctionTitle: "피카츄 특별 경매",
+            status: "SOLD",
+            auctionId: "9",
+          },
+        ],
       },
       { isPending: false, isError: false, data: [] },
       { isPending: false, isError: true },
@@ -38,6 +48,8 @@ describe("셀러 상품 목록", () => {
     ];
     render(<Component />);
     expect(screen.getAllByText("Charizard").length).toBeGreaterThan(0);
+    expect(screen.getByText("피카츄 특별 경매")).toBeInTheDocument();
+    expect(screen.getAllByText("Pikachu").length).toBeGreaterThan(0);
     expect(screen.getByText("상세 보기")).toBeInTheDocument();
     expect(screen.getByText("낙찰 상세")).toBeInTheDocument();
     cleanup();

@@ -34,6 +34,7 @@ interface ConsignmentCertificateResponse {
 interface ConsignmentListItemResponse {
   consignmentId: number;
   auctionId?: number | null;
+  auctionTitle?: string | null;
   card: ConsignmentCardResponse;
   sellerMemberId: number;
   majorDefect?: string | null;
@@ -55,6 +56,7 @@ interface CursorPageResponse<T> {
 export interface ConsignmentSummary {
   id: string;
   auctionId?: string;
+  auctionTitle?: string;
   cardName: string;
   thumbnailUrl?: string;
   grade?: Grade;
@@ -131,6 +133,7 @@ function toSummary(item: ConsignmentListItemResponse): ConsignmentSummary {
   return {
     id: String(item.consignmentId),
     auctionId: item.auctionId != null ? String(item.auctionId) : undefined,
+    auctionTitle: item.auctionTitle ?? undefined,
     cardName: item.card.cardName,
     thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
     grade: {

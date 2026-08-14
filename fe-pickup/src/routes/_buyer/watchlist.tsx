@@ -32,6 +32,7 @@ function parseGrade(value?: string | null): Grade | undefined {
 function toAuctionSummary(item: WatchItemResponse): AuctionSummary {
   return {
     id: String(item.auctionId),
+    title: item.title,
     cardName: item.card?.cardName ?? "",
     thumbnailUrl: item.thumbnailUrl ?? item.card?.imageUrl ?? undefined,
     status: toUiStatus(item.auctionStatus),

@@ -336,6 +336,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
             .select(
                 auction.consignment.consignmentId,
                 auction.auctionId,
+                auction.title,
                 auction.auctionStatus,
                 auction.startedAt,
                 auction.endedAt)
@@ -355,6 +356,7 @@ public class AuctionDataJpaRepository implements AuctionRepository {
                 row ->
                     new AuctionSummary(
                         row.get(auction.auctionId),
+                        row.get(auction.title),
                         row.get(auction.auctionStatus),
                         row.get(auction.startedAt),
                         row.get(auction.endedAt))));
