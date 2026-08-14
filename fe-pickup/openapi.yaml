@@ -2134,6 +2134,8 @@ components:
         auctionId:
           type: integer
           format: int64
+        auctionTitle:
+          type: string
         card:
           $ref: "#/components/schemas/GetCardDetailResponse"
         sellerMemberId:

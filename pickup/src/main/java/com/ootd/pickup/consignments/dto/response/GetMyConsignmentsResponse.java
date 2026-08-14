@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public record GetMyConsignmentsResponse(
     Long consignmentId,
     Long auctionId,
+    String auctionTitle,
     GetCardDetailResponse card,
     Long sellerMemberId,
     CardState cardState,
@@ -31,6 +32,7 @@ public record GetMyConsignmentsResponse(
     return new GetMyConsignmentsResponse(
         consignment.getConsignmentId(),
         auctionSummary == null ? null : auctionSummary.auctionId(),
+        auctionSummary == null ? null : auctionSummary.title(),
         GetCardDetailResponse.from(consignment.getCard()),
         sellerMemberId,
         consignment.getCardState(),
