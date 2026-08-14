@@ -70,7 +70,8 @@ class MemberTest {
     member.withdraw();
 
     assertThat(member.isWithdrawn()).isTrue();
-    assertThat(member.getNickname()).isEqualTo("탈퇴회원_1");
+    assertThat(member.getNickname()).isEqualTo("(탈퇴한 회원)#1");
+    assertThat(member.getNickname()).hasSizeGreaterThan(8);
     assertThat(member.getOauthProvider()).isNull();
     assertThat(member.getOauthSubject()).isNull();
     assertThat(member.getExternalProfileImageUrl()).isNull();
@@ -83,6 +84,7 @@ class MemberTest {
 
     member.withdraw();
 
-    assertThat(member.getNickname()).isEqualTo("탈퇴회원_42");
+    assertThat(member.getNickname()).isEqualTo("(탈퇴한 회원)#42");
+    assertThat(member.getNickname()).hasSizeGreaterThan(8);
   }
 }

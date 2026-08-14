@@ -20,6 +20,8 @@ import lombok.NoArgsConstructor;
 @Getter
 public class Member {
 
+  private static final String WITHDRAWN_NICKNAME_PREFIX = "(탈퇴한 회원)#";
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long memberId;
@@ -130,7 +132,8 @@ public class Member {
     withdrawnAt = LocalDateTime.now(ZoneOffset.UTC);
     loginId = null;
     password = null;
-    nickname = "탈퇴회원_" + memberId;
+    // 사용자 닉네임은 최대 8자다. 그보다 긴 내부 전용 접두사를 사용해 선점과 사칭을 막는다.
+    nickname = WITHDRAWN_NICKNAME_PREFIX + memberId;
     clearOAuthIdentity();
     updatedAt = withdrawnAt;
   }
