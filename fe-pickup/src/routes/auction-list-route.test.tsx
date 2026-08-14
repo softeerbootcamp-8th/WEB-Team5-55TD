@@ -279,8 +279,9 @@ describe("경매 목록 라우트", () => {
     render(<Component />);
 
     expect(screen.getByText("Mewtwo")).toBeInTheDocument();
-    // "더 보기" 버튼 없이 스크롤 감시(IntersectionObserver)만으로 다음 페이지를 트리거한다.
-    expect(screen.queryByText("경매 더 보기")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "경매 더 보기" }),
+    ).toBeInTheDocument();
     expect(observe).toHaveBeenCalledTimes(1);
 
     expect(fetchNextPage).not.toHaveBeenCalled();
@@ -288,6 +289,37 @@ describe("경매 목록 라우트", () => {
       [{ isIntersecting: true } as IntersectionObserverEntry],
       {} as IntersectionObserver,
     );
+    expect(fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("자동 스크롤 감지와 별개로 더 보기 버튼으로 다음 페이지를 요청한다", async () => {
+    infiniteQueryResult = {
+      data: {
+        pages: [
+          {
+            items: [
+              {
+                id: "1",
+                cardName: "Mewtwo",
+                status: "LIVE",
+                currentPrice: 10000,
+                watchCount: 2,
+                endsAt: new Date(Date.now() + 3600000).toISOString(),
+              },
+            ],
+          },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    };
+    await renderAuctionListPage();
+    fireEvent.click(screen.getByRole("button", { name: "경매 더 보기" }));
+
     expect(fetchNextPage).toHaveBeenCalledTimes(1);
   });
 

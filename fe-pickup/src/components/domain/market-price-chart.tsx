@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatWon } from "@/lib/format";
 export interface GradePriceSeries {
   tier: string;
@@ -42,9 +42,22 @@ interface MarketPriceChartProps {
   reservePrice?: number;
 }
 
-const WIDTH = 720;
-const HEIGHT = 240;
+// 페이지 전체 폭에 걸쳐 표시되므로(OOTD-477/480), 720:240(3:1)처럼 가파른 비율은
+// 실제 렌더 폭(~1100px)에서 세로가 380px 안팎까지 늘어나 다른 카드보다 과도하게 커
+// 보인다(OOTD-520). 가로로 완만한 배너 형태로 낮춰 균형을 맞춘다.
+//
+// viewBox를 고정 폭(예: 960)으로 두고 CSS로 컨테이너 폭에 맞춰 늘이면, 축 레이블 같은
+// SVG 텍스트도 같이 스케일되어 모바일 폭(~340px)에서는 실제 4px 미만으로 줄어들어
+// 읽을 수 없게 된다(OOTD-520 후속). 실제 측정된 컨테이너 폭을 그대로 viewBox 폭으로
+// 써서 스케일 배율을 항상 1로 유지하고, 폭이 좁을수록 세로 비율만 완만하게 키운다.
+const DEFAULT_WIDTH = 960;
+const MIN_HEIGHT = 140;
+const MAX_HEIGHT = 200;
 const PADDING = { top: 16, right: 16, bottom: 28, left: 58 };
+
+function chartHeight(width: number) {
+  return Math.round(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, width / 3)));
+}
 
 function tierLabel(tier: string) {
   return tier.replace(/_(\d)_([05])$/, " $1.$2").replace("_", " ");
@@ -149,6 +162,21 @@ export function MarketPriceChart(props: MarketPriceChartProps) {
 
 function PriceSvg({ series }: { series: GradePriceSeries }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const measured = entries[0]?.contentRect.width;
+      if (measured) setWidth(Math.round(measured));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const height = chartHeight(width);
   const chart = useMemo(() => {
     const values = series.points.map((point) => point.price);
     const min = Math.min(...values);
@@ -157,10 +185,10 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
     const x = (index: number) =>
       PADDING.left +
       (index / Math.max(1, series.points.length - 1)) *
-        (WIDTH - PADDING.left - PADDING.right);
+        (width - PADDING.left - PADDING.right);
     const y = (price: number) =>
       PADDING.top +
-      ((max - price) / range) * (HEIGHT - PADDING.top - PADDING.bottom);
+      ((max - price) / range) * (height - PADDING.top - PADDING.bottom);
     return {
       min,
       max,
@@ -172,32 +200,34 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
         )
         .join(" "),
     };
-  }, [series]);
+  }, [series, width, height]);
   const first = series.points[0];
   const last = series.points.at(-1)!;
   const hoveredPoint = hoveredIndex == null ? undefined : series.points[hoveredIndex];
   const hoveredX = hoveredIndex == null ? undefined : chart.x(hoveredIndex);
   const hoveredY = hoveredPoint == null ? undefined : chart.y(hoveredPoint.price);
-  const tooltipX = hoveredX == null ? 0 : Math.min(Math.max(hoveredX - 72, PADDING.left), WIDTH - 160);
+  const tooltipX = hoveredX == null ? 0 : Math.min(Math.max(hoveredX - 72, PADDING.left), width - 160);
   const tooltipY = hoveredY == null ? 0 : Math.max(PADDING.top, hoveredY - 48);
 
   return (
-    <div className="mt-5 overflow-hidden">
+    <div ref={containerRef} className="mt-5 overflow-hidden">
       <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label={`${tierLabel(series.tier)} 최근 90일 시세 차트`}
         className="h-auto w-full"
       >
         {[0, 0.5, 1].map((ratio) => {
           const y =
-            PADDING.top + ratio * (HEIGHT - PADDING.top - PADDING.bottom);
+            PADDING.top + ratio * (height - PADDING.top - PADDING.bottom);
           const value = chart.max - ratio * (chart.max - chart.min);
           return (
             <g key={ratio}>
               <line
                 x1={PADDING.left}
-                x2={WIDTH - PADDING.right}
+                x2={width - PADDING.right}
                 y1={y}
                 y2={y}
                 stroke="var(--color-border)"
@@ -234,8 +264,8 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
         <rect
           x={PADDING.left}
           y={PADDING.top}
-          width={WIDTH - PADDING.left - PADDING.right}
-          height={HEIGHT - PADDING.top - PADDING.bottom}
+          width={width - PADDING.left - PADDING.right}
+          height={height - PADDING.top - PADDING.bottom}
           fill="transparent"
           onPointerMove={(event) => {
             const bounds = event.currentTarget.getBoundingClientRect();
@@ -254,7 +284,7 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
               x1={hoveredX}
               x2={hoveredX}
               y1={PADDING.top}
-              y2={HEIGHT - PADDING.bottom}
+              y2={height - PADDING.bottom}
               stroke="var(--color-buyer)"
               strokeDasharray="3 3"
               opacity="0.5"
@@ -289,15 +319,15 @@ function PriceSvg({ series }: { series: GradePriceSeries }) {
         )}
         <text
           x={PADDING.left}
-          y={HEIGHT - 6}
+          y={height - 6}
           fontSize="11"
           fill="var(--color-text-muted)"
         >
           {first.date.slice(5)}
         </text>
         <text
-          x={WIDTH - PADDING.right}
-          y={HEIGHT - 6}
+          x={width - PADDING.right}
+          y={height - 6}
           textAnchor="end"
           fontSize="11"
           fill="var(--color-text-muted)"

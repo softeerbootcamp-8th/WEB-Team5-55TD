@@ -42,6 +42,28 @@ class KakaoMemberServiceTest {
   }
 
   @Test
+  void 탈퇴한_카카오_회원이면_기존_연결을_해제하고_새_회원으로_가입한다() {
+    KakaoClient.KakaoUser user = new KakaoClient.KakaoUser("kakao-subject", null);
+    Member withdrawnMember = createMember("탈퇴회원", 1L);
+    withdrawnMember.withdraw();
+    Member rejoinedMember = createMember("재가입회원", 2L);
+    given(memberRepository.findByOauthProviderAndOauthSubject("KAKAO", user.subject()))
+        .willReturn(Optional.of(withdrawnMember));
+    given(memberRepository.existsByNickname(anyString())).willReturn(false);
+    given(memberRepository.save(any(Member.class))).willReturn(rejoinedMember);
+
+    KakaoMemberService.KakaoMemberResult result = kakaoMemberService.findOrCreate(user);
+
+    assertThat(result.created()).isTrue();
+    assertThat(result.member()).isEqualTo(rejoinedMember);
+    assertThat(withdrawnMember.getOauthProvider()).isNull();
+    assertThat(withdrawnMember.getOauthSubject()).isNull();
+    then(memberRepository).should().flush();
+    then(memberRepository).should().save(any(Member.class));
+    then(pointRepository).should().save(argThat(point -> point.getMemberId().equals(2L)));
+  }
+
+  @Test
   void 신규_카카오_사용자면_랜덤_닉네임으로_회원과_포인트를_생성한다() {
     KakaoClient.KakaoUser user = new KakaoClient.KakaoUser("kakao-subject", "profile.png");
     Member savedMember = createMember("아무닉네임", 10L);
@@ -59,37 +81,22 @@ class KakaoMemberServiceTest {
   }
 
   @Test
-  void 랜덤_닉네임이_동시_가입으로_선점되면_새_닉네임으로_재시도해_회원을_생성한다() {
-    KakaoClient.KakaoUser user = new KakaoClient.KakaoUser("kakao-subject", null);
-    Member savedMember = createMember("아무닉네임", 20L);
-    given(memberRepository.findByOauthProviderAndOauthSubject("KAKAO", user.subject()))
-        .willReturn(Optional.empty());
-    given(memberRepository.existsByNickname(anyString())).willReturn(false);
-    given(memberRepository.save(any(Member.class)))
-        .willThrow(new DataIntegrityViolationException("닉네임 충돌"))
-        .willReturn(savedMember);
-
-    KakaoMemberService.KakaoMemberResult result = kakaoMemberService.findOrCreate(user);
-
-    assertThat(result.created()).isTrue();
-    assertThat(result.member()).isEqualTo(savedMember);
-    then(memberRepository).should(times(2)).save(any(Member.class));
-    then(pointRepository).should().save(any());
-  }
-
-  @Test
-  void 재시도해도_계속_충돌하면_예외를_전파한다() {
+  void 저장_중_유니크_제약이_위반되면_같은_트랜잭션_안에서_재시도하지_않고_즉시_전파한다() {
+    // findOrCreate 는 @Transactional 이므로, 여기서 재시도하면 Spring 이 이미 rollback-only 로
+    // 표시한 트랜잭션 위에서 재시도하는 셈이 되어 커밋 시점에 UnexpectedRollbackException 으로
+    // 조용히 무효화된다. 그래서 이 메서드는 한 번만 시도하고 실패를 그대로 호출자에게 전파해야 하며,
+    // 재시도는 트랜잭션 경계 밖인 KakaoAuthService 에서 새 트랜잭션으로 수행한다.
     KakaoClient.KakaoUser user = new KakaoClient.KakaoUser("kakao-subject", null);
     given(memberRepository.findByOauthProviderAndOauthSubject("KAKAO", user.subject()))
         .willReturn(Optional.empty());
     given(memberRepository.existsByNickname(anyString())).willReturn(false);
     given(memberRepository.save(any(Member.class)))
-        .willThrow(new DataIntegrityViolationException("닉네임 충돌"));
+        .willThrow(new DataIntegrityViolationException("유니크 제약 충돌"));
 
     assertThatThrownBy(() -> kakaoMemberService.findOrCreate(user))
         .isInstanceOf(DataIntegrityViolationException.class);
 
-    then(memberRepository).should(times(3)).save(any(Member.class));
+    then(memberRepository).should(times(1)).save(any(Member.class));
     then(pointRepository).should(never()).save(any());
   }
 

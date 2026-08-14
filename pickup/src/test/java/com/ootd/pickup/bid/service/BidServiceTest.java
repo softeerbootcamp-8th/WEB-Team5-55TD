@@ -86,8 +86,11 @@ class BidServiceTest {
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
     Member bidder = createMember(2L);
+    ReflectionTestUtils.setField(bidder, "profileImageObjectKey", "profiles/2.webp");
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(imageUrlResolver.resolve("profiles/2.webp"))
+        .willReturn("https://images.test/profiles/2.webp");
     given(bidRepository.save(any(Bid.class)))
         .willAnswer(
             invocation -> {
@@ -117,6 +120,8 @@ class BidServiceTest {
             event -> {
               assertThat(event.auctionId()).isEqualTo(1L);
               assertThat(event.winningBid().bidId()).isEqualTo(10L);
+              assertThat(event.winningBid().profileImageUrl())
+                  .isEqualTo("https://images.test/profiles/2.webp");
               assertThat(event.winningPrice()).isEqualTo(10_500L);
               assertThat(event.bidRequestId()).isNull();
             });

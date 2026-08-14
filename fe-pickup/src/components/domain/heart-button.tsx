@@ -134,6 +134,10 @@ export function WatchButton({
   };
 
   const toggleWatch = (nextActive: boolean) => {
+    const previousState: WatchState = {
+      watched: active,
+      watchCount,
+    };
     const nextCount =
       watchCount == null
         ? undefined
@@ -141,20 +145,23 @@ export function WatchButton({
     setOptimisticWatch({ active: nextActive, count: nextCount });
 
     const mutation = nextActive ? registerMutation : deleteMutation;
+    let failed = false;
     mutation.mutate(
       { auctionId: Number(auctionId) },
       {
         onError: (error) => {
           // 등록 중복(409)은 서버에 이미 관심이 등록된 상태라 화면과 어긋나지 않는다.
           if (nextActive && isAlreadyWatchedError(error)) return;
+          failed = true;
           setOptimisticWatch(null);
           handleError(error);
         },
         onSettled: async () => {
-          await refreshAuctions({
-            watched: nextActive,
-            watchCount: nextCount,
-          });
+          await refreshAuctions(
+            failed
+              ? previousState
+              : { watched: nextActive, watchCount: nextCount },
+          );
           setOptimisticWatch(null);
         },
       },

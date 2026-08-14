@@ -51,6 +51,18 @@ describe("AuctionCard", () => {
     expect(screen.getByText("유찰")).toBeInTheDocument();
   });
 
+  it("종료 경매에는 관심 수와 하트 버튼을 표시하지 않는다", async () => {
+    const { AuctionCard } = await import("./auction-card");
+    render(
+      <AuctionCard
+        auction={{ ...base, status: "ENDED", currentPrice: 20000 }}
+      />,
+    );
+
+    expect(screen.queryByTestId("watch")).not.toBeInTheDocument();
+    expect(screen.queryByText("10")).not.toBeInTheDocument();
+  });
+
   it.each([
     ["watched 값이 없어도", undefined, "관심 등록"],
     ["관심 등록된 경매는", true, "관심 해제"],

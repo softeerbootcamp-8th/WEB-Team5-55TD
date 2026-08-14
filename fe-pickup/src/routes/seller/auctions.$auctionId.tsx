@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { ChevronLeft, Lock } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
-import { CardThumb } from "@/components/domain/card-thumb";
+import { ImageGallery } from "@/components/domain/image-gallery";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { EmptyState } from "@/components/domain/section-header";
@@ -197,6 +197,13 @@ function SellerAuctionPage() {
   }
 
   const images = auction.images ?? [];
+  // 개별 이미지가 없으면 썸네일 한 장으로라도 갤러리를 구성한다.
+  const galleryImages =
+    images.length > 0
+      ? images
+      : auction.thumbnailUrl
+        ? [auction.thumbnailUrl]
+        : [];
   const snapshotPrice = auction.currentPrice ?? auction.startPrice ?? 0;
   const currentPrice = Math.max(
     snapshotPrice,
@@ -222,10 +229,10 @@ function SellerAuctionPage() {
         </Link>
 
         <div className="grid gap-6 sm:grid-cols-[220px_1fr]">
-          <CardThumb
+          <ImageGallery
+            images={galleryImages}
             cardName={auction.cardName}
             grade={auction.grade}
-            imageUrl={images[0] ?? auction.thumbnailUrl}
           />
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
@@ -272,7 +279,7 @@ function SellerAuctionPage() {
       {/* 입찰 내역 (읽기 전용, 최근 6건 미리보기 + 전체보기 모달) */}
       <aside className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">입찰 내역</h2>
+          <h2 className="text-base font-semibold">실시간 순위</h2>
           <button
             type="button"
             onClick={() => setAllBidsOpen(true)}

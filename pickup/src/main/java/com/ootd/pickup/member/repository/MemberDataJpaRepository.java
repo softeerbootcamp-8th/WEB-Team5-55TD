@@ -45,4 +45,9 @@ public class MemberDataJpaRepository implements MemberRepository {
   public Member save(Member member) {
     return memberJpaRepository.save(member);
   }
+
+  @Override
+  public void flush() {
+    memberJpaRepository.flush();
+  }
 }

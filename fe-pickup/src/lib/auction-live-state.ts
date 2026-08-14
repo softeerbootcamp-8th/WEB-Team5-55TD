@@ -9,6 +9,7 @@ export interface AuctionBidsSnapshot {
 export interface IncomingLatestBid {
   bidId: number;
   nickname: string;
+  profileImageUrl?: string | null;
   bidPrice: number;
   createdAt: string;
 }
@@ -30,7 +31,7 @@ export function mergeLatestBid(
   const bid: Bid = {
     id: String(latestBid.bidId),
     nickname: latestBid.nickname,
-    profileImageUrl: previousBid?.profileImageUrl,
+    profileImageUrl: latestBid.profileImageUrl ?? previousBid?.profileImageUrl,
     amount: latestBid.bidPrice,
     createdAt: latestBid.createdAt,
     isMine: Boolean(isMine || previousBid?.isMine),

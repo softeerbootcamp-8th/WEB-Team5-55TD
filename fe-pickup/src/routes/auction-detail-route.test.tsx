@@ -78,6 +78,9 @@ describe("구매자 경매 상세", () => {
     render(<Component />);
     expect(screen.getByText("낙찰가")).toBeInTheDocument();
     expect(
+      screen.queryByRole("button", { name: "관심 등록" }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("link", { name: "경매 참여" }),
     ).not.toBeInTheDocument();
   });
@@ -107,22 +110,47 @@ describe("구매자 경매 상세", () => {
     ).toHaveAttribute("src", pokemonAvatarForKey("seller-42"));
   });
 
-  it("첫_이미지는_대표_영역에만_한_번_표시한다", async () => {
+  // OOTD-457 은 "썸네일을 누르면 라이트박스가 열린다"는 전제에서 첫 이미지를 줄에서 뺐다.
+  // 이제 썸네일 줄은 대표를 고르는 선택기이므로 현재 대표도 줄에 있어야 하고,
+  // 대신 같은 사진이 줄 안에서 두 번 나오지 않아야 한다.
+  it("썸네일_줄은_모든_이미지를_한_번씩만_보여준다", async () => {
     const { Route } = await import("@/routes/_buyer/auctions/$auctionId/index");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
 
-    const renderedImages = screen.getAllByAltText("Mewtwo");
-    expect(renderedImages).toHaveLength(2);
+    const thumbnails = screen.getAllByRole("button", {
+      name: /Mewtwo 이미지 \d+/,
+    });
+    expect(thumbnails).toHaveLength(2);
+
+    const sources = screen
+      .getAllByAltText("Mewtwo")
+      .map((image) => image.getAttribute("src"));
+    // 대표 1장 + 썸네일 2장, 썸네일 안에서는 중복 없음
+    expect(sources).toEqual(["front.jpg", "front.jpg", "back.jpg"]);
+  });
+
+  it("썸네일을_누르면_대표_사진이_바뀐다", async () => {
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/index");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mewtwo 이미지 2" }));
+
+    const [main] = screen.getAllByAltText("Mewtwo");
+    expect(main).toHaveAttribute("src", "back.jpg");
     expect(
-      renderedImages.filter(
-        (image) => image.getAttribute("src") === "front.jpg",
-      ),
-    ).toHaveLength(1);
-    expect(
-      renderedImages.filter(
-        (image) => image.getAttribute("src") === "back.jpg",
-      ),
-    ).toHaveLength(1);
+      screen.getByRole("button", { name: "Mewtwo 이미지 2" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("대표_사진을_누르면_확대된다", async () => {
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/index");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mewtwo 이미지 확대" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

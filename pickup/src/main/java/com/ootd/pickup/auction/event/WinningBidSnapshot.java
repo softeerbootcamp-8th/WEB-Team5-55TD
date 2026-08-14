@@ -14,15 +14,31 @@ public record WinningBidSnapshot(
     Long bidId,
     Long memberId,
     String memberNickname,
+    String profileImageUrl,
     Long bidPrice,
     BidStatus bidStatus,
     LocalDateTime createdAt) {
 
+  public WinningBidSnapshot(
+      Long bidId,
+      Long memberId,
+      String memberNickname,
+      Long bidPrice,
+      BidStatus bidStatus,
+      LocalDateTime createdAt) {
+    this(bidId, memberId, memberNickname, null, bidPrice, bidStatus, createdAt);
+  }
+
   public static WinningBidSnapshot fromEntity(Bid bid) {
+    return fromEntity(bid, null);
+  }
+
+  public static WinningBidSnapshot fromEntity(Bid bid, String profileImageUrl) {
     return new WinningBidSnapshot(
         bid.getBidId(),
         bid.getMember().getMemberId(),
         bid.getMember().getNickname(),
+        profileImageUrl,
         bid.getBidPrice(),
         bid.getBidStatus(),
         bid.getCreatedAt());

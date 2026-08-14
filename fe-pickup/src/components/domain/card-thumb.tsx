@@ -10,6 +10,7 @@ export function CardThumb({
   label,
   className,
   aspect = "aspect-[3/4]",
+  shineOnGroupHover = false,
 }: {
   cardName: string;
   grade?: Grade;
@@ -17,6 +18,7 @@ export function CardThumb({
   label?: string;
   className?: string;
   aspect?: string;
+  shineOnGroupHover?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [loadedForUrl, setLoadedForUrl] = useState(imageUrl);
@@ -50,6 +52,9 @@ export function CardThumb({
           onLoad={() => setLoaded(true)}
           onError={() => setLoaded(false)}
         />
+      )}
+      {shineOnGroupHover && showImage && (
+        <span aria-hidden className="auction-card-image-shine" />
       )}
       {/* 등급·라벨은 아래(GradeBadge)에서 별도로도 보여주므로, 이미지가 뜨면
           실제 사진 위에 겹쳐 보일 필요 없이 플레이스홀더에서만 노출한다. */}
