@@ -37,6 +37,7 @@ export function AuctionCard({
           cardName={auction.cardName}
           grade={auction.grade}
           imageUrl={auction.thumbnailUrl}
+          shineOnGroupHover
         />
         <StatusBadge status={status} className="absolute top-2 left-2" />
         <WatchButton
