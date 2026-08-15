@@ -1,6 +1,10 @@
 package com.ootd.pickup.global.event.messagequeue.outbox;
 
 import com.ootd.pickup.global.event.MessageQueueEvent;
+import com.ootd.pickup.global.observability.OutboxRelayMetrics;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +39,7 @@ public class OutboxEventScheduler {
   private final OutboxEventRepository outboxEventJpaRepository;
   private final MessageQueueSender messageQueueSender;
   private final TransactionTemplate transactionTemplate;
+  private final OutboxRelayMetrics metrics;
 
   /**
    * 발행 대기 중인 이벤트를 큐로 보내고 발행 완료로 표시한다.
@@ -53,6 +58,9 @@ public class OutboxEventScheduler {
   @SchedulerLock(name = "outbox-event-relay", lockAtMostFor = "PT30S", lockAtLeastFor = "PT0.1S")
   public void relayUnpublishedEvents() {
     List<RelayedOutboxEvent> pending = findPendingEvents();
+    // pending.size()는 이번 주기 처리량(BATCH_LIMIT)에서 잘려 실제 적체 규모를 반영하지 못하므로 전체 건수를 따로 센다.
+    // 큐가 비어도(이 조회가 0을 돌려줘도) 게이지가 이전 값에 멈춰 있지 않도록 이른 반환 전에 갱신한다.
+    metrics.recordPendingCount(outboxEventJpaRepository.countByPublishedFalse());
     if (pending.isEmpty()) {
       return;
     }
@@ -73,6 +81,8 @@ public class OutboxEventScheduler {
       try {
         messageQueueSender.send(event);
         publishedIds.add(event.eventId());
+        metrics.recordEventAge(
+            Duration.between(event.occurredAt(), LocalDateTime.now(ZoneOffset.UTC)));
       } catch (RuntimeException exception) {
         blockedGroups.add(group);
         failedIds.add(event.eventId());

@@ -23,4 +23,12 @@ public interface OutboxEventJpaRepository extends JpaRepository<OutboxEventEntit
    * @return 발행 대기 중인 행 목록. 없으면 빈 목록
    */
   List<OutboxEventEntity> findAllByPublishedFalseOrderByCreatedAtAsc(Limit limit);
+
+  /**
+   * 발행 대기 중인 전체 행 수.
+   *
+   * <p>{@link #findAllByPublishedFalseOrderByCreatedAtAsc}는 한 주기 처리량({@code BATCH_LIMIT})만큼만 가져오므로
+   * 그 크기로는 실제 적체 규모를 알 수 없다 — 이 값이 큐 깊이 지표({@code pickup.outbox.pending.count})의 근거다.
+   */
+  long countByPublishedFalse();
 }

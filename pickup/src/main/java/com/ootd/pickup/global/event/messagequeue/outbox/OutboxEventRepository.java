@@ -52,6 +52,11 @@ public class OutboxEventRepository {
     return outboxEventJpaRepository.findById(id);
   }
 
+  /** 발행 대기 중인 전체 행 수. {@link OutboxEventJpaRepository#countByPublishedFalse()} 참고. */
+  public long countByPublishedFalse() {
+    return outboxEventJpaRepository.countByPublishedFalse();
+  }
+
   /**
    * 전송에 성공한 행을 발행 완료로 표시한다.
    *
