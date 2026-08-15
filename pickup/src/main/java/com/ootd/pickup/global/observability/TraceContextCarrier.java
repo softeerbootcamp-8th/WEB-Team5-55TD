@@ -11,6 +11,9 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapSetter;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -139,6 +142,33 @@ public final class TraceContextCarrier {
       } finally {
         span.end();
       }
+    }
+  }
+
+  /**
+   * {@code startedAt}을 시작 시각으로 못박은 스팬 {@code spanName}을 열고 그 안에서 {@code work}를 실행한 뒤 지금 시각에 끝낸다.
+   *
+   * <p>{@link #runWithExtractedContext}가 "누구 밑에 이어 붙일지"를 다룬다면, 이건 "이 스팬이 실제로 얼마나 오래 걸렸는지를 있는 그대로
+   * 보여준다"를 다룬다. {@code Sqs.SendMessage} 같은 스팬은 호출 자체의 소요 시간만 재서, 아웃박스 테이블에서 대기행렬에 서 있던 시간은 어떤 스팬에도
+   * 잡히지 않는다({@link com.ootd.pickup.global.observability.OutboxRelayMetrics} 참고). 이 메서드로 연 스팬은 시작을
+   * {@code startedAt}(적재 시각)으로 잡아 duration 자체가 "대기 시간 + 실제 처리 시간"이 되게 한다 — {@code work} 안에서 실행되는 실제
+   * 호출(예: {@code Sqs.SendMessage})은 이 스팬의 자식으로 훨씬 짧게 나타나, 트레이스만 보고도 "대부분이 대기였다"는 걸 바로 알 수 있다.
+   *
+   * <p>도메인의 {@link LocalDateTime}은 UTC 벽시계라는 규약을 그대로 따른다.
+   */
+  public static void runWithBackdatedStart(
+      String spanName, LocalDateTime startedAt, Runnable work) {
+    Instant start = startedAt.toInstant(ZoneOffset.UTC);
+    Span span =
+        TRACER
+            .spanBuilder(spanName)
+            .setStartTimestamp(start)
+            .setSpanKind(SpanKind.PRODUCER)
+            .startSpan();
+    try (Scope spanScope = span.makeCurrent()) {
+      work.run();
+    } finally {
+      span.end();
     }
   }
 }
