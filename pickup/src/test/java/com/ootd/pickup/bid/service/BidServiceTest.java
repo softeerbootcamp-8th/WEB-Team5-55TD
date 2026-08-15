@@ -9,6 +9,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.ENDED_AUCTION_BIDS_
 import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INSUFFICIENT_BID_LIMIT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
+import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,8 +51,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,6 +69,7 @@ class BidServiceTest {
   @Mock private PointReservationService pointReservationService;
   @Mock private EventPublisher eventPublisher;
   @Mock private ImageUrlResolver imageUrlResolver;
+  @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private BidService bidService;
 
@@ -77,7 +82,27 @@ class BidServiceTest {
             memberRepository,
             pointReservationService,
             eventPublisher,
-            imageUrlResolver);
+            imageUrlResolver,
+            applicationEventPublisher);
+  }
+
+  /**
+   * {@code auctionRepository.updateWinningBidAndExtendEndAtIfClosingSoon}는 실제 구현에서 벌크 UPDATE 직후 인자로
+   * 받은 {@code Auction}을 직접 변경한다({@code entityManager.clear()}로 영속성 컨텍스트가 우회되므로 그 이후엔 평범한 setter 호출과
+   * 같다). 이 흐름을 모킹으로 재현해야 낙찰 반영 이후의 단언이 실제 동작과 같은 조건에서 검증된다.
+   */
+  private void stubWinningBidUpdate() {
+    given(
+            auctionRepository.updateWinningBidAndExtendEndAtIfClosingSoon(
+                any(Auction.class), any(), any(), any(LocalDateTime.class)))
+        .willAnswer(
+            invocation -> {
+              Auction targetAuction = invocation.getArgument(0);
+              Long newWinningBidId = invocation.getArgument(1);
+              Long newWinningPrice = invocation.getArgument(2);
+              targetAuction.updateWinningBid(newWinningBidId, newWinningPrice);
+              return false;
+            });
   }
 
   @Test
@@ -98,6 +123,7 @@ class BidServiceTest {
               ReflectionTestUtils.setField(bid, "bidId", 10L);
               return bid;
             });
+    stubWinningBidUpdate();
 
     // when
     PlaceBidResponse response = bidService.placeBid(1L, 2L, new PlaceBidRequest(10_500L));
@@ -110,7 +136,11 @@ class BidServiceTest {
     assertThat(response.bidStatus()).isEqualTo(BidStatus.HIGHEST);
     assertThat(auction.getWinningBidId()).isEqualTo(10L);
     assertThat(auction.getWinningPrice()).isEqualTo(10_500L);
-    then(auctionRepository).should().save(auction);
+    then(auctionRepository)
+        .should()
+        .updateWinningBidAndExtendEndAtIfClosingSoon(
+            eq(auction), eq(10L), eq(10_500L), any(LocalDateTime.class));
+    then(auctionRepository).should(never()).save(any(Auction.class));
     ArgumentCaptor<NotificationEvent> eventCaptor =
         ArgumentCaptor.forClass(NotificationEvent.class);
     then(eventPublisher).should().publish(eventCaptor.capture());
@@ -148,6 +178,7 @@ class BidServiceTest {
               }
               return bid;
             });
+    stubWinningBidUpdate();
 
     // when
     PlaceBidResponse response = bidService.placeBid(1L, 3L, new PlaceBidRequest(11_000L));
@@ -158,7 +189,7 @@ class BidServiceTest {
     assertThat(response.bidStatus()).isEqualTo(BidStatus.HIGHEST);
     assertThat(auction.getWinningBidId()).isEqualTo(11L);
     assertThat(auction.getWinningPrice()).isEqualTo(11_000L);
-    then(auctionRepository).should().save(auction);
+    then(auctionRepository).should(never()).save(any(Auction.class));
   }
 
   @Test
@@ -240,6 +271,7 @@ class BidServiceTest {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.SCHEDULED, LocalDateTime.now().plusHours(1));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(createMember(2L)));
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
 
     // when & then
@@ -252,6 +284,7 @@ class BidServiceTest {
   void 종료된_상태의_경매에_입찰하면_예외가_발생한다() {
     // given
     Auction auction = createAuction(1L, 1L, AuctionStatus.WON, LocalDateTime.now().minusMinutes(1));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(createMember(2L)));
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
 
     // when & then
@@ -264,6 +297,7 @@ class BidServiceTest {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().minusMinutes(1));
+    given(memberRepository.findById(2L)).willReturn(Optional.of(createMember(2L)));
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
 
     // when & then
@@ -276,6 +310,7 @@ class BidServiceTest {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    given(memberRepository.findById(1L)).willReturn(Optional.of(createMember(1L)));
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
 
     // when & then
@@ -288,12 +323,50 @@ class BidServiceTest {
   @Test
   void 존재하지_않는_경매에_입찰하면_예외가_발생한다() {
     // given
+    given(memberRepository.findById(2L)).willReturn(Optional.of(createMember(2L)));
     given(auctionRepository.findByIdForUpdate(999L)).willReturn(Optional.empty());
 
     // when & then
     assertExceptionCode(
         () -> bidService.placeBid(999L, 2L, new PlaceBidRequest(10_500L)), AUCTION_NOT_FOUND);
     then(bidRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 회원_조회가_경매_락_획득보다_먼저_일어난다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
+    Member bidder = createMember(2L);
+    given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
+    given(bidRepository.save(any(Bid.class)))
+        .willAnswer(
+            invocation -> {
+              Bid bid = invocation.getArgument(0);
+              ReflectionTestUtils.setField(bid, "bidId", 10L);
+              return bid;
+            });
+    stubWinningBidUpdate();
+
+    // when
+    bidService.placeBid(1L, 2L, new PlaceBidRequest(10_500L));
+
+    // then
+    InOrder inOrder = Mockito.inOrder(memberRepository, auctionRepository);
+    inOrder.verify(memberRepository).findById(2L);
+    inOrder.verify(auctionRepository).findByIdForUpdate(1L);
+  }
+
+  @Test
+  void 존재하지_않는_회원이면_경매_락을_획득하지_않고_예외가_발생한다() {
+    // given
+    given(memberRepository.findById(2L)).willReturn(Optional.empty());
+
+    // when & then
+    assertExceptionCode(
+        () -> bidService.placeBid(1L, 2L, new PlaceBidRequest(10_500L)), MEMBER_NOT_FOUND);
+    then(auctionRepository).should(never()).findByIdForUpdate(any());
   }
 
   @Test

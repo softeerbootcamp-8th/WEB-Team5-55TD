@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.bid.domain.Bid;
+import com.ootd.pickup.bid.repository.BidJpaRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -31,6 +33,7 @@ class AuctionSoftCloseIntegrationTest {
   @Autowired private ConsignmentJpaRepository consignmentJpaRepository;
   @Autowired private MemberJpaRepository memberJpaRepository;
   @Autowired private CardJpaRepository cardJpaRepository;
+  @Autowired private BidJpaRepository bidJpaRepository;
   @Autowired private EntityManager entityManager;
 
   @Test
@@ -39,9 +42,11 @@ class AuctionSoftCloseIntegrationTest {
     LocalDateTime originalEndAt = bidAt.plusMinutes(4);
     Auction auction = saveAuction(originalEndAt);
 
-    boolean firstExtended = auctionRepository.extendEndAtIfClosingSoon(auction, bidAt);
+    boolean firstExtended =
+        auctionRepository.updateWinningBidAndExtendEndAtIfClosingSoon(auction, null, null, bidAt);
     boolean secondExtended =
-        auctionRepository.extendEndAtIfClosingSoon(auction, bidAt.plusSeconds(1));
+        auctionRepository.updateWinningBidAndExtendEndAtIfClosingSoon(
+            auction, null, null, bidAt.plusSeconds(1));
 
     assertThat(firstExtended).isTrue();
     assertThat(secondExtended).isFalse();
@@ -59,13 +64,58 @@ class AuctionSoftCloseIntegrationTest {
     LocalDateTime originalEndAt = bidAt.plusMinutes(5);
     Auction auction = saveAuction(originalEndAt);
 
-    boolean extended = auctionRepository.extendEndAtIfClosingSoon(auction, bidAt);
+    boolean extended =
+        auctionRepository.updateWinningBidAndExtendEndAtIfClosingSoon(auction, null, null, bidAt);
 
     assertThat(extended).isFalse();
     assertThat(auction.getEndedAt()).isEqualTo(originalEndAt);
   }
 
+  @Test
+  void ONGOING_상태의_경매면_낙찰_입찰_정보를_갱신한다() {
+    LocalDateTime bidAt = LocalDateTime.of(2026, 8, 12, 10, 0);
+    Auction auction = saveAuction(bidAt.plusHours(1));
+    Member bidder =
+        memberJpaRepository.save(Member.create("bidder-" + System.nanoTime(), "password", "입찰자"));
+    Bid bid = bidJpaRepository.save(Bid.create(auction, bidder, 10_500L));
+
+    boolean extended =
+        auctionRepository.updateWinningBidAndExtendEndAtIfClosingSoon(
+            auction, bid.getBidId(), bid.getBidPrice(), bidAt);
+
+    assertThat(extended).isFalse();
+    assertThat(auction.getWinningBidId()).isEqualTo(bid.getBidId());
+    assertThat(auction.getWinningPrice()).isEqualTo(10_500L);
+
+    entityManager.flush();
+    entityManager.clear();
+    Auction reloaded = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
+    assertThat(reloaded.getWinningBidId()).isEqualTo(bid.getBidId());
+    assertThat(reloaded.getWinningPrice()).isEqualTo(10_500L);
+  }
+
+  @Test
+  void ONGOING_상태가_아니면_낙찰_입찰_정보를_갱신하지_않는다() {
+    LocalDateTime bidAt = LocalDateTime.of(2026, 8, 12, 10, 0);
+    Auction auction = saveAuction(bidAt.plusHours(1), AuctionStatus.WON);
+
+    boolean extended =
+        auctionRepository.updateWinningBidAndExtendEndAtIfClosingSoon(
+            auction, 999L, 10_500L, bidAt);
+
+    assertThat(extended).isFalse();
+    entityManager.flush();
+    entityManager.clear();
+    Auction reloaded = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
+    assertThat(reloaded.getWinningBidId()).isNull();
+    assertThat(reloaded.getWinningPrice()).isNull();
+  }
+
   private Auction saveAuction(LocalDateTime endedAt) {
+    return saveAuction(endedAt, AuctionStatus.ONGOING);
+  }
+
+  private Auction saveAuction(LocalDateTime endedAt, AuctionStatus status) {
     String unique = Long.toString(System.nanoTime());
     Member seller =
         memberJpaRepository.save(Member.create("seller-" + unique, "password", "판매자-" + unique));
@@ -92,7 +142,7 @@ class AuctionSoftCloseIntegrationTest {
             .title("테스트 경매 " + unique)
             .startedAt(endedAt.minusDays(7))
             .endedAt(endedAt)
-            .auctionStatus(AuctionStatus.ONGOING)
+            .auctionStatus(status)
             .startingPrice(10_000L)
             .reservePrice(15_000L)
             .bidIncrement(500L)

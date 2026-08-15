@@ -13,6 +13,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
 import static com.ootd.pickup.global.exception.ExceptionCode.MEMBER_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 
+import com.ootd.pickup.auction.cache.event.AuctionSnapshotChangedEvent;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.event.BidRequestSucceededNotificationEvent;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
@@ -35,6 +36,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -54,6 +56,7 @@ public class BidService {
   private final PointReservationService pointReservationService;
   private final EventPublisher eventPublisher;
   private final ImageUrlResolver imageUrlResolver;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
   public PlaceBidResponse placeBid(Long auctionId, Long memberId, PlaceBidRequest request) {
@@ -63,6 +66,13 @@ public class BidService {
   @Transactional
   public PlaceBidResponse placeBid(
       Long auctionId, Long memberId, PlaceBidRequest request, Long bidRequestId) {
+    // 회원 존재 여부는 경매 상태와 무관하다. Auction 행 락을 잡기 전에 먼저 확인해, 존재하지 않는 회원의
+    // 요청이 락 보유 시간에 영향을 주지 않게 한다.
+    Member member =
+        memberRepository
+            .findById(memberId)
+            .orElseThrow(() -> new PickUpException(MEMBER_NOT_FOUND));
+
     Auction auction =
         auctionRepository
             .findByIdForUpdate(auctionId)
@@ -71,10 +81,6 @@ public class BidService {
     LocalDateTime bidAt = LocalDateTime.now(ZoneOffset.UTC);
     validateAuction(auction, memberId, bidAt);
 
-    Member member =
-        memberRepository
-            .findById(memberId)
-            .orElseThrow(() -> new PickUpException(MEMBER_NOT_FOUND));
     // validateAuction이 이미 SCHEDULED를 걸러냈으므로 이 시점의 auction은 항상 ONGOING이라 null이 아니다.
     Long currentPrice = auction.getCurrentPrice();
 
@@ -92,14 +98,23 @@ public class BidService {
     pointReservationService.reserveHighestBid(auction, preparedReservation, savedBid, member);
 
     Long previousHighestBidId = auction.getWinningBidId();
-    auction.updateWinningBid(savedBid.getBidId(), savedBid.getBidPrice());
-    if (auctionRepository.extendEndAtIfClosingSoon(auction, bidAt)) {
+    boolean extended =
+        auctionRepository.updateWinningBidAndExtendEndAtIfClosingSoon(
+            auction, savedBid.getBidId(), savedBid.getBidPrice(), bidAt);
+    if (extended) {
       log.info("마감 임박 입찰로 경매를 연장했습니다 - auctionId={}, endedAt={}", auctionId, auction.getEndedAt());
     }
-    auctionRepository.save(auction);
     eventPublisher.publish(
         BidRequestSucceededNotificationEvent.fromEntity(
             auction, savedBid, bidRequestId, member.getResolvedProfileImageUrl(imageUrlResolver)));
+    applicationEventPublisher.publishEvent(
+        new AuctionSnapshotChangedEvent(
+            auctionId,
+            savedBid.getBidPrice(),
+            auction.getBidIncrement(),
+            auction.getAuctionStatus(),
+            auction.getEndedAt(),
+            auction.getConsignment().getSellerMember().getMemberId()));
 
     log.info(
         "입찰이 접수됐습니다 - auctionId={}, bidId={}, memberId={}, bidPrice={}, previousHighestBidId={}",

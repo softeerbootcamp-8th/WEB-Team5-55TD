@@ -6,6 +6,8 @@ import com.ootd.pickup.point.domain.Point;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -28,6 +30,14 @@ public class PointDataJpaRepository implements PointRepository {
         ((JPAQuery<Point>) queryFactory.selectFrom(point).where(point.memberId.eq(memberId)))
             .setLockMode(LockModeType.PESSIMISTIC_WRITE)
             .fetchOne());
+  }
+
+  @Override
+  public List<Point> findAllByMemberIdInForUpdate(Collection<Long> memberIds) {
+    return ((JPAQuery<Point>) queryFactory.selectFrom(point).where(point.memberId.in(memberIds)))
+        .orderBy(point.memberId.asc())
+        .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+        .fetch();
   }
 
   @Override

@@ -133,6 +133,97 @@ class BidConcurrencyTest {
     assertThat(updatedAuction.getWinningPrice()).isEqualTo(11_000L);
   }
 
+  @Test
+  void 이전_최고입찰자와_겹치는_동시_입찰이_여러_라운드_반복돼도_교착상태_없이_최고가만_남는다() throws Exception {
+    // given
+    // PointLockService.lockPoints가 memberId 오름차순으로 두 회원(신규 입찰자 + 직전 최고입찰자)의 포인트를
+    // 한 번의 조회로 묶어 잠그도록 바뀌었다. 매 라운드 승자가 다음 라운드에도 참여해 "겹치는 회원 조합"을
+    // 반복적으로 만들어, 배치 락의 획득 순서가 흔들려도 교착상태 없이 항상 더 높은 입찰만 남는지 검증한다.
+    Member seller = memberJpaRepository.save(Member.create("seller-c", "password", "판매자C"));
+    Member memberA = memberJpaRepository.save(Member.create("bidder-a", "password", "입찰자A"));
+    Member memberB = memberJpaRepository.save(Member.create("bidder-b", "password", "입찰자B"));
+    Member memberC = memberJpaRepository.save(Member.create("bidder-c", "password", "입찰자C"));
+    pointJpaRepository.save(createPointWithBalance(memberA.getMemberId(), 1_000_000L));
+    pointJpaRepository.save(createPointWithBalance(memberB.getMemberId(), 1_000_000L));
+    pointJpaRepository.save(createPointWithBalance(memberC.getMemberId(), 1_000_000L));
+    Card card =
+        cardJpaRepository.save(
+            Card.builder()
+                .cardName("테스트 카드 C")
+                .cardNumber("002")
+                .setName("테스트 세트 C")
+                .language(Language.KOREAN)
+                .rarity(Rarity.RARE_HOLO)
+                .imageUrl("https://example.com/card.png")
+                .build());
+    Consignment consignment =
+        consignmentJpaRepository.save(
+            Consignment.builder()
+                .card(card)
+                .sellerMember(seller)
+                .status(ConsignmentStatus.IN_AUCTION)
+                .build());
+    Auction auction =
+        auctionJpaRepository.saveAndFlush(
+            Auction.builder()
+                .title("테스트 제목 C")
+                .description("테스트 설명 C")
+                .consignment(consignment)
+                .startedAt(LocalDateTime.now().minusHours(1))
+                .endedAt(LocalDateTime.now().plusHours(1))
+                .auctionStatus(AuctionStatus.ONGOING)
+                .startingPrice(10_000L)
+                .reservePrice(15_000L)
+                .bidIncrement(500L)
+                .build());
+
+    List<Member> bidders = List.of(memberA, memberB, memberC);
+    int rounds = 5;
+    long lastHigherBid = 0L;
+
+    // when
+    // 매 라운드 두 입찰가를 "그 순간의 실제 현재가"를 다시 조회해 그보다 확실히 높게 정한다(동률/근접값에
+    // 기대지 않는다) - 어느 스레드가 먼저 처리되든 두 입찰 모두 그 시점 현재가보다 높아 한쪽은 성공하고,
+    // 더 낮은 쪽이 나중에 처리되면 정상적으로 추월당해 실패한다. 더 높은 입찰가가 항상 최종 승자가 되므로
+    // 다음 라운드의 "직전 최고입찰자"는 항상 이번 라운드의 더 높은 입찰자다.
+    for (int round = 0; round < rounds; round++) {
+      Member x = bidders.get(round % bidders.size());
+      Member y = bidders.get((round + 1) % bidders.size());
+      long basePrice =
+          auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow().getCurrentPrice();
+      long lowerBid = basePrice + 500L;
+      long higherBid = basePrice + 1_000L;
+      lastHigherBid = higherBid;
+
+      CountDownLatch ready = new CountDownLatch(2);
+      CountDownLatch start = new CountDownLatch(1);
+      try (ExecutorService executorService = Executors.newFixedThreadPool(2)) {
+        Future<String> lowerResult =
+            executorService.submit(
+                () ->
+                    placeBidAfterSignal(
+                        auction.getAuctionId(), x.getMemberId(), lowerBid, ready, start));
+        Future<String> higherResult =
+            executorService.submit(
+                () ->
+                    placeBidAfterSignal(
+                        auction.getAuctionId(), y.getMemberId(), higherBid, ready, start));
+        ready.await();
+        start.countDown();
+        List<String> results = List.of(lowerResult.get(), higherResult.get());
+
+        // then (라운드마다) - 데드락으로 스레드가 멈추지 않고 둘 다 완료되며, 더 높은 입찰이 항상 이긴다
+        assertThat(results).allMatch(Set.of("SUCCESS", "OUTBID_EXISTS")::contains);
+      }
+
+      Auction afterRound = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
+      assertThat(afterRound.getWinningPrice()).isEqualTo(higherBid);
+    }
+
+    Auction updatedAuction = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
+    assertThat(updatedAuction.getWinningPrice()).isEqualTo(lastHigherBid);
+  }
+
   private Point createPointWithBalance(Long memberId, long balance) {
     Point point = Point.create(memberId);
     point.increaseBalance(balance);

@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
@@ -24,13 +23,12 @@ import com.ootd.pickup.settlement.domain.Settlement;
 import com.ootd.pickup.settlement.domain.SettlementType;
 import com.ootd.pickup.settlement.repository.SettlementRepository;
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -84,8 +82,8 @@ class SettlementServiceTest {
     given(auctionManageService.getAuctionById(1L)).willReturn(auction);
     given(memberManageService.getMemberById(2L)).willReturn(winner);
     given(memberManageService.getMemberById(3L)).willReturn(seller);
-    given(pointRepository.findByMemberIdForUpdate(2L)).willReturn(Optional.of(winnerPoint));
-    given(pointRepository.findByMemberIdForUpdate(3L)).willReturn(Optional.of(sellerPoint));
+    given(pointRepository.findAllByMemberIdInForUpdate(List.of(2L, 3L)))
+        .willReturn(List.of(winnerPoint, sellerPoint));
 
     // when
     settlementService.settleAuction(1L, 2L, 3L, 10_500L);
@@ -101,7 +99,7 @@ class SettlementServiceTest {
   }
 
   @Test
-  void 판매자_id가_낙찰자_id보다_작아도_memberId_오름차순으로_포인트를_잠근다() {
+  void 판매자_id가_낙찰자_id보다_작아도_memberId_오름차순으로_정렬해_한_번에_포인트를_잠근다() {
     // given: winnerMemberId(5L) > sellerMemberId(2L) — 낙찰자/판매자 순서와 memberId 순서가 반대인 경우
     Auction auction = createAuction(1L);
     Member winner = createMember(5L);
@@ -112,16 +110,14 @@ class SettlementServiceTest {
     given(auctionManageService.getAuctionById(1L)).willReturn(auction);
     given(memberManageService.getMemberById(5L)).willReturn(winner);
     given(memberManageService.getMemberById(2L)).willReturn(seller);
-    given(pointRepository.findByMemberIdForUpdate(5L)).willReturn(Optional.of(winnerPoint));
-    given(pointRepository.findByMemberIdForUpdate(2L)).willReturn(Optional.of(sellerPoint));
+    given(pointRepository.findAllByMemberIdInForUpdate(List.of(2L, 5L)))
+        .willReturn(List.of(sellerPoint, winnerPoint));
 
     // when
     settlementService.settleAuction(1L, 5L, 2L, 10_500L);
 
-    // then: memberId가 더 작은 판매자(2L)의 포인트 락을 먼저 획득해야 한다
-    InOrder inOrder = inOrder(pointRepository);
-    inOrder.verify(pointRepository).findByMemberIdForUpdate(2L);
-    inOrder.verify(pointRepository).findByMemberIdForUpdate(5L);
+    // then: memberId가 더 작은 판매자(2L)가 먼저 오도록 정렬한 목록으로 한 번에 조회한다
+    then(pointRepository).should(times(1)).findAllByMemberIdInForUpdate(List.of(2L, 5L));
   }
 
   @Test

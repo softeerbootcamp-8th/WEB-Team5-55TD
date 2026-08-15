@@ -20,6 +20,7 @@ import com.ootd.pickup.point.repository.PointRepository;
 import com.ootd.pickup.point.repository.PointReservationRepository;
 import com.ootd.pickup.point.service.PointReservationService.PreparedBidReservation;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,7 @@ class PointReservationServiceTest {
     Bid bid = createBid(auction, bidder, 10_500L, 10L);
     Point point = createPoint(2L, 20_000L);
     given(pointReservationRepository.findByAuctionIdForUpdate(1L)).willReturn(Optional.empty());
-    given(pointRepository.findByMemberIdForUpdate(2L)).willReturn(Optional.of(point));
+    given(pointRepository.findAllByMemberIdInForUpdate(List.of(2L))).willReturn(List.of(point));
 
     // when
     PreparedBidReservation prepared =
@@ -62,7 +63,7 @@ class PointReservationServiceTest {
     assertThat(point.getReservedBalance()).isEqualTo(10_500L);
     assertThat(point.getAvailableBalance()).isEqualTo(9_500L);
     then(pointReservationRepository).should(times(1)).findByAuctionIdForUpdate(1L);
-    then(pointRepository).should(times(1)).findByMemberIdForUpdate(2L);
+    then(pointRepository).should(times(1)).findAllByMemberIdInForUpdate(List.of(2L));
   }
 
   @Test
@@ -80,8 +81,8 @@ class PointReservationServiceTest {
         PointReservation.create(auction, previousBid, previousBidder, 10_500L);
     given(pointReservationRepository.findByAuctionIdForUpdate(1L))
         .willReturn(Optional.of(reservation));
-    given(pointRepository.findByMemberIdForUpdate(2L)).willReturn(Optional.of(previousPoint));
-    given(pointRepository.findByMemberIdForUpdate(3L)).willReturn(Optional.of(newPoint));
+    given(pointRepository.findAllByMemberIdInForUpdate(List.of(2L, 3L)))
+        .willReturn(List.of(previousPoint, newPoint));
 
     // when
     PreparedBidReservation prepared =
@@ -103,7 +104,7 @@ class PointReservationServiceTest {
     Point point = createPoint(2L, 20_000L);
     point.reserve(10_000L);
     given(pointReservationRepository.findByAuctionIdForUpdate(1L)).willReturn(Optional.empty());
-    given(pointRepository.findByMemberIdForUpdate(2L)).willReturn(Optional.of(point));
+    given(pointRepository.findAllByMemberIdInForUpdate(List.of(2L))).willReturn(List.of(point));
 
     // when & then
     assertThatThrownBy(() -> pointReservationService.prepareReservation(auction, bidder, 11_000L))

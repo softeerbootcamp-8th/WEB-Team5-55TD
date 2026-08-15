@@ -2,6 +2,7 @@ package com.ootd.pickup.auction.service;
 
 import static com.ootd.pickup.auction.domain.AuctionStatus.*;
 
+import com.ootd.pickup.auction.cache.event.AuctionSnapshotChangedEvent;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.auction.event.AuctionEndedNotificationEvent;
@@ -18,6 +19,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +56,7 @@ public class AuctionStatusTransitionService {
   private final ConsignmentRepository consignmentRepository;
   private final EventProducer eventProducer;
   private final EventPublisher eventPublisher;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   /** 시작 시각에 도달한 예정 경매를 진행 중으로 전이시킨다. 대상 판정 기준 시각은 DB에서 읽는다. */
   @Transactional
@@ -83,10 +86,32 @@ public class AuctionStatusTransitionService {
   }
 
   private void publishStarted(List<Long> auctionIds) {
-    auctionRepository.findAllWithConsignmentAndSellerMemberByIdIn(auctionIds).stream()
-        .filter(auction -> auction.getAuctionStatus() == ONGOING)
+    List<Auction> startedAuctions =
+        auctionRepository.findAllWithConsignmentAndSellerMemberByIdIn(auctionIds).stream()
+            .filter(auction -> auction.getAuctionStatus() == ONGOING)
+            .toList();
+    startedAuctions.stream()
         .map(AuctionStartedNotificationEvent::fromEntity)
         .forEach(eventPublisher::publish);
+    startedAuctions.forEach(this::publishSnapshotChanged);
+  }
+
+  /**
+   * 입찰 요청 생성 API가 참고하는 경매 스냅샷 캐시를 갱신하라는 신호를 보낸다.
+   *
+   * <p>{@link com.ootd.pickup.auction.cache.AuctionSnapshotCache}는 DB 커밋 이후에만 갱신돼야 하므로, 클라이언트 대상
+   * 알림과 별개로 {@link ApplicationEventPublisher}에 직접 발행한다 — {@link EventPublisher}가 실어 나르는 {@code
+   * NotificationEvent} 계약과는 무관한, 캐시 갱신 전용 신호다.
+   */
+  private void publishSnapshotChanged(Auction auction) {
+    applicationEventPublisher.publishEvent(
+        new AuctionSnapshotChangedEvent(
+            auction.getAuctionId(),
+            auction.getCurrentPrice(),
+            auction.getBidIncrement(),
+            auction.getAuctionStatus(),
+            auction.getEndedAt(),
+            auction.getConsignment().getSellerMember().getMemberId()));
   }
 
   /**
@@ -138,6 +163,7 @@ public class AuctionStatusTransitionService {
                 AuctionEndedNotificationEvent.fromEntity(
                     auction, winningBidOf(auction, winningBidsById)))
         .forEach(eventPublisher::publish);
+    closedAuctions.forEach(this::publishSnapshotChanged);
 
     log.info(
         "경매를 종료했습니다 - won={}, passed={}, outboxAppended={}, auctionIds={}",

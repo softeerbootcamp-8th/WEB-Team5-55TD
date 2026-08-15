@@ -15,6 +15,7 @@ import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.global.util.EpochMillis;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.DateTimeExpression;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -25,6 +26,7 @@ import com.querydsl.jpa.impl.JPAUpdateClause;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -282,32 +284,58 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   }
 
   @Override
-  public boolean extendEndAtIfClosingSoon(Auction targetAuction, LocalDateTime bidAt) {
+  public boolean updateWinningBidAndExtendEndAtIfClosingSoon(
+      Auction targetAuction, Long newWinningBidId, Long newWinningPrice, LocalDateTime bidAt) {
     LocalDateTime currentEndAt = targetAuction.getEndedAt();
-    if (currentEndAt == null) {
-      return false;
-    }
+    LocalDateTime softCloseBoundary =
+        currentEndAt == null ? null : bidAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+    boolean closingSoon =
+        currentEndAt != null
+            && currentEndAt.isAfter(bidAt)
+            && currentEndAt.isBefore(softCloseBoundary);
 
-    LocalDateTime softCloseBoundary = bidAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
-    LocalDateTime extendedEndAt = currentEndAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
-    long updatedRows =
+    JPAUpdateClause update =
         new JPAUpdateClause(entityManager, auction)
-            .set(auction.endedAt, extendedEndAt)
-            .where(
+            .set(auction.winningBidId, newWinningBidId)
+            .set(auction.winningPrice, newWinningPrice);
+
+    List<Predicate> conditions =
+        new ArrayList<>(
+            List.of(
                 auction.auctionId.eq(targetAuction.getAuctionId()),
-                auction.auctionStatus.eq(AuctionStatus.ONGOING),
-                auction.endedAt.eq(currentEndAt),
-                auction.endedAt.gt(bidAt),
-                auction.endedAt.lt(softCloseBoundary))
-            .execute();
-    if (updatedRows != 1) {
-      return false;
+                auction.auctionStatus.eq(AuctionStatus.ONGOING)));
+
+    LocalDateTime extendedEndAt = null;
+    if (closingSoon) {
+      extendedEndAt = currentEndAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+      update.set(auction.endedAt, extendedEndAt);
+      conditions.add(auction.endedAt.eq(currentEndAt));
+      conditions.add(auction.endedAt.gt(bidAt));
+      conditions.add(auction.endedAt.lt(softCloseBoundary));
     }
 
-    // 벌크 UPDATE는 영속성 컨텍스트를 우회하므로 이후 조회가 이전 종료 시각을 보지 않게 한다.
+    long updatedRows = update.where(conditions.toArray(new Predicate[0])).execute();
+    boolean updated = updatedRows == 1;
+    boolean extended = closingSoon && updated;
+
+    // 벌크 UPDATE는 대상 테이블(auction)과 겹치는 엔티티만 자동 플러시 대상으로 본다. 같은 트랜잭션에서
+    // 앞서 변경된 Point/PointReservation/Bid 같은 다른 테이블의 미반영 변경은 이 벌크 UPDATE로는 플러시되지
+    // 않으므로, entityManager.clear()로 영속성 컨텍스트를 비우기 전에 명시적으로 flush해 두지 않으면 그 변경이
+    // 조용히 유실된다(clear()는 미반영 변경을 DB에 반영하지 않고 그냥 버린다).
+    entityManager.flush();
+
+    // 벌크 UPDATE는 영속성 컨텍스트를 우회하므로 이후 조회가 갱신 전 값을 보지 않게 한다. 호출자가 넘긴
+    // targetAuction은 findByIdForUpdate로 이미 행 락을 잡고 있어, 이 메서드가 실행되는 동안 동시 변경이
+    // 불가능하다는 전제 하에 WHERE 절의 auctionId·status 조건은 항상 매치된다고 본다 — 그럼에도 updated로
+    // 한 번 더 확인해, 실제로 DB 행이 바뀌지 않았는데 메모리상의 엔티티만 앞서가는 상황을 만들지 않는다.
     entityManager.clear();
-    targetAuction.extendEndAtBySoftCloseWindow();
-    return true;
+    if (updated) {
+      targetAuction.updateWinningBid(newWinningBidId, newWinningPrice);
+      if (extended) {
+        targetAuction.extendEndAtBySoftCloseWindow();
+      }
+    }
+    return extended;
   }
 
   @Override

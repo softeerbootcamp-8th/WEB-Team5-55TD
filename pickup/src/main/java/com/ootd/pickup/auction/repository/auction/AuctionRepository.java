@@ -17,7 +17,8 @@ public interface AuctionRepository {
 
   Optional<Auction> findByIdForUpdate(Long auctionId);
 
-  boolean extendEndAtIfClosingSoon(Auction auction, LocalDateTime bidAt);
+  boolean updateWinningBidAndExtendEndAtIfClosingSoon(
+      Auction targetAuction, Long newWinningBidId, Long newWinningPrice, LocalDateTime bidAt);
 
   int incrementWatchCountById(Long auctionId);
 

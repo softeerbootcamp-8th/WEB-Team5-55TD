@@ -6,10 +6,12 @@ import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.point.domain.Point;
 import com.ootd.pickup.point.repository.PointRepository;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,12 +34,24 @@ public class PointLockService {
   }
 
   public Map<Long, Point> lockPoints(Collection<Long> memberIds) {
+    List<Long> sortedMemberIds =
+        memberIds.stream().filter(Objects::nonNull).distinct().sorted().toList();
+    if (sortedMemberIds.isEmpty()) {
+      return Map.of();
+    }
+
+    Map<Long, Point> pointsByMemberId =
+        pointRepository.findAllByMemberIdInForUpdate(sortedMemberIds).stream()
+            .collect(Collectors.toMap(Point::getMemberId, Function.identity()));
+
     Map<Long, Point> points = new LinkedHashMap<>();
-    memberIds.stream()
-        .filter(Objects::nonNull)
-        .distinct()
-        .sorted(Comparator.naturalOrder())
-        .forEach(memberId -> points.put(memberId, getPointForUpdate(memberId)));
+    for (Long memberId : sortedMemberIds) {
+      Point point = pointsByMemberId.get(memberId);
+      if (point == null) {
+        throw new PickUpException(POINT_NOT_FOUND);
+      }
+      points.put(memberId, point);
+    }
     return points;
   }
 }
