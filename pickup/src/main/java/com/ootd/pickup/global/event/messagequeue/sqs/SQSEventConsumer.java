@@ -5,6 +5,8 @@ import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.MessageQueueEvent;
 import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
+import com.ootd.pickup.global.observability.SQSEventConsumerMetrics;
+import com.ootd.pickup.global.observability.SQSEventConsumerMetrics.BatchOutcome;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -61,6 +63,12 @@ public class SQSEventConsumer implements SmartLifecycle {
   /** 큐 접속 자체가 실패할 때 폴링이 쉬지 않고 도는 것을 막는 간격. */
   private static final Duration ERROR_BACKOFF = Duration.ofSeconds(1);
 
+  /** 후보 visibility timeout 5초의 80%. 이 값을 넘긴 배치는 timeout 재산정 전에 원인을 확인한다. */
+  private static final Duration SLOW_BATCH_THRESHOLD = Duration.ofSeconds(4);
+
+  /** 알 수 없는 값 자체를 태그로 쓰면 카디널리티가 늘어나므로 하나의 유한 값으로 합친다. */
+  private static final String UNKNOWN_EVENT_TYPE = "UNKNOWN";
+
   /**
    * 종료 시 처리 중인 배치가 끝나기를 기다리는 시간.
    *
@@ -76,6 +84,8 @@ public class SQSEventConsumer implements SmartLifecycle {
 
   /** 적재 시점과 같은 매퍼여야 한다. 날짜 형식 하나만 달라도 왕복이 깨진다. */
   private final ObjectMapper objectMapper;
+
+  private final SQSEventConsumerMetrics sqsEventConsumerMetrics;
 
   private final Map<Class<? extends DomainEvent>, List<EventHandler<DomainEvent>>>
       handlersByEventClass;
@@ -95,10 +105,12 @@ public class SQSEventConsumer implements SmartLifecycle {
       SqsClient eventSqsClient,
       SQSProperties sqsProperties,
       ObjectMapper objectMapper,
+      SQSEventConsumerMetrics sqsEventConsumerMetrics,
       List<EventHandler<? extends DomainEvent>> eventHandlers) {
     this.eventSqsClient = eventSqsClient;
     this.sqsProperties = sqsProperties;
     this.objectMapper = objectMapper;
+    this.sqsEventConsumerMetrics = sqsEventConsumerMetrics;
     this.handlersByEventClass =
         eventHandlers.stream()
             .collect(
@@ -195,7 +207,18 @@ public class SQSEventConsumer implements SmartLifecycle {
       return;
     }
     log.debug("SQS 메시지를 수신했습니다 - count={}", messages.size());
-    deleteConsumed(consumeBatch(messages));
+    long startNanos = System.nanoTime();
+    BatchOutcome outcome = BatchOutcome.FAILURE;
+    int consumedCount = 0;
+    try {
+      recordRedeliveries(messages);
+      List<Message> consumed = consumeBatch(messages);
+      consumedCount = consumed.size();
+      boolean deleteSucceeded = deleteConsumed(consumed);
+      outcome = batchOutcome(messages.size(), consumedCount, deleteSucceeded);
+    } finally {
+      recordBatch(messages.size(), consumedCount, outcome, startNanos);
+    }
   }
 
   private List<Message> receiveMessages() {
@@ -209,7 +232,9 @@ public class SQSEventConsumer implements SmartLifecycle {
                 // 요청하지 않으면 응답에 실리지 않는다. eventType 이 없으면 되돌릴 타입을,
                 // MessageGroupId 가 없으면 실패한 그룹을 막을 기준을 알 수 없다.
                 .messageAttributeNames(EVENT_TYPE_ATTRIBUTE)
-                .messageSystemAttributeNames(MessageSystemAttributeName.MESSAGE_GROUP_ID)
+                .messageSystemAttributeNames(
+                    MessageSystemAttributeName.MESSAGE_GROUP_ID,
+                    MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT)
                 .build())
         .messages();
   }
@@ -231,10 +256,13 @@ public class SQSEventConsumer implements SmartLifecycle {
       if (blockedGroups.contains(messageGroupId)) {
         continue;
       }
+      long startNanos = System.nanoTime();
+      boolean success = true;
       try {
         consume(message);
         consumed.add(message);
       } catch (RuntimeException exception) {
+        success = false;
         blockedGroups.add(messageGroupId);
         log.error(
             CRITICAL_MARKER,
@@ -242,6 +270,9 @@ public class SQSEventConsumer implements SmartLifecycle {
             message.messageId(),
             messageGroupId,
             exception);
+      } finally {
+        sqsEventConsumerMetrics.recordMessageDuration(
+            eventTypeTag(message), success, Duration.ofNanos(System.nanoTime() - startNanos));
       }
     }
     return consumed;
@@ -295,9 +326,9 @@ public class SQSEventConsumer implements SmartLifecycle {
    *
    * <p>삭제 실패는 되살리지 않고 남기기만 한다. 그 메시지는 다시 전달되어 한 번 더 처리되는데, 핸들러가 멱등하므로 결과가 달라지지 않는다.
    */
-  private void deleteConsumed(List<Message> consumed) {
+  private boolean deleteConsumed(List<Message> consumed) {
     if (consumed.isEmpty()) {
-      return;
+      return true;
     }
 
     List<DeleteMessageBatchRequestEntry> entries =
@@ -324,6 +355,75 @@ public class SQSEventConsumer implements SmartLifecycle {
           "SQS 이벤트 삭제에 실패했습니다 - count={}, failures={}",
           response.failed().size(),
           response.failed().stream().map(SQSEventConsumer::describeFailure).toList());
+      return false;
+    }
+    return true;
+  }
+
+  private void recordRedeliveries(List<Message> messages) {
+    for (Message message : messages) {
+      String receiveCountValue =
+          message.attributes().get(MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT);
+      if (!isRedelivery(receiveCountValue)) {
+        continue;
+      }
+      String eventType = eventTypeTag(message);
+      sqsEventConsumerMetrics.recordRedelivery(eventType);
+      log.warn(
+          "SQS 메시지가 재전달되었습니다 - messageId={}, messageGroupId={}, eventType={}, receiveCount={}",
+          message.messageId(),
+          message.attributes().get(MessageSystemAttributeName.MESSAGE_GROUP_ID),
+          eventType,
+          receiveCountValue);
+    }
+  }
+
+  private static boolean isRedelivery(String receiveCountValue) {
+    if (receiveCountValue == null) {
+      return false;
+    }
+    try {
+      return Integer.parseInt(receiveCountValue) >= 2;
+    } catch (NumberFormatException exception) {
+      return false;
+    }
+  }
+
+  private static BatchOutcome batchOutcome(
+      int batchSize, int consumedCount, boolean deleteSucceeded) {
+    if (consumedCount == batchSize && deleteSucceeded) {
+      return BatchOutcome.SUCCESS;
+    }
+    if (consumedCount > 0) {
+      return BatchOutcome.PARTIAL_FAILURE;
+    }
+    return BatchOutcome.FAILURE;
+  }
+
+  private void recordBatch(
+      int batchSize, int consumedCount, BatchOutcome outcome, long startNanos) {
+    Duration elapsed = Duration.ofNanos(System.nanoTime() - startNanos);
+    sqsEventConsumerMetrics.recordBatch(outcome, batchSize, elapsed);
+    if (elapsed.compareTo(SLOW_BATCH_THRESHOLD) <= 0) {
+      return;
+    }
+    log.warn(
+        "SQS 배치 처리가 느립니다 - batchSize={}, consumedCount={}, outcome={}, elapsedMillis={}",
+        batchSize,
+        consumedCount,
+        outcome.tagValue(),
+        elapsed.toMillis());
+  }
+
+  private static String eventTypeTag(Message message) {
+    MessageAttributeValue attribute = message.messageAttributes().get(EVENT_TYPE_ATTRIBUTE);
+    if (attribute == null || attribute.stringValue() == null) {
+      return UNKNOWN_EVENT_TYPE;
+    }
+    try {
+      return EventType.valueOf(attribute.stringValue()).name();
+    } catch (IllegalArgumentException exception) {
+      return UNKNOWN_EVENT_TYPE;
     }
   }
 

@@ -6,10 +6,13 @@ import static org.mockito.BDDMockito.*;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
+import com.ootd.pickup.bid.event.BidRequestCreatedMessageQueueEvent;
 import com.ootd.pickup.global.event.DomainEvent;
 import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
+import com.ootd.pickup.global.observability.SQSEventConsumerMetrics;
+import com.ootd.pickup.global.observability.SQSEventConsumerMetrics.BatchOutcome;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
@@ -38,6 +42,7 @@ class SQSEventConsumerTest {
   private SqsClient eventSqsClient;
   private ObjectMapper objectMapper;
   private RecordingHandler auctionEndedHandler;
+  private SQSEventConsumerMetrics sqsEventConsumerMetrics;
 
   /** 받은 이벤트를 모아두고, 지정한 이벤트에서만 실패하는 핸들러. */
   private static final class RecordingHandler
@@ -60,11 +65,24 @@ class SQSEventConsumerTest {
     }
   }
 
+  private static final class RecordingBidHandler
+      implements EventHandler<BidRequestCreatedMessageQueueEvent> {
+
+    @Override
+    public Class<BidRequestCreatedMessageQueueEvent> eventClass() {
+      return BidRequestCreatedMessageQueueEvent.class;
+    }
+
+    @Override
+    public void handle(BidRequestCreatedMessageQueueEvent event) {}
+  }
+
   @BeforeEach
   void 소비할_큐와_핸들러를_준비한다() {
     eventSqsClient = mock(SqsClient.class);
     objectMapper = JsonMapper.builder().findAndAddModules().build();
     auctionEndedHandler = new RecordingHandler();
+    sqsEventConsumerMetrics = mock(SQSEventConsumerMetrics.class);
     given(eventSqsClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
         .willReturn(DeleteMessageBatchResponse.builder().build());
   }
@@ -74,7 +92,8 @@ class SQSEventConsumerTest {
     SQSProperties properties =
         new SQSProperties(
             QUEUE_URL, "ap-northeast-2", Duration.ofSeconds(20), Duration.ofSeconds(30), 10);
-    return new SQSEventConsumer(eventSqsClient, properties, objectMapper, List.of(handlers));
+    return new SQSEventConsumer(
+        eventSqsClient, properties, objectMapper, sqsEventConsumerMetrics, List.of(handlers));
   }
 
   @Test
@@ -110,7 +129,119 @@ class SQSEventConsumerTest {
     then(eventSqsClient).should().receiveMessage(captor.capture());
     assertThat(captor.getValue().messageAttributeNames()).contains("eventType");
     assertThat(captor.getValue().messageSystemAttributeNames())
-        .contains(MessageSystemAttributeName.MESSAGE_GROUP_ID);
+        .contains(
+            MessageSystemAttributeName.MESSAGE_GROUP_ID,
+            MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT);
+  }
+
+  @Test
+  void 메시지와_배치_처리시간을_성공으로_기록한다() {
+    // given
+    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
+
+    // when
+    consumerWith(auctionEndedHandler).consumeOnce();
+
+    // then
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordMessageDuration(eq("AUCTION_ENDED"), eq(true), any(Duration.class));
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordBatch(eq(BatchOutcome.SUCCESS), eq(1), any(Duration.class));
+  }
+
+  @Test
+  void 메시지_처리에_실패하면_메시지와_배치를_실패로_기록한다() {
+    // given
+    auctionEndedHandler.failingEventId = "event-1";
+    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
+
+    // when
+    consumerWith(auctionEndedHandler).consumeOnce();
+
+    // then
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordMessageDuration(eq("AUCTION_ENDED"), eq(false), any(Duration.class));
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordBatch(eq(BatchOutcome.FAILURE), eq(1), any(Duration.class));
+  }
+
+  @Test
+  void 일부_메시지만_처리되면_배치를_부분실패로_기록한다() {
+    // given
+    auctionEndedHandler.failingEventId = "event-1";
+    givenMessages(
+        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
+        message("message-2", "AUCTION:2048", auctionEndedEvent("event-2", 2048L)));
+
+    // when
+    consumerWith(auctionEndedHandler).consumeOnce();
+
+    // then
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordBatch(eq(BatchOutcome.PARTIAL_FAILURE), eq(2), any(Duration.class));
+  }
+
+  @Test
+  void 두_번째_이상_받은_메시지는_재전달로_기록한다() {
+    // given
+    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L), "2"));
+
+    // when
+    consumerWith(auctionEndedHandler).consumeOnce();
+
+    // then
+    then(sqsEventConsumerMetrics).should().recordRedelivery("AUCTION_ENDED");
+  }
+
+  @Test
+  void 입찰과_경매종료_메시지를_서로_다른_사건종류로_기록한다() {
+    // given
+    BidRequestCreatedMessageQueueEvent bidRequestCreatedEvent =
+        new BidRequestCreatedMessageQueueEvent(
+            "event-2", 30L, 2048L, 40L, 50000L, LocalDateTime.of(2026, 8, 5, 9, 30));
+    givenMessages(
+        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
+        message("message-2", "AUCTION:2048", bidRequestCreatedEvent));
+
+    // when
+    consumerWith(auctionEndedHandler, new RecordingBidHandler()).consumeOnce();
+
+    // then
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordMessageDuration(eq("AUCTION_ENDED"), eq(true), any(Duration.class));
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordMessageDuration(eq("BID_REQUEST_CREATED"), eq(true), any(Duration.class));
+  }
+
+  @Test
+  void 메시지_삭제에_실패하면_배치를_부분실패로_기록한다() {
+    // given
+    given(eventSqsClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+        .willReturn(
+            DeleteMessageBatchResponse.builder()
+                .failed(
+                    BatchResultErrorEntry.builder()
+                        .id("message-1")
+                        .code("InternalError")
+                        .senderFault(false)
+                        .build())
+                .build());
+    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
+
+    // when
+    consumerWith(auctionEndedHandler).consumeOnce();
+
+    // then
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordBatch(eq(BatchOutcome.PARTIAL_FAILURE), eq(1), any(Duration.class));
   }
 
   @Test
@@ -304,22 +435,33 @@ class SQSEventConsumerTest {
   }
 
   private Message message(String messageId, String messageGroupId, Object event) {
+    return message(messageId, messageGroupId, event, "1");
+  }
+
+  private Message message(
+      String messageId, String messageGroupId, Object event, String approximateReceiveCount) {
     return Message.builder()
         .messageId(messageId)
         .receiptHandle("receipt-" + messageId)
         .body(objectMapper.writeValueAsString(event))
-        .messageAttributes(eventTypeAttribute())
-        .attributes(Map.of(MessageSystemAttributeName.MESSAGE_GROUP_ID, messageGroupId))
+        .messageAttributes(eventTypeAttribute(((DomainEvent) event).eventType()))
+        .attributes(
+            Map.of(
+                MessageSystemAttributeName.MESSAGE_GROUP_ID,
+                messageGroupId,
+                MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT,
+                approximateReceiveCount))
         .build();
   }
 
   private Map<String, MessageAttributeValue> eventTypeAttribute() {
+    return eventTypeAttribute(EventType.AUCTION_ENDED);
+  }
+
+  private Map<String, MessageAttributeValue> eventTypeAttribute(EventType eventType) {
     return Map.of(
         "eventType",
-        MessageAttributeValue.builder()
-            .dataType("String")
-            .stringValue(EventType.AUCTION_ENDED.name())
-            .build());
+        MessageAttributeValue.builder().dataType("String").stringValue(eventType.name()).build());
   }
 
   private AuctionEndedMessageQueueEvent auctionEndedEvent(String eventId, Long auctionId) {
