@@ -2,7 +2,6 @@ package com.ootd.pickup.global.event.messagequeue.outbox;
 
 import com.ootd.pickup.global.event.MessageQueueEvent;
 import com.ootd.pickup.global.observability.OutboxRelayMetrics;
-import com.ootd.pickup.global.observability.TraceContextCarrier;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -80,12 +79,7 @@ public class OutboxEventScheduler {
       }
 
       try {
-        // 스팬의 시작 시각을 적재 시각(occurredAt)으로 못박아, duration 자체가 "대기행렬에서 기다린 시간 +
-        // 실제 전송 시간"이 되게 한다. 안에서 실제로 도는 Sqs.SendMessage는 이 스팬의 자식으로 훨씬 짧게 나타난다.
-        TraceContextCarrier.runWithBackdatedStart(
-            "OutboxEventScheduler.sendWithQueueWait",
-            event.occurredAt(),
-            () -> messageQueueSender.send(event));
+        messageQueueSender.send(event);
         publishedIds.add(event.eventId());
         metrics.recordEventAge(
             Duration.between(event.occurredAt(), LocalDateTime.now(ZoneOffset.UTC)));
