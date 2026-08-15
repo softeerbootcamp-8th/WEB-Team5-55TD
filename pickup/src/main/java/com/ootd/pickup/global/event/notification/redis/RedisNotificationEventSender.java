@@ -4,6 +4,7 @@ import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.event.NotificationEvent;
 import com.ootd.pickup.global.event.notification.NotificationEventSender;
 import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
+import com.ootd.pickup.global.observability.TraceContextCarrier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -57,6 +58,8 @@ public class RedisNotificationEventSender implements NotificationEventSender {
 
   private String serialize(NotificationEvent event) {
     JsonNode payload = objectMapper.valueToTree(event);
-    return objectMapper.writeValueAsString(new RedisEnvelope(event.eventType(), payload));
+    String traceParent = TraceContextCarrier.captureCurrentTraceParent();
+    return objectMapper.writeValueAsString(
+        new RedisEnvelope(event.eventType(), payload, traceParent));
   }
 }

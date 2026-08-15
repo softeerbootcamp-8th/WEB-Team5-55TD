@@ -3,6 +3,7 @@ package com.ootd.pickup.global.event.notification;
 import com.ootd.pickup.global.event.EventPublisher;
 import com.ootd.pickup.global.event.NotificationEvent;
 import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
+import com.ootd.pickup.global.observability.TraceContextCarrier;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +38,16 @@ public class NotificationEventListener {
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
   public void publish(NotificationEvent event) {
+    // 실행기로 넘기기 전, 지금 스레드(커밋 직후 - 원래 요청/소비자 트레이스가 아직 활성 상태)의 트레이스를 떠 둔다.
+    // 실행기 스레드에서는 이 값이 없으면 어느 트레이스에 이어 붙일지 알 방법이 없다.
+    String traceParent = TraceContextCarrier.captureCurrentTraceParent();
     try {
-      notificationEventExecutor.execute(() -> publishAsync(event));
+      notificationEventExecutor.execute(
+          () ->
+              TraceContextCarrier.runWithExtractedContext(
+                  traceParent,
+                  "NotificationEventListener.publishAsync",
+                  () -> publishAsync(event)));
     } catch (RejectedExecutionException exception) {
       metrics.recordRedisPublishRejected(event.eventType());
       log.warn(

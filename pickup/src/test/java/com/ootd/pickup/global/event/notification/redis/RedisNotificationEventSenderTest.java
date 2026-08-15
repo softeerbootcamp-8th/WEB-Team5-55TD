@@ -77,7 +77,7 @@ class RedisNotificationEventSenderTest {
     ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
     then(redisTemplate).should().convertAndSend(any(), messageCaptor.capture());
     NotificationEvent restored =
-        envelopeReader.read(messageCaptor.getValue().getBytes(StandardCharsets.UTF_8));
+        envelopeReader.read(messageCaptor.getValue().getBytes(StandardCharsets.UTF_8)).event();
     assertThat(restored).isEqualTo(event);
   }
 

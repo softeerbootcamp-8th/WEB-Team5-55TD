@@ -46,6 +46,17 @@ dependencies {
     implementation 'software.amazon.awssdk:sso'
     implementation 'software.amazon.awssdk:ssooidc'
     implementation 'io.micrometer:micrometer-registry-statsd'
+    // dd-java-agent(운영 -javaagent)가 인식하는 수동 계측 어노테이션과 CorrelationIdentifier(TraceContextCarrier가
+    // 자동 계측 스팬의 traceId/spanId를 직접 읽을 때 씀).
+    // 반드시 compileOnly여야 한다 — implementation으로 앱 자체 classloader에 이 jar를 번들하면, 에이전트가 부트스트랩
+    // classloader에 심어 넣어 실제 트레이서에 연결해 주는 "진짜" CorrelationIdentifier 대신 앱이 번들한, 아무 트레이서에도
+    // 연결되지 않은 별개의 사본이 로드되어 늘 "0"만 돌려준다(운영에서 실측 확인된 회귀). 에이전트가 없는 로컬·테스트
+    // 실행에서 이 클래스가 아예 없을 수 있는 문제는 호출부(TraceContextCarrier)에서 NoClassDefFoundError를 잡아 대응한다.
+    compileOnly 'com.datadoghq:dd-trace-api:1.64.2'
+    // Outbox->SQS, 실행기 스레드 전환, Redis Pub/Sub처럼 비동기 경계를 넘나드는 트레이스를 수동으로 이어 붙이는 데 쓴다.
+    // dd-java-agent가 이 API 호출을 자체 트레이서로 브릿지한다. 에이전트가 없으면 OpenTelemetry API 자체가 기본
+    // no-op 구현으로 동작하므로 로컬/테스트에서도 부작용 없이 그냥 동작한다(compileOnly가 아니라 implementation인 이유).
+    implementation 'io.opentelemetry:opentelemetry-api:1.42.1'
 
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'

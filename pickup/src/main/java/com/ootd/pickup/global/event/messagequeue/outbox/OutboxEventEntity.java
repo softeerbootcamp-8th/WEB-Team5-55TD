@@ -4,6 +4,7 @@ import com.ootd.pickup.global.event.AggregateType;
 import com.ootd.pickup.global.event.DomainEvent;
 import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.MessageQueueEvent;
+import com.ootd.pickup.global.observability.TraceContextCarrier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -74,6 +75,16 @@ public class OutboxEventEntity implements Persistable<String> {
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
+  /**
+   * 이 행을 적재한 시점(도메인 트랜잭션·HTTP 요청 스레드)의 W3C {@code traceparent}.
+   *
+   * <p>릴레이가 이 행을 SQS로 보낼 때 그대로 실어 보내면, 시간이 지나 완전히 다른 스레드에서 도는 {@code SQSEventConsumer}가 이 값을 이어받아
+   * 원래 요청과 같은 트레이스로 스팬을 이어 붙일 수 있다. 적재 시점에 활성 스팬이 없으면(에이전트 미부착 등) {@code null}이고, 이 경우 소비자는 그냥 새
+   * 트레이스로 처리한다.
+   */
+  @Column(name = "trace_parent", length = 64)
+  private String traceParent;
+
   private OutboxEventEntity(MessageQueueEvent event, String payload) {
     this.id = event.eventId();
     this.aggregateType = event.aggregateType();
@@ -82,6 +93,7 @@ public class OutboxEventEntity implements Persistable<String> {
     this.payload = payload;
     this.published = false;
     this.createdAt = event.occurredAt();
+    this.traceParent = TraceContextCarrier.captureCurrentTraceParent();
   }
 
   /**

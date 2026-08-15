@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
  * {@code event_type}을 자바 타입으로 되돌리는 일이 릴레이에 들어온다. 타입이 필요한 쪽은 소비자다.
  *
  * @param payload 적재 시점에 직렬화된 JSON 원문. 큐 본문에 그대로 쓴다
+ * @param traceParent 적재 시점의 W3C traceparent. 없으면(에이전트 미부착 등) {@code null}
  */
 public record RelayedOutboxEvent(
     String eventId,
@@ -22,7 +23,8 @@ public record RelayedOutboxEvent(
     Long aggregateId,
     EventType eventType,
     LocalDateTime occurredAt,
-    String payload)
+    String payload,
+    String traceParent)
     implements MessageQueueEvent {
 
   /**
@@ -40,7 +42,8 @@ public record RelayedOutboxEvent(
         outboxEvent.getAggregateId(),
         outboxEvent.getEventType(),
         outboxEvent.getCreatedAt(),
-        outboxEvent.getPayload());
+        outboxEvent.getPayload(),
+        outboxEvent.getTraceParent());
   }
 
   /**

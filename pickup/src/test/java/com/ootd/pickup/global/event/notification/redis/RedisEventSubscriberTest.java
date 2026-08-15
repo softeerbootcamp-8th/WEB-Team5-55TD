@@ -136,7 +136,7 @@ class RedisEventSubscriberTest {
   }
 
   private RedisEnvelope envelopeOf(BidRequestSucceededNotificationEvent event) {
-    return new RedisEnvelope(event.eventType(), objectMapper.valueToTree(event));
+    return new RedisEnvelope(event.eventType(), objectMapper.valueToTree(event), null);
   }
 
   private void givenMessage(String channel, RedisEnvelope envelope) {

@@ -14,5 +14,8 @@ import tools.jackson.databind.JsonNode;
  * <p>{@code eventType}을 문자열이 아니라 {@link EventType}으로 바로 받는다. 여러 버전의 인스턴스가 동시에 떠 있는 롤링 디플로이 상황에서는
  * 구버전이 아직 모르는 상수가 오면 이 필드가 문자열이어야 봉투 자체는 역직렬화에 성공한다 — 하지만 지금은 단일 버전만 존재해 그 구분이 아무 의미가 없다. 실제로 그 상황이
  * 생기면(운영 배포가 시작되면) 그때 다시 문자열로 낮춘다.
+ *
+ * @param traceParent 발행 시점의 W3C traceparent. 구독자가 이 값을 이어받아 같은 트레이스로 스팬을 잇는다. 발행 당시 활성 스팬이 없었으면
+ *     {@code null}
  */
-public record RedisEnvelope(EventType eventType, JsonNode payload) {}
+public record RedisEnvelope(EventType eventType, JsonNode payload, String traceParent) {}

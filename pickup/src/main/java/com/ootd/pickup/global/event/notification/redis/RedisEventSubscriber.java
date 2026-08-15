@@ -3,6 +3,7 @@ package com.ootd.pickup.global.event.notification.redis;
 import com.ootd.pickup.global.event.NotificationEvent;
 import com.ootd.pickup.global.event.notification.NotificationEventDispatcher;
 import com.ootd.pickup.global.observability.RealtimeNotificationMetrics;
+import com.ootd.pickup.global.observability.TraceContextCarrier;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,19 +34,20 @@ public class RedisEventSubscriber implements MessageListener {
   public void onMessage(Message message, byte[] pattern) {
     String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
 
-    NotificationEvent event;
+    DeserializedNotificationEvent deserialized;
     try {
-      event = envelopeReader.read(message.getBody());
+      deserialized = envelopeReader.read(message.getBody());
     } catch (JacksonException exception) {
       // 전체 publish 합계가 아니라 host별 이 값을 비교해야 특정 인스턴스의 잘못된 payload 수신을 찾을 수 있다.
       metrics.recordRedisReceiveDeserializeFailure();
       log.warn("알림 이벤트 역직렬화에 실패했습니다 - channel={}", channel, exception);
       return;
     }
-    if (event == null) {
+    if (deserialized == null) {
       metrics.recordRedisReceiveDeserializeFailure();
       return;
     }
+    NotificationEvent event = deserialized.event();
 
     if (!channelResolver.matches(channel, event)) {
       // 역직렬화 성공만으로 처리하지 않고 routing 계약까지 통과해야 정상 수신으로 본다.
@@ -65,6 +67,9 @@ public class RedisEventSubscriber implements MessageListener {
         channel,
         event.eventType(),
         event.aggregateId());
-    eventDispatcher.dispatch(event);
+    TraceContextCarrier.runWithExtractedContext(
+        deserialized.traceParent(),
+        "RedisEventSubscriber.onMessage",
+        () -> eventDispatcher.dispatch(event));
   }
 }

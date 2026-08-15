@@ -75,6 +75,33 @@ class SQSMessageQueueSenderTest {
   }
 
   @Test
+  void traceParent이_있으면_메시지_속성에_싣는다() {
+    // given
+    String traceParent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+    RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{}", traceParent);
+
+    // when
+    sqsMessageQueueSender.send(event);
+
+    // then
+    MessageAttributeValue attribute = capturedRequest().messageAttributes().get("traceParent");
+    assertThat(attribute.stringValue()).isEqualTo(traceParent);
+    assertThat(attribute.dataType()).isEqualTo("String");
+  }
+
+  @Test
+  void traceParent이_없으면_메시지_속성에_싣지_않는다() {
+    // given — 적재 당시 활성 스팬이 없었던 경우
+    RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{}", null);
+
+    // when
+    sqsMessageQueueSender.send(event);
+
+    // then
+    assertThat(capturedRequest().messageAttributes()).doesNotContainKey("traceParent");
+  }
+
+  @Test
   void 애그리거트_종류와_식별자를_묶어_메시지_그룹을_만든다() {
     // given
     RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{}");
@@ -136,12 +163,18 @@ class SQSMessageQueueSenderTest {
   }
 
   private RelayedOutboxEvent relayedEvent(String eventId, Long auctionId, String payload) {
+    return relayedEvent(eventId, auctionId, payload, null);
+  }
+
+  private RelayedOutboxEvent relayedEvent(
+      String eventId, Long auctionId, String payload, String traceParent) {
     return new RelayedOutboxEvent(
         eventId,
         AggregateType.AUCTION,
         auctionId,
         EventType.AUCTION_ENDED,
         LocalDateTime.of(2026, 8, 5, 10, 0),
-        payload);
+        payload,
+        traceParent);
   }
 }

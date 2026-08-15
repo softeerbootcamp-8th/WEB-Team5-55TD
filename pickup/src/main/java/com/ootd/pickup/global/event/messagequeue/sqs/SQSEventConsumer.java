@@ -5,6 +5,8 @@ import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.MessageQueueEvent;
 import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
+import com.ootd.pickup.global.observability.TraceContextCarrier;
+import datadog.trace.api.Trace;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -54,6 +56,9 @@ public class SQSEventConsumer implements SmartLifecycle {
 
   /** {@link SQSMessageQueueSender}가 싣는 속성 이름. 양쪽이 같아야 한다. */
   private static final String EVENT_TYPE_ATTRIBUTE = "eventType";
+
+  /** 적재 시점 트레이스를 잇는 W3C traceparent. 없을 수 있다(적재 당시 활성 스팬이 없었던 경우). */
+  private static final String TRACE_PARENT_ATTRIBUTE = "traceParent";
 
   /** Datadog 등에서 에러를 Critical로 수집하기 위한 마커. */
   private static final Marker CRITICAL_MARKER = MarkerFactory.getMarker("CRITICAL");
@@ -188,7 +193,12 @@ public class SQSEventConsumer implements SmartLifecycle {
    * 큐에서 한 배치를 받아 처리하고, 성공한 메시지만 삭제한다.
    *
    * <p>폴링 루프가 반복해서 부르는 단위다. 스레드를 띄우지 않고 이 메서드만 직접 불러 동작을 검증할 수 있다.
+   *
+   * <p>{@code @Trace}를 여기 붙인 이유: 이 스레드는 들어오는 HTTP 요청도, {@code @Scheduled}도 아니라 dd-java-agent가 자동으로
+   * 트레이스를 열어줄 진입점이 없다. 붙이지 않으면 안의 {@code receiveMessage}/DB 호출이 서로 묶이지 않은 낱개 스팬으로만 보여 한 번의 수신-처리-삭제
+   * 사이클을 하나의 흐름으로 볼 수 없다.
    */
+  @Trace
   void consumeOnce() {
     List<Message> messages = receiveMessages();
     if (messages.isEmpty()) {
@@ -207,8 +217,9 @@ public class SQSEventConsumer implements SmartLifecycle {
                 .waitTimeSeconds((int) sqsProperties.waitTime().toSeconds())
                 .visibilityTimeout((int) sqsProperties.visibilityTimeout().toSeconds())
                 // 요청하지 않으면 응답에 실리지 않는다. eventType 이 없으면 되돌릴 타입을,
-                // MessageGroupId 가 없으면 실패한 그룹을 막을 기준을 알 수 없다.
-                .messageAttributeNames(EVENT_TYPE_ATTRIBUTE)
+                // MessageGroupId 가 없으면 실패한 그룹을 막을 기준을, traceParent 가 없으면 이어 붙일 트레이스를
+                // 알 수 없다.
+                .messageAttributeNames(EVENT_TYPE_ATTRIBUTE, TRACE_PARENT_ATTRIBUTE)
                 .messageSystemAttributeNames(MessageSystemAttributeName.MESSAGE_GROUP_ID)
                 .build())
         .messages();
@@ -256,6 +267,13 @@ public class SQSEventConsumer implements SmartLifecycle {
    * @throws IllegalStateException 되돌린 타입을 처리할 핸들러가 없는 경우
    */
   private void consume(Message message) {
+    String traceParent = traceParentOf(message);
+    TraceContextCarrier.runWithExtractedContext(
+        traceParent, "SQSEventConsumer.consume", () -> doConsume(message));
+  }
+
+  /** 실제 처리. 예외를 그대로 던져야 {@link #consumeBatch}가 이 메시지가 속한 그룹을 막을 수 있다. */
+  private void doConsume(Message message) {
     MessageQueueEvent event = toEvent(message);
     List<EventHandler<DomainEvent>> handlers =
         handlersByEventClass.getOrDefault(event.getClass(), List.of());
@@ -272,6 +290,11 @@ public class SQSEventConsumer implements SmartLifecycle {
         event.eventId(),
         event.eventType(),
         message.messageId());
+  }
+
+  private String traceParentOf(Message message) {
+    MessageAttributeValue attribute = message.messageAttributes().get(TRACE_PARENT_ATTRIBUTE);
+    return attribute == null ? null : attribute.stringValue();
   }
 
   /**

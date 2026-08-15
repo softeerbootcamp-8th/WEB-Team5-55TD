@@ -27,7 +27,7 @@ public class RedisEnvelopeReader {
   /**
    * @throws JacksonException 봉투 자체가 깨져 역직렬화할 수 없는 경우(모르는 {@code eventType} 상수 포함)
    */
-  public NotificationEvent read(byte[] envelopeBytes) {
+  public DeserializedNotificationEvent read(byte[] envelopeBytes) {
     RedisEnvelope envelope = objectMapper.readValue(envelopeBytes, RedisEnvelope.class);
     if (envelope == null || envelope.eventType() == null || envelope.payload() == null) {
       log.warn("필수 값이 없는 알림 이벤트를 수신했습니다");
@@ -42,6 +42,7 @@ public class RedisEnvelopeReader {
       return null;
     }
 
-    return objectMapper.treeToValue(envelope.payload(), eventClass);
+    NotificationEvent event = objectMapper.treeToValue(envelope.payload(), eventClass);
+    return new DeserializedNotificationEvent(event, envelope.traceParent());
   }
 }

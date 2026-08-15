@@ -4,6 +4,7 @@ import com.ootd.pickup.global.event.messagequeue.outbox.MessageQueueSender;
 import com.ootd.pickup.global.event.messagequeue.outbox.OutboxEventScheduler;
 import com.ootd.pickup.global.event.messagequeue.outbox.RelayedOutboxEvent;
 import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -20,7 +21,8 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
  * <ul>
  *   <li>{@code MessageBody} — {@link RelayedOutboxEvent#payload()}를 <b>그대로</b> 쓴다. 이미 직렬화된 원문이라 다시
  *       직렬화하면 문자열이 한 번 더 감싸진다.
- *   <li>{@code MessageAttributes} — {@code eventType} 하나. 소비자가 본문을 되돌릴 타입을 고르는 근거다.
+ *   <li>{@code MessageAttributes} — {@code eventType}, 그리고 있으면 {@code traceParent}. 소비자가 본문을 되돌릴
+ *       타입과 이어 붙일 트레이스를 여기서 얻는다.
  *   <li>{@code MessageGroupId} — {@link RelayedOutboxEvent#messageGroupId()}
  *   <li>{@code MessageDeduplicationId} — {@code eventId}. 릴레이가 재시도하면 같은 이벤트가 다시 오므로 큐가 걸러낸다.
  * </ul>
@@ -29,7 +31,7 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
  *
  * <p>{@code eventType} 을 속성에 따로 실어야 하는 이유는 <b>본문에 그 값이 없기 때문</b>이다. 이벤트 record 는 {@code
  * eventType()} 을 컴포넌트가 아니라 오버라이드 메서드로 두어 직렬화 대상에서 빠진다. 이 속성을 빠뜨리면 {@link SQSEventConsumer}가 어떤 타입으로
- * 되돌릴지 알 수 없다.
+ * 되돌릴지 알 수 없다. {@code traceParent}도 같은 이유로 속성에 싣는다 — 본문을 건드리면 적재 시점의 원문 JSON이 아니게 된다.
  */
 @Component
 @RequiredArgsConstructor
@@ -38,6 +40,9 @@ public class SQSMessageQueueSender implements MessageQueueSender {
 
   /** 소비자가 본문을 되돌릴 타입을 고르는 근거. 이름을 바꾸면 이미 큐에 있는 메시지를 되돌릴 수 없다. */
   private static final String EVENT_TYPE_ATTRIBUTE = "eventType";
+
+  /** 적재 시점 트레이스를 잇는 W3C traceparent. 적재 당시 활성 스팬이 없었으면 이 속성 자체가 없다. */
+  private static final String TRACE_PARENT_ATTRIBUTE = "traceParent";
 
   private static final String STRING_DATA_TYPE = "String";
 
@@ -59,15 +64,29 @@ public class SQSMessageQueueSender implements MessageQueueSender {
         SendMessageRequest.builder()
             .queueUrl(sqsProperties.queueUrl())
             .messageBody(event.payload())
-            .messageAttributes(
-                Map.of(
-                    EVENT_TYPE_ATTRIBUTE,
-                    MessageAttributeValue.builder()
-                        .dataType(STRING_DATA_TYPE)
-                        .stringValue(event.eventType().name())
-                        .build()))
+            .messageAttributes(buildMessageAttributes(event))
             .messageGroupId(event.messageGroupId())
             .messageDeduplicationId(event.eventId())
             .build());
+  }
+
+  /** {@code traceParent}는 없을 수 있으므로(적재 당시 활성 스팬이 없었던 경우) 있을 때만 속성에 싣는다. */
+  private Map<String, MessageAttributeValue> buildMessageAttributes(RelayedOutboxEvent event) {
+    Map<String, MessageAttributeValue> attributes = new HashMap<>();
+    attributes.put(
+        EVENT_TYPE_ATTRIBUTE,
+        MessageAttributeValue.builder()
+            .dataType(STRING_DATA_TYPE)
+            .stringValue(event.eventType().name())
+            .build());
+    if (event.traceParent() != null) {
+      attributes.put(
+          TRACE_PARENT_ATTRIBUTE,
+          MessageAttributeValue.builder()
+              .dataType(STRING_DATA_TYPE)
+              .stringValue(event.traceParent())
+              .build());
+    }
+    return attributes;
   }
 }
