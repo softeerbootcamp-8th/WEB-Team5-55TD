@@ -76,10 +76,12 @@ class OutboxEventRelayTransactionBoundaryTest {
             invocation -> {
               transactionActiveWhenSent.add(
                   TransactionSynchronizationManager.isActualTransactionActive());
-              return null;
+              List<RelayedOutboxEvent> events = invocation.getArgument(0);
+              return new BatchSendResult(
+                  events.stream().map(RelayedOutboxEvent::eventId).toList(), List.of());
             })
         .given(messageQueueSender)
-        .send(any());
+        .sendBatch(anyList());
     appendCommitted();
 
     // when
@@ -97,10 +99,12 @@ class OutboxEventRelayTransactionBoundaryTest {
     willAnswer(
             invocation -> {
               publishedWhenSent.add(readCommittedPublished(eventId));
-              return null;
+              List<RelayedOutboxEvent> events = invocation.getArgument(0);
+              return new BatchSendResult(
+                  events.stream().map(RelayedOutboxEvent::eventId).toList(), List.of());
             })
         .given(messageQueueSender)
-        .send(any());
+        .sendBatch(anyList());
 
     // when
     outboxEventScheduler.relayUnpublishedEvents();

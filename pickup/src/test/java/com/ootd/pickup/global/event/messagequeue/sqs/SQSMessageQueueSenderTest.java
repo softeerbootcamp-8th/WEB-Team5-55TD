@@ -6,17 +6,23 @@ import static org.mockito.BDDMockito.*;
 
 import com.ootd.pickup.global.event.AggregateType;
 import com.ootd.pickup.global.event.EventType;
+import com.ootd.pickup.global.event.messagequeue.outbox.BatchSendResult;
 import com.ootd.pickup.global.event.messagequeue.outbox.RelayedOutboxEvent;
 import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchResultEntry;
 
 class SQSMessageQueueSenderTest {
 
@@ -33,6 +39,9 @@ class SQSMessageQueueSenderTest {
         new SQSProperties(
             QUEUE_URL, "ap-northeast-2", Duration.ofSeconds(20), Duration.ofSeconds(30), 10);
     sqsMessageQueueSender = new SQSMessageQueueSender(eventSqsClient, properties);
+    // 기본값: 요청에 실린 항목 전부를 성공으로 응답한다. 실패를 검증하는 테스트는 개별적으로 스텁을 덮어쓴다.
+    given(eventSqsClient.sendMessageBatch(any(SendMessageBatchRequest.class)))
+        .willAnswer(invocation -> allSucceeded(invocation.getArgument(0)));
   }
 
   @Test
@@ -41,7 +50,7 @@ class SQSMessageQueueSenderTest {
     RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{\"auctionId\":1024}");
 
     // when
-    sqsMessageQueueSender.send(event);
+    sqsMessageQueueSender.sendBatch(List.of(event));
 
     // then
     assertThat(capturedRequest().queueUrl()).isEqualTo(QUEUE_URL);
@@ -54,10 +63,10 @@ class SQSMessageQueueSenderTest {
     RelayedOutboxEvent event = relayedEvent("event-1", 1024L, payload);
 
     // when
-    sqsMessageQueueSender.send(event);
+    sqsMessageQueueSender.sendBatch(List.of(event));
 
     // then
-    assertThat(capturedRequest().messageBody()).isEqualTo(payload);
+    assertThat(onlyEntry().messageBody()).isEqualTo(payload);
   }
 
   @Test
@@ -66,10 +75,10 @@ class SQSMessageQueueSenderTest {
     RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{}");
 
     // when
-    sqsMessageQueueSender.send(event);
+    sqsMessageQueueSender.sendBatch(List.of(event));
 
     // then
-    MessageAttributeValue attribute = capturedRequest().messageAttributes().get("eventType");
+    MessageAttributeValue attribute = onlyEntry().messageAttributes().get("eventType");
     assertThat(attribute.stringValue()).isEqualTo(EventType.AUCTION_ENDED.name());
     assertThat(attribute.dataType()).isEqualTo("String");
   }
@@ -81,10 +90,10 @@ class SQSMessageQueueSenderTest {
     RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{}", traceParent);
 
     // when
-    sqsMessageQueueSender.send(event);
+    sqsMessageQueueSender.sendBatch(List.of(event));
 
     // then
-    MessageAttributeValue attribute = capturedRequest().messageAttributes().get("traceParent");
+    MessageAttributeValue attribute = onlyEntry().messageAttributes().get("traceParent");
     assertThat(attribute.stringValue()).isEqualTo(traceParent);
     assertThat(attribute.dataType()).isEqualTo("String");
   }
@@ -95,10 +104,10 @@ class SQSMessageQueueSenderTest {
     RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{}", null);
 
     // when
-    sqsMessageQueueSender.send(event);
+    sqsMessageQueueSender.sendBatch(List.of(event));
 
     // then
-    assertThat(capturedRequest().messageAttributes()).doesNotContainKey("traceParent");
+    assertThat(onlyEntry().messageAttributes()).doesNotContainKey("traceParent");
   }
 
   @Test
@@ -107,59 +116,110 @@ class SQSMessageQueueSenderTest {
     RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{}");
 
     // when
-    sqsMessageQueueSender.send(event);
+    sqsMessageQueueSender.sendBatch(List.of(event));
 
     // then
-    assertThat(capturedRequest().messageGroupId()).isEqualTo("AUCTION:1024");
+    assertThat(onlyEntry().messageGroupId()).isEqualTo("AUCTION:1024");
   }
 
   @Test
-  void 같은_애그리거트의_이벤트는_같은_메시지_그룹으로_간다() {
+  void 같은_애그리거트의_이벤트를_한_배치로_보내면_같은_메시지_그룹으로_간다() {
     // given — 그룹이 갈라지면 한 경매의 시작·종료 순서 보장이 사라진다
     RelayedOutboxEvent first = relayedEvent("event-1", 1024L, "{}");
     RelayedOutboxEvent second = relayedEvent("event-2", 1024L, "{}");
 
     // when
-    sqsMessageQueueSender.send(first);
-    sqsMessageQueueSender.send(second);
+    sqsMessageQueueSender.sendBatch(List.of(first, second));
 
     // then
-    ArgumentCaptor<SendMessageRequest> captor = ArgumentCaptor.forClass(SendMessageRequest.class);
-    then(eventSqsClient).should(times(2)).sendMessage(captor.capture());
-    assertThat(captor.getAllValues())
-        .extracting(SendMessageRequest::messageGroupId)
+    assertThat(capturedRequest().entries())
+        .extracting(SendMessageBatchRequestEntry::messageGroupId)
         .containsExactly("AUCTION:1024", "AUCTION:1024");
   }
 
   @Test
-  void eventId를_중복_제거_식별자로_쓴다() {
+  void eventId를_배치_항목_식별자이자_중복_제거_식별자로_쓴다() {
     // given — 릴레이가 재시도하면 같은 이벤트가 다시 오므로 큐가 걸러낸다
     RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{}");
 
     // when
-    sqsMessageQueueSender.send(event);
+    sqsMessageQueueSender.sendBatch(List.of(event));
 
     // then
-    assertThat(capturedRequest().messageDeduplicationId()).isEqualTo("event-1");
+    assertThat(onlyEntry().id()).isEqualTo("event-1");
+    assertThat(onlyEntry().messageDeduplicationId()).isEqualTo("event-1");
   }
 
   @Test
-  void 전송에_실패하면_예외를_그대로_던진다() {
-    // given — 삼키면 릴레이가 발행 완료로 표시해 이벤트가 영구히 사라진다
+  void 호출_자체가_실패하면_예외를_그대로_던진다() {
+    // given — 삼키면 릴레이가 이 청크를 발행 완료로 표시해 이벤트가 영구히 사라진다
     RelayedOutboxEvent event = relayedEvent("event-1", 1024L, "{}");
     willThrow(SdkClientException.create("큐 장애"))
         .given(eventSqsClient)
-        .sendMessage(any(SendMessageRequest.class));
+        .sendMessageBatch(any(SendMessageBatchRequest.class));
 
     // when & then
-    assertThatThrownBy(() -> sqsMessageQueueSender.send(event))
+    assertThatThrownBy(() -> sqsMessageQueueSender.sendBatch(List.of(event)))
         .isInstanceOf(SdkClientException.class);
   }
 
-  private SendMessageRequest capturedRequest() {
-    ArgumentCaptor<SendMessageRequest> captor = ArgumentCaptor.forClass(SendMessageRequest.class);
-    then(eventSqsClient).should().sendMessage(captor.capture());
+  @Test
+  void 일부만_실패하면_성공_실패_목록에_그대로_나뉘어_담긴다() {
+    // given — SendMessageBatch는 부분 실패를 예외가 아니라 정상 응답으로 돌려준다
+    RelayedOutboxEvent succeeding = relayedEvent("event-1", 1024L, "{}");
+    RelayedOutboxEvent failing = relayedEvent("event-2", 2048L, "{}");
+    given(eventSqsClient.sendMessageBatch(any(SendMessageBatchRequest.class)))
+        .willReturn(
+            SendMessageBatchResponse.builder()
+                .successful(
+                    SendMessageBatchResultEntry.builder()
+                        .id("event-1")
+                        .messageId("sqs-message-id")
+                        .build())
+                .failed(
+                    BatchResultErrorEntry.builder()
+                        .id("event-2")
+                        .code("InvalidParameterValue")
+                        .senderFault(true)
+                        .message("잘못된 요청")
+                        .build())
+                .build());
+
+    // when
+    BatchSendResult result = sqsMessageQueueSender.sendBatch(List.of(succeeding, failing));
+
+    // then
+    assertThat(result.succeededEventIds()).containsExactly("event-1");
+    assertThat(result.failedEvents())
+        .extracting(BatchSendResult.FailedEvent::eventId)
+        .containsExactly("event-2");
+    assertThat(result.failedEvents().get(0).reason()).contains("InvalidParameterValue");
+  }
+
+  private static SendMessageBatchResponse allSucceeded(SendMessageBatchRequest request) {
+    List<SendMessageBatchResultEntry> successful =
+        request.entries().stream()
+            .map(
+                entry ->
+                    SendMessageBatchResultEntry.builder()
+                        .id(entry.id())
+                        .messageId("sqs-message-id-" + entry.id())
+                        .build())
+            .toList();
+    return SendMessageBatchResponse.builder().successful(successful).build();
+  }
+
+  private SendMessageBatchRequest capturedRequest() {
+    ArgumentCaptor<SendMessageBatchRequest> captor =
+        ArgumentCaptor.forClass(SendMessageBatchRequest.class);
+    then(eventSqsClient).should().sendMessageBatch(captor.capture());
     return captor.getValue();
+  }
+
+  private SendMessageBatchRequestEntry onlyEntry() {
+    List<SendMessageBatchRequestEntry> entries = capturedRequest().entries();
+    assertThat(entries).hasSize(1);
+    return entries.get(0);
   }
 
   private RelayedOutboxEvent relayedEvent(String eventId, Long auctionId, String payload) {

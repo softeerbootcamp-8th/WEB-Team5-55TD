@@ -1,17 +1,24 @@
 package com.ootd.pickup.global.event.messagequeue.sqs;
 
+import com.ootd.pickup.global.event.messagequeue.outbox.BatchSendResult;
+import com.ootd.pickup.global.event.messagequeue.outbox.BatchSendResult.FailedEvent;
 import com.ootd.pickup.global.event.messagequeue.outbox.MessageQueueSender;
 import com.ootd.pickup.global.event.messagequeue.outbox.OutboxEventScheduler;
 import com.ootd.pickup.global.event.messagequeue.outbox.RelayedOutboxEvent;
 import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchResultEntry;
 
 /**
  * Outbox 릴레이가 넘긴 이벤트를 SQS FIFO 큐로 보내는 {@link MessageQueueSender} 구현체.
@@ -50,24 +57,53 @@ public class SQSMessageQueueSender implements MessageQueueSender {
   private final SQSProperties sqsProperties;
 
   /**
-   * 이벤트를 큐로 보낸다.
+   * 이벤트를 최대 10건(SQS {@code SendMessageBatch} 하드 리밋)씩 묶어 보낸다.
    *
-   * <p>실패를 감싸지 않고 그대로 던진다. {@link OutboxEventScheduler}가 이 예외를 받아 해당 애그리거트를 이번 주기에서 차단하고 한 줄로 모아
-   * 남기므로, 여기서 잡거나 로그를 남기면 같은 실패가 매 주기 중복해서 쏟아진다.
+   * <p>호출 자체의 실패(네트워크 등)는 감싸지 않고 그대로 던진다. {@link OutboxEventScheduler}가 이 예외를 받아 청크 전체를 이번 주기에서 실패로
+   * 취급하므로, 여기서 잡거나 로그를 남기면 같은 실패가 매 주기 중복해서 쏟아진다. 건별 부분 실패는 예외가 아니라 응답의 {@code failed} 목록으로 온다 —
+   * {@link BatchSendResult}로 그대로 옮긴다.
    *
-   * @param event 발행할 이벤트
-   * @throws software.amazon.awssdk.core.exception.SdkException 큐 전송에 실패한 경우
+   * @param events 보낼 이벤트. 최대 10건
+   * @return 건별 성공/실패 결과
+   * @throws software.amazon.awssdk.core.exception.SdkException 호출 자체가 실패한 경우
    */
   @Override
-  public void send(RelayedOutboxEvent event) {
-    eventSqsClient.sendMessage(
-        SendMessageRequest.builder()
-            .queueUrl(sqsProperties.queueUrl())
-            .messageBody(event.payload())
-            .messageAttributes(buildMessageAttributes(event))
-            .messageGroupId(event.messageGroupId())
-            .messageDeduplicationId(event.eventId())
-            .build());
+  public BatchSendResult sendBatch(List<RelayedOutboxEvent> events) {
+    List<SendMessageBatchRequestEntry> entries = events.stream().map(this::toEntry).toList();
+
+    SendMessageBatchResponse response =
+        eventSqsClient.sendMessageBatch(
+            SendMessageBatchRequest.builder()
+                .queueUrl(sqsProperties.queueUrl())
+                .entries(entries)
+                .build());
+
+    List<String> succeeded =
+        response.hasSuccessful()
+            ? response.successful().stream().map(SendMessageBatchResultEntry::id).toList()
+            : List.of();
+    List<FailedEvent> failed =
+        response.hasFailed()
+            ? response.failed().stream()
+                .map(entry -> new FailedEvent(entry.id(), describeFailure(entry)))
+                .toList()
+            : List.of();
+    return new BatchSendResult(succeeded, failed);
+  }
+
+  private SendMessageBatchRequestEntry toEntry(RelayedOutboxEvent event) {
+    return SendMessageBatchRequestEntry.builder()
+        .id(event.eventId())
+        .messageBody(event.payload())
+        .messageAttributes(buildMessageAttributes(event))
+        .messageGroupId(event.messageGroupId())
+        .messageDeduplicationId(event.eventId())
+        .build();
+  }
+
+  private static String describeFailure(BatchResultErrorEntry failed) {
+    return "%s(senderFault=%s, message=%s)"
+        .formatted(failed.code(), failed.senderFault(), failed.message());
   }
 
   /** {@code traceParent}는 없을 수 있으므로(적재 당시 활성 스팬이 없었던 경우) 있을 때만 속성에 싣는다. */

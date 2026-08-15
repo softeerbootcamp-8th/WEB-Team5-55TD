@@ -1,6 +1,7 @@
 package com.ootd.pickup.global.event.messagequeue.outbox;
 
 import com.ootd.pickup.global.event.EventProducer;
+import java.util.List;
 
 /**
  * 적재된 이벤트를 실제 메시지 큐로 내보내는 계약. 릴레이 전용이다.
@@ -15,11 +16,14 @@ import com.ootd.pickup.global.event.EventProducer;
 public interface MessageQueueSender {
 
   /**
-   * 이벤트를 큐로 보낸다.
+   * 이벤트를 최대 10건씩 묶어 큐로 보낸다. 10건은 SQS {@code SendMessageBatch}의 하드 리밋이라 호출자가 그 이상을 넘기면 안 된다.
    *
-   * <p>예외를 던지면 릴레이가 그 행을 발행 완료로 표시하지 않고 다음 주기에 다시 시도한다. 실패했는데 조용히 성공한 것처럼 굴면 그 이벤트가 영구히 사라진다.
+   * <p>건별 성공/실패는 {@link BatchSendResult}로 돌아온다 — SQS 배치 API 자체가 부분 성공을 정상 응답으로 다루기 때문이다. 호출 자체가
+   * 실패(네트워크 등)하면 예외를 그대로 던진다. 어느 쪽이든 릴레이는 실패한 이벤트를 발행 완료로 표시하지 않고 다음 주기에 다시 시도한다 — 실패했는데 조용히 성공한
+   * 것처럼 굴면 그 이벤트가 영구히 사라진다.
    *
-   * @param event 발행할 이벤트
+   * @param events 보낼 이벤트. 최대 10건
+   * @return 건별 성공/실패 결과
    */
-  void send(RelayedOutboxEvent event);
+  BatchSendResult sendBatch(List<RelayedOutboxEvent> events);
 }
