@@ -541,7 +541,7 @@ jobs:
           RECONNECT_FORCED_FAILURES: 5
           FIRST_CONNECTION_SECONDS: 60
           RECONNECT_HOLD_SECONDS: 20
-          RECONNECT_POLICY: immediate
+          RECONNECT_POLICY: backoff-jitter
         run: |
           set +e
           overall_result=0
@@ -572,7 +572,7 @@ jobs:
 
           for TARGET_VUS in 1000 1500 2000; do
             export TARGET_VUS
-            run_reconnect_test "즉시 재연결 baseline 시험" "reconnect-before" "reconnect-storm.js"
+            run_reconnect_test "backoff와 jitter 재연결 시험" "reconnect-after" "reconnect-storm.js"
           done
 
           exit ${overall_result}
