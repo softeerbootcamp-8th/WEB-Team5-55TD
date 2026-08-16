@@ -92,6 +92,7 @@ class SettlementServiceTest {
 
     // then
     then(settlementRepository).should(times(2)).save(settlementCaptor.capture());
+    then(pointReservationRepository).should().findByAuctionIdForUpdate(1L);
     then(pointRepository).should(times(2)).save(pointCaptor.capture());
     assertThat(settlementCaptor.getAllValues())
         .extracting(Settlement::getSettlementType)

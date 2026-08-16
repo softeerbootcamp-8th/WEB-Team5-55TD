@@ -13,7 +13,9 @@ public class PointReservationDataJpaRepository implements PointReservationReposi
 
   @Override
   public Optional<PointReservation> findByAuctionIdForUpdate(Long auctionId) {
-    return pointReservationJpaRepository.findByAuctionIdForUpdate(auctionId);
+    return pointReservationJpaRepository
+        .findIdByAuctionId(auctionId)
+        .flatMap(pointReservationJpaRepository::findByIdForUpdate);
   }
 
   @Override
