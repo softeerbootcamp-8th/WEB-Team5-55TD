@@ -7,7 +7,7 @@ resources:
 images:
   - name: pickup-api
     newName: ghcr.io/softeerbootcamp-8th/web-team5-55td/pickup-api
-    newTag: eacc85fbce16416cf2a44c007431c45b70a397da
+    newTag: b38eca5446f9121592e877b7016a0fa070edf92d
   - name: pickup-web
     newName: ghcr.io/softeerbootcamp-8th/web-team5-55td/pickup-web
     newTag: eacc85fbce16416cf2a44c007431c45b70a397da
