@@ -176,15 +176,15 @@ const lines = [
         `| ${row.scenario} | ${row.target} | ${row.initialHandshakeP95} | ${row.reconnectSuccess} | ${row.reconnectFailures} | ${row.handshakeP95} | ${row.openRecoveryP95} | ${row.stompRecoveryP95} |`,
     ),
   '',
-  '## 재연결 지수 backoff',
+  '## 재연결 대기 시간',
   '',
-  '| 목표 session | 의도한 연결 실패 | 1차 p95 | 2차 p95 | 3차 p95 | 4차 p95 | 5차 p95 | 6차 p95 |',
-  '| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+  '| 기준 | 목표 session | 의도한 연결 실패 | 1차 p95 | 2차 p95 | 3차 p95 | 4차 p95 | 5차 p95 | 6차 p95 |',
+  '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ...rows
     .filter((row) => row.scenario.startsWith('재연결'))
     .map(
       (row) =>
-        `| ${row.target} | ${row.forcedReconnectFailures} | ${row.backoffP95.join(' | ')} |`,
+        `| ${row.scenario} | ${row.target} | ${row.forcedReconnectFailures} | ${row.backoffP95.join(' | ')} |`,
     ),
   '',
   '> 이 파일은 k6 요약이다. 최종 용량 판정에는 같은 시간대의 Datadog과 CloudWatch 지표를 함께 사용한다.',

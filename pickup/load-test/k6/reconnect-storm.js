@@ -11,6 +11,10 @@ const targetVus = Number(__ENV.TARGET_VUS || 300);
 const forcedFailures = Number(__ENV.RECONNECT_FORCED_FAILURES || 5);
 const firstConnectionSeconds = Number(__ENV.FIRST_CONNECTION_SECONDS || 60);
 const reconnectHoldSeconds = Number(__ENV.RECONNECT_HOLD_SECONDS || 20);
+const reconnectPolicy = __ENV.RECONNECT_POLICY || 'backoff-jitter';
+if (!['immediate', 'backoff-jitter'].includes(reconnectPolicy)) {
+  throw new Error(`unsupported reconnect policy: ${reconnectPolicy}`);
+}
 const requiredReconnectAttempts = Math.ceil(
   targetVus * (forcedFailures + 1) * 0.999,
 );
@@ -20,6 +24,24 @@ const requiredStompConnections = Math.ceil(targetVus * 2 * 0.999);
 const initialReconnectDelayMillis = 1_000;
 const maxReconnectDelayMillis = 30_000;
 const reconnectJitterMillis = 1_000;
+const reconnectDelayThresholds =
+  reconnectPolicy === 'immediate'
+    ? {
+        'reconnect_backoff_delay{attempt:1}': ['max==0'],
+        'reconnect_backoff_delay{attempt:2}': ['max==0'],
+        'reconnect_backoff_delay{attempt:3}': ['max==0'],
+        'reconnect_backoff_delay{attempt:4}': ['max==0'],
+        'reconnect_backoff_delay{attempt:5}': ['max==0'],
+        'reconnect_backoff_delay{attempt:6}': ['max==0'],
+      }
+    : {
+        'reconnect_backoff_delay{attempt:1}': ['min>=1000', 'max<2000'],
+        'reconnect_backoff_delay{attempt:2}': ['min>=2000', 'max<3000'],
+        'reconnect_backoff_delay{attempt:3}': ['min>=4000', 'max<5000'],
+        'reconnect_backoff_delay{attempt:4}': ['min>=8000', 'max<9000'],
+        'reconnect_backoff_delay{attempt:5}': ['min>=16000', 'max<17000'],
+        'reconnect_backoff_delay{attempt:6}': ['min>=30000', 'max<=30000'],
+      };
 
 export const initialOpenSuccess = new Counter('initial_open_success');
 export const reconnectAttempts = new Counter('reconnect_attempts');
@@ -63,12 +85,7 @@ export const options = {
     ws_errors: ['count==0'],
     initial_handshake_latency: ['p(95)<5000'],
     reconnect_handshake_latency: ['p(95)<5000'],
-    'reconnect_backoff_delay{attempt:1}': ['min>=1000', 'max<2000'],
-    'reconnect_backoff_delay{attempt:2}': ['min>=2000', 'max<3000'],
-    'reconnect_backoff_delay{attempt:3}': ['min>=4000', 'max<5000'],
-    'reconnect_backoff_delay{attempt:4}': ['min>=8000', 'max<9000'],
-    'reconnect_backoff_delay{attempt:5}': ['min>=16000', 'max<17000'],
-    'reconnect_backoff_delay{attempt:6}': ['min>=30000', 'max<=30000'],
+    ...reconnectDelayThresholds,
   },
 };
 
@@ -77,6 +94,8 @@ export function setup() {
 }
 
 function calculateReconnectDelay(attempt) {
+  if (reconnectPolicy === 'immediate') return 0;
+
   const baseDelay = Math.min(
     initialReconnectDelayMillis * 2 ** Math.max(attempt - 1, 0),
     maxReconnectDelayMillis,
@@ -153,7 +172,7 @@ export default function ({ firstCloseAt }) {
   for (let attempt = 1; attempt <= forcedFailures; attempt += 1) {
     const delayMillis = calculateReconnectDelay(attempt);
     reconnectBackoffDelay.add(delayMillis, { attempt: String(attempt) });
-    sleep(delayMillis / 1000);
+    if (delayMillis > 0) sleep(delayMillis / 1000);
     reconnectAttempts.add(1, { attempt: String(attempt) });
     connectSession(
       auctionId,
@@ -169,7 +188,7 @@ export default function ({ firstCloseAt }) {
   reconnectBackoffDelay.add(recoveryDelayMillis, {
     attempt: String(recoveryAttempt),
   });
-  sleep(recoveryDelayMillis / 1000);
+  if (recoveryDelayMillis > 0) sleep(recoveryDelayMillis / 1000);
   reconnectAttempts.add(1, { attempt: String(recoveryAttempt) });
   connectSession(auctionId, wsUrl, null, 'recovery', recoveryStartedAt);
 }
