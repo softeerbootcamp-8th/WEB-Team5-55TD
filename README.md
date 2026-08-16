@@ -21,14 +21,18 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 
 <a href="https://artistic-emery-094.notion.site/3a22861022fb80de82fbe11db8077ec5"><img src="https://img.shields.io/badge/요구사항_명세서-000000?style=for-the-badge&logo=notion&logoColor=white" alt="Notion" /></a>
 <a href="https://www.figma.com/design/X8rBmtMD8DAyKOjz07tRpA/Softeer5-55TD?node-id=0-1&t=B5vdByJBCjBul7vp-1"><img src="https://img.shields.io/badge/와이어프레임-000000?style=for-the-badge&logo=figma&logoColor=white" alt="Figma" /></a>
-- **회원**: 로그인/회원가입, 구매자·셀러 역할 전환, 닉네임/비밀번호 변경, 탈퇴
-- **경매 탐색 (구매자)**: 홈 대표 경매 노출, 진행 중/예정/종료 필터, 검색·정렬, 관심 등록
-- **경매 상세 (구매자)**: 감정 등급·현재가·최소 입찰 단위 등 상세 정보, 실시간 현재가·남은 시간 확인
-- **실시간 경매 (구매자)**: 추천 금액/직접 입력 입찰, 입찰 확인, 추월 알림, 최근 입찰 내역, 낙찰·유찰 결과 확인
-- **관심·입찰 내역 (구매자)**: 관심 상품 목록 관리, 참여한 경매의 입찰 내역·낙찰 내역 조회
-- **상품 관리 (셀러)**: 카드 정보 등록(검수·감정 등급, 실물 이미지), 상품 수정/삭제
-- **경매 등록 (셀러)**: 희망 시작가·최소 희망 낙찰가·희망 일정 입력 후 경매 신청, 유찰 상품 재신청
-- **판매 내역 (셀러)**: 신청한 경매 진행 현황 및 정산 예정 내역 조회
+### 🔎 경매 탐색 (구매자)
+
+### ⏳ 실시간 경매 (구매자)
+
+### 💰 포인트 관리 (구매자)
+* 구매자는 입찰에 필요한 포인트를 충전하고, 포인트 사용 내역과 현재 보유 포인트를 확인할 수 있습니다.
+* 또한 여러 경매에 동시에 참여하는 경우를 고려하여, 현재 최고 입찰자로 참여 중인 경매의 입찰 금액 합계를 보유 포인트에서 제외한 사용 가능 포인트를 별도로 제공합니다
+<img width="1000" alt="point screen" src="https://github.com/user-attachments/assets/909aa7d3-3865-4255-8b51-002232971758" />
+
+
+### ⚡️ 경매 등록 (셀러)
+
 
 ## 🛠️ 기술 스택
 | 구분 | 사용 기술 |
@@ -41,9 +45,13 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 | **Testing & Quality** | ![JUnit 5](https://img.shields.io/badge/JUnit_5-25A162?style=flat-square&logo=junit5&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white) ![Testing Library](https://img.shields.io/badge/Testing_Library-E33332?style=flat-square&logo=testinglibrary&logoColor=white) ![JaCoCo](https://img.shields.io/badge/JaCoCo-CB2029?style=flat-square&logoColor=white) ![ESLint](https://img.shields.io/badge/ESLint-4B32C3?style=flat-square&logo=eslint&logoColor=white) ![Spotless](https://img.shields.io/badge/Spotless-5C2D91?style=flat-square&logoColor=white) |
 <br>
 
+## 🛠️ 기술적 도전 및 해결
+> 자세한 내용은 팀 WIKI에서 확인하실 수 있습니다.
 
 ## 💻 설계
 ### ERD
+
+
 ### 시스템 아키텍처
 <div align="center">
 <img width="1000" alt="시스템아키텍처" src="https://github.com/user-attachments/assets/519ba7af-6770-4f9c-b9f0-522072c993e9" />
