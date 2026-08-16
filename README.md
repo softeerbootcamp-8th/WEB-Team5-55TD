@@ -1,22 +1,22 @@
 <div align="center">
-<img width="500" alt="intro" src="https://github.com/user-attachments/assets/ead1f530-2560-4485-8257-4fd5092453d0" />
+<img width="1024" alt="intro" src="https://github.com/user-attachments/assets/6552bdbd-0f89-4333-9f68-d3205584a517" />
 
   # ⚡️ PickUp
 
 ### 피카! 맘에 드는 포켓몬 카드를 픽업!
-
-인증기관 감정 정보를 기반으로 중고 포켓몬(TCG) 카드를 실시간 경매로 거래하는 플랫폼입니다.
+PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카드를 실시간 경매로 거래하는 플랫폼입니다.<br/>
+구매자는 카드의 감정 등급과 실물 이미지를 확인하고 실시간으로 입찰하며, 셀러는 상품 등록부터 경매 신청과 판매 결과까지 관리할 수 있습니다.
 
 <p>
+<a href="https://pick-up.store"><img src="https://img.shields.io/badge/PickUp_바로가기-000000?style=for-the-badge&logoColor=white" alt="PickUp_바로가기" /></a>
 <a href="https://artistic-emery-094.notion.site/Softeer8th-55TD-39d2861022fb80ba9396fa43a9fcdece"><img src="https://img.shields.io/badge/팀_노션-000000?style=for-the-badge&logo=notion&logoColor=white" alt="Notion" /></a>
-<a href="https://app.notion.com/p/39e2861022fb80c4bc11fd5c37e23650?v=39f2861022fb80c78030000cd935ebb2&source=copy_link"><img src="https://img.shields.io/badge/데일리스크럼-181717?style=for-the-badge&logo=notion&logoColor=white" alt="Wiki" /></a>
+<a href="https://app.notion.com/p/39e2861022fb80c4bc11fd5c37e23650?v=39f2861022fb80c78030000cd935ebb2&source=copy_link"><img src="https://img.shields.io/badge/데일리스크럼-181717?style=for-the-badge&logo=notion&logoColor=white" alt="데일리스크럼" /></a>
 </p>
-
 </div>
 
 ---
 
-## 📋 기획
+## 📋 주요 기능
 포켓몬 트레이딩 카드 중고 경매 서비스, PickUp은 크게 **구매자**와 **셀러** 두 역할을 중심으로 기능이 구성되어 있습니다.
 
 <a href="https://artistic-emery-094.notion.site/3a22861022fb80de82fbe11db8077ec5"><img src="https://img.shields.io/badge/요구사항_명세서-000000?style=for-the-badge&logo=notion&logoColor=white" alt="Notion" /></a>
@@ -30,40 +30,23 @@
 - **경매 등록 (셀러)**: 희망 시작가·최소 희망 낙찰가·희망 일정 입력 후 경매 신청, 유찰 상품 재신청
 - **판매 내역 (셀러)**: 신청한 경매 진행 현황 및 정산 예정 내역 조회
 
-## 🛠 기술 스택
+## 🛠️ 기술 스택
+| 구분 | 사용 기술 |
+|:---:|---|
+| **Backend** | ![Java 21](https://img.shields.io/badge/Java_21-ED8B00?style=flat-square&logo=openjdk&logoColor=white) ![Spring Boot 4](https://img.shields.io/badge/Spring_Boot_4-6DB33F?style=flat-square&logo=springboot&logoColor=white) ![Spring Data JPA](https://img.shields.io/badge/Spring_Data_JPA-6DB33F?style=flat-square&logo=spring&logoColor=white) ![QueryDSL](https://img.shields.io/badge/QueryDSL-0769AD?style=flat-square&logoColor=white) ![WebSocket](https://img.shields.io/badge/WebSocket-010101?style=flat-square&logoColor=white) ![STOMP](https://img.shields.io/badge/STOMP-6DB33F?style=flat-square&logoColor=white) ![ShedLock](https://img.shields.io/badge/ShedLock-4A4A4A?style=flat-square&logoColor=white) |
+| **Frontend** | ![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript_5-3178C6?style=flat-square&logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite_8-646CFF?style=flat-square&logo=vite&logoColor=white) ![TanStack Query](https://img.shields.io/badge/TanStack_Query-FF4154?style=flat-square&logo=reactquery&logoColor=white) ![TanStack Router](https://img.shields.io/badge/TanStack_Router-CA4245?style=flat-square&logo=reactrouter&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white) ![STOMP.js](https://img.shields.io/badge/STOMP.js-231F20?style=flat-square&logoColor=white) ![Orval](https://img.shields.io/badge/Orval-7C3AED?style=flat-square&logo=openapiinitiative&logoColor=white) |
+| **Database & Persistence** | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-FF4438?style=flat-square&logo=redis&logoColor=white) ![Flyway](https://img.shields.io/badge/Flyway-CC0200?style=flat-square&logo=flyway&logoColor=white) |
+| **Infrastructure** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazonwebservices&logoColor=white) ![VPC](https://img.shields.io/badge/Amazon_VPC-8C4FFF?style=flat-square&logo=amazonwebservices&logoColor=white) ![EC2](https://img.shields.io/badge/Amazon_EC2-FF9900?style=flat-square&logo=amazonec2&logoColor=white) ![S3](https://img.shields.io/badge/Amazon_S3-569A31?style=flat-square&logo=amazons3&logoColor=white) ![CloudFront](https://img.shields.io/badge/CloudFront-8C4FFF?style=flat-square&logo=amazonwebservices&logoColor=white) ![SQS](https://img.shields.io/badge/Amazon_SQS-FF4F8B?style=flat-square&logo=amazonsqs&logoColor=white) ![Systems Manager](https://img.shields.io/badge/AWS_Systems_Manager-FF9900?style=flat-square&logo=amazonwebservices&logoColor=white) ![Datadog](https://img.shields.io/badge/Datadog-632CA6?style=flat-square&logo=datadog&logoColor=white) |
+| **CI/CD** | ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white) ![AWS OIDC](https://img.shields.io/badge/AWS_OIDC-232F3E?style=flat-square&logo=amazonwebservices&logoColor=white) ![Gradle](https://img.shields.io/badge/Gradle-02303A?style=flat-square&logo=gradle&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-F69220?style=flat-square&logo=pnpm&logoColor=white) ![Slack](https://img.shields.io/badge/Slack-4A154B?style=flat-square&logo=slack&logoColor=white) |
+| **Testing & Quality** | ![JUnit 5](https://img.shields.io/badge/JUnit_5-25A162?style=flat-square&logo=junit5&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white) ![Testing Library](https://img.shields.io/badge/Testing_Library-E33332?style=flat-square&logo=testinglibrary&logoColor=white) ![JaCoCo](https://img.shields.io/badge/JaCoCo-CB2029?style=flat-square&logoColor=white) ![ESLint](https://img.shields.io/badge/ESLint-4B32C3?style=flat-square&logo=eslint&logoColor=white) ![Spotless](https://img.shields.io/badge/Spotless-5C2D91?style=flat-square&logoColor=white) |
+<br>
 
-### Frontend
-
-| 구분 | 기술 |
-| --- | --- |
-| Core | React 19, TypeScript, Vite |
-| Routing / Data | TanStack Router, TanStack Query |
-| API 코드 생성 | Orval (OpenAPI) |
-| Styling / UI | Tailwind CSS v4, shadcn/ui |
-| Package Manager | pnpm |
-
-### Backend
-
-| 구분 | 기술 |
-| --- | --- |
-| Language / Framework | Java 21, Spring Boot |
-| Data | Spring Data JPA, QueryDSL, Flyway, MySQL |
-| 인증 | JWT (jjwt), BCrypt |
-| 문서화 | Swagger (springdoc-openapi) |
-| 테스트 | JUnit5, AssertJ |
-
-### Collaboration & Infra
-
-| 구분 | 기술 |
-| --- | --- |
-| 협업 | Jira, GitHub, Slack, Notion |
-| CI/CD | GitHub Actions |
 
 ## 💻 설계
 ### ERD
 ### 시스템 아키텍처
 <div align="center">
-<img width="700" alt="시스템아키텍처" src="https://github.com/user-attachments/assets/1d6e88a3-74a0-40d2-b5c0-3748dff337e2" />
+<img width="1000" alt="시스템아키텍처" src="https://github.com/user-attachments/assets/519ba7af-6770-4f9c-b9f0-522072c993e9" />
 </div>
 
 ## 👥 팀원 소개
@@ -71,39 +54,4 @@
 | <img width="120" alt="image" src="https://github.com/user-attachments/assets/0d23c4bd-f635-4b98-ac9e-8e8ceceb5517" /> | <img width="120" alt="image" src="https://github.com/user-attachments/assets/5edf3ee4-b709-4800-a215-02dc97f2eff7" />| <img width="120" alt="image" src="https://github.com/user-attachments/assets/2c8eb6f2-f469-4cf3-9331-dafc393dcc02" /> | <img width="120" src="https://github.com/user-attachments/assets/bf70f820-7d19-4c3e-9c06-e6800efd2547" /> |
 | :---: | :---: | :---: | :---: |
 | 강민제 | 임기범 | 채주혁 | 홍지형 |
-| [@10000Je](https://github.com/10000Je) | [@delphox60](https://github.com/delphox60) | [@Juhye0k](https://github.com/Juhye0k) | [@topograp2](https://github.com/topograp2) |
-
-## 📚 그라운드 룰
-### 1️⃣ **협업 방식 및 일정**
-
-- **스프린트 단위**로 개발 진행
-    - 백로그 및 주차별 개발 범위 명확히 설정
-- 스프린트 종료 시 **배포 및 주간 회고** 진행
-- **데일리 스크럼**
-    - 매일 아침 5~15분
-    - 어제 완료한 작업, 오늘 진행할 작업
-    - 작업 중 막힌 부분, 논의가 필요한 사항
-- 스프린트 회고
-    - 목표 달성 여부 확인, 완료하지 못한 이슈 확인
-    - 잘한 점, 어려웠던 점, 반복하지 않아야 할 문제
-    - 다음 스프린트에서 바꿀 행동
-- 슬랙
-    - 프로젝트 관련 논의는 스레드 내 작성
-    - 일상 등의 이야기는 5조 채널 이용, CI/CD 구축 후 배포 알림은 다른 채널 활용
-- 회의 진행
-    - 대면회의를 추구하고 비대면 회의는 지양
-        - 갑작스럽게 버그 발생할 경우는 제외
-        - 주말에 회의할 일을 만들지 않도록 하기
-    - 부득이한 비대면 회의에서는 캠과 마이크를 키고 진행
-    - 안건 별로 30분 타이머 맞춘 후, 10분 휴식시간을 가진 후 회의 재개
-
-### 2️⃣ **커뮤니케이션**
-
-- 의견 충돌을 피하지 않되, 부정적이고 감정적인 표현보다 해결 방법을 중심으로 대화한다.
-- 질문이나 도움이 필요한 상황을 부담으로 생각하지 않고 적극적으로 공유한다.
-- 매일 회고 시 1일 1칭찬을 진행한다.
-    - 한 명이 나머지 3명 각각 한 가지씩 생각해서 말하기
-    - 개발과 무관한 일상적인 칭찬도 괜찮음
-- 15:00 ~ 15:30에는 잠시 쉬는 시간을 갖고 친목도모를 위한 갈틱폰 등의 게임을 진행한다.
-- 개발을 제외한 의사결정은 게임을 통해 결정한다.
-    - ex) 스위치 게임, 보드게임
+| [@10000Je](https://github.com/10000Je) | [@delphox60](https://github.com/delphox60) | [@Juhye0k](https://github.com/Juhye0k) | [@topograp2](https://github.com/topograp2) |<img width="1433" height="1120" alt="시스템아키텍처" src="https://github.com/user-attachments/assets/5f205d77-a589-4a22-8522-1af0343768e5" />
