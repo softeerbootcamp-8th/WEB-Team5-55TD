@@ -4,6 +4,8 @@ import type { ComponentType, ReactNode } from "react";
 
 let query: Record<string, unknown> = { isPending: true };
 const mutate = vi.fn();
+const invalidateQueries = vi.fn();
+let mutationOptions: { onSuccess?: () => void } = {};
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
     options,
@@ -16,7 +18,11 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => query,
-  useMutation: () => ({ mutate, isPending: false }),
+  useMutation: (options: { onSuccess?: () => void }) => {
+    mutationOptions = options;
+    return { mutate, isPending: false };
+  },
+  useQueryClient: () => ({ invalidateQueries }),
 }));
 vi.mock("@/api/consignments", () => ({ getMyConsignmentDetail: vi.fn() }));
 vi.mock("@/api/auctions", () => ({ registerAuction: vi.fn() }));
@@ -32,7 +38,27 @@ const product = {
 describe("셀러 경매 신청", () => {
   beforeEach(() => {
     query = { isPending: true };
+    mutationOptions = {};
     vi.clearAllMocks();
+  });
+
+  it("경매_신청에_성공하면_상품목록과_셀러통계를_갱신한다", async () => {
+    // given
+    query = { isPending: false, data: product };
+    const { Route } = await import("@/routes/seller/apply.$productId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    // when
+    mutationOptions.onSuccess?.();
+
+    // then
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["sellers", "me", "stats"],
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["consignments", "my"],
+    });
   });
   it("상품 없음·신청 불가 상태를 표시한다", async () => {
     const { Route } = await import("@/routes/seller/apply.$productId");
@@ -55,7 +81,9 @@ describe("셀러 경매 신청", () => {
     const { Route } = await import("@/routes/seller/apply.$productId");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
-    expect(screen.getByRole("button", { name: "경매 신청" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "경매 신청" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText("지금은 경매를 신청할 수 없는 상품이에요."),
     ).not.toBeInTheDocument();
@@ -65,6 +93,9 @@ describe("셀러 경매 신청", () => {
     const { Route } = await import("@/routes/seller/apply.$productId");
     const Component = Route.options.component as ComponentType;
     render(<Component />);
+    fireEvent.change(screen.getByPlaceholderText("경매 제목을 입력해 주세요"), {
+      target: { value: "테스트 경매 제목" },
+    });
     fireEvent.change(screen.getByPlaceholderText("1,000,000"), {
       target: { value: "10000" },
     });
@@ -83,6 +114,7 @@ describe("셀러 경매 신청", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "경매 신청" }));
     expect(screen.getByText("경매를 신청할까요?")).toBeInTheDocument();
+    expect(screen.getByText("2099.01.01 10:00부터 7일")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "취소" }));
     expect(screen.queryByText("경매를 신청할까요?")).not.toBeInTheDocument();
   });
@@ -92,6 +124,9 @@ describe("셀러 경매 신청", () => {
     const Component = Route.options.component as ComponentType;
     render(<Component />);
 
+    fireEvent.change(screen.getByPlaceholderText("경매 제목을 입력해 주세요"), {
+      target: { value: "테스트 경매 제목" },
+    });
     fireEvent.change(screen.getByPlaceholderText("1,000,000"), {
       target: { value: "20000" },
     });
@@ -112,5 +147,69 @@ describe("셀러 경매 신청", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "경매 신청" })).toBeDisabled();
+  });
+
+  it("희망 시작가가 1,000원 미만이면 신청할 수 없다", async () => {
+    query = { isPending: false, data: product };
+    const { Route } = await import("@/routes/seller/apply.$productId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    fireEvent.change(screen.getByPlaceholderText("경매 제목을 입력해 주세요"), {
+      target: { value: "테스트 경매 제목" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("1,000,000"), {
+      target: { value: "999" },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText("구매자에게 공개되지 않습니다"),
+      { target: { value: "15000" } },
+    );
+    fireEvent.change(
+      document.querySelector(
+        'input[type="datetime-local"]',
+      ) as HTMLInputElement,
+      { target: { value: "2099-01-01T10:00" } },
+    );
+
+    expect(
+      screen.getByText("시작가는 1,000원 이상으로 입력해 주세요."),
+    ).toBeInTheDocument();
+    // 낙찰가는 시작가보다 크므로 낙찰가 오류까지 같이 뜨면 안 된다.
+    expect(
+      screen.queryByText(
+        "최소 희망 낙찰가는 희망 시작가 이상으로 입력해 주세요.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "경매 신청" })).toBeDisabled();
+  });
+
+  it("희망 시작가가 정확히 1,000원이면 신청할 수 있다", async () => {
+    query = { isPending: false, data: product };
+    const { Route } = await import("@/routes/seller/apply.$productId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    fireEvent.change(screen.getByPlaceholderText("경매 제목을 입력해 주세요"), {
+      target: { value: "테스트 경매 제목" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("1,000,000"), {
+      target: { value: "1000" },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText("구매자에게 공개되지 않습니다"),
+      { target: { value: "15000" } },
+    );
+    fireEvent.change(
+      document.querySelector(
+        'input[type="datetime-local"]',
+      ) as HTMLInputElement,
+      { target: { value: "2099-01-01T10:00" } },
+    );
+
+    expect(
+      screen.queryByText("시작가는 1,000원 이상으로 입력해 주세요."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "경매 신청" })).toBeEnabled();
   });
 });

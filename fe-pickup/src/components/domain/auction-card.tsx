@@ -37,14 +37,17 @@ export function AuctionCard({
           cardName={auction.cardName}
           grade={auction.grade}
           imageUrl={auction.thumbnailUrl}
+          shineOnGroupHover
         />
         <StatusBadge status={status} className="absolute top-2 left-2" />
-        <WatchButton
-          auctionId={auction.id}
-          watched={auction.watched ?? false}
-          count={auction.watchCount}
-          className="absolute top-2 right-2"
-        />
+        {status !== AuctionStatus.ENDED && (
+          <WatchButton
+            auctionId={auction.id}
+            watched={auction.watched ?? false}
+            count={auction.watchCount}
+            className="absolute top-2 right-2"
+          />
+        )}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -52,8 +55,11 @@ export function AuctionCard({
           <GradeBadge grade={auction.grade} />
         </div>
         <h3 className="line-clamp-1 text-sm font-semibold">
-          {auction.cardName}
+          {auction.title ?? auction.cardName}
         </h3>
+        <p className="line-clamp-1 text-xs text-[var(--color-text-muted)]">
+          {auction.cardName}
+        </p>
 
         {isLive && (
           <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">

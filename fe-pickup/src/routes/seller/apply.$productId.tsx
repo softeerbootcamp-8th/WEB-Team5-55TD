@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -23,8 +23,16 @@ import { registerAuction } from "@/api/auctions";
 import { getMyConsignmentDetail } from "@/api/consignments";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
-import { formatDateTime, formatWon, minBidUnit } from "@/lib/format";
-import { kstLocalInputToUtcIso } from "@/lib/timezone";
+import {
+  formatDateTime,
+  formatWon,
+  minBidUnit,
+  MINIMUM_STARTING_PRICE,
+} from "@/lib/format";
+import {
+  kstLocalInputToUtcIso,
+  utcInstantToKstLocalInput,
+} from "@/lib/timezone";
 
 export const Route = createFileRoute("/seller/apply/$productId")({
   component: AuctionApplyPage,
@@ -43,6 +51,7 @@ function parsePositivePrice(value: string): number | null {
 /** DESIGN.md · auction-apply.html — 희망 시작가/낙찰가/일정, 신청 후 수정·삭제 불가 */
 function AuctionApplyPage() {
   const { productId } = Route.useParams();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data: product, isPending } = useQuery({
@@ -53,25 +62,35 @@ function AuctionApplyPage() {
   const [startPrice, setStartPrice] = useState("");
   const [reserve, setReserve] = useState("");
   const [schedule, setSchedule] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [minimumSchedule] = useState(() => {
     // 요청이 서버에 도착하는 사이에 과거 시각이 되지 않도록 1분의 여유를 둔다.
-    const now = new Date(Date.now() + 60_000);
-    return new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
-      .toISOString()
-      .slice(0, 16);
+    return utcInstantToKstLocalInput(Date.now() + 60_000);
   });
 
   const startValue = parsePositivePrice(startPrice);
   const reserveValue = parsePositivePrice(reserve);
+  const startPriceTooLow =
+    startValue !== null && startValue < MINIMUM_STARTING_PRICE;
+  const reserveBelowStart =
+    startValue !== null && reserveValue !== null && startValue > reserveValue;
   const priceRangeValid =
-    startValue !== null && reserveValue !== null && startValue <= reserveValue;
+    startValue !== null &&
+    !startPriceTooLow &&
+    reserveValue !== null &&
+    !reserveBelowStart;
   const unit = startValue ? minBidUnit(startValue) : 0;
-  const scheduleValue = schedule ? new Date(schedule).getTime() : Number.NaN;
+  const scheduleValue = schedule
+    ? Date.parse(kstLocalInputToUtcIso(schedule))
+    : Number.NaN;
+  const minimumScheduleValue = Date.parse(
+    kstLocalInputToUtcIso(minimumSchedule),
+  );
   const scheduleValid =
-    Number.isFinite(scheduleValue) &&
-    scheduleValue > new Date(minimumSchedule).getTime();
-  const valid = priceRangeValid && scheduleValid;
+    Number.isFinite(scheduleValue) && scheduleValue > minimumScheduleValue;
+  const valid = priceRangeValid && scheduleValid && title.trim().length > 0;
 
   const { mutate: submitApply, isPending: isSubmitting } = useMutation({
     mutationFn: () =>
@@ -80,8 +99,16 @@ function AuctionApplyPage() {
         startingPrice: startValue!,
         reserve: reserveValue!,
         scheduledStartAt: kstLocalInputToUtcIso(schedule),
+        title,
+        description,
       }),
     onSuccess: () => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["sellers", "me", "stats"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["consignments", "my"] }),
+      ]);
       toast.success("경매 신청이 완료되었습니다.");
       navigate({ to: "/seller/products/$productId", params: { productId } });
     },
@@ -161,6 +188,31 @@ function AuctionApplyPage() {
       <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-6">
         <div className="flex flex-col gap-1.5">
           <Label>
+            경매 제목 <span className="text-[var(--color-danger)]">*</span>
+          </Label>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="경매 제목을 입력해 주세요"
+            maxLength={100}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>경매 본문 (선택)</Label>
+          <textarea
+            aria-label="경매 본문"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="경매 본문을 입력해 주세요"
+            maxLength={1000}
+            rows={6}
+            className="min-h-32 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>
             희망 시작가 <span className="text-[var(--color-danger)]">*</span>
           </Label>
           <Input
@@ -173,6 +225,12 @@ function AuctionApplyPage() {
           {startPrice && startValue === null && (
             <p className="text-xs text-[var(--color-danger)]">
               시작가는 0보다 큰 안전한 범위의 정수로 입력해 주세요.
+            </p>
+          )}
+          {startPriceTooLow && (
+            <p className="text-xs text-[var(--color-danger)]">
+              시작가는 {formatWon(MINIMUM_STARTING_PRICE)} 이상으로 입력해
+              주세요.
             </p>
           )}
           <p className="text-xs text-[var(--color-text-muted)]">
@@ -200,13 +258,11 @@ function AuctionApplyPage() {
               최소 희망 낙찰가는 0보다 큰 안전한 범위의 정수로 입력해 주세요.
             </p>
           )}
-          {startValue !== null &&
-            reserveValue !== null &&
-            !priceRangeValid && (
-              <p className="text-xs text-[var(--color-danger)]">
-                최소 희망 낙찰가는 희망 시작가 이상으로 입력해 주세요.
-              </p>
-            )}
+          {reserveBelowStart && (
+            <p className="text-xs text-[var(--color-danger)]">
+              최소 희망 낙찰가는 희망 시작가 이상으로 입력해 주세요.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -231,8 +287,8 @@ function AuctionApplyPage() {
       </div>
 
       <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
-        신청 후에는 수정·삭제할 수 없습니다. 종료 5분 내 입찰이 발생하면 마지막 입찰부터
-        5분간 자동 연장되며, 유찰 시 재신청이 가능합니다.
+        신청 후에는 수정·삭제할 수 없습니다. 종료 5분 내 입찰이 발생하면 종료
+        시각이 5분 연장되며, 유찰 시 재신청이 가능합니다.
       </p>
 
       <Button
@@ -262,7 +318,9 @@ function AuctionApplyPage() {
             <div className="flex justify-between">
               <dt className="text-[var(--color-text-sub)]">경매 일정</dt>
               <dd className="tabular text-right">
-                {schedule ? `${formatDateTime(schedule)}부터 7일` : "-"}
+                {schedule
+                  ? `${formatDateTime(kstLocalInputToUtcIso(schedule))}부터 7일`
+                  : "-"}
               </dd>
             </div>
             <div className="flex justify-between">

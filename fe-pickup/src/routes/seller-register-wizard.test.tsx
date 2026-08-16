@@ -50,7 +50,7 @@ describe("셀러 등록 위저드", () => {
           cardNumber: "4",
           language: "EN",
           rarity: "Rare",
-          imageUrl: "card.jpg",
+          imageUrl: "https://assets.tcgdex.net/en/swsh/swsh3/136/high.webp",
         },
       ],
     };
@@ -67,11 +67,18 @@ describe("셀러 등록 위저드", () => {
     const search = screen.getByPlaceholderText("카드명 검색 (예: 리자몽)");
     fireEvent.change(search, { target: { value: "char" } });
     await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(screen.getByRole("img", { name: "Charizard" })).toHaveAttribute(
+      "src",
+      "https://assets.tcgdex.net/en/swsh/swsh3/136/low.webp",
+    );
     fireEvent.click(screen.getByRole("button", { name: /Charizard/ }));
     fireEvent.click(screen.getByRole("button", { name: "다음 단계" }));
     expect(screen.getByText(/인증기관\(PSA/)).toBeInTheDocument();
     fireEvent.change(screen.getByDisplayValue("등급 선택"), {
       target: { value: "GEM_MINT" },
+    });
+    fireEvent.change(screen.getByDisplayValue("상태 선택"), {
+      target: { value: "HIGH" },
     });
     fireEvent.change(screen.getByPlaceholderText("PSA-84213907"), {
       target: { value: "PSA-1" },
@@ -87,8 +94,56 @@ describe("셀러 등록 위저드", () => {
     fireEvent.click(screen.getByRole("button", { name: "다음 단계" }));
     expect(screen.getByText("입력 정보 최종 확인")).toBeInTheDocument();
     expect(screen.getByText("Charizard")).toBeInTheDocument();
+    expect(screen.getByText("상")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "등록 완료" }));
     expect(mutate).toHaveBeenCalledWith(1);
+  });
+
+  it("주요 결함 입력란에 글자수 제한과 카운터를 표시한다", async () => {
+    const { Route } = await import("@/routes/seller/register");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    fireEvent.change(screen.getByPlaceholderText("카드명 검색 (예: 리자몽)"), {
+      target: { value: "char" },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fireEvent.click(screen.getByRole("button", { name: /Charizard/ }));
+    fireEvent.click(screen.getByRole("button", { name: "다음 단계" }));
+
+    const defectInput =
+      screen.getByPlaceholderText("예: 뒷면 우하단 미세 스크래치");
+    expect(defectInput).toHaveAttribute("maxLength", "255");
+    expect(screen.getByText("0/255")).toBeInTheDocument();
+    fireEvent.change(defectInput, { target: { value: "뒷면에 스크래치" } });
+    expect(screen.getByText("8/255")).toBeInTheDocument();
+  });
+
+  it("감정일에 미래 날짜를 입력하면 다음 단계로 진행할 수 없다", async () => {
+    const { Route } = await import("@/routes/seller/register");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+    const search = screen.getByPlaceholderText("카드명 검색 (예: 리자몽)");
+    fireEvent.change(search, { target: { value: "char" } });
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fireEvent.click(screen.getByRole("button", { name: /Charizard/ }));
+    fireEvent.click(screen.getByRole("button", { name: "다음 단계" }));
+    fireEvent.change(screen.getByDisplayValue("등급 선택"), {
+      target: { value: "GEM_MINT" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("PSA-84213907"), {
+      target: { value: "PSA-1" },
+    });
+    const tomorrow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    fireEvent.change(
+      document.querySelector('input[type="date"]') as HTMLInputElement,
+      { target: { value: tomorrow } },
+    );
+    expect(
+      screen.getByText("현재 날짜보다 이후일 수 없습니다."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다음 단계" })).toBeDisabled();
   });
 
   it("검색 결과가 없으면 안내를 표시한다", async () => {

@@ -37,6 +37,19 @@ spring:
     scheduling:
       pool:
         size: 2
+async:
+  default-pool:
+    core-pool-size: ${ASYNC_DEFAULT_CORE_POOL_SIZE:2}
+    max-pool-size: ${ASYNC_DEFAULT_MAX_POOL_SIZE:4}
+    queue-capacity: ${ASYNC_DEFAULT_QUEUE_CAPACITY:50}
+  slack-notification:
+    core-pool-size: ${ASYNC_SLACK_CORE_POOL_SIZE:2}
+    max-pool-size: ${ASYNC_SLACK_MAX_POOL_SIZE:8}
+    queue-capacity: ${ASYNC_SLACK_QUEUE_CAPACITY:20}
+  notification-event:
+    core-pool-size: ${ASYNC_NOTIFICATION_CORE_POOL_SIZE:2}
+    max-pool-size: ${ASYNC_NOTIFICATION_MAX_POOL_SIZE:8}
+    queue-capacity: ${ASYNC_NOTIFICATION_QUEUE_CAPACITY:20}
 management:
   statsd:
     metrics:
@@ -52,6 +65,10 @@ management:
       env: ${DD_ENV:production}
       version: ${DD_VERSION:unknown}
 auth:
+  kakao:
+    client-id: ${KAKAO_CLIENT_ID:}
+    client-secret: ${KAKAO_CLIENT_SECRET:}
+    timeout: ${KAKAO_TIMEOUT:5s}
   token:
     issuer: ${JWT_ISSUER:pickup}
     secret: ${JWT_SECRET:}

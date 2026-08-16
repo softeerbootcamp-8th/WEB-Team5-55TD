@@ -1,5 +1,19 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+// 크롭 다이얼로그는 별도 테스트에서 다룬다 — 여기서는 통과시키고 필드 로직만 본다.
+vi.mock("@/hooks/use-image-cropper", () => ({
+  useImageCropper: () => ({
+    requestCrop: async (files: File[]) => files,
+    cropper: null,
+  }),
+}));
 import { BidList, BidRow } from "@/components/domain/bid-list";
 import { ConsignmentImageFields } from "@/components/domain/consignment-image-fields";
 import { ImageLightbox } from "@/components/domain/image-lightbox";
@@ -15,7 +29,7 @@ describe("추가 도메인 컴포넌트", () => {
         <BidRow
           bid={{
             id: "1",
-            maskedNickname: "ab***12",
+            nickname: "alpha12",
             amount: 10500,
             createdAt: now,
           }}
@@ -23,7 +37,7 @@ describe("추가 도메인 컴포넌트", () => {
         <BidRow
           bid={{
             id: "2",
-            maskedNickname: "me",
+            nickname: "me",
             amount: 11000,
             createdAt: now,
             isMine: true,
@@ -31,7 +45,7 @@ describe("추가 도메인 컴포넌트", () => {
         />
       </ul>,
     );
-    expect(screen.getByText("ab***12")).toBeInTheDocument();
+    expect(screen.getByText("alpha12")).toBeInTheDocument();
     // 본인 입찰 행: 아바타 이니셜과 닉네임 라벨이 둘 다 "나"라 중복되므로, 라벨
     // 쪽(truncate 클래스)으로 셀렉터를 좁혀 확인한다.
     const myRow = screen.getAllByRole("listitem")[1];
@@ -39,6 +53,34 @@ describe("추가 도메인 컴포넌트", () => {
       within(myRow).getByText("나", { selector: "span.truncate" }),
     ).toBeInTheDocument();
     expect(screen.getByText("10,500원")).toBeInTheDocument();
+  });
+
+  it("전체 입찰 목록에서 프로필 사진이 없으면 포켓몬 아바타로 채운다", () => {
+    const now = new Date().toISOString();
+    render(
+      <BidList
+        bids={[
+          { id: "1", nickname: "bravo22", amount: 12000, createdAt: now },
+          { id: "2", nickname: "alpha11", amount: 11000, createdAt: now },
+          // 같은 입찰자가 다시 등장해도 같은 아바타를 쓴다.
+          { id: "3", nickname: "bravo22", amount: 10500, createdAt: now },
+          {
+            id: "4",
+            nickname: "charlie33",
+            amount: 10000,
+            createdAt: now,
+            profileImageUrl: "/uploaded.png",
+          },
+        ]}
+      />,
+    );
+
+    const avatars = screen.getAllByRole("img");
+    expect(avatars[0]).toHaveAttribute("src", "/avatars/pokemon/squirtle.webp");
+    expect(avatars[1]).toHaveAttribute("src", "/avatars/pokemon/pikachu.webp");
+    expect(avatars[2]).toHaveAttribute("src", "/avatars/pokemon/squirtle.webp");
+    // 프로필 사진이 있으면 그대로 우선한다.
+    expect(avatars[3]).toHaveAttribute("src", "/uploaded.png");
   });
 
   it("스텝 인디케이터에서 완료·현재·예정 단계를 구분한다", () => {
@@ -71,7 +113,7 @@ describe("추가 도메인 컴포넌트", () => {
     expect(onIndexChange).toHaveBeenCalledWith(1);
   });
 
-  it("이미지 필드에서 유효한 새 이미지를 추가하고 삭제한다", () => {
+  it("이미지 필드에서 유효한 새 이미지를 추가하고 삭제한다", async () => {
     const onChange = vi.fn();
     const onError = vi.fn();
     const { container } = render(
@@ -88,7 +130,10 @@ describe("추가 도메인 컴포넌트", () => {
       type: "image/jpeg",
     });
     fireEvent.change(input, { target: { files: [file] } });
-    expect(onChange).toHaveBeenCalledWith([{ kind: "new", file }]);
+    // 크롭 단계를 거치므로 onChange 는 비동기로 호출된다.
+    await waitFor(() =>
+      expect(onChange).toHaveBeenCalledWith([{ kind: "new", file }]),
+    );
 
     const images = [{ kind: "new" as const, file }];
     const rerendered = render(
@@ -100,5 +145,39 @@ describe("추가 도메인 컴포넌트", () => {
     );
     fireEvent.click(rerendered.getByRole("button", { name: /삭제/ }));
     expect(onChange).toHaveBeenCalledWith([]);
+  });
+
+  it("이미지 필드는 앞면·뒷면 안내와 등록 여부 체크리스트를 표시한다", () => {
+    const { rerender } = render(
+      <ConsignmentImageFields
+        images={[]}
+        onChange={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/사진을 모두 첨부해 주세요\./)).toBeInTheDocument();
+    // 아직 등록된 이미지가 없으면 앞면·뒷면 모두 미완료 상태다.
+    expect(screen.getByText("앞면 사진")).toHaveClass(
+      "text-[var(--color-text-muted)]",
+    );
+    expect(screen.getByText("뒷면 사진")).toHaveClass(
+      "text-[var(--color-text-muted)]",
+    );
+
+    const front = { kind: "new" as const, file: new File([], "front.jpg") };
+    const back = { kind: "new" as const, file: new File([], "back.jpg") };
+    rerender(
+      <ConsignmentImageFields
+        images={[front, back]}
+        onChange={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("앞면 사진")).toHaveClass(
+      "text-[var(--color-success)]",
+    );
+    expect(screen.getByText("뒷면 사진")).toHaveClass(
+      "text-[var(--color-success)]",
+    );
   });
 });

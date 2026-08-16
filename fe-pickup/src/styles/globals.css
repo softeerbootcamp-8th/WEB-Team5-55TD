@@ -1,11 +1,60 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* 홈·경매 목록 카드 이미지 위를 가로지르는 은은한 광택 */
+.auction-card-image-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.auction-card-image-shine::after {
+  position: absolute;
+  top: -25%;
+  left: -70%;
+  width: 42%;
+  height: 150%;
+  content: "";
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgb(255 255 255 / 8%) 32%,
+    rgb(255 255 255 / 58%) 50%,
+    rgb(255 255 255 / 8%) 68%,
+    transparent 100%
+  );
+  filter: blur(2px);
+  transform: skewX(-14deg);
+}
+
+@media (hover: hover) {
+  .group:hover .auction-card-image-shine::after {
+    animation: auction-card-shine 700ms ease-out;
+  }
+}
+
+@keyframes auction-card-shine {
+  from {
+    left: -70%;
+  }
+  to {
+    left: 135%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .auction-card-image-shine::after {
+    animation: none;
+  }
+}
+
 /* =========================================================================
    카디언(Cardian) 디자인 토큰 — Airbnb 리스킨
    DESIGN-airbnb.md 기준. 순백 캔버스 + 잉크(#222) 텍스트 + 단일 Rausch(#ff385c)
-   액센트의 라이트 전용 시스템. 역할 구분은 유지하되 Airbnb 팔레트 안에서
-   구매자=Rausch, 셀러=Luxe 퍼플로 매핑한다.
+   액센트의 라이트 전용 시스템. 역할 구분은 유지하되 구매자=Rausch,
+   셀러=코발트 블루로 매핑한다.
    shadcn/ui 시맨틱 토큰은 아래 팔레트를 참조하도록 매핑한다.
    ========================================================================= */
 
@@ -26,13 +75,13 @@
   --color-text-sub: #6a6a6a; /* muted — 보조 · 라벨 */
   --color-text-muted: #929292; /* muted-soft — 캡션 · 비활성 */
 
-  /* 역할 액센트 — Airbnb 팔레트 매핑 (구매자=Rausch, 셀러=Luxe) */
+  /* 역할 액센트 — 구매자=Rausch, 셀러=코발트 블루 */
   --color-buyer: #ff385c; /* Rausch — 구매자 주요 CTA */
   --color-buyer-hover: #e00b41; /* Rausch active */
   --color-buyer-weak: rgba(255, 56, 92, 0.1);
-  --color-seller: #460479; /* Luxe purple — 셀러 주요 CTA */
-  --color-seller-hover: #38035f;
-  --color-seller-weak: rgba(70, 4, 121, 0.1);
+  --color-seller: #2e5ce6; /* Cobalt — 셀러 주요 CTA */
+  --color-seller-hover: #1743c4;
+  --color-seller-weak: rgba(46, 92, 230, 0.1);
 
   /* 시맨틱 — 라이트 배경에서 가독성 확보한 값 */
   --color-success: #008a05; /* 낙찰 · 정산 완료 */
@@ -49,7 +98,8 @@
     "Airbnb Cereal VF", "Circular", "Inter", "Pretendard", system-ui,
     -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Helvetica Neue",
     sans-serif;
-  --font-num: "Airbnb Cereal VF", "Inter", "Pretendard", ui-monospace, sans-serif;
+  --font-num:
+    "Airbnb Cereal VF", "Inter", "Pretendard", ui-monospace, sans-serif;
 
   /* ---- 간격 · 반경 (DESIGN-airbnb.md · Layout / rounded) ------------- */
   --space-1: 4px;
@@ -233,7 +283,7 @@
 /* =========================================================================
    Utilities — 역할 컨텍스트 스코프
    화면 루트에 data-role="buyer" | "seller" 를 지정하면 primary/ring 액센트가
-   해당 역할 색으로 전환된다. 구매자=Rausch, 셀러=Luxe 퍼플.
+   해당 역할 색으로 전환된다. 구매자=Rausch, 셀러=코발트 블루.
    ========================================================================= */
 [data-role="seller"] {
   --primary: var(--color-seller);

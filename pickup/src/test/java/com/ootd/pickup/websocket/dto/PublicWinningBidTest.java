@@ -11,40 +11,32 @@ import org.junit.jupiter.api.Test;
 class PublicWinningBidTest {
 
   @Test
-  void 닉네임의_첫_글자와_마지막_글자만_노출한다() {
-    PublicWinningBid winningBid = PublicWinningBid.fromEvent(snapshot("귀염사쿠"));
+  void 낙찰_정보를_변환하면_닉네임을_그대로_반환한다() {
+    // given
+    WinningBidSnapshot snapshot = snapshot("귀염사쿠");
 
-    assertThat(winningBid.nicknameMasked()).isEqualTo("귀***쿠");
+    // when
+    PublicWinningBid winningBid = PublicWinningBid.fromEvent(snapshot);
+
+    // then
+    assertThat(winningBid.nickname()).isEqualTo("귀염사쿠");
   }
 
   @Test
-  void 닉네임이_null이거나_비어_있으면_전체를_가린다() {
-    PublicWinningBid nullNickname = PublicWinningBid.fromEvent(snapshot(null));
-    PublicWinningBid blankNickname = PublicWinningBid.fromEvent(snapshot(" "));
+  void 낙찰_정보를_변환하면_프로필_이미지를_반환한다() {
+    WinningBidSnapshot snapshot =
+        new WinningBidSnapshot(
+            1L,
+            2L,
+            "귀염사쿠",
+            "https://images.test/profile.webp",
+            10_000L,
+            BidStatus.HIGHEST,
+            LocalDateTime.of(2026, 8, 5, 10, 30));
 
-    assertThat(nullNickname.nicknameMasked()).isEqualTo("***");
-    assertThat(blankNickname.nicknameMasked()).isEqualTo("***");
-  }
+    PublicWinningBid winningBid = PublicWinningBid.fromEvent(snapshot);
 
-  @Test
-  void 한_글자_닉네임은_전체를_가린다() {
-    PublicWinningBid winningBid = PublicWinningBid.fromEvent(snapshot("피"));
-
-    assertThat(winningBid.nicknameMasked()).isEqualTo("***");
-  }
-
-  @Test
-  void 두_글자_닉네임은_첫_글자와_마지막_글자를_노출한다() {
-    PublicWinningBid winningBid = PublicWinningBid.fromEvent(snapshot("피카"));
-
-    assertThat(winningBid.nicknameMasked()).isEqualTo("피***카");
-  }
-
-  @Test
-  void 이모지가_포함되어도_문자가_깨지지_않는다() {
-    PublicWinningBid winningBid = PublicWinningBid.fromEvent(snapshot("😀피카츄😺"));
-
-    assertThat(winningBid.nicknameMasked()).isEqualTo("😀***😺");
+    assertThat(winningBid.profileImageUrl()).isEqualTo("https://images.test/profile.webp");
   }
 
   private WinningBidSnapshot snapshot(String nickname) {

@@ -5,6 +5,7 @@ import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_FOUND;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_NOT_STARTED;
 import static com.ootd.pickup.global.exception.ExceptionCode.AUCTION_SELLER_BID_FORBIDDEN;
 import static com.ootd.pickup.global.exception.ExceptionCode.BELOW_MIN_INCREMENT;
+import static com.ootd.pickup.global.exception.ExceptionCode.ENDED_AUCTION_BIDS_SELLER_ONLY;
 import static com.ootd.pickup.global.exception.ExceptionCode.ILLEGAL_ARGUMENT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INSUFFICIENT_BID_LIMIT;
 import static com.ootd.pickup.global.exception.ExceptionCode.INVALID_CURSOR;
@@ -12,6 +13,8 @@ import static com.ootd.pickup.global.exception.ExceptionCode.OUTBID_EXISTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -32,8 +35,11 @@ import com.ootd.pickup.bid.repository.BidRepository;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
+import com.ootd.pickup.global.event.EventPublisher;
+import com.ootd.pickup.global.event.NotificationEvent;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.service.PointReservationService;
@@ -46,7 +52,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,7 +63,8 @@ class BidServiceTest {
 
   @Mock private MemberRepository memberRepository;
   @Mock private PointReservationService pointReservationService;
-  @Mock private ApplicationEventPublisher applicationEventPublisher;
+  @Mock private EventPublisher eventPublisher;
+  @Mock private ImageUrlResolver imageUrlResolver;
 
   private BidService bidService;
 
@@ -70,7 +76,8 @@ class BidServiceTest {
             bidRepository,
             memberRepository,
             pointReservationService,
-            applicationEventPublisher);
+            eventPublisher,
+            imageUrlResolver);
   }
 
   @Test
@@ -79,8 +86,11 @@ class BidServiceTest {
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
     Member bidder = createMember(2L);
+    ReflectionTestUtils.setField(bidder, "profileImageObjectKey", "profiles/2.webp");
     given(auctionRepository.findByIdForUpdate(1L)).willReturn(Optional.of(auction));
     given(memberRepository.findById(2L)).willReturn(Optional.of(bidder));
+    given(imageUrlResolver.resolve("profiles/2.webp"))
+        .willReturn("https://images.test/profiles/2.webp");
     given(bidRepository.save(any(Bid.class)))
         .willAnswer(
             invocation -> {
@@ -101,14 +111,17 @@ class BidServiceTest {
     assertThat(auction.getWinningBidId()).isEqualTo(10L);
     assertThat(auction.getWinningPrice()).isEqualTo(10_500L);
     then(auctionRepository).should().save(auction);
-    ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-    then(applicationEventPublisher).should().publishEvent(eventCaptor.capture());
+    ArgumentCaptor<NotificationEvent> eventCaptor =
+        ArgumentCaptor.forClass(NotificationEvent.class);
+    then(eventPublisher).should().publish(eventCaptor.capture());
     assertThat(eventCaptor.getValue())
         .isInstanceOfSatisfying(
             BidRequestSucceededNotificationEvent.class,
             event -> {
               assertThat(event.auctionId()).isEqualTo(1L);
               assertThat(event.winningBid().bidId()).isEqualTo(10L);
+              assertThat(event.winningBid().profileImageUrl())
+                  .isEqualTo("https://images.test/profiles/2.webp");
               assertThat(event.winningPrice()).isEqualTo(10_500L);
               assertThat(event.bidRequestId()).isNull();
             });
@@ -284,16 +297,19 @@ class BidServiceTest {
   }
 
   @Test
-  void 경매_입찰_내역을_조회하면_최근_입찰_순으로_마스킹된_닉네임과_함께_반환된다() {
+  void 경매_입찰_내역을_조회하면_최근_입찰_순으로_닉네임과_함께_반환된다() {
     // given
     Auction auction =
         createAuction(1L, 1L, AuctionStatus.ONGOING, LocalDateTime.now().plusHours(1));
     Member viewer = createMember(2L);
+    ReflectionTestUtils.setField(viewer, "profileImageObjectKey", "profiles/2.webp");
     Member other = createMember(3L);
     Bid myBid = createBid(auction, viewer, 11_000L, 101L);
     Bid otherBid = createBid(auction, other, 10_500L, 100L);
     given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
     given(bidRepository.findAllByAuctionId(1L, null, 21)).willReturn(List.of(myBid, otherBid));
+    given(imageUrlResolver.resolve("profiles/2.webp"))
+        .willReturn("https://images.test/profiles/2.webp");
 
     // when
     CursorPageResponse<AuctionBidListItemResponse, String> response =
@@ -306,7 +322,8 @@ class BidServiceTest {
 
     AuctionBidListItemResponse first = response.items().get(0);
     assertThat(first.bidId()).isEqualTo(101L);
-    assertThat(first.nicknameMasked()).isEqualTo("닉네임***임2");
+    assertThat(first.nickname()).isEqualTo("닉네임2");
+    assertThat(first.profileImageUrl()).isEqualTo("https://images.test/profiles/2.webp");
     assertThat(first.bidPrice()).isEqualTo(11_000L);
     assertThat(first.isMine()).isTrue();
 
@@ -434,6 +451,51 @@ class BidServiceTest {
                     .isEqualTo(exceptionCode.getClientExceptionCode().name()));
   }
 
+  @Test
+  void 종료된_경매의_입찰내역을_판매자가_조회하면_정상적으로_반환한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.WON, LocalDateTime.now().minusMinutes(10));
+    Bid bid = createBid(auction, createMember(2L), 11_000L, 101L);
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+    given(bidRepository.findAllByAuctionId(1L, null, 21)).willReturn(List.of(bid));
+
+    // when
+    CursorPageResponse<AuctionBidListItemResponse, String> response =
+        bidService.getAuctionBids(1L, 1L, new GetAuctionBidsRequest(null, 20));
+
+    // then
+    assertThat(response.items()).hasSize(1);
+  }
+
+  @Test
+  void 종료된_경매의_입찰내역을_구매자가_조회하면_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.WON, LocalDateTime.now().minusMinutes(10));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+
+    // when & then
+    assertThatThrownBy(() -> bidService.getAuctionBids(1L, 2L, new GetAuctionBidsRequest(null, 20)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ENDED_AUCTION_BIDS_SELLER_ONLY.getMessage());
+    then(bidRepository).should(never()).findAllByAuctionId(anyLong(), any(), anyInt());
+  }
+
+  @Test
+  void 유찰된_경매의_입찰내역을_비로그인_조회자가_조회하면_예외가_발생한다() {
+    // given
+    Auction auction =
+        createAuction(1L, 1L, AuctionStatus.PASSED, LocalDateTime.now().minusMinutes(10));
+    given(auctionRepository.findById(1L)).willReturn(Optional.of(auction));
+
+    // when & then
+    assertThatThrownBy(
+            () -> bidService.getAuctionBids(1L, null, new GetAuctionBidsRequest(null, 20)))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ENDED_AUCTION_BIDS_SELLER_ONLY.getMessage());
+  }
+
   private Auction createAuction(
       Long auctionId, Long sellerMemberId, AuctionStatus status, LocalDateTime endedAt) {
     Consignment consignment =
@@ -444,6 +506,8 @@ class BidServiceTest {
     ReflectionTestUtils.setField(consignment, "consignmentId", 100L);
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(endedAt)

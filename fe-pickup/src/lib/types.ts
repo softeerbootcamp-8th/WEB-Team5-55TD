@@ -21,6 +21,7 @@ export interface Grade {
 
 export interface AuctionSummary {
   id: string;
+  title?: string;
   cardName: string;
   thumbnailUrl?: string;
   status: AuctionStatus;
@@ -34,8 +35,10 @@ export interface AuctionSummary {
 }
 
 export type AuctionDetail = AuctionSummary & {
+  description?: string;
   sellerId?: string;
   sellerNickname?: string;
+  sellerProfileImageUrl?: string;
   minBidUnit?: number;
   images?: string[];
   bidCount?: number;
@@ -43,7 +46,8 @@ export type AuctionDetail = AuctionSummary & {
 
 export interface Bid {
   id: string;
-  maskedNickname: string;
+  nickname: string;
+  profileImageUrl?: string;
   amount: number;
   createdAt: string;
   isMine?: boolean;
@@ -100,6 +104,7 @@ export interface CardInfo {
 /** 마이페이지 입찰/낙찰 내역 항목 */
 export interface MyBidItem {
   auctionId: string;
+  title?: string;
   cardName: string;
   thumbnailUrl?: string;
   grade?: Grade;

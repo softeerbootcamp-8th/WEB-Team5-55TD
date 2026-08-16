@@ -1,6 +1,8 @@
 import type { AuctionDetail, AuctionSummary, Grade } from "@/lib/types";
+import type { CardState } from "@/api/generated/model";
 import { AuctionStatus } from "@/lib/types";
 import { axiosInstance } from "@/api/mutator/custom-instance";
+import { minBidUnit } from "@/lib/format";
 
 type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
@@ -17,6 +19,7 @@ interface CardResponse {
 interface AuctionListItemResponse {
   auctionId: number;
   consignmentId: number;
+  title?: string;
   card: CardResponse;
   grade?: string | null;
   auctionStatus: ApiAuctionStatus;
@@ -39,13 +42,15 @@ interface AuctionPageResponse {
 
 export interface AuctionDetailView extends AuctionDetail {
   card?: CardResponse;
-  cardState?: string;
+  cardState?: CardState;
   majorDefect?: string;
   inspectedAt?: string;
   /** 경매 전체의 낙찰 여부 (WON). 낙찰자가 누구인지와 무관하게 경매 자체의 결과다. */
   won: boolean;
   /** 조회자 본인이 이 경매의 낙찰자인지. */
   myBidWon: boolean;
+  /** 마스킹된 낙찰자 닉네임. 낙찰 상태가 아니면 undefined. */
+  winnerNicknameMasked?: string;
 }
 
 export type AuctionSort =
@@ -56,8 +61,13 @@ export type AuctionSort =
   | "STARTING_SOON"
   | "RECENT";
 
+export type AuctionSearchField =
+  "ALL" | "AUCTION_TITLE" | "CARD_NAME" | "SELLER";
+
 export interface AuctionSearchParams {
   q?: string;
+  /** q 를 맞춰볼 항목. 생략하면 서버가 ALL 로 처리한다. */
+  searchField?: AuctionSearchField;
   status: ApiAuctionStatus[];
   sort: AuctionSort;
   cursor?: string;
@@ -96,6 +106,7 @@ export function computeEndsAt(item: {
 function toSummary(item: AuctionListItemResponse): AuctionSummary {
   return {
     id: String(item.auctionId),
+    title: item.title,
     cardName: item.card.cardName,
     thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
     status: toUiStatus(item.auctionStatus),
@@ -113,6 +124,8 @@ export interface CreateAuctionPayload {
   consignmentId: string;
   startingPrice: number;
   reserve: number;
+  title: string;
+  description?: string;
   /** UTC ISO-8601(Z 접미사) — 예: "2026-08-01T01:00:00Z". KST 입력값 변환은 lib/timezone.ts 참고 */
   scheduledStartAt: string;
 }
@@ -140,6 +153,8 @@ export async function registerAuction(
       startingPrice: payload.startingPrice,
       reserve: payload.reserve,
       scheduledStartAt: payload.scheduledStartAt,
+      title: payload.title,
+      description: payload.description,
     },
   );
   return { auctionId: String(data.auctionId), bidIncrement: data.bidIncrement };
@@ -151,6 +166,7 @@ async function fetchAuctionPage(
   const { data } = await axiosInstance.get<AuctionPageResponse>("/auctions", {
     params: {
       q: params.q || undefined,
+      searchField: params.q ? params.searchField : undefined,
       status: params.status,
       sort: params.sort,
       cursor: params.cursor,
@@ -215,14 +231,17 @@ interface ConsignmentImageResponse {
 }
 
 interface AuctionDetailResponse extends AuctionListItemResponse {
+  description?: string | null;
   sellerId?: number | null;
   sellerNickname?: string | null;
+  sellerProfileImageUrl?: string | null;
   certificate?: CertificateResponse | null;
   images?: ConsignmentImageResponse[] | null;
-  cardState?: string | null;
+  cardState?: CardState | null;
   majorDefect?: string | null;
   bidIncrement?: number | null;
   myBidWon?: boolean;
+  winnerNicknameMasked?: string | null;
 }
 
 function isListItem(value: unknown): value is AuctionListItemResponse {
@@ -255,11 +274,18 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
 
   return {
     ...summary,
+    description: item.description ?? undefined,
     grade,
     sellerId: item.sellerId != null ? String(item.sellerId) : undefined,
     sellerNickname: item.sellerNickname ?? undefined,
-    minBidUnit: item.bidIncrement ?? Math.round(item.startingPrice * 0.05),
-    images: (item.images ?? []).map((image) => image.imageUrl),
+    sellerProfileImageUrl: item.sellerProfileImageUrl ?? undefined,
+    minBidUnit: item.bidIncrement ?? minBidUnit(item.startingPrice),
+    // images[0] 이 대표 사진으로 쓰이므로 서버 응답 순서에 기대지 않고 정렬한다
+    // (consignments.ts 도 같은 방식).
+    images: (item.images ?? [])
+      .slice()
+      .sort((left, right) => left.imageOrder - right.imageOrder)
+      .map((image) => image.imageUrl),
     bidCount: 0,
     card: item.card,
     cardState: item.cardState ?? undefined,
@@ -267,6 +293,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     inspectedAt: item.certificate?.inspectedAt ?? undefined,
     won: item.auctionStatus === "WON",
     myBidWon: item.myBidWon ?? false,
+    winnerNicknameMasked: item.winnerNicknameMasked ?? undefined,
   };
 }
 
@@ -275,10 +302,15 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
   return {
     ...summary,
     sellerNickname: "",
-    minBidUnit: Math.round(item.startingPrice * 0.05),
-    images: [item.thumbnailUrl, item.card.imageUrl].filter(
-      (url): url is string => Boolean(url),
-    ),
+    minBidUnit: minBidUnit(item.startingPrice),
+    // thumbnailUrl 과 card.imageUrl 이 같은 값일 수 있어 중복을 제거한다.
+    images: [
+      ...new Set(
+        [item.thumbnailUrl, item.card.imageUrl].filter((url): url is string =>
+          Boolean(url),
+        ),
+      ),
+    ],
     bidCount: 0,
     card: item.card,
     won: item.auctionStatus === "WON",

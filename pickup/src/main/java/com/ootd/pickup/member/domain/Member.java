@@ -1,6 +1,7 @@
 package com.ootd.pickup.member.domain;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
+import com.ootd.pickup.images.service.ImageUrlResolver;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -18,6 +19,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class Member {
+
+  private static final String WITHDRAWN_NICKNAME_PREFIX = "(탈퇴한 회원)#";
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,6 +44,14 @@ public class Member {
   @Column(name = "profile_image_object_key", length = 512)
   private String profileImageObjectKey;
 
+  @Column(length = 32)
+  private String oauthProvider;
+
+  private String oauthSubject;
+
+  @Column(length = 2048)
+  private String externalProfileImageUrl;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private MemberStatus status;
@@ -59,6 +70,25 @@ public class Member {
     return member;
   }
 
+  public static Member createOAuth(
+      String provider, String subject, String nickname, String profileImageUrl) {
+    Member member = create(provider.toLowerCase() + "_" + subject, null, nickname);
+    member.oauthProvider = provider;
+    member.oauthSubject = subject;
+    member.externalProfileImageUrl = profileImageUrl;
+    return member;
+  }
+
+  public void setExternalProfileImageUrl(String profileImageUrl) {
+    this.externalProfileImageUrl = profileImageUrl;
+  }
+
+  public String getResolvedProfileImageUrl(ImageUrlResolver imageUrlResolver) {
+    return externalProfileImageUrl != null
+        ? externalProfileImageUrl
+        : imageUrlResolver.resolve(profileImageObjectKey);
+  }
+
   public void updateProfile(String nickname, String passwordHash) {
     if (nickname != null) {
       this.nickname = nickname;
@@ -71,11 +101,13 @@ public class Member {
 
   public void updateProfileImage(String profileImageObjectKey) {
     this.profileImageObjectKey = profileImageObjectKey;
+    this.externalProfileImageUrl = null;
     updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public void removeProfileImage() {
     profileImageObjectKey = null;
+    externalProfileImageUrl = null;
     updatedAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
@@ -92,14 +124,24 @@ public class Member {
   }
 
   /**
-   * 탈퇴 처리한다. 로그인 아이디와 비밀번호를 지워 재로그인을 막고, 유니크 제약을 비워 같은 아이디로 재가입할 수 있게 한다. 닉네임은 기존 입찰/상품 내역에 계속
-   * 노출되므로 남겨 둔다.
+   * 탈퇴 처리한다. 로그인 아이디, 비밀번호, OAuth 연결 정보를 지워 기존 계정의 재로그인을 막고 같은 인증 정보로 신규 가입할 수 있게 한다. 닉네임은 고유한 탈퇴
+   * 회원 식별값으로 익명화해 기존 닉네임을 다른 회원이 사용할 수 있게 한다.
    */
   public void withdraw() {
     status = MemberStatus.WITHDRAWN;
-    withdrawnAt = LocalDateTime.now();
+    withdrawnAt = LocalDateTime.now(ZoneOffset.UTC);
     loginId = null;
     password = null;
+    // 사용자 닉네임은 최대 8자다. 그보다 긴 내부 전용 접두사를 사용해 선점과 사칭을 막는다.
+    nickname = WITHDRAWN_NICKNAME_PREFIX + memberId;
+    clearOAuthIdentity();
     updatedAt = withdrawnAt;
+  }
+
+  /** 탈퇴한 소셜 회원이 같은 소셜 계정으로 새로 가입할 수 있도록 기존 OAuth 연결을 해제한다. */
+  public void clearOAuthIdentity() {
+    oauthProvider = null;
+    oauthSubject = null;
+    externalProfileImageUrl = null;
   }
 }

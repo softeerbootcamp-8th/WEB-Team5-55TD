@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { Grade } from "@/lib/types";
+import type { CardState } from "@/api/generated/model";
 import { ProductStatus } from "@/lib/types";
 import { axiosInstance } from "@/api/mutator/custom-instance";
 
@@ -33,6 +34,7 @@ interface ConsignmentCertificateResponse {
 interface ConsignmentListItemResponse {
   consignmentId: number;
   auctionId?: number | null;
+  auctionTitle?: string | null;
   card: ConsignmentCardResponse;
   sellerMemberId: number;
   majorDefect?: string | null;
@@ -54,6 +56,7 @@ interface CursorPageResponse<T> {
 export interface ConsignmentSummary {
   id: string;
   auctionId?: string;
+  auctionTitle?: string;
   cardName: string;
   thumbnailUrl?: string;
   grade?: Grade;
@@ -65,6 +68,7 @@ export interface ConsignmentDetail extends ConsignmentSummary {
   cardNumber: string;
   language: string;
   rarity: string;
+  cardState?: CardState;
   majorDefect?: string;
   images: ConsignmentImage[];
   auctionRegistered: boolean;
@@ -87,6 +91,7 @@ interface ConsignmentDetailResponse {
   consignmentId: number;
   card: ConsignmentCardResponse;
   sellerMemberNickname: string;
+  cardState?: CardState | null;
   majorDefect?: string | null;
   status: ApiConsignmentStatus;
   auctionStatus?: ApiAuctionSubStatus | null;
@@ -105,9 +110,15 @@ function toUiStatus(
     case "SOLD":
       return ProductStatus.SOLD;
     case "IN_AUCTION":
-      return auctionStatus === "ONGOING"
-        ? ProductStatus.AUCTION_LIVE
-        : ProductStatus.AUCTION_UPCOMING;
+      if (auctionStatus === "SCHEDULED") {
+        return ProductStatus.AUCTION_UPCOMING;
+      }
+      if (auctionStatus === "ONGOING") {
+        return ProductStatus.AUCTION_LIVE;
+      }
+      throw new Error(
+        `IN_AUCTION 상품의 경매 상태가 올바르지 않습니다: ${auctionStatus ?? "null"}`,
+      );
     case "REGISTERABLE":
       return auctionStatus === "PASSED"
         ? ProductStatus.REAPPLICABLE
@@ -122,6 +133,7 @@ function toSummary(item: ConsignmentListItemResponse): ConsignmentSummary {
   return {
     id: String(item.consignmentId),
     auctionId: item.auctionId != null ? String(item.auctionId) : undefined,
+    auctionTitle: item.auctionTitle ?? undefined,
     cardName: item.card.cardName,
     thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
     grade: {
@@ -134,7 +146,9 @@ function toSummary(item: ConsignmentListItemResponse): ConsignmentSummary {
 }
 
 function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
-  const sortedImages = item.images.slice().sort((a, b) => a.imageOrder - b.imageOrder);
+  const sortedImages = item.images
+    .slice()
+    .sort((a, b) => a.imageOrder - b.imageOrder);
   return {
     id: String(item.consignmentId),
     cardName: item.card.cardName,
@@ -149,6 +163,7 @@ function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
     cardNumber: item.card.cardNumber,
     language: item.card.language,
     rarity: item.card.rarity,
+    cardState: item.cardState ?? undefined,
     majorDefect: item.majorDefect ?? undefined,
     images: sortedImages.map((image) => ({
       consignmentImageId: image.consignmentImageId,
@@ -162,13 +177,18 @@ function toDetail(item: ConsignmentDetailResponse): ConsignmentDetail {
 
 async function fetchConsignmentPage(
   status: ApiConsignmentStatus,
-  params?: { cursor?: number; size?: number },
+  params?: {
+    auctionStatus?: ApiAuctionSubStatus;
+    cursor?: number;
+    size?: number;
+  },
 ) {
   const { data } = await axiosInstance.get<
     CursorPageResponse<ConsignmentListItemResponse>
   >("/consignments", {
     params: {
       status,
+      auctionStatus: params?.auctionStatus,
       cursor: params?.cursor,
       size: params?.size ?? 50,
     },
@@ -178,6 +198,7 @@ async function fetchConsignmentPage(
 
 export async function getMyConsignments(params: {
   status: ApiConsignmentStatus;
+  auctionStatus?: ApiAuctionSubStatus;
   cursor?: number;
   size?: number;
 }): Promise<{
@@ -194,17 +215,22 @@ export async function getMyConsignments(params: {
   };
 }
 
+// TanStack Query 는 queryFn 이 undefined 를 반환하면 오류로 처리하므로 "없음"은 null 로 알린다.
 export async function getMyConsignmentDetail(
   id: string,
-): Promise<ConsignmentDetail | undefined> {
+): Promise<ConsignmentDetail | null> {
   try {
     const { data } = await axiosInstance.get<ConsignmentDetailResponse>(
       `/consignments/${id}`,
     );
     return toDetail(data);
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      return undefined;
+    // 다른 셀러의 상품(403)은 존재 여부까지 숨겨야 하므로 없는 상품과 같게 다룬다.
+    const status = axios.isAxiosError(error)
+      ? error.response?.status
+      : undefined;
+    if (status === 404 || status === 403) {
+      return null;
     }
     throw error;
   }

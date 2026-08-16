@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.ootd.pickup.auth.dto.LoginRequest;
 import com.ootd.pickup.auth.dto.LoginResponseBody;
 import com.ootd.pickup.auth.service.AuthService;
+import com.ootd.pickup.auth.service.KakaoAuthService;
 import com.ootd.pickup.auth.service.LoginResponse;
 import com.ootd.pickup.auth.token.AccessToken;
 import com.ootd.pickup.auth.token.jwt.JwtTokenProperties;
@@ -40,6 +41,7 @@ class LoginControllerTest {
         MockMvcBuilders.standaloneSetup(
                 new AuthController(
                     authService,
+                    mock(KakaoAuthService.class),
                     new TokenCookieManager(
                         tokenProperties, new TokenCookieProperties(true, "None"))))
             .build();
@@ -84,9 +86,9 @@ class LoginControllerTest {
   }
 
   @Test
-  void 아이디나_비밀번호가_4자_미만이면_로그인하지_않는다() throws Exception {
+  void 아이디나_비밀번호가_비어있으면_로그인하지_않는다() throws Exception {
     // given
-    String requestBody = "{\"loginId\":\"abc\",\"password\":\"123\"}";
+    String requestBody = "{\"loginId\":\"\",\"password\":\"\"}";
 
     // when
     ResultActions result =

@@ -1,16 +1,16 @@
-import { useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { AxiosError } from "axios";
-import { ChevronLeft, Expand } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { PageContainer } from "@/components/layout/page";
-import { CardThumb } from "@/components/domain/card-thumb";
-import { ImageLightbox } from "@/components/domain/image-lightbox";
+import { ImageGallery } from "@/components/domain/image-gallery";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { GradeBadge } from "@/components/domain/grade-badge";
 import { Price } from "@/components/domain/price";
 import { Countdown } from "@/components/domain/countdown";
+import { MarketPriceChart } from "@/components/domain/market-price-chart";
 import { WatchButton } from "@/components/domain/heart-button";
 import { RelatedAuctionsBanner } from "@/components/domain/related-auctions-banner";
+import { Avatar } from "@/components/domain/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -21,6 +21,8 @@ import {
 import { getAuctionDetail } from "@/api/auctions";
 import { AuctionStatus } from "@/lib/types";
 import { formatDate, formatDateTime, formatWon } from "@/lib/format";
+import { getCardStateLabel } from "@/lib/card-state";
+import { pokemonAvatarForKey } from "@/lib/pokemon-avatars";
 
 export const Route = createFileRoute("/_buyer/auctions/$auctionId/")({
   loader: async ({ params }) => {
@@ -42,14 +44,13 @@ function AuctionDetailPage() {
   const isLive = auction.status === AuctionStatus.LIVE;
   const isUpcoming = auction.status === AuctionStatus.UPCOMING;
   const images = auction.images ?? [];
-  // 확대해서 볼 이미지 목록 — 개별 이미지가 없으면 썸네일 한 장으로라도 확대 가능하게 한다.
+  // 개별 이미지가 없으면 썸네일 한 장으로라도 갤러리를 구성한다.
   const galleryImages =
     images.length > 0
       ? images
       : auction.thumbnailUrl
         ? [auction.thumbnailUrl]
         : [];
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   return (
     <PageContainer className="flex flex-col gap-6">
@@ -61,50 +62,12 @@ function AuctionDetailPage() {
       </Link>
 
       <div className="grid gap-8 md:grid-cols-2">
-        {/* 이미지 */}
-        <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={() => galleryImages.length > 0 && setLightboxIndex(0)}
-            disabled={galleryImages.length === 0}
-            className="group relative block w-full rounded-[var(--radius-md)] text-left disabled:cursor-default"
-          >
-            <CardThumb
-              cardName={auction.cardName}
-              grade={auction.grade}
-              imageUrl={images[0] ?? auction.thumbnailUrl}
-              label={!images[0] && !auction.thumbnailUrl ? "앞면" : undefined}
-              className="w-full"
-            />
-            {galleryImages.length > 0 && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
-                <Expand className="size-6 text-white drop-shadow" />
-              </span>
-            )}
-          </button>
-          {images.length > 1 && (
-            <div className="grid grid-cols-4 gap-2">
-              {images.map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setLightboxIndex(i)}
-                  className="group relative block rounded-[var(--radius-md)] text-left"
-                >
-                  <CardThumb
-                    cardName={auction.cardName}
-                    imageUrl={img}
-                    aspect="aspect-square"
-                    label={i === 0 ? "앞" : i === 1 ? "뒤" : `${i + 1}`}
-                  />
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
-                    <Expand className="size-4 text-white drop-shadow" />
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* 이미지 (DESIGN.md §5.14) */}
+        <ImageGallery
+          images={galleryImages}
+          cardName={auction.cardName}
+          grade={auction.grade}
+        />
 
         {/* 정보 */}
         <div className="flex flex-col gap-5">
@@ -113,22 +76,46 @@ function AuctionDetailPage() {
               <StatusBadge status={auction.status} />
               <GradeBadge grade={auction.grade} />
             </div>
-            <WatchButton
-              auctionId={auction.id}
-              count={auction.watchCount}
-              watched={auction.watched ?? false}
-              className="bg-[var(--color-surface-2)] !text-[var(--color-text-sub)]"
-            />
+            {auction.status !== AuctionStatus.ENDED && (
+              <WatchButton
+                auctionId={auction.id}
+                count={auction.watchCount}
+                watched={auction.watched ?? false}
+                className="bg-[var(--color-surface-2)] !text-[var(--color-text-sub)]"
+              />
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold">{auction.cardName}</h1>
-            <p className="text-sm text-[var(--color-text-sub)]">
-              {auction.sellerNickname
-                ? `판매자 · ${auction.sellerNickname}`
-                : "검증된 위탁 상품"}
+            <h1 className="text-2xl font-bold">
+              {auction.title ?? auction.cardName}
+            </h1>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {auction.cardName}
             </p>
+            <div className="flex items-center gap-2 text-sm text-[var(--color-text-sub)]">
+              <Avatar
+                src={auction.sellerProfileImageUrl}
+                fallbackSrc={pokemonAvatarForKey(
+                  auction.sellerId ?? auction.sellerNickname ?? "판매자",
+                )}
+                nickname={auction.sellerNickname || "판매자"}
+                className="size-7"
+                initialClassName="text-xs"
+              />
+              <span>
+                {auction.sellerNickname
+                  ? `판매자 · ${auction.sellerNickname}`
+                  : "검증된 위탁 상품"}
+              </span>
+            </div>
           </div>
+
+          {auction.description && (
+            <div className="text-sm whitespace-pre-wrap text-foreground">
+              {auction.description}
+            </div>
+          )}
 
           <div className="rounded-[var(--radius-lg)] border border-border bg-card p-5">
             {isLive ? (
@@ -193,7 +180,7 @@ function AuctionDetailPage() {
                   />
                   <Row
                     label="카드 상태"
-                    value={auction.cardState ?? "-"}
+                    value={getCardStateLabel(auction.cardState)}
                     full
                   />
                   <Row
@@ -224,17 +211,16 @@ function AuctionDetailPage() {
         </div>
       </div>
 
-      <RelatedAuctionsBanner auction={auction} />
+      <MarketPriceChart
+        cardName={auction.cardName}
+        setName={auction.card?.setName}
+        cardNumber={auction.card?.cardNumber}
+        preferredAgency={auction.grade?.agency}
+        preferredScore={auction.grade?.score}
+        reservePrice={auction.startPrice}
+      />
 
-      {lightboxIndex !== null && (
-        <ImageLightbox
-          images={galleryImages}
-          index={lightboxIndex}
-          onIndexChange={setLightboxIndex}
-          onOpenChange={(open) => !open && setLightboxIndex(null)}
-          alt={auction.cardName}
-        />
-      )}
+      <RelatedAuctionsBanner auction={auction} />
     </PageContainer>
   );
 }

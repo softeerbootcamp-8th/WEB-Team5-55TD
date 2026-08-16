@@ -122,7 +122,7 @@ class RefreshTokenRedisRepositoryTest {
   }
 
   @Test
-  void 레디스_장애로_저장에_실패해도_예외를_전파하지_않는다() {
+  void 레디스_장애로_저장에_실패하면_예외가_발생한다() {
     // given
     Duration ttl = Duration.ofDays(14);
     doThrow(new RedisConnectionFailureException("Redis connection failed"))
@@ -130,28 +130,33 @@ class RefreshTokenRedisRepositoryTest {
         .set("auth:refresh:token-hash", "1", ttl);
 
     // when & then
-    assertThatCode(() -> refreshTokenRepository.save("token-hash", 1L, ttl))
-        .doesNotThrowAnyException();
+    assertThatThrownBy(() -> refreshTokenRepository.save("token-hash", 1L, ttl))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE.getMessage());
   }
 
   @Test
-  void 레디스_장애로_삭제에_실패해도_예외를_전파하지_않는다() {
+  void 레디스_장애로_삭제에_실패하면_예외가_발생한다() {
     // given
     when(redisTemplate.delete("auth:refresh:token-hash"))
         .thenThrow(new RedisConnectionFailureException("Redis connection failed"));
 
     // when & then
-    assertThatCode(() -> refreshTokenRepository.delete("token-hash")).doesNotThrowAnyException();
+    assertThatThrownBy(() -> refreshTokenRepository.delete("token-hash"))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE.getMessage());
   }
 
   @Test
-  void 레디스_장애로_일괄_회수에_실패해도_예외를_전파하지_않는다() {
+  void 레디스_장애로_일괄_회수에_실패하면_예외가_발생한다() {
     // given
     when(setOperations.members("auth:refresh:member:1"))
         .thenThrow(new RedisConnectionFailureException("Redis connection failed"));
 
     // when & then
-    assertThatCode(() -> refreshTokenRepository.deleteByMemberId(1L)).doesNotThrowAnyException();
+    assertThatThrownBy(() -> refreshTokenRepository.deleteByMemberId(1L))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE.getMessage());
   }
 
   @Test

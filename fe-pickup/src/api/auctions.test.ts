@@ -16,6 +16,38 @@ const card = {
 };
 
 describe("auctions api", () => {
+  it("검색어가 없으면 searchField를 보내지 않는다", async () => {
+    get.mockResolvedValue({ data: { hasNext: false, items: [] } });
+    const api = await import("@/api/auctions");
+
+    await api.searchAuctions({
+      status: ["ONGOING"],
+      sort: "POPULAR",
+      searchField: "SELLER",
+    });
+
+    expect(get).toHaveBeenLastCalledWith(
+      "/auctions",
+      expect.objectContaining({
+        params: expect.objectContaining({ searchField: undefined }),
+      }),
+    );
+
+    await api.searchAuctions({
+      status: ["ONGOING"],
+      sort: "POPULAR",
+      q: "민제",
+      searchField: "SELLER",
+    });
+
+    expect(get).toHaveBeenLastCalledWith(
+      "/auctions",
+      expect.objectContaining({
+        params: expect.objectContaining({ q: "민제", searchField: "SELLER" }),
+      }),
+    );
+  });
+
   it("경매 목록과 등록 응답을 UI 모델로 변환한다", async () => {
     get.mockResolvedValueOnce({
       data: {
@@ -52,6 +84,8 @@ describe("auctions api", () => {
     });
     await expect(
       api.registerAuction({
+        title: "test title",
+        description: "test description",
         consignmentId: "3",
         startingPrice: 1000,
         reserve: 1500,
@@ -77,6 +111,7 @@ describe("auctions api", () => {
         watchCount: 0,
         watched: false,
         images: [{ imageUrl: "front.jpg" }],
+        sellerProfileImageUrl: "seller-profile.jpg",
         certificate: {
           serialNumber: "S1",
           certificationBody: "BGS",
@@ -85,6 +120,7 @@ describe("auctions api", () => {
         },
         bidIncrement: 1000,
         myBidWon: true,
+        winnerNicknameMasked: "닉***임",
       },
     });
     await expect(api.getAuctionDetail("7")).resolves.toMatchObject({
@@ -93,7 +129,9 @@ describe("auctions api", () => {
       myBidWon: true,
       minBidUnit: 1000,
       images: ["front.jpg"],
+      sellerProfileImageUrl: "seller-profile.jpg",
       grade: { agency: "BGS", score: "9", serial: "S1" },
+      winnerNicknameMasked: "닉***임",
     });
   });
 

@@ -12,7 +12,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-[var(--container-max)] px-8 py-8",
+        "mx-auto w-full max-w-[var(--container-max)] px-4 py-6 md:px-8 md:py-8",
         className,
       )}
     >

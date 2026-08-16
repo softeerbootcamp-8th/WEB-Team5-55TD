@@ -6,6 +6,8 @@ import java.util.Optional;
 public interface MemberRepository {
   Optional<Member> findByLoginId(String loginId);
 
+  Optional<Member> findByOauthProviderAndOauthSubject(String provider, String subject);
+
   boolean existsByLoginId(String loginId);
 
   boolean existsByNickname(String nickname);
@@ -15,4 +17,6 @@ public interface MemberRepository {
   Optional<Member> findById(Long memberId);
 
   Member save(Member member);
+
+  void flush();
 }

@@ -37,6 +37,12 @@ public class Auction {
   @Column(name = "winning_bid_id")
   private Long winningBidId;
 
+  @Column(name = "title", nullable = false)
+  private String title;
+
+  @Column(name = "description")
+  private String description;
+
   @Column(name = "started_at", nullable = false)
   private LocalDateTime startedAt;
 
@@ -59,6 +65,9 @@ public class Auction {
   @Column(name = "winning_price")
   private Long winningPrice;
 
+  @Column(name = "watch_count", nullable = false)
+  private long watchCount;
+
   @Column(name = "legacy_unreserved_bid", nullable = false)
   private boolean legacyUnreservedBid;
 
@@ -73,7 +82,9 @@ public class Auction {
       AuctionStatus auctionStatus,
       Long startingPrice,
       Long reservePrice,
-      Long bidIncrement) {
+      Long bidIncrement,
+      String title,
+      String description) {
     this.consignment = consignment;
     this.startedAt = startedAt;
     this.endedAt = endedAt;
@@ -81,6 +92,9 @@ public class Auction {
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
+    this.title = title;
+    this.description = description;
+    this.watchCount = 0L;
     this.legacyUnreservedBid = false;
     this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
   }
@@ -97,19 +111,9 @@ public class Auction {
     this.winningPrice = winningPrice;
   }
 
-  /** 종료 5분 이내의 유효 입찰이면 해당 입찰 시각부터 다시 5분을 보장한다. */
-  public boolean extendEndAtForSoftClose(LocalDateTime bidAt) {
-    if (auctionStatus != AuctionStatus.ONGOING || endedAt == null || !endedAt.isAfter(bidAt)) {
-      return false;
-    }
-
-    LocalDateTime softCloseBoundary = bidAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
-    if (endedAt.isAfter(softCloseBoundary)) {
-      return false;
-    }
-
-    endedAt = softCloseBoundary;
-    return true;
+  /** 조건부 갱신이 성공한 경우 기존 종료 시각에 마감 연장 시간을 더한다. */
+  public void extendEndAtBySoftCloseWindow() {
+    endedAt = endedAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
   }
 
   public void markBidReserved() {

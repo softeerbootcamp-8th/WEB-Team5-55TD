@@ -14,13 +14,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { todayDateInputValue } from "@/lib/timezone";
 import { getMyConsignmentDetail } from "@/api/consignments";
 import type { ConsignmentDetail } from "@/api/consignments";
 import { modifyConsignment } from "@/api/generated/consignment/consignment";
-import { CreateImageUploadRequestPurpose } from "@/api/generated/model";
+import {
+  CardState,
+  CreateImageUploadRequestPurpose,
+} from "@/api/generated/model";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { uploadImage } from "@/api/image-upload";
 import { ProductStatus } from "@/lib/types";
+import { CARD_STATE_OPTIONS } from "@/lib/card-state";
+import { MAJOR_DEFECT_MAX_LENGTH } from "@/lib/consignment";
 
 export const Route = createFileRoute("/seller/products/$productId_/edit")({
   component: ProductEditPage,
@@ -127,7 +133,12 @@ function EditForm({
   const [grade, setGrade] = useState(product.gradeCode);
   const [serialNumber, setSerialNumber] = useState(product.grade?.serial ?? "");
   const [inspectedAt, setInspectedAt] = useState(product.inspectedAt);
+  const [cardState, setCardState] = useState<CardState | "">(
+    product.cardState ?? "",
+  );
   const [majorDefect, setMajorDefect] = useState(product.majorDefect ?? "");
+  const [today] = useState(todayDateInputValue);
+  const inspectedAtValid = inspectedAt.length === 0 || inspectedAt <= today;
   const [images, setImages] = useState<ConsignmentImageValue[]>(
     product.images.map((image) => ({
       kind: "existing",
@@ -138,6 +149,10 @@ function EditForm({
 
   const { mutate: submitModify, isPending: isSubmitting } = useMutation({
     mutationFn: async () => {
+      if (!cardState) {
+        throw new Error("카드 상태를 선택해 주세요.");
+      }
+
       const imageRequests = await Promise.all(
         images.map(async (image) => {
           if (image.kind === "existing") {
@@ -153,6 +168,7 @@ function EditForm({
       );
 
       return modifyConsignment(Number(productId), {
+        cardState,
         majorDefect: majorDefect.trim() || undefined,
         certificate: {
           serialNumber: serialNumber.trim(),
@@ -180,8 +196,10 @@ function EditForm({
 
   const canSubmit =
     grade.length > 0 &&
+    cardState.length > 0 &&
     serialNumber.trim().length > 0 &&
     inspectedAt.length > 0 &&
+    inspectedAtValid &&
     images.length >= 2;
 
   return (
@@ -209,8 +227,8 @@ function EditForm({
         className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-6"
       >
         <p className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] px-4 py-3 text-xs text-[var(--color-text-sub)]">
-          카드 자체 정보는 변경할 수 없으며, 감정서와 이미지, 주요 결함만 수정할
-          수 있습니다.
+          카드 자체 정보는 변경할 수 없으며, 감정서와 이미지, 카드 상태와 주요
+          결함만 수정할 수 있습니다.
         </p>
         <div className="grid grid-cols-2 gap-4">
           <Field label="인증기관" required>
@@ -253,16 +271,41 @@ function EditForm({
             <Input
               type="date"
               value={inspectedAt}
+              max={today}
               onChange={(e) => setInspectedAt(e.target.value)}
             />
+            {!inspectedAtValid && (
+              <p className="text-xs text-[var(--color-danger)]">
+                현재 날짜보다 이후일 수 없습니다.
+              </p>
+            )}
           </Field>
         </div>
+        <Field label="카드 상태" required>
+          <Select
+            value={cardState}
+            onChange={(e) => setCardState(e.target.value as CardState)}
+          >
+            <option value="" disabled>
+              상태 선택
+            </option>
+            {CARD_STATE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label="주요 결함 (손상 상세)">
           <Input
             value={majorDefect}
             onChange={(e) => setMajorDefect(e.target.value)}
             placeholder="예: 뒷면 우하단 미세 스크래치"
+            maxLength={MAJOR_DEFECT_MAX_LENGTH}
           />
+          <p className="text-right text-xs text-[var(--color-text-muted)]">
+            {majorDefect.length}/{MAJOR_DEFECT_MAX_LENGTH}
+          </p>
         </Field>
         <ConsignmentImageFields
           images={images}

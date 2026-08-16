@@ -3,6 +3,7 @@ package com.ootd.pickup.consignments.dto.response;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.repository.auction.AuctionSummary;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
@@ -11,8 +12,10 @@ import java.time.LocalDateTime;
 public record GetMyConsignmentsResponse(
     Long consignmentId,
     Long auctionId,
+    String auctionTitle,
     GetCardDetailResponse card,
     Long sellerMemberId,
+    CardState cardState,
     String majorDefect,
     ConsignmentStatus status,
     AuctionStatus auctionStatus,
@@ -29,8 +32,10 @@ public record GetMyConsignmentsResponse(
     return new GetMyConsignmentsResponse(
         consignment.getConsignmentId(),
         auctionSummary == null ? null : auctionSummary.auctionId(),
+        auctionSummary == null ? null : auctionSummary.title(),
         GetCardDetailResponse.from(consignment.getCard()),
         sellerMemberId,
+        consignment.getCardState(),
         consignment.getMajorDefect(),
         consignment.getStatus(),
         auctionSummary == null ? null : auctionSummary.auctionStatus(),

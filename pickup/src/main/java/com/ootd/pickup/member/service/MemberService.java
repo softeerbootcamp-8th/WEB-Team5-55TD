@@ -95,7 +95,10 @@ public class MemberService {
     log.info(
         "회원가입했습니다 - memberId={}, loginId={}", savedMember.getMemberId(), savedMember.getLoginId());
     return new MemberResponse(
-        savedMember.getMemberId(), savedMember.getLoginId(), savedMember.getNickname(), null);
+        savedMember.getMemberId(),
+        savedMember.getLoginId(),
+        savedMember.getNickname(),
+        savedMember.getExternalProfileImageUrl());
   }
 
   @Transactional(readOnly = true)
@@ -314,18 +317,14 @@ public class MemberService {
   }
 
   private MyProfileResponse toMyProfileResponse(Member member) {
-    return MyProfileResponse.from(
-        member, imageUrlResolver.resolve(member.getProfileImageObjectKey()));
+    return MyProfileResponse.from(member, member.getResolvedProfileImageUrl(imageUrlResolver));
   }
 
-  public void withdrawMember(Long memberId, WithdrawMemberRequest withdrawMemberRequest) {
+  public void withdrawMember(Long memberId) {
     Member member = memberManageService.getMemberById(memberId);
 
     if (member.isWithdrawn()) {
       throw new PickUpException(MEMBER_ALREADY_WITHDRAWN);
-    }
-    if (!member.isPasswordMatched(withdrawMemberRequest.password())) {
-      throw new PickUpException(INVALID_PASSWORD);
     }
     if (consignmentService.hasActiveConsignment(memberId) || bidService.hasActiveBid(memberId)) {
       throw new PickUpException(MEMBER_WITHDRAW_NOT_ALLOWED);

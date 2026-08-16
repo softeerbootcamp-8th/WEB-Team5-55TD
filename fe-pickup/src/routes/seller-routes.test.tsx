@@ -69,7 +69,7 @@ describe("셀러 라우트 초기 상태", () => {
     const Register = register.Route.options.component as React.ComponentType;
     render(<Register />);
     expect(
-      screen.getByRole("heading", { name: "카드 등록" }),
+      screen.getByRole("heading", { name: "상품 등록" }),
     ).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText("카드명 검색 (예: 리자몽)"),

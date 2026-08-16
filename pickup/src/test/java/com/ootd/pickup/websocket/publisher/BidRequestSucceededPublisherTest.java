@@ -66,7 +66,7 @@ class BidRequestSucceededPublisherTest {
     assertThat(message.type()).isEqualTo("BID_REQUEST_SUCCEEDED");
     assertThat(message.bidRequestId()).isEqualTo(5L);
     assertThat(message.currentPrice()).isEqualTo(20_000L);
-    assertThat(message.latestBid().nicknameMasked()).isEqualTo("피***터");
+    assertThat(message.latestBid().nickname()).isEqualTo("피카츄마스터");
     assertThat(brokerPublishCount("success")).isEqualTo(1);
   }
 
