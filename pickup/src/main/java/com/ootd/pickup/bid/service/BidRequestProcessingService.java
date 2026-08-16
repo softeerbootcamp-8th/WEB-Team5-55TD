@@ -6,8 +6,15 @@ import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
 import com.ootd.pickup.bid.event.BidRequestCreatedMessageQueueEvent;
 import com.ootd.pickup.bid.repository.BidRequestRepository;
 import com.ootd.pickup.global.exception.PickUpException;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * {@link BidRequestCreatedMessageQueueEvent} 처리 — 실제 입찰(락 획득·업무 규칙 검증·저장)을 수행한다.
@@ -26,9 +33,13 @@ import org.springframework.stereotype.Service;
  * BidRequestCreatedEventHandler})에게 그대로 흘려보낸다 — {@code SettlementEventHandler}가 정산 유니크 제약 충돌을 다루는
  * 것과 동일한 이유로, 트랜잭션이 이미 롤백된 시점(트랜잭션 경계 밖)에서 잡아야 한다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BidRequestProcessingService {
+
+  /** Datadog 등에서 에러를 Critical로 수집하기 위한 마커. */
+  private static final Marker CRITICAL_MARKER = MarkerFactory.getMarker("CRITICAL");
 
   private final BidRequestRepository bidRequestRepository;
   private final BidService bidService;
@@ -57,5 +68,61 @@ public class BidRequestProcessingService {
     } catch (PickUpException exception) {
       statusService.markFailed(event, exception);
     }
+  }
+
+  /**
+   * 같은 그룹의 배치를 낙관적으로 트랜잭션 하나에 몰아 시도하고, 예기치 못한 실패가 나면 오늘과 같은 방식(건별 독립 트랜잭션)으로 다시 시도한다.
+   *
+   * <p>대다수 상황(배치 안에 재전달 중복이 없는 경우)엔 커밋이 한 번으로 끝난다. 재전달 중복 같은 드문 경우엔 {@link #placeBidsIndividually}가
+   * 오늘과 동일한, 이미 검증된 코드 경로를 그대로 탄다.
+   */
+  public List<BidRequestCreatedMessageQueueEvent> placeBidsForGroup(
+      List<BidRequestCreatedMessageQueueEvent> events) {
+    try {
+      return placeBidsTogether(events);
+    } catch (RuntimeException unexpected) {
+      log.warn("배치 처리 중 예기치 못한 실패가 발생해 건별로 다시 시도합니다 - count={}", events.size(), unexpected);
+      return placeBidsIndividually(events);
+    }
+  }
+
+  /**
+   * 트랜잭션 하나로 배치 전체를 처리한다.
+   *
+   * <p>{@link PickUpException}(업무 실패)은 안전하다 — {@code placeBid}는 어떤 저장도 하기 전에 던지므로 이 트랜잭션을
+   * rollback-only로 만들지 않는다. 그 외 예외(재전달 중복으로 인한 {@link DataIntegrityViolationException} 등)는 그대로 던져
+   * 전체를 롤백시킨다.
+   */
+  @Transactional
+  List<BidRequestCreatedMessageQueueEvent> placeBidsTogether(
+      List<BidRequestCreatedMessageQueueEvent> events) {
+    List<BidRequestCreatedMessageQueueEvent> done = new ArrayList<>();
+    for (BidRequestCreatedMessageQueueEvent event : events) {
+      process(event);
+      done.add(event);
+    }
+    return done;
+  }
+
+  /**
+   * 오늘과 완전히 동일한 방식 — 메시지마다 독립 트랜잭션({@code placeBid} + {@code markSucceeded}/{@code markFailed} 각각).
+   */
+  private List<BidRequestCreatedMessageQueueEvent> placeBidsIndividually(
+      List<BidRequestCreatedMessageQueueEvent> events) {
+    List<BidRequestCreatedMessageQueueEvent> done = new ArrayList<>();
+    for (BidRequestCreatedMessageQueueEvent event : events) {
+      try {
+        process(event);
+      } catch (DataIntegrityViolationException alreadyProcessed) {
+        // 재전달 사이 이미 처리된 요청 - BidRequestCreatedEventHandler.handle()이 오늘 하던 것과 동일
+        statusService.markSucceeded(event.bidRequestId());
+      } catch (RuntimeException stillUnexpected) {
+        log.error(
+            CRITICAL_MARKER, "배치 건별 재시도도 실패했습니다 - eventId={}", event.eventId(), stillUnexpected);
+        break; // 이후 메시지는 시도하지 않는다 - 순서 보장을 위해 다음 전달 때로 미룬다
+      }
+      done.add(event);
+    }
+    return done;
   }
 }

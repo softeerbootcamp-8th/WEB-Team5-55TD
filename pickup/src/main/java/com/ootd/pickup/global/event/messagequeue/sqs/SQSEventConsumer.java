@@ -3,6 +3,7 @@ package com.ootd.pickup.global.event.messagequeue.sqs;
 import com.ootd.pickup.global.event.DomainEvent;
 import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.event.EventType;
+import com.ootd.pickup.global.event.GroupBatchEventHandler;
 import com.ootd.pickup.global.event.MessageQueueEvent;
 import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
 import com.ootd.pickup.global.observability.TraceContextCarrier;
@@ -394,31 +395,183 @@ public class SQSEventConsumer implements SmartLifecycle {
    *
    * <p>이 메서드는 이제 전체 배치가 아니라 {@link #dispatchToWorkers}가 나눠준 워커별 부분 배치를 받는다 — 로직은 그대로이고 호출 스코프만
    * 좁아졌다. {@code blockedGroups}는 이 호출(=이 워커의 이번 회차) 안에서만 유효하다.
+   *
+   * <p>먼저 연속된 (같은 {@code MessageGroupId}, 같은 이벤트 타입) 구간(run)으로 나눈다. 그 이벤트 타입에 등록된 핸들러가 정확히 하나이고
+   * {@link GroupBatchEventHandler}면 그 런 전체를 한 번에({@link GroupBatchEventHandler#handleBatch}) 넘긴다. 그
+   * 외에는 오늘과 같은 메시지별 개별 처리로 넘어간다.
    */
   private List<Message> consumeBatch(List<Message> messages) {
     List<Message> consumed = new ArrayList<>();
     Set<String> blockedGroups = new HashSet<>();
 
-    for (Message message : messages) {
-      String messageGroupId = message.attributes().get(MessageSystemAttributeName.MESSAGE_GROUP_ID);
-      if (blockedGroups.contains(messageGroupId)) {
+    for (MessageRun run : splitIntoRuns(messages)) {
+      if (blockedGroups.contains(run.messageGroupId())) {
         continue;
       }
-      try {
-        consume(message);
-        consumed.add(message);
-      } catch (RuntimeException exception) {
-        blockedGroups.add(messageGroupId);
-        log.error(
-            CRITICAL_MARKER,
-            "SQS 이벤트 처리에 실패했습니다 - messageId={}, messageGroupId={}",
-            message.messageId(),
-            messageGroupId,
-            exception);
+      GroupBatchEventHandler<MessageQueueEvent> batchHandler =
+          run.messages().size() > 1 && run.eventClass() != null
+              ? soleGroupBatchHandler(run.eventClass())
+              : null;
+      if (batchHandler != null) {
+        consumeRunAsBatch(run, batchHandler, consumed, blockedGroups);
+      } else {
+        consumeRunIndividually(run, consumed, blockedGroups);
       }
     }
     return consumed;
   }
+
+  /** 순서를 지키며 연속된 (같은 {@code MessageGroupId}, 같은 이벤트 타입) 구간으로 나눈다. 그룹이나 타입이 다르면 인접해 있어도 넘어가지 않는다. */
+  private List<MessageRun> splitIntoRuns(List<Message> messages) {
+    List<MessageRun> runs = new ArrayList<>();
+    for (Message message : messages) {
+      String messageGroupId = groupIdOf(message);
+      Class<? extends MessageQueueEvent> eventClass = eventClassOf(message);
+      MessageRun last = runs.isEmpty() ? null : runs.get(runs.size() - 1);
+      if (last != null
+          && eventClass != null
+          && eventClass.equals(last.eventClass())
+          && messageGroupId.equals(last.messageGroupId())) {
+        last.messages().add(message);
+      } else {
+        List<Message> runMessages = new ArrayList<>();
+        runMessages.add(message);
+        runs.add(new MessageRun(messageGroupId, eventClass, runMessages));
+      }
+    }
+    return runs;
+  }
+
+  private String groupIdOf(Message message) {
+    return message.attributes().get(MessageSystemAttributeName.MESSAGE_GROUP_ID);
+  }
+
+  /**
+   * {@code eventType} 속성만 보고 자바 타입을 판단한다. 본문은 파싱하지 않는다 — 런을 나누는 데는 타입만 있으면 충분하고, 본문이 실제로 그 타입으로
+   * 역직렬화되는지는 배치로 묶을 때(또는 개별 처리 시) 따로 확인한다.
+   *
+   * @return 속성이 없거나 아는 {@link EventType}이 아니거나 메시지 큐 계열이 아니면 {@code null}
+   */
+  private Class<? extends MessageQueueEvent> eventClassOf(Message message) {
+    MessageAttributeValue attribute = message.messageAttributes().get(EVENT_TYPE_ATTRIBUTE);
+    if (attribute == null || attribute.stringValue() == null) {
+      return null;
+    }
+    try {
+      return EventType.valueOf(attribute.stringValue()).messageQueueEventClass();
+    } catch (RuntimeException unknownOrNotMessageQueueType) {
+      return null;
+    }
+  }
+
+  /** 이 이벤트 타입에 등록된 핸들러가 정확히 하나이고 {@link GroupBatchEventHandler}면 그 핸들러를, 아니면 {@code null}을 돌려준다. */
+  @SuppressWarnings("unchecked")
+  private GroupBatchEventHandler<MessageQueueEvent> soleGroupBatchHandler(
+      Class<? extends MessageQueueEvent> eventClass) {
+    List<EventHandler<DomainEvent>> handlers =
+        handlersByEventClass.getOrDefault(eventClass, List.of());
+    if (handlers.size() == 1 && handlers.get(0) instanceof GroupBatchEventHandler) {
+      return (GroupBatchEventHandler<MessageQueueEvent>) (Object) handlers.get(0);
+    }
+    return null;
+  }
+
+  /**
+   * 런 전체를 배치 핸들러 한 번 호출로 처리한다.
+   *
+   * <p>역직렬화가 런의 일부 메시지에서만 실패해도(첫 메시지의 {@code eventType} 속성만으로는 알 수 없다) 안전하게 개별 처리로 폴백한다 — {@link
+   * #consumeRunIndividually}가 메시지별로 다시 역직렬화를 시도해 실패한 메시지에서 정확히 멈춘다.
+   */
+  private void consumeRunAsBatch(
+      MessageRun run,
+      GroupBatchEventHandler<MessageQueueEvent> handler,
+      List<Message> consumed,
+      Set<String> blockedGroups) {
+    List<Message> messages = run.messages();
+    List<MessageQueueEvent> events;
+    try {
+      events = messages.stream().map(this::toEvent).toList();
+    } catch (RuntimeException exception) {
+      consumeRunIndividually(run, consumed, blockedGroups);
+      return;
+    }
+
+    List<MessageQueueEvent> done;
+    try {
+      done = handler.handleBatch(events);
+    } catch (RuntimeException exception) {
+      blockedGroups.add(run.messageGroupId());
+      log.error(
+          CRITICAL_MARKER,
+          "SQS 배치 이벤트 처리에 실패했습니다 - messageGroupId={}, count={}",
+          run.messageGroupId(),
+          messages.size(),
+          exception);
+      return;
+    }
+
+    int matched = validatedPrefixLength(events, done, run.messageGroupId());
+    if (matched < messages.size()) {
+      blockedGroups.add(run.messageGroupId());
+    }
+    consumed.addAll(messages.subList(0, matched));
+  }
+
+  /**
+   * {@code done}이 {@code events}의 순서를 지킨 앞부분(prefix)인지 확인한다. 어긋나면 안전한 쪽으로 아무것도 소비되지 않은 것으로
+   * 취급한다({@code 0} 반환).
+   */
+  private int validatedPrefixLength(
+      List<MessageQueueEvent> events, List<MessageQueueEvent> done, String messageGroupId) {
+    if (done.size() > events.size()) {
+      log.error(
+          CRITICAL_MARKER,
+          "SQS 배치 핸들러가 입력보다 많은 이벤트를 반환했습니다 - messageGroupId={}, inputSize={}, resultSize={}",
+          messageGroupId,
+          events.size(),
+          done.size());
+      return 0;
+    }
+    for (int i = 0; i < done.size(); i++) {
+      if (!events.get(i).eventId().equals(done.get(i).eventId())) {
+        log.error(
+            CRITICAL_MARKER,
+            "SQS 배치 핸들러가 순서를 지키지 않은 결과를 반환했습니다 - messageGroupId={}, index={}",
+            messageGroupId,
+            i);
+        return 0;
+      }
+    }
+    return done.size();
+  }
+
+  /** 오늘과 동일한 메시지별 개별 처리. 실패한 메시지를 만나면 그 지점에서 멈춘다 — 나머지는 이 런의 그룹이 막혀 자연히 건너뛴다. */
+  private void consumeRunIndividually(
+      MessageRun run, List<Message> consumed, Set<String> blockedGroups) {
+    for (Message message : run.messages()) {
+      try {
+        consume(message);
+        consumed.add(message);
+      } catch (RuntimeException exception) {
+        blockedGroups.add(run.messageGroupId());
+        log.error(
+            CRITICAL_MARKER,
+            "SQS 이벤트 처리에 실패했습니다 - messageId={}, messageGroupId={}",
+            message.messageId(),
+            run.messageGroupId(),
+            exception);
+        return;
+      }
+    }
+  }
+
+  /**
+   * 연속된 (같은 {@code MessageGroupId}, 같은 이벤트 타입) 메시지 구간. {@code eventClass}는 알 수 없으면 {@code null}이다.
+   */
+  private record MessageRun(
+      String messageGroupId,
+      Class<? extends MessageQueueEvent> eventClass,
+      List<Message> messages) {}
 
   /**
    * 메시지 하나를 이벤트로 되돌려 타입이 맞는 핸들러 전부에게 넘긴다.

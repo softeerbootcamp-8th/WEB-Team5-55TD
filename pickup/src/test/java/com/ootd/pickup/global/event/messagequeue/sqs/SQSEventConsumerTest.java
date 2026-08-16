@@ -9,6 +9,7 @@ import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.global.event.DomainEvent;
 import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.event.EventType;
+import com.ootd.pickup.global.event.GroupBatchEventHandler;
 import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -24,6 +25,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -93,6 +95,28 @@ class SQSEventConsumerTest {
     @Override
     public void handle(AuctionEndedMessageQueueEvent event) {
       actionsByEventId.getOrDefault(event.eventId(), defaultAction).accept(event);
+    }
+  }
+
+  /** 배치로 받은 이벤트를 호출별로 기록하고, 지정한 동작(기본: 전부 성공)을 시뮬레이션하는 배치 핸들러. */
+  private static final class RecordingGroupBatchHandler
+      implements GroupBatchEventHandler<AuctionEndedMessageQueueEvent> {
+
+    // 서로 다른 그룹은 다른 샤드로 가 동시에 호출될 수 있어 스레드 안전한 컬렉션이어야 한다
+    private final List<List<String>> batchCalls = Collections.synchronizedList(new ArrayList<>());
+    private Function<List<AuctionEndedMessageQueueEvent>, List<AuctionEndedMessageQueueEvent>>
+        behavior = events -> events;
+
+    @Override
+    public Class<AuctionEndedMessageQueueEvent> eventClass() {
+      return AuctionEndedMessageQueueEvent.class;
+    }
+
+    @Override
+    public List<AuctionEndedMessageQueueEvent> handleBatch(
+        List<AuctionEndedMessageQueueEvent> events) {
+      batchCalls.add(events.stream().map(AuctionEndedMessageQueueEvent::eventId).toList());
+      return behavior.apply(events);
     }
   }
 
@@ -501,6 +525,99 @@ class SQSEventConsumerTest {
 
     // then
     assertThat(deletedMessageIds()).containsExactly("message-2");
+  }
+
+  @Test
+  void 같은_그룹_같은_타입_연속_메시지는_배치_핸들러_호출_한번으로_처리된다() {
+    // given
+    RecordingGroupBatchHandler handler = new RecordingGroupBatchHandler();
+    givenMessages(
+        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
+        message("message-2", "AUCTION:1024", auctionEndedEvent("event-2", 1024L)),
+        message("message-3", "AUCTION:1024", auctionEndedEvent("event-3", 1024L)));
+
+    // when
+    consumerWith(handler).consumeOnce();
+
+    // then
+    assertThat(handler.batchCalls).containsExactly(List.of("event-1", "event-2", "event-3"));
+    assertThat(deletedMessageIds()).containsExactly("message-1", "message-2", "message-3");
+  }
+
+  @Test
+  void 그룹이_다르면_배치로_묶이지_않고_런이_끊긴다() {
+    // given — 순서 보장이 걸린 부분이라 인접해 있어도 그룹이 다르면 합치면 안 된다
+    RecordingGroupBatchHandler handler = new RecordingGroupBatchHandler();
+    givenMessages(
+        message("message-1", "AUCTION:1", auctionEndedEvent("event-1", 1L)),
+        message("message-2", "AUCTION:2", auctionEndedEvent("event-2", 2L)));
+
+    // when
+    consumerWith(handler).consumeOnce();
+
+    // then — 그룹마다 별도 호출(단건 처리 경로의 기본 handle() 위임)이 된다. 서로 다른 그룹은 다른 샤드로 갈 수 있어
+    // 호출 순서 자체는 보장되지 않는다
+    assertThat(handler.batchCalls)
+        .containsExactlyInAnyOrder(List.of("event-1"), List.of("event-2"));
+    assertThat(deletedMessageIds()).containsExactlyInAnyOrder("message-1", "message-2");
+  }
+
+  @Test
+  void 배치_핸들러가_일부만_처리하면_그_지점까지만_삭제되고_그룹이_막힌다() {
+    // given — 예기치 못한 중단으로 앞의 두 건만 끝난 상태를 흉내낸다
+    RecordingGroupBatchHandler handler = new RecordingGroupBatchHandler();
+    handler.behavior = events -> events.subList(0, 2);
+    givenMessages(
+        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
+        message("message-2", "AUCTION:1024", auctionEndedEvent("event-2", 1024L)),
+        message("message-3", "AUCTION:1024", auctionEndedEvent("event-3", 1024L)));
+
+    // when
+    consumerWith(handler).consumeOnce();
+
+    // then
+    assertThat(deletedMessageIds()).containsExactly("message-1", "message-2");
+  }
+
+  @Test
+  void 배치_핸들러가_순서를_지키지_않은_결과를_반환하면_아무것도_소비되지_않는다() {
+    // given — 방어 코드 검증용: 입력 순서를 지키지 않은 prefix를 돌려주는 오작동 핸들러
+    RecordingGroupBatchHandler handler = new RecordingGroupBatchHandler();
+    handler.behavior = events -> List.of(events.get(1), events.get(0));
+    givenMessages(
+        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
+        message("message-2", "AUCTION:1024", auctionEndedEvent("event-2", 1024L)));
+
+    // when
+    consumerWith(handler).consumeOnce();
+
+    // then
+    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+  }
+
+  @Test
+  void 역직렬화에_실패한_메시지가_섞여도_앞선_메시지는_안전하게_개별_처리된다() {
+    // given — eventType 속성만으로는 본문이 깨졌는지 알 수 없어 같은 런으로 묶이지만, 배치 시도 중 역직렬화가
+    // 실패하면 개별 처리로 폴백해 앞선 메시지까지는 정상 처리된다
+    RecordingGroupBatchHandler handler = new RecordingGroupBatchHandler();
+    Message broken =
+        Message.builder()
+            .messageId("message-2")
+            .receiptHandle("receipt-message-2")
+            .body("깨진 본문")
+            .messageAttributes(eventTypeAttribute())
+            .attributes(Map.of(MessageSystemAttributeName.MESSAGE_GROUP_ID, "AUCTION:1024"))
+            .build();
+    givenMessages(
+        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
+        broken,
+        message("message-3", "AUCTION:1024", auctionEndedEvent("event-3", 1024L)));
+
+    // when
+    consumerWith(handler).consumeOnce();
+
+    // then
+    assertThat(deletedMessageIds()).containsExactly("message-1");
   }
 
   @Test

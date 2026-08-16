@@ -1,62 +1,77 @@
 package com.ootd.pickup.bid.handler;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.BDDMockito.willThrow;
 
 import com.ootd.pickup.bid.event.BidRequestCreatedMessageQueueEvent;
 import com.ootd.pickup.bid.service.BidRequestProcessingService;
-import com.ootd.pickup.bid.service.BidRequestStatusService;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class BidRequestCreatedEventHandlerTest {
 
   @Mock private BidRequestProcessingService processingService;
-  @Mock private BidRequestStatusService statusService;
 
   private BidRequestCreatedEventHandler handler;
 
   @BeforeEach
   void setUp() {
-    handler = new BidRequestCreatedEventHandler(processingService, statusService);
+    handler = new BidRequestCreatedEventHandler(processingService);
   }
 
   @Test
-  void 정상_처리되면_상태서비스를_추가로_호출하지_않는다() {
-    // given
-    BidRequestCreatedMessageQueueEvent event = createEvent();
-
-    // when
-    handler.handle(event);
-
-    // then
-    then(processingService).should().process(event);
-    then(statusService).shouldHaveNoInteractions();
+  void 이벤트_타입은_BidRequestCreatedMessageQueueEvent다() {
+    // when & then
+    assertThat(handler.eventClass()).isEqualTo(BidRequestCreatedMessageQueueEvent.class);
   }
 
   @Test
-  void 유니크_제약_충돌은_이미_성공한_것으로_처리한다() {
+  void 배치_처리는_처리서비스에_그대로_위임한다() {
     // given
-    BidRequestCreatedMessageQueueEvent event = createEvent();
-    willThrow(new DataIntegrityViolationException("duplicate"))
-        .given(processingService)
-        .process(event);
+    BidRequestCreatedMessageQueueEvent event1 = createEvent(10L);
+    BidRequestCreatedMessageQueueEvent event2 = createEvent(11L);
+    List<BidRequestCreatedMessageQueueEvent> events = List.of(event1, event2);
+    given(processingService.placeBidsForGroup(events)).willReturn(events);
 
     // when
-    handler.handle(event);
+    List<BidRequestCreatedMessageQueueEvent> done = handler.handleBatch(events);
 
     // then
-    then(statusService).should().markSucceeded(event.bidRequestId());
+    assertThat(done).isEqualTo(events);
+    then(processingService).should().placeBidsForGroup(events);
   }
 
-  private BidRequestCreatedMessageQueueEvent createEvent() {
+  @Test
+  void 단건_처리는_배치로_감싸_위임하고_끝까지_처리되면_예외가_없다() {
+    // given
+    BidRequestCreatedMessageQueueEvent event = createEvent(10L);
+    given(processingService.placeBidsForGroup(List.of(event))).willReturn(List.of(event));
+
+    // when & then
+    handler.handle(event);
+    then(processingService).should().placeBidsForGroup(List.of(event));
+  }
+
+  @Test
+  void 단건_처리가_끝까지_반영되지_않으면_예외가_발생한다() {
+    // given — 처리서비스가 아무것도 끝내지 못했다고 보고하는 경우(예기치 못한 중단)
+    BidRequestCreatedMessageQueueEvent event = createEvent(10L);
+    given(processingService.placeBidsForGroup(List.of(event))).willReturn(List.of());
+
+    // when & then
+    assertThatThrownBy(() -> handler.handle(event)).isInstanceOf(IllegalStateException.class);
+  }
+
+  private BidRequestCreatedMessageQueueEvent createEvent(Long bidRequestId) {
     return new BidRequestCreatedMessageQueueEvent(
-        "event-id", 10L, 1L, 2L, 10_500L, LocalDateTime.now());
+        "event-id-" + bidRequestId, bidRequestId, 1L, 2L, 10_500L, LocalDateTime.now());
   }
 }
