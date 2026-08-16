@@ -37,7 +37,13 @@ class SQSMessageQueueSenderTest {
     eventSqsClient = mock(SqsClient.class);
     SQSProperties properties =
         new SQSProperties(
-            QUEUE_URL, "ap-northeast-2", Duration.ofSeconds(20), Duration.ofSeconds(30), 10);
+            QUEUE_URL,
+            "ap-northeast-2",
+            Duration.ofSeconds(20),
+            Duration.ofSeconds(30),
+            10,
+            4,
+            Duration.ofSeconds(15));
     sqsMessageQueueSender = new SQSMessageQueueSender(eventSqsClient, properties);
     // 기본값: 요청에 실린 항목 전부를 성공으로 응답한다. 실패를 검증하는 테스트는 개별적으로 스텁을 덮어쓴다.
     given(eventSqsClient.sendMessageBatch(any(SendMessageBatchRequest.class)))

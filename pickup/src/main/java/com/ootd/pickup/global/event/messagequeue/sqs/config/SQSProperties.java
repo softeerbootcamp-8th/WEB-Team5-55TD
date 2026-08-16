@@ -22,6 +22,10 @@ import org.springframework.validation.annotation.Validated;
  * @param visibilityTimeout 받아간 메시지가 다른 소비자에게 다시 보이지 않는 시간. <b>핸들러 처리 시간보다 길어야 한다</b> — 짧으면 처리 중인
  *     메시지가 다시 전달되어 같은 이벤트가 동시에 두 번 처리된다. 1초 미만은 거부한다
  * @param maxMessages 한 번에 받아올 최대 메시지 수
+ * @param consumerParallelism 애그리거트(메시지 그룹)별로 나눠 처리할 전용 워커 스레드 수. 같은 그룹은 항상 같은 워커로 가 순서가 유지되고, 서로 다른
+ *     그룹은 워커가 다르면 동시에 처리된다
+ * @param workerAwaitTimeout 한 회차의 배치를 워커들에 나눠 맡긴 뒤, 폴링 스레드가 전체 결과를 기다리는 상한. {@code
+ *     visibilityTimeout}보다 짧아야 한다 — 그보다 오래 기다리는 건 메시지가 이미 다른 소비자에게 다시 보일 수 있는 시점을 넘기는 것이라 의미가 없다
  */
 @Validated
 @ConfigurationProperties(prefix = "event.sqs")
@@ -30,7 +34,9 @@ public record SQSProperties(
     @NotBlank String region,
     @NotNull Duration waitTime,
     @NotNull Duration visibilityTimeout,
-    @Min(1) @Max(10) int maxMessages) {
+    @Min(1) @Max(10) int maxMessages,
+    @Min(1) @Max(8) int consumerParallelism,
+    @NotNull Duration workerAwaitTimeout) {
 
   /**
    * 두 시간 값의 하한.
@@ -63,6 +69,12 @@ public record SQSProperties(
             || visibilityTimeout.compareTo(MAX_VISIBILITY_TIMEOUT) > 0)) {
       throw new IllegalArgumentException(
           "event.sqs.visibility-timeout must be between 1s and 12 hours");
+    }
+    if (workerAwaitTimeout != null
+        && visibilityTimeout != null
+        && workerAwaitTimeout.compareTo(visibilityTimeout) >= 0) {
+      throw new IllegalArgumentException(
+          "event.sqs.worker-await-timeout must be shorter than event.sqs.visibility-timeout");
     }
   }
 }

@@ -109,6 +109,8 @@ event:
     wait-time: ${EVENT_SQS_WAIT_TIME:20s}
     visibility-timeout: ${EVENT_SQS_VISIBILITY_TIMEOUT:30s}
     max-messages: ${EVENT_SQS_MAX_MESSAGES:10}
+    consumer-parallelism: ${EVENT_SQS_CONSUMER_PARALLELISM:4}
+    worker-await-timeout: ${EVENT_SQS_WORKER_AWAIT_TIMEOUT:15s}
 
 image:
   storage:

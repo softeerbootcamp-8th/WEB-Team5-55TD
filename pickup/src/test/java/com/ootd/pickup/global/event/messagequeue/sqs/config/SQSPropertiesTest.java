@@ -71,7 +71,9 @@ class SQSPropertiesTest {
                     "ap-northeast-2",
                     Duration.ofSeconds(20),
                     Duration.ofMillis(500),
-                    10))
+                    10,
+                    4,
+                    Duration.ofSeconds(15)))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("visibility-timeout");
   }
@@ -85,7 +87,49 @@ class SQSPropertiesTest {
         .doesNotThrowAnyException();
   }
 
+  @Test
+  void 워커_대기_시간이_가시성_제한_시간_이상이면_예외가_발생한다() {
+    // given — 그보다 오래 기다리는 건 메시지가 이미 다시 보일 수 있는 시점을 넘기는 것이라 의미가 없다
+
+    // when & then
+    assertThatThrownBy(
+            () ->
+                new SQSProperties(
+                    FIFO_QUEUE_URL,
+                    "ap-northeast-2",
+                    Duration.ofSeconds(20),
+                    Duration.ofSeconds(30),
+                    10,
+                    4,
+                    Duration.ofSeconds(30)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("worker-await-timeout");
+  }
+
+  @Test
+  void 워커_대기_시간이_가시성_제한_시간보다_짧으면_통과한다() {
+    // given & when & then
+    assertThatCode(
+            () ->
+                new SQSProperties(
+                    FIFO_QUEUE_URL,
+                    "ap-northeast-2",
+                    Duration.ofSeconds(20),
+                    Duration.ofSeconds(30),
+                    10,
+                    4,
+                    Duration.ofSeconds(15)))
+        .doesNotThrowAnyException();
+  }
+
   private SQSProperties properties(String queueUrl, Duration waitTime) {
-    return new SQSProperties(queueUrl, "ap-northeast-2", waitTime, Duration.ofSeconds(30), 10);
+    return new SQSProperties(
+        queueUrl,
+        "ap-northeast-2",
+        waitTime,
+        Duration.ofSeconds(30),
+        10,
+        4,
+        Duration.ofSeconds(15));
   }
 }
