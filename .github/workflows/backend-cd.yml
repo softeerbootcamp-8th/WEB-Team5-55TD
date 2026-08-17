@@ -538,7 +538,7 @@ jobs:
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
 
-      - name: Run WebSocket reconnect and event tests
+      - name: Run WebSocket capacity and reconnect tests
         env:
           TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
@@ -579,12 +579,28 @@ jobs:
             sleep 60
           }
 
-          for TARGET_VUS in 1000 1500 2000; do
-            export TARGET_VUS
-            run_reconnect_test "backoff와 jitter 재연결 시험" "reconnect-after" "reconnect-storm.js"
-          done
+          run_staged_test() {
+            label=$1
+            output=$2
+            script=$3
 
-          export TEST_BASE_URL=https://d38qqh1zkovln3.cloudfront.net/api
+            started_epoch=$(date +%s)
+            echo "${label} 시작: 1000 -> 1500 -> 2000 observers"
+            k6 run \
+              --summary-export="pickup/load-test/results/${output}-staged.json" \
+              "pickup/load-test/k6/${script}"
+            if [ $? -ne 0 ]; then
+              overall_result=1
+            fi
+            ended_epoch=$(date +%s)
+            echo "${output},1000-1500-2000,full,$(to_utc ${started_epoch}),$(to_utc ${ended_epoch})" >> pickup/load-test/results/scenario-timeline.csv
+
+            echo "자원 회수를 위해 60초 대기"
+            sleep 60
+          }
+
+          run_staged_test "유휴 WebSocket 연결 시험" "idle" "idle-websocket.js"
+
           export TEST_INITIAL_BID_PRICE=1500000
           export TEST_BID_INCREMENT=43000
           export RAMP_SECONDS=60
@@ -600,6 +616,14 @@ jobs:
           fi
           ended_epoch=$(date +%s)
           echo "bid-e2e,1000-1500-2000,full,$(to_utc ${started_epoch}),$(to_utc ${ended_epoch})" >> pickup/load-test/results/scenario-timeline.csv
+
+          echo "자원 회수를 위해 60초 대기"
+          sleep 60
+
+          for TARGET_VUS in 1000 1500 2000; do
+            export TARGET_VUS
+            run_reconnect_test "backoff와 jitter 재연결 시험" "reconnect-after" "reconnect-storm.js"
+          done
 
           exit ${overall_result}
 

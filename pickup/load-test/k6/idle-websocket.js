@@ -7,7 +7,7 @@ const origin = __ENV.TEST_ORIGIN;
 const auctionIds = (__ENV.TEST_AUCTION_IDS || '').split(',').filter(Boolean);
 const rampSeconds = Number(__ENV.RAMP_SECONDS || 60);
 const holdSeconds = Number(__ENV.HOLD_SECONDS || 60);
-const capacityTargets = [300, 700, 1000];
+const capacityTargets = [1000, 1500, 2000];
 const scenarioSeconds = capacityTargets.length * (rampSeconds + holdSeconds);
 const requiredConnections = Math.ceil(
   capacityTargets[capacityTargets.length - 1] * 0.999,
