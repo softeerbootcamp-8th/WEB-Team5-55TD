@@ -513,17 +513,23 @@ jobs:
 
       - name: Validate load-test configuration
         env:
+          TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_FAILURE_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws-backoff-test
           TEST_ORIGIN: https://pick-up.store
           TEST_AUCTION_IDS: 12458
+          TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
+          TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
         run: |
           set -euo pipefail
           missing=()
+          [ -n "${TEST_BASE_URL}" ] || missing+=(TEST_BASE_URL)
           [ -n "${TEST_WS_URL}" ] || missing+=(TEST_WS_URL)
           [ -n "${TEST_FAILURE_WS_URL}" ] || missing+=(TEST_FAILURE_WS_URL)
           [ -n "${TEST_ORIGIN}" ] || missing+=(TEST_ORIGIN)
           [ -n "${TEST_AUCTION_IDS}" ] || missing+=(TEST_AUCTION_IDS)
+          [ -n "${TEST_LOGIN_ID}" ] || missing+=(TEST_LOGIN_ID)
+          [ -n "${TEST_LOGIN_PASSWORD}" ] || missing+=(TEST_LOGIN_PASSWORD)
           if [ ${#missing[@]} -gt 0 ]; then
             echo "::error::부하테스트 Secret이 없습니다: ${missing[*]}"
             exit 1
@@ -532,12 +538,15 @@ jobs:
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
 
-      - name: Run WebSocket reconnect baseline tests
+      - name: Run WebSocket reconnect and event tests
         env:
+          TEST_BASE_URL: https://d38qqh1zkovln3.cloudfront.net/api
           TEST_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws
           TEST_FAILURE_WS_URL: wss://d38qqh1zkovln3.cloudfront.net/api/ws-backoff-test
           TEST_ORIGIN: https://pick-up.store
           TEST_AUCTION_IDS: 12458
+          TEST_LOGIN_ID: ${{ secrets.TEST_LOGIN_ID }}
+          TEST_LOGIN_PASSWORD: ${{ secrets.TEST_LOGIN_PASSWORD }}
           RECONNECT_FORCED_FAILURES: 5
           FIRST_CONNECTION_SECONDS: 60
           RECONNECT_HOLD_SECONDS: 20
@@ -574,6 +583,23 @@ jobs:
             export TARGET_VUS
             run_reconnect_test "backoff와 jitter 재연결 시험" "reconnect-after" "reconnect-storm.js"
           done
+
+          export TEST_BASE_URL=https://d38qqh1zkovln3.cloudfront.net/api
+          export TEST_INITIAL_BID_PRICE=1500000
+          export TEST_BID_INCREMENT=43000
+          export RAMP_SECONDS=60
+          export HOLD_SECONDS=60
+
+          echo "실제 입찰 이벤트 시험 시작: 1000 -> 1500 -> 2000 observers"
+          started_epoch=$(date +%s)
+          k6 run \
+            --summary-export="pickup/load-test/results/bid-e2e-staged.json" \
+            pickup/load-test/k6/bid-websocket-e2e.js
+          if [ $? -ne 0 ]; then
+            overall_result=1
+          fi
+          ended_epoch=$(date +%s)
+          echo "bid-e2e,1000-1500-2000,full,$(to_utc ${started_epoch}),$(to_utc ${ended_epoch})" >> pickup/load-test/results/scenario-timeline.csv
 
           exit ${overall_result}
 

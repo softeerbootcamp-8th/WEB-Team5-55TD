@@ -16,7 +16,7 @@ const initialBidPrice = Number(__ENV.TEST_INITIAL_BID_PRICE || 1500000);
 const bidIncrement = Number(__ENV.TEST_BID_INCREMENT || 43000);
 const rampSeconds = Number(__ENV.RAMP_SECONDS || 60);
 const holdSeconds = Number(__ENV.HOLD_SECONDS || 60);
-const capacityTargets = [300, 700, 1000];
+const capacityTargets = [1000, 1500, 2000];
 const scenarioSeconds = capacityTargets.length * (rampSeconds + holdSeconds);
 const requiredConnections = Math.ceil(
   capacityTargets[capacityTargets.length - 1] * 0.999,
@@ -73,9 +73,9 @@ export const options = {
     ws_order_errors: ['count==0'],
     ws_handshake_latency: ['p(95)<5000'],
     ws_delivery_latency: ['p(95)<500', 'p(99)<1000'],
-    'ws_delivery_latency{stage:hold-300}': ['p(95)<500', 'p(99)<1000'],
-    'ws_delivery_latency{stage:hold-700}': ['p(95)<500', 'p(99)<1000'],
     'ws_delivery_latency{stage:hold-1000}': ['p(95)<500', 'p(99)<1000'],
+    'ws_delivery_latency{stage:hold-1500}': ['p(95)<500', 'p(99)<1000'],
+    'ws_delivery_latency{stage:hold-2000}': ['p(95)<500', 'p(99)<1000'],
     dropped_iterations: ['count==0'],
     checks: ['rate>0.999'],
   },

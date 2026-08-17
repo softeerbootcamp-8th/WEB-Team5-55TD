@@ -43,7 +43,7 @@ for (const fileName of files) {
   );
   const metrics = result.metrics || {};
   const target = fileName.endsWith('-staged.json')
-    ? '300→700→1,000'
+    ? '1,000→1,500→2,000'
     : fileName.match(/-(\d+)\.json$/)?.[1] || '-';
   rows.push({
     scenario: scenarioName(fileName),
@@ -90,7 +90,7 @@ for (const fileName of files) {
     bidHttpP95: milliseconds(
       metricValue(metrics, 'bid_http_duration', 'p(95)', null),
     ),
-    holdDelivery: [300, 700, 1000].map((targetVus) => ({
+    holdDelivery: [1000, 1500, 2000].map((targetVus) => ({
       targetVus,
       p95: milliseconds(
         metricValue(
