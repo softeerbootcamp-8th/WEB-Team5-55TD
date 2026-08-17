@@ -22,8 +22,16 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 <a href="https://artistic-emery-094.notion.site/3a22861022fb80de82fbe11db8077ec5"><img src="https://img.shields.io/badge/요구사항_명세서-000000?style=for-the-badge&logo=notion&logoColor=white" alt="Notion" /></a>
 <a href="https://www.figma.com/design/X8rBmtMD8DAyKOjz07tRpA/Softeer5-55TD?node-id=0-1&t=B5vdByJBCjBul7vp-1"><img src="https://img.shields.io/badge/와이어프레임-000000?style=for-the-badge&logo=figma&logoColor=white" alt="Figma" /></a>
 ### 🔎 경매 탐색 (구매자)
+* 카드명 검색과 경매 상태·가격·마감 시간 기준의 필터 및 정렬을 통해 원하는 경매를 빠르게 찾을 수 있습니다.
+* 경매 상세 화면에서는 카드 실물 이미지, 감정 등급, 현재가, 다음 최소 입찰가와 판매자 정보를 확인하고, 관심 경매로 등록해 다시 모아볼 수 있습니다.
+<img width="1000" alt="경매 탐색" src="https://github.com/user-attachments/assets/c12ee1fd-e494-4c9a-9dfe-f04fcaadfc9e" />
+
+
 
 ### ⏳ 실시간 경매 (구매자)
+* SQS FIFO 기반 비동기 입찰 처리로 요청 순서를 보장하고, Redis Pub/Sub과 WebSocket을 통해 현재가와 입찰 결과를 모든 참여자에게 실시간으로 전달합니다.
+<img width="1000" alt="입찰" src="https://github.com/user-attachments/assets/caa3badb-65b2-451d-8f93-3e3f9eed3ff6" />
+
 
 ### 💰 포인트 관리 (구매자)
 * 구매자는 입찰에 필요한 포인트를 충전하고, 포인트 사용 내역과 현재 보유 포인트를 확인할 수 있습니다.
@@ -32,7 +40,9 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 
 
 ### ⚡️ 경매 등록 (셀러)
-
+* 판매자는 카드 검색을 통해 상품을 선택하고, 카드 상태와 주요 결함, 감정 정보를 입력해 상품을 등록할 수 있습니다.
+* 등록된 상품은 경매 이름과 설명, 시작일시를 포함하여 경매 신청할 수 있으며, 시작일시 + 7일간 경매가 진행됩니다.
+<img width="1000" alt="경매 등록" src="https://github.com/user-attachments/assets/257cabe4-cce7-445b-84a0-2ab4bfa8aab4" />
 
 ## 🛠️ 기술 스택
 | 구분 | 사용 기술 |
@@ -47,7 +57,13 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 
 ## 🛠️ 기술적 도전 및 해결
 > 자세한 내용은 팀 WIKI에서 확인하실 수 있습니다.
+<p>
+<a href="https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki"><img src="https://img.shields.io/badge/WIKI_바로가기-000000?style=for-the-badge&logoColor=white" alt="WIKI_바로가기" /></a>
 
+- [WebSocket STOMP로 실시간 입찰 전달하기](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%5B%EC%B1%84%EC%A3%BC%ED%98%81%5D-WebSocket%EA%B3%BC-STOMP%EB%A5%BC-%ED%99%9C%EC%9A%A9%ED%95%9C-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EC%9E%85%EC%B0%B0-%EA%B5%AC%EC%A1%B0)
+- [메시지 큐로 동시 입찰 요청을 안전하게 처리하기](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%EB%A9%94%EC%8B%9C%EC%A7%80-%ED%81%90%EB%A1%9C-%EB%8F%99%EC%8B%9C-%EC%9E%85%EC%B0%B0-%EC%9A%94%EC%B2%AD%EC%9D%84-%EC%95%88%EC%A0%84%ED%95%98%EA%B2%8C-%EC%B2%98%EB%A6%AC%ED%95%98%EA%B8%B0)
+- [이벤트 기반 통신으로 정산을 견고하게 처리하기](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%EC%9D%B4%EB%B2%A4%ED%8A%B8-%EA%B8%B0%EB%B0%98-%ED%86%B5%EC%8B%A0%EC%9C%BC%EB%A1%9C-%EC%A0%95%EC%82%B0%EC%9D%84-%EA%B2%AC%EA%B3%A0%ED%95%98%EA%B2%8C-%EC%B2%98%EB%A6%AC%ED%95%98%EA%B8%B0)
+- [경매 상태 전이 방식 선정과 초 단위 폴링](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%5B%EA%B0%95%EB%AF%BC%EC%A0%9C%5D-%EA%B2%BD%EB%A7%A4-%EC%83%81%ED%83%9C-%EC%A0%84%EC%9D%B4-%EB%B0%A9%EC%8B%9D-%EC%84%A0%EC%A0%95%EA%B3%BC-%EC%B4%88-%EB%8B%A8%EC%9C%84-%ED%8F%B4%EB%A7%81)
 ## 💻 설계
 ### ERD
 
