@@ -625,6 +625,12 @@ jobs:
             run_reconnect_test "backoff와 jitter 재연결 시험" "reconnect-after" "reconnect-storm.js"
           done
 
+          export RECONNECT_POLICY=immediate
+          for TARGET_VUS in 1000 1500 2000; do
+            export TARGET_VUS
+            run_reconnect_test "즉시 재연결 baseline 시험" "reconnect-before" "reconnect-storm.js"
+          done
+
           exit ${overall_result}
 
       - name: Create report
