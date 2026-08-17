@@ -78,4 +78,4 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 | <img width="120" alt="image" src="https://github.com/user-attachments/assets/0d23c4bd-f635-4b98-ac9e-8e8ceceb5517" /> | <img width="120" alt="image" src="https://github.com/user-attachments/assets/5edf3ee4-b709-4800-a215-02dc97f2eff7" />| <img width="120" alt="image" src="https://github.com/user-attachments/assets/2c8eb6f2-f469-4cf3-9331-dafc393dcc02" /> | <img width="120" src="https://github.com/user-attachments/assets/bf70f820-7d19-4c3e-9c06-e6800efd2547" /> |
 | :---: | :---: | :---: | :---: |
 | 강민제 | 임기범 | 채주혁 | 홍지형 |
-| [@10000Je](https://github.com/10000Je) | [@delphox60](https://github.com/delphox60) | [@Juhye0k](https://github.com/Juhye0k) | [@topograp2](https://github.com/topograp2) |<img width="1433" height="1120" alt="시스템아키텍처" src="https://github.com/user-attachments/assets/5f205d77-a589-4a22-8522-1af0343768e5" />
+| [@10000Je](https://github.com/10000Je) | [@delphox60](https://github.com/delphox60) | [@Juhye0k](https://github.com/Juhye0k) | [@topograp2](https://github.com/topograp2) |
