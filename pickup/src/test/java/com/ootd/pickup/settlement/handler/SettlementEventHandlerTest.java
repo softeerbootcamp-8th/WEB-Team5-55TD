@@ -2,6 +2,7 @@ package com.ootd.pickup.settlement.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 
@@ -9,7 +10,9 @@ import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.point.service.PointReservationService;
 import com.ootd.pickup.settlement.service.SettlementService;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -67,12 +70,45 @@ class SettlementEventHandlerTest {
   void 다른_인스턴스가_동시에_처리해_유니크_제약에_막혀도_예외를_다시_던지지_않는다() {
     // given: 다른 인스턴스가 먼저 커밋해 이 인스턴스의 정산 트랜잭션은 유니크 제약에 막혀 롤백된 상황을 흉내낸다
     AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
-    willThrow(new DataIntegrityViolationException("uk_settlement_auction_member_type"))
+    willThrow(dataIntegrityViolation("uk_settlement_auction_member_type"))
         .given(settlementService)
         .settleAuction(1L, 2L, 3L, 10_500L);
 
     // when & then: 메시지를 정상 소비 처리할 수 있도록 예외가 밖으로 새어 나가지 않아야 한다
     assertThatCode(() -> settlementEventHandler.handle(event)).doesNotThrowAnyException();
+  }
+
+  @Test
+  void 다른_유니크_제약에_막히면_예외를_다시_던진다() {
+    // given
+    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
+    DataIntegrityViolationException exception =
+        dataIntegrityViolation("uk_point_transaction_idempotency_key");
+    willThrow(exception).given(settlementService).settleAuction(1L, 2L, 3L, 10_500L);
+
+    // when & then
+    assertThatThrownBy(() -> settlementEventHandler.handle(event)).isSameAs(exception);
+  }
+
+  @Test
+  void 제약_이름을_확인할_수_없는_무결성_예외면_다시_던진다() {
+    // given
+    AuctionEndedMessageQueueEvent event = createEndedEvent(1L, 2L, 3L, 10_500L);
+    DataIntegrityViolationException exception = new DataIntegrityViolationException("unknown");
+    willThrow(exception).given(settlementService).settleAuction(1L, 2L, 3L, 10_500L);
+
+    // when & then
+    assertThatThrownBy(() -> settlementEventHandler.handle(event)).isSameAs(exception);
+  }
+
+  private DataIntegrityViolationException dataIntegrityViolation(String constraintName) {
+    ConstraintViolationException cause =
+        new ConstraintViolationException(
+            "constraint violation",
+            new SQLException("duplicate key"),
+            "insert into settlement ...",
+            constraintName);
+    return new DataIntegrityViolationException("정산 저장 중 무결성 제약 위반", cause);
   }
 
   private AuctionEndedMessageQueueEvent createEndedEvent(

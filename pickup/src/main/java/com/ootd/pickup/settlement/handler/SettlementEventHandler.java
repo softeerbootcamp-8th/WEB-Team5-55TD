@@ -9,6 +9,7 @@ import com.ootd.pickup.point.service.PointReservationService;
 import com.ootd.pickup.settlement.service.SettlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
@@ -22,15 +23,18 @@ import org.springframework.stereotype.Component;
  * Service}는 순수 비즈니스 로직만 다루는 것과 같은 이유다.
  *
  * <p>인스턴스가 여러 대면 같은 경매의 정산 이벤트가 서로 다른 인스턴스에서 동시에 처리될 수 있다. 이때 뒤늦은 쪽은 {@code settlement} 테이블의 유니크
- * 제약에 걸려 {@link DataIntegrityViolationException}과 함께 트랜잭션 전체가 롤백된다({@link SettlementService} 참고).
- * 이는 실패가 아니라 다른 인스턴스가 이미 같은 정산을 끝냈다는 신호이므로, 트랜잭션이 이미 안전하게 롤백된 이 시점(트랜잭션 경계 밖)에서 잡아 정상 소비로 처리한다. 여기서
- * 잡지 않으면 {@code SQSEventConsumer}가 이를 알 수 없는 실패로 보고 error 로그(Slack 알림)를 남기고 메시지 그룹을 막아, 자기 치유되는
- * 경합인데도 소음과 지연을 만든다.
+ * 제약에 걸려 {@link DataIntegrityViolationException}과 함께 트랜잭션 전체가 롤백된다({@link SettlementService} 참고). 이
+ * 중 정산 멱등성 제약({@code uk_settlement_auction_member_type}) 위반만 다른 인스턴스가 이미 같은 정산을 끝냈다는 신호로 해석한다.
+ * 트랜잭션이 이미 안전하게 롤백된 이 시점(트랜잭션 경계 밖)에서 잡아 정상 소비로 처리한다. 다른 무결성 제약 위반까지 중복 정산으로 간주하면 데이터 오류가 성공으로 오인되어
+ * 메시지가 삭제되므로 그대로 다시 던진다.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class SettlementEventHandler implements EventHandler<AuctionEndedMessageQueueEvent> {
+
+  private static final String SETTLEMENT_IDEMPOTENCY_CONSTRAINT =
+      "uk_settlement_auction_member_type";
 
   private final SettlementService settlementService;
   private final PointReservationService pointReservationService;
@@ -59,10 +63,25 @@ public class SettlementEventHandler implements EventHandler<AuctionEndedMessageQ
       settlementService.settleAuction(
           event.auctionId(), event.winnerMemberId(), event.sellerMemberId(), event.winningPrice());
     } catch (DataIntegrityViolationException exception) {
+      if (!isSettlementIdempotencyViolation(exception)) {
+        throw exception;
+      }
       log.info(
           "다른 인스턴스가 동시에 처리한 정산이라 건너뜀 - auctionId={}, eventId={}",
           event.auctionId(),
           event.eventId());
     }
+  }
+
+  private boolean isSettlementIdempotencyViolation(DataIntegrityViolationException exception) {
+    Throwable cause = exception;
+    while (cause != null) {
+      if (cause instanceof ConstraintViolationException constraintViolationException) {
+        return SETTLEMENT_IDEMPOTENCY_CONSTRAINT.equals(
+            constraintViolationException.getConstraintName());
+      }
+      cause = cause.getCause();
+    }
+    return false;
   }
 }
