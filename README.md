@@ -24,8 +24,7 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 ### 🔎 경매 탐색 (구매자)
 * 카드명 검색과 경매 상태·가격·마감 시간 기준의 필터 및 정렬을 통해 원하는 경매를 빠르게 찾을 수 있습니다.
 * 경매 상세 화면에서는 카드 실물 이미지, 감정 등급, 현재가, 다음 최소 입찰가와 판매자 정보를 확인하고, 관심 경매로 등록해 다시 모아볼 수 있습니다.
-<img width="1000" alt="asdf" src="https://github.com/user-attachments/assets/b6b9afd3-7025-47fa-9b99-49065e0b1581" />
-
+<img width="1000" alt="경매조회1111" src="https://github.com/user-attachments/assets/f5b5ac04-11f0-44e0-839a-f7f0dfb910d8" />
 
 
 ### ⏳ 실시간 경매 (구매자)
@@ -42,7 +41,9 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 ### ⚡️ 경매 등록 (셀러)
 * 판매자는 카드 검색을 통해 상품을 선택하고, 카드 상태와 주요 결함, 감정 정보를 입력해 상품을 등록할 수 있습니다.
 * 등록된 상품은 경매 이름과 설명, 시작일시를 포함하여 경매 신청할 수 있으며, 시작일시 + 7일간 경매가 진행됩니다.
-<img width="1000" alt="경매 등록" src="https://github.com/user-attachments/assets/257cabe4-cce7-445b-84a0-2ab4bfa8aab4" />
+
+https://github.com/user-attachments/assets/8e83bb98-1f53-499c-b123-beca6a1ca01f
+
 
 ## 🛠️ 기술 스택
 | 구분 | 사용 기술 |
@@ -66,6 +67,8 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 - [경매 상태 전이 방식 선정과 초 단위 폴링](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%5B%EA%B0%95%EB%AF%BC%EC%A0%9C%5D-%EA%B2%BD%EB%A7%A4-%EC%83%81%ED%83%9C-%EC%A0%84%EC%9D%B4-%EB%B0%A9%EC%8B%9D-%EC%84%A0%EC%A0%95%EA%B3%BC-%EC%B4%88-%EB%8B%A8%EC%9C%84-%ED%8F%B4%EB%A7%81)
 ## 💻 설계
 ### ERD
+[ERD 더 자세히 보기](https://www.erdcloud.com/d/ajAty877EnEgo39Ga)
+<img width="1000" alt="ERD 사진" src="https://github.com/user-attachments/assets/0ab6464b-74e7-4069-abaf-2c534992281c" />
 
 
 ### 시스템 아키텍처
