@@ -372,6 +372,7 @@ class MemberControllerTest {
             10L,
             2L,
             "Test Title",
+            "카드왕",
             new GetCardDetailResponse(
                 1L,
                 "리자몽 1st Edition Holo",
