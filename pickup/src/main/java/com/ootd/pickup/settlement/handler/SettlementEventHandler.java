@@ -28,8 +28,8 @@ import org.springframework.stereotype.Component;
  * 제약에 걸려 {@link DataIntegrityViolationException}과 함께 트랜잭션 전체가 롤백된다({@link SettlementService} 참고). 이
  * 중 정산 멱등성 제약({@code uk_settlement_auction_member_type}) 위반만 다른 인스턴스가 이미 같은 정산을 끝냈다는 신호로 해석한다.
  * 트랜잭션이 이미 안전하게 롤백된 이 시점(트랜잭션 경계 밖)에서 잡아 정상 소비로 처리한다. 다른 무결성 제약 위반까지 중복 정산으로 간주하면 데이터 오류가 성공으로 오인되어
- * 메시지가 삭제되므로 그대로 다시 던진다. 여기서 잡지 않으면 {@code SQSEventConsumer}가 이를 알 수 없는 실패로 보고 error 로그(Slack
- * 알림)를 남기고 메시지 그룹을 막아, 자기 치유되는 경합인데도 소음과 지연을 만든다.
+ * 메시지가 삭제되므로 그대로 다시 던진다. 여기서 잡지 않으면 {@code SQSEventConsumer}가 이를 알 수 없는 실패로 보고 error 로그(Slack 알림)를
+ * 남기고 메시지 그룹을 막아, 자기 치유되는 경합인데도 소음과 지연을 만든다.
  *
  * <p>처리 소요 시간을 {@link SettlementHandlerMetrics}로 기록한다. SQS {@code visibility-timeout}(현재 30초)이 이
  * 시간보다 길어야 하는데, 그 값이 이 핸들러가 없던 시절 실측 없이 임의로 정해진 값이라({@code docs/SQS_가시성_타임아웃_실측_실행_계획.md}), 재산정에 쓸

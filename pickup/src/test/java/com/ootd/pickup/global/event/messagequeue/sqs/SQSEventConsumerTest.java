@@ -25,8 +25,8 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 /**
- * {@code receiveMessage}/{@code deleteMessageBatch} 호출 형태와, 그룹 처리 결과에 따라 삭제·배치 지표 기록이 갈리는지만
- * 검증한다. 메시지를 이벤트로 되돌리는 로직은 {@link SQSMessageDispatcherTest}, 그룹별 병렬 처리와 메시지 단위 지표는 {@link
+ * {@code receiveMessage}/{@code deleteMessageBatch} 호출 형태와, 그룹 처리 결과에 따라 삭제·배치 지표 기록이 갈리는지만 검증한다.
+ * 메시지를 이벤트로 되돌리는 로직은 {@link SQSMessageDispatcherTest}, 그룹별 병렬 처리와 메시지 단위 지표는 {@link
  * SQSGroupBatchProcessorTest}에서 검증한다.
  */
 class SQSEventConsumerTest {
