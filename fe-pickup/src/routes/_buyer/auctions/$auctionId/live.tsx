@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import {
   createFileRoute,
   Link,
@@ -54,7 +62,11 @@ import {
   setSkipBidConfirm,
   shouldSkipBidConfirm,
 } from "@/lib/bid-confirm-preference";
-import { formatWon } from "@/lib/format";
+import {
+  caretPositionAfterDigits,
+  formatAmountInput,
+  formatWon,
+} from "@/lib/format";
 import { AuctionStatus } from "@/lib/types";
 import {
   mergeLatestBid,
@@ -138,6 +150,9 @@ function LiveAuctionPage() {
     endsAt: auction.endsAt,
   });
   const [amount, setAmount] = useState("");
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  // 콤마를 다시 매기면 문자열 길이가 바뀌어 커서가 끝으로 튄다. 다시 놓을 자리를 적어둔다.
+  const amountCaretRef = useRef<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dontShowConfirmAgain, setDontShowConfirmAgain] = useState(false);
   const [fail, setFail] = useState<string | null>(null);
@@ -176,8 +191,37 @@ function LiveAuctionPage() {
     return Number.isSafeInteger(value) ? value : null;
   })();
 
+  const onAmountKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    // 콤마는 3자리마다 화면에 붙여주는 표기라, 사용자가 직접 찍지는 못하게 막는다.
+    // 숫자 외 글자도 같이 막는다. 단축키·Backspace 같은 조작 키는 그대로 통과시킨다.
+    const isTypingCharacter =
+      event.key.length === 1 &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey;
+    if (isTypingCharacter && !/\d/.test(event.key)) {
+      event.preventDefault();
+    }
+  };
+
+  const onAmountChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { value, selectionStart } = event.target;
+    const caret = selectionStart ?? value.length;
+    // 커서 앞의 숫자 개수를 기준으로 잡아두면 콤마가 끼거나 빠져도 같은 자리로 돌아온다.
+    amountCaretRef.current = value.slice(0, caret).replace(/\D/g, "").length;
+    setAmount(formatAmountInput(value));
+  };
+
+  useLayoutEffect(() => {
+    const digitCount = amountCaretRef.current;
+    if (digitCount === null) return;
+    amountCaretRef.current = null;
+    const caret = caretPositionAfterDigits(amount, digitCount);
+    amountInputRef.current?.setSelectionRange(caret, caret);
+  }, [amount]);
+
   const onIncrementClick = () => {
-    setAmount(String((rawAmount ?? currentPrice) + minUnit));
+    setAmount(formatAmountInput(String((rawAmount ?? currentPrice) + minUnit)));
   };
 
   // 실시간 입찰 목록 — 개수 제한 없이 최신순으로 이어서 불러온다(스크롤 페이지네이션).
@@ -585,9 +629,11 @@ function LiveAuctionPage() {
             </div>
             <div className="flex gap-2">
               <Input
+                ref={amountInputRef}
                 inputMode="numeric"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onKeyDown={onAmountKeyDown}
+                onChange={onAmountChange}
                 placeholder={`${minNext.toLocaleString("ko-KR")} 이상`}
                 className="tabular"
                 disabled={isMyAuction}
@@ -607,7 +653,9 @@ function LiveAuctionPage() {
                 className="shrink-0"
               >
                 <span aria-hidden="true">+</span>
-                <span className="sr-only">현재 최소 입찰 단위 {formatWon(minUnit)} 추가</span>
+                <span className="sr-only">
+                  현재 최소 입찰 단위 {formatWon(minUnit)} 추가
+                </span>
               </Button>
               <Button
                 onClick={onBidClick}
@@ -631,7 +679,9 @@ function LiveAuctionPage() {
                   type="button"
                   size="sm"
                   variant="secondary"
-                  onClick={() => setAmount(String(recommended))}
+                  onClick={() =>
+                    setAmount(formatAmountInput(String(recommended)))
+                  }
                   disabled={isMyAuction}
                 >
                   {formatWon(recommended)}

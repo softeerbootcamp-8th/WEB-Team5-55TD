@@ -401,6 +401,7 @@ class AuctionControllerTest {
         1L,
         100L,
         "Test Title",
+        "카드왕",
         new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "레어 홀로", "https://img"),
         "PSA 10",
         AuctionStatus.SCHEDULED,

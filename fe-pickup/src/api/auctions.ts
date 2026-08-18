@@ -20,6 +20,7 @@ interface AuctionListItemResponse {
   auctionId: number;
   consignmentId: number;
   title?: string;
+  sellerNickname?: string | null;
   card: CardResponse;
   grade?: string | null;
   auctionStatus: ApiAuctionStatus;
@@ -109,6 +110,7 @@ function toSummary(item: AuctionListItemResponse): AuctionSummary {
     title: item.title,
     cardName: item.card.cardName,
     thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
+    sellerNickname: item.sellerNickname ?? undefined,
     status: toUiStatus(item.auctionStatus),
     grade: parseGrade(item.grade),
     currentPrice: item.currentPrice ?? undefined,
@@ -301,7 +303,6 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
   const summary = toSummary(item);
   return {
     ...summary,
-    sellerNickname: "",
     minBidUnit: minBidUnit(item.startingPrice),
     // thumbnailUrl 과 card.imageUrl 이 같은 값일 수 있어 중복을 제거한다.
     images: [

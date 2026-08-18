@@ -60,6 +60,11 @@ export function AuctionCard({
         <p className="line-clamp-1 text-xs text-[var(--color-text-muted)]">
           {auction.cardName}
         </p>
+        {auction.sellerNickname && (
+          <p className="line-clamp-1 text-xs text-[var(--color-text-sub)]">
+            판매자 · {auction.sellerNickname}
+          </p>
+        )}
 
         {isLive && (
           <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
