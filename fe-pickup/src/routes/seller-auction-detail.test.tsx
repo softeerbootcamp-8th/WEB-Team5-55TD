@@ -12,6 +12,7 @@ const initialAuction = {
   images: ["front.jpg"],
   grade: { agency: "PSA", score: "10" },
   endsAt: new Date(Date.now() + 3600000).toISOString(),
+  startsAt: new Date(Date.now() - 3600000).toISOString(),
 };
 let auction = initialAuction;
 let nickname = "seller";
@@ -232,6 +233,42 @@ describe("셀러 경매 상세", () => {
       to: "/auctions/$auctionId/end",
       params: { auctionId: "4" },
     });
+  });
+
+  it("예정 경매는 종료까지가 아니라 시작까지 남은 시간을 보여준다", async () => {
+    bidsQueryResult = {
+      isPending: false,
+      isError: false,
+      data: { items: [], hasNext: false },
+    };
+    auction = {
+      ...initialAuction,
+      status: "UPCOMING",
+      // 시작까지 2시간, 종료까지 1시간으로 두면 어느 쪽을 세는지 값으로 구분된다.
+      startsAt: new Date(Date.now() + 2 * 3600000).toISOString(),
+      endsAt: new Date(Date.now() + 3600000).toISOString(),
+    };
+    const { Route } = await import("@/routes/seller/auctions.$auctionId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    expect(screen.getByText("시작까지 남은 시간")).toBeInTheDocument();
+    expect(screen.getByText(/^00 : 01 : 59/)).toBeInTheDocument();
+  });
+
+  it("진행 중 경매는 남은 시간을 보여준다", async () => {
+    bidsQueryResult = {
+      isPending: false,
+      isError: false,
+      data: { items: [], hasNext: false },
+    };
+    auction = initialAuction;
+    const { Route } = await import("@/routes/seller/auctions.$auctionId");
+    const Component = Route.options.component as ComponentType;
+    render(<Component />);
+
+    expect(screen.getByText("남은 시간")).toBeInTheDocument();
+    expect(screen.queryByText("시작까지 남은 시간")).not.toBeInTheDocument();
   });
 
   it("진행 중에는 상세 상태를 주기적으로 확인하고 종료 후에는 멈춘다", async () => {
