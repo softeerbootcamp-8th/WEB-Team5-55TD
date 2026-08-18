@@ -11,6 +11,9 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 <a href="https://pick-up.store"><img src="https://img.shields.io/badge/PickUp_바로가기-000000?style=for-the-badge&logoColor=white" alt="PickUp_바로가기" /></a>
 <a href="https://artistic-emery-094.notion.site/Softeer8th-55TD-39d2861022fb80ba9396fa43a9fcdece"><img src="https://img.shields.io/badge/팀_노션-000000?style=for-the-badge&logo=notion&logoColor=white" alt="Notion" /></a>
 <a href="https://app.notion.com/p/39e2861022fb80c4bc11fd5c37e23650?v=39f2861022fb80c78030000cd935ebb2&source=copy_link"><img src="https://img.shields.io/badge/데일리스크럼-181717?style=for-the-badge&logo=notion&logoColor=white" alt="데일리스크럼" /></a>
+<a href="https://softeer5.atlassian.net/jira/software/projects/OOTD/boards/1/backlog">
+  <img src="https://img.shields.io/badge/JIRA_백로그-0052CC?style=for-the-badge&logo=jira&logoColor=white" alt="JIRA 백로그" />
+</a>
 </p>
 </div>
 
