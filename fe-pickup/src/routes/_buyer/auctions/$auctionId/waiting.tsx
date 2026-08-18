@@ -80,7 +80,7 @@ function WaitingPage() {
       <dl className="grid w-full max-w-md grid-cols-3 gap-3 rounded-[var(--radius-lg)] border border-border bg-card p-5 text-center">
         <Stat label="시작가" value={formatWon(auction.startPrice)} />
         <Stat label="최소 입찰 단위" value={formatWon(auction.minBidUnit)} />
-        <Stat label="보유 포인트" value={pointLabel} accent />
+        <Stat label="사용 가능 포인트" value={pointLabel} accent />
       </dl>
 
       <Button size="lg" disabled className="w-full max-w-md">

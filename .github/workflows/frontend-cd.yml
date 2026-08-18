@@ -9,8 +9,6 @@ on:
       - 'fe-pickup/**'
       - '.github/workflows/frontend-cd.yml'
       - '.github/workflows/frontend-ci.yml'
-  # IAM 역할 신뢰 정책이 main·develop 만 허용하므로, 그 외 브랜치에서 실행하면
-  # OIDC 인증 단계에서 거부된다.
   workflow_dispatch:
 
 # 배포가 겹치면 S3 파일 교체 중에 또 교체된다.
@@ -134,7 +132,7 @@ jobs:
             FAILED_REASON="CI 워크플로에서 업로드한 fe-dist 아티팩트를 찾지 못했습니다."
           elif [ "${{ steps.aws-auth.outcome }}" = "failure" ]; then
             FAILED_STEP="AWS OIDC 인증"
-            FAILED_REASON="AssumeRoleWithWebIdentity 가 거부됐습니다. IAM 역할 신뢰 정책의 sub 조건(repo/브랜치)을 확인하세요. main·develop 외 브랜치에서는 거부됩니다."
+            FAILED_REASON="AssumeRoleWithWebIdentity 가 거부됐습니다. IAM 역할 신뢰 정책의 sub 조건(repo/브랜치)을 확인하세요."
           elif [ "${{ steps.deploy.outcome }}" = "failure" ]; then
             case "${DEPLOY_RESULT}" in
               precondition_failed)

@@ -39,6 +39,10 @@ public class Consignment {
   @JoinColumn(name = "seller_member_id", nullable = false)
   private Member sellerMember;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "card_state", length = 16)
+  private CardState cardState;
+
   @Column(name = "major_defect")
   private String majorDefect;
 
@@ -47,9 +51,15 @@ public class Consignment {
   private ConsignmentStatus status;
 
   @Builder
-  public Consignment(Card card, Member sellerMember, String majorDefect, ConsignmentStatus status) {
+  public Consignment(
+      Card card,
+      Member sellerMember,
+      CardState cardState,
+      String majorDefect,
+      ConsignmentStatus status) {
     this.card = card;
     this.sellerMember = sellerMember;
+    this.cardState = cardState;
     this.majorDefect = majorDefect;
     this.status = status;
   }
@@ -62,6 +72,10 @@ public class Consignment {
     return status.isDeletable();
   }
 
+  public void updateCardState(CardState cardState) {
+    this.cardState = cardState;
+  }
+
   public void updateMajorDefect(String majorDefect) {
     this.majorDefect = majorDefect;
   }
@@ -70,6 +84,6 @@ public class Consignment {
     if (this.status != REGISTERABLE) {
       throw new PickUpException(CONSIGNMENT_NOT_REGISTERABLE);
     }
-    this.status = AUCTION_SCHEDULED;
+    this.status = IN_AUCTION;
   }
 }

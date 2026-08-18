@@ -6,6 +6,13 @@ import { axiosInstance } from "@/api/mutator/custom-instance";
 type BidStatus = "HIGHEST" | "OUTBID" | "WON";
 type ApiAuctionStatus = "SCHEDULED" | "ONGOING" | "WON" | "PASSED";
 
+/** 셀러 경매 상세 등에서 쓰는 미리보기(최근 N건) / 전체보기 모달 조회 크기. */
+export const BID_PREVIEW_SIZE = 6;
+export const BID_MODAL_SIZE = 100;
+
+/** 구매자 실시간 경매 화면의 입찰 목록 — 개수 제한 없이 스크롤로 이어서 불러온다. */
+export const REALTIME_BID_PAGE_SIZE = 20;
+
 export interface PlacedBid {
   bidId: number;
   auctionId: number;
@@ -26,6 +33,53 @@ export async function placeBid(
   return data;
 }
 
+export type BidRequestStatus = "PENDING" | "SUCCEEDED" | "FAILED";
+
+export interface PlacedBidRequest {
+  bidRequestId: number;
+  auctionId: number;
+  memberId: number;
+  bidPrice: number;
+  status: BidRequestStatus;
+  createdAt: string;
+}
+
+export interface BidRequestResult {
+  bidRequestId: number;
+  auctionId: number;
+  bidPrice: number;
+  status: BidRequestStatus;
+  failureCode?: string | null;
+  failureMessage?: string | null;
+  processedAt?: string | null;
+}
+
+/**
+ * 입찰 요청을 접수한다. 이 호출이 성공(202)해도 입찰이 확정된 것은 아니다 — 실제 처리 결과는
+ * WebSocket으로 비동기 전달된다(성공: 경매 topic 브로드캐스트, 실패: 유니캐스트).
+ */
+export async function createBidRequest(
+  auctionId: string,
+  bidPrice: number,
+): Promise<PlacedBidRequest> {
+  const { data } = await axiosInstance.post<PlacedBidRequest>(
+    `/auctions/${auctionId}/bid-requests`,
+    { bidPrice },
+  );
+  return data;
+}
+
+/** WebSocket 결과 알림 유실에 대비해 접수한 입찰 요청의 최종 상태를 조회한다. */
+export async function getBidRequestResult(
+  auctionId: string,
+  bidRequestId: number,
+): Promise<BidRequestResult> {
+  const { data } = await axiosInstance.get<BidRequestResult>(
+    `/auctions/${auctionId}/bid-requests/${bidRequestId}`,
+  );
+  return data;
+}
+
 /** 백엔드가 내려주는 한글 메시지(ExceptionResponse.message)를 그대로 보여준다. */
 export function getBidErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {
@@ -38,7 +92,8 @@ export function getBidErrorMessage(error: unknown): string {
 
 interface AuctionBidListItemResponse {
   bidId: number;
-  nicknameMasked: string;
+  nickname: string;
+  profileImageUrl?: string | null;
   bidPrice: number;
   createdAt: string;
   isMine: boolean;
@@ -68,6 +123,7 @@ interface CardResponse {
 
 interface MyBidListItemResponse {
   auctionId: number;
+  title?: string;
   card: CardResponse;
   grade?: string | null;
   myBidPrice: number;
@@ -91,7 +147,8 @@ export interface MyBidsParams {
 function toBid(item: AuctionBidListItemResponse): Bid {
   return {
     id: String(item.bidId),
-    maskedNickname: item.nicknameMasked,
+    nickname: item.nickname,
+    profileImageUrl: item.profileImageUrl ?? undefined,
     amount: item.bidPrice,
     createdAt: item.createdAt,
     isMine: item.isMine,
@@ -121,11 +178,7 @@ function parseGrade(value?: string | null): Grade | undefined {
   return { agency: agency as Grade["agency"], score: score.join(" ") };
 }
 
-/**
- * 경매가 이미 종료된 뒤에는 OUTBID를 "추월됨"이 아니라 "미낙찰"로 보여준다.
- * 백엔드가 아직 경매 종료 시 낙찰 입찰을 WON으로 전환하는 배치를 구현하지 않아
- * 실제로는 status에 WON이 관측되지 않지만, 화면은 계약된 값을 그대로 대비한다.
- */
+/** 경매가 이미 종료된 뒤에는 OUTBID를 "추월됨"이 아니라 "미낙찰"로 보여준다. */
 function toUiBidStatus(
   status: BidStatus,
   auctionStatus: ApiAuctionStatus,
@@ -140,6 +193,7 @@ function toUiBidStatus(
 function toMyBidItem(item: MyBidListItemResponse): MyBidItem {
   return {
     auctionId: String(item.auctionId),
+    title: item.title,
     cardName: item.card.cardName,
     thumbnailUrl: item.card.imageUrl ?? undefined,
     grade: parseGrade(item.grade),

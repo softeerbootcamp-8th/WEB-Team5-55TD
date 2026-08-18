@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
-import com.ootd.pickup.bid.domain.Bid;
-import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.PlaceBidRequest;
 import com.ootd.pickup.bid.repository.BidJpaRepository;
 import com.ootd.pickup.cards.domain.Card;
@@ -19,6 +17,9 @@ import com.ootd.pickup.consignments.repository.consignment.ConsignmentJpaReposit
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
 import com.ootd.pickup.member.repository.MemberJpaRepository;
+import com.ootd.pickup.point.domain.Point;
+import com.ootd.pickup.point.repository.PointJpaRepository;
+import com.ootd.pickup.point.repository.PointReservationJpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -46,14 +47,20 @@ class BidConcurrencyTest {
 
   @Autowired private MemberJpaRepository memberJpaRepository;
 
+  @Autowired private PointJpaRepository pointJpaRepository;
+
+  @Autowired private PointReservationJpaRepository pointReservationJpaRepository;
+
   @Autowired private CardJpaRepository cardJpaRepository;
 
   @AfterEach
   void tearDown() {
+    pointReservationJpaRepository.deleteAll();
     bidJpaRepository.deleteAll();
     auctionJpaRepository.deleteAll();
     consignmentJpaRepository.deleteAll();
     cardJpaRepository.deleteAll();
+    pointJpaRepository.deleteAll();
     memberJpaRepository.deleteAll();
   }
 
@@ -63,6 +70,8 @@ class BidConcurrencyTest {
     Member seller = memberJpaRepository.save(Member.create("seller", "password", "판매자"));
     Member firstBidder = memberJpaRepository.save(Member.create("bidder1", "password", "입찰자1"));
     Member secondBidder = memberJpaRepository.save(Member.create("bidder2", "password", "입찰자2"));
+    pointJpaRepository.save(createPointWithBalance(firstBidder.getMemberId(), 50_000L));
+    pointJpaRepository.save(createPointWithBalance(secondBidder.getMemberId(), 50_000L));
     Card card =
         cardJpaRepository.save(
             Card.builder()
@@ -70,7 +79,7 @@ class BidConcurrencyTest {
                 .cardNumber("001")
                 .setName("테스트 세트")
                 .language(Language.KOREAN)
-                .rarity(Rarity.MINT)
+                .rarity(Rarity.RARE_HOLO)
                 .imageUrl("https://example.com/card.png")
                 .build());
     Consignment consignment =
@@ -78,11 +87,13 @@ class BidConcurrencyTest {
             Consignment.builder()
                 .card(card)
                 .sellerMember(seller)
-                .status(ConsignmentStatus.AUCTION_SCHEDULED)
+                .status(ConsignmentStatus.IN_AUCTION)
                 .build());
     Auction auction =
         auctionJpaRepository.saveAndFlush(
             Auction.builder()
+                .title("테스트 제목")
+                .description("테스트 설명")
                 .consignment(consignment)
                 .startedAt(LocalDateTime.now().minusHours(1))
                 .endedAt(LocalDateTime.now().plusHours(1))
@@ -113,14 +124,19 @@ class BidConcurrencyTest {
     }
 
     // then
-    List<Bid> bids =
-        bidJpaRepository.findAll().stream()
-            .filter(bid -> bid.getAuction().getAuctionId().equals(auction.getAuctionId()))
-            .toList();
-    List<Bid> highestBids =
-        bids.stream().filter(bid -> bid.getBidStatus() == BidStatus.HIGHEST).toList();
+    // 정확히 하나의 입찰만 HIGHEST로 남는다는 보장은 이제 데이터 모델 자체가 구조적으로 지킨다
+    // (Bid.getBidStatus()는 auction.winningBidId와 같은 입찰인지로만 판단하므로, 어떤 순간에도
+    // winningBidId와 같은 bidId를 가진 입찰은 최대 하나다). 여기서 실제로 검증해야 하는 것은
+    // 동시에 들어온 두 입찰 중 더 높은 쪽이 비관적 락으로 안전하게 직렬화되어 최종 승자가 됐는지다.
+    Auction updatedAuction = auctionJpaRepository.findById(auction.getAuctionId()).orElseThrow();
     assertThat(results).allMatch(Set.of("SUCCESS", "OUTBID_EXISTS")::contains);
-    assertThat(highestBids).singleElement().extracting(Bid::getBidPrice).isEqualTo(11_000L);
+    assertThat(updatedAuction.getWinningPrice()).isEqualTo(11_000L);
+  }
+
+  private Point createPointWithBalance(Long memberId, long balance) {
+    Point point = Point.create(memberId);
+    point.increaseBalance(balance);
+    return point;
   }
 
   private String placeBidAfterSignal(

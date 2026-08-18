@@ -2,6 +2,7 @@ package com.ootd.pickup.auction.controller;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
 import static org.assertj.core.api.Assertions.*;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.BDDMockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -15,6 +16,7 @@ import com.ootd.pickup.auction.dto.response.CertificateResponse;
 import com.ootd.pickup.auction.dto.response.CreateAuctionResponse;
 import com.ootd.pickup.auction.service.AuctionService;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.CertificationBody;
 import com.ootd.pickup.consignments.dto.response.ConsignmentImageResponse;
 import com.ootd.pickup.global.auth.Authentication;
@@ -81,6 +83,56 @@ class AuctionControllerTest {
   }
 
   @Test
+  void 시작가가_1000원_미만이면_400을_반환한다() throws Exception {
+    // given
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            100L, 999L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(containsString("1,000원 이상")));
+
+    then(auctionService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 시작가가_정확히_1000원이면_경매_신청이_통과한다() throws Exception {
+    // given
+    LocalDateTime scheduledStartAt = LocalDateTime.now().plusDays(1);
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(100L, 1000L, 15000L, scheduledStartAt, "Title", "Description");
+    given(auctionService.registerAuction(eq(1L), any(CreateAuctionRequest.class)))
+        .willReturn(
+            new CreateAuctionResponse(
+                1L,
+                100L,
+                AuctionStatus.SCHEDULED,
+                1000L,
+                50L,
+                scheduledStartAt,
+                null,
+                null,
+                null,
+                LocalDateTime.now()));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
   void 인증_정보가_없으면_401을_반환한다() throws Exception {
     // given
     CreateAuctionRequest request = createRequest(LocalDateTime.now().plusDays(1));
@@ -100,7 +152,46 @@ class AuctionControllerTest {
   void 위탁상품ID가_없으면_400을_반환한다() throws Exception {
     // given
     CreateAuctionRequest request =
-        new CreateAuctionRequest(null, 10000L, 15000L, LocalDateTime.now().plusDays(1));
+        new CreateAuctionRequest(
+            null, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "Description");
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(auctionService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 제목이_100자를_초과하면_400을_반환한다() throws Exception {
+    // given
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            100L, 10000L, 15000L, LocalDateTime.now().plusDays(1), "가".repeat(101), "Description");
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions")
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    then(auctionService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 설명이_1000자를_초과하면_400을_반환한다() throws Exception {
+    // given
+    CreateAuctionRequest request =
+        new CreateAuctionRequest(
+            100L, 10000L, 15000L, LocalDateTime.now().plusDays(1), "Title", "가".repeat(1001));
 
     // when & then
     mockMvc
@@ -250,8 +341,11 @@ class AuctionControllerTest {
         .andExpect(jsonPath("$.auctionId").value(1L))
         .andExpect(jsonPath("$.consignmentId").value(100L))
         .andExpect(jsonPath("$.grade").value("PSA 10"))
-        .andExpect(jsonPath("$.cardState").value("Gem Mint"))
+        .andExpect(jsonPath("$.cardState").value("HIGH"))
+        .andExpect(jsonPath("$.sellerId").value(42L))
         .andExpect(jsonPath("$.sellerNickname").value("카드마스터샵"))
+        .andExpect(
+            jsonPath("$.sellerProfileImageUrl").value("https://example.com/members/42/profile.png"))
         .andExpect(jsonPath("$.certificate.serialNumber").value("PSA-84213907"))
         .andExpect(jsonPath("$.images[0].imageUrl").value("https://img-front"))
         .andExpect(jsonPath("$.nextMinBid").value(10000L));
@@ -274,7 +368,9 @@ class AuctionControllerTest {
     return new AuctionDetailResponse(
         1L,
         100L,
-        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "MINT", "https://img"),
+        "Test Title",
+        "Test Description",
+        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "레어 홀로", "https://img"),
         "PSA 10",
         AuctionStatus.SCHEDULED,
         10000L,
@@ -285,14 +381,18 @@ class AuctionControllerTest {
         0L,
         false,
         "https://img-front",
+        42L,
         "카드마스터샵",
+        "https://example.com/members/42/profile.png",
         new CertificateResponse(
             1L, "PSA-84213907", CertificationBody.PSA, "10", LocalDate.of(2026, 6, 30)),
         List.of(new ConsignmentImageResponse(1L, 0, "https://img-front")),
-        "Gem Mint",
+        CardState.HIGH,
         null,
         500L,
         10000L,
+        null,
+        false,
         null);
   }
 
@@ -300,7 +400,8 @@ class AuctionControllerTest {
     return new AuctionListItemResponse(
         1L,
         100L,
-        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "MINT", "https://img"),
+        "Test Title",
+        new GetCardDetailResponse(10L, "리자몽", "Base Set", "4/102", "일본어", "레어 홀로", "https://img"),
         "PSA 10",
         AuctionStatus.SCHEDULED,
         10000L,
@@ -314,6 +415,6 @@ class AuctionControllerTest {
   }
 
   private CreateAuctionRequest createRequest(LocalDateTime scheduledStartAt) {
-    return new CreateAuctionRequest(100L, 10000L, 15000L, scheduledStartAt);
+    return new CreateAuctionRequest(100L, 10000L, 15000L, scheduledStartAt, "Title", "Description");
   }
 }

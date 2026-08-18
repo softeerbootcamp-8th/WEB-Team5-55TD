@@ -7,6 +7,7 @@ import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.repository.auction.AuctionJpaRepository;
+import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchJpaRepository;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
@@ -50,6 +51,7 @@ class AuctionSearchIntegrationTest {
   @Autowired private CertificateJpaRepository certificateJpaRepository;
   @Autowired private ConsignmentImageJpaRepository consignmentImageJpaRepository;
   @Autowired private AuctionJpaRepository auctionJpaRepository;
+  @Autowired private AuctionRepository auctionRepository;
   @Autowired private WatchJpaRepository watchJpaRepository;
 
   @Test
@@ -82,6 +84,49 @@ class AuctionSearchIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.hasNext").value(false))
         .andExpect(jsonPath("$.cursor").doesNotExist())
+        .andExpect(jsonPath("$.items[0].auctionId").value(expensive.getAuctionId()));
+  }
+
+  @Test
+  void 진행중_경매를_현재가_오름차순으로_정렬하고_커서로_페이지를_조회한다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    Auction expensive =
+        createAuction(consignment, AuctionStatus.ONGOING, 1000L, LocalDateTime.now().plusHours(1));
+    expensive.updateWinningBid(1L, 5000L);
+    Auction cheap =
+        createAuction(consignment, AuctionStatus.ONGOING, 2000L, LocalDateTime.now().plusHours(1));
+    cheap.updateWinningBid(2L, 3000L);
+    Auction mid =
+        createAuction(consignment, AuctionStatus.ONGOING, 2500L, LocalDateTime.now().plusHours(1));
+    mid.updateWinningBid(3L, 4000L);
+    auctionJpaRepository.flush();
+
+    // when & then
+    String firstPage =
+        mockMvc
+            .perform(
+                get("/auctions")
+                    .param("status", "ONGOING")
+                    .param("sort", "PRICE_ASC")
+                    .param("size", "2"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.hasNext").value(true))
+            .andExpect(jsonPath("$.items[0].auctionId").value(cheap.getAuctionId()))
+            .andExpect(jsonPath("$.items[1].auctionId").value(mid.getAuctionId()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("status", "ONGOING")
+                .param("sort", "PRICE_ASC")
+                .param("size", "2")
+                .param("cursor", extractCursor(firstPage)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hasNext").value(false))
         .andExpect(jsonPath("$.items[0].auctionId").value(expensive.getAuctionId()));
   }
 
@@ -144,6 +189,91 @@ class AuctionSearchIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.items[0].auctionId").value(targetAuction.getAuctionId()));
+  }
+
+  @Test
+  void 검색어의_LIKE_와일드카드는_리터럴로_취급된다() throws Exception {
+    // given
+    Card underscoreCard = createCard("리자몽_EX", "4/102", "Base Set", Language.JAPANESE);
+    Card anyCharCard = createCard("리자몽1EX", "5/102", "Base Set", Language.JAPANESE);
+    Auction underscoreAuction =
+        createAuction(createConsignment(underscoreCard), AuctionStatus.SCHEDULED, 1000L, null);
+    createAuction(createConsignment(anyCharCard), AuctionStatus.SCHEDULED, 2000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽_EX"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(underscoreAuction.getAuctionId()));
+  }
+
+  @Test
+  void 검색어가_퍼센트뿐이면_전체가_아니라_아무것도_찾지_못한다() throws Exception {
+    // given
+    createAuction(
+        createConsignment(createCard("리자몽", "4/102", "Base Set", Language.JAPANESE)),
+        AuctionStatus.SCHEDULED,
+        1000L,
+        null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "%"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0));
+  }
+
+  @Test
+  void 상태를_여러_개_지정하면_OR로_합쳐서_조회한다() throws Exception {
+    // given — 종료 탭 하나가 WON·PASSED 두 상태를 함께 보내는 것과 같은 형태다.
+    Consignment consignment = createConsignment();
+    Auction won = createAuction(consignment, AuctionStatus.WON, 1000L, null);
+    Auction passed = createAuction(createConsignment(), AuctionStatus.PASSED, 2000L, null);
+    createAuction(createConsignment(), AuctionStatus.ONGOING, 3000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("status", "WON").param("status", "PASSED"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(
+            jsonPath("$.items[*].auctionId")
+                .value(
+                    org.hamcrest.Matchers.containsInAnyOrder(
+                        won.getAuctionId().intValue(), passed.getAuctionId().intValue())));
+  }
+
+  @Test
+  void 같은_상태를_여러_번_보내도_결과는_같다() throws Exception {
+    // given
+    createAuction(createConsignment(), AuctionStatus.ONGOING, 1000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("status", "ONGOING").param("status", "ONGOING"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1));
+  }
+
+  @Test
+  void 상태를_상태_종류보다_많이_보내면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("status", "ONGOING")
+                .param("status", "SCHEDULED")
+                .param("status", "WON")
+                .param("status", "PASSED")
+                .param("status", "ONGOING"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 알_수_없는_상태를_보내면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc.perform(get("/auctions").param("status", "UNKNOWN")).andExpect(status().isBadRequest());
   }
 
   @Test
@@ -232,6 +362,184 @@ class AuctionSearchIntegrationTest {
         .andExpect(jsonPath("$.items[0].grade").value("PSA 10"));
   }
 
+  @Test
+  void sellerId로_필터링하면_해당_판매자의_경매만_조회된다() throws Exception {
+    // given
+    Consignment sellerAConsignment = createConsignment();
+    Auction sellerAAuction1 =
+        createAuction(sellerAConsignment, AuctionStatus.SCHEDULED, 1000L, null);
+    Auction sellerAAuction2 =
+        createAuction(sellerAConsignment, AuctionStatus.SCHEDULED, 2000L, null);
+    Consignment sellerBConsignment = createConsignment();
+    createAuction(sellerBConsignment, AuctionStatus.SCHEDULED, 3000L, null);
+    Long sellerAId = sellerAConsignment.getSellerMember().getMemberId();
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("sellerId", String.valueOf(sellerAId))
+                .param("sort", "PRICE_ASC"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].auctionId").value(sellerAAuction1.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(sellerAAuction2.getAuctionId()));
+  }
+
+  @Test
+  void cardId로_필터링하면_같은_카드의_경매만_조회된다() throws Exception {
+    // given
+    Card sharedCard = createCard("리자몽", "4/102", "Base Set", Language.JAPANESE);
+    Consignment consignment1 =
+        consignmentJpaRepository.save(
+            Consignment.builder()
+                .card(sharedCard)
+                .sellerMember(createMember("cardFilterSeller1"))
+                .status(ConsignmentStatus.IN_AUCTION)
+                .build());
+    Consignment consignment2 =
+        consignmentJpaRepository.save(
+            Consignment.builder()
+                .card(sharedCard)
+                .sellerMember(createMember("cardFilterSeller2"))
+                .status(ConsignmentStatus.IN_AUCTION)
+                .build());
+    Auction sameCardAuction1 = createAuction(consignment1, AuctionStatus.SCHEDULED, 1000L, null);
+    Auction sameCardAuction2 = createAuction(consignment2, AuctionStatus.SCHEDULED, 2000L, null);
+    Consignment otherConsignment = createConsignment();
+    createAuction(otherConsignment, AuctionStatus.SCHEDULED, 3000L, null);
+
+    // when & then
+    mockMvc
+        .perform(
+            get("/auctions")
+                .param("cardId", String.valueOf(sharedCard.getCardId()))
+                .param("sort", "PRICE_ASC"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].auctionId").value(sameCardAuction1.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(sameCardAuction2.getAuctionId()));
+  }
+
+  @Test
+  void excludeAuctionId를_지정하면_해당_경매는_결과에서_제외된다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    Auction current = createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null);
+    Auction other = createAuction(consignment, AuctionStatus.SCHEDULED, 2000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("excludeAuctionId", String.valueOf(current.getAuctionId())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(other.getAuctionId()));
+  }
+
+  @Test
+  void searchField가_AUCTION_TITLE이면_경매명으로만_찾는다() throws Exception {
+    // given
+    Card card = createCard("리자몽", "4/102", "Base Set", Language.JAPANESE);
+    Consignment consignment = createConsignment(card, createMember("titleSeller"));
+    Auction titled = createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null, "리자몽 단독 출품전");
+    createAuction(consignment, AuctionStatus.SCHEDULED, 2000L, null, "피카츄 기획전");
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "단독 출품전").param("searchField", "AUCTION_TITLE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(titled.getAuctionId()));
+
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽").param("searchField", "AUCTION_TITLE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(titled.getAuctionId()));
+  }
+
+  @Test
+  void searchField가_CARD_NAME이면_세트명은_찾지_못한다() throws Exception {
+    // given
+    Card card = createCard("리자몽", "4/102", "정글 컬렉션", Language.JAPANESE);
+    Auction auction =
+        createAuction(
+            createConsignment(card, createMember("cardNameSeller")),
+            AuctionStatus.SCHEDULED,
+            1000L,
+            null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽").param("searchField", "CARD_NAME"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(auction.getAuctionId()));
+
+    mockMvc
+        .perform(get("/auctions").param("q", "정글 컬렉션").param("searchField", "CARD_NAME"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0));
+  }
+
+  @Test
+  void searchField가_SELLER이면_판매자_닉네임으로_찾는다() throws Exception {
+    // given
+    Card card = createCard("리자몽", "4/102", "Base Set", Language.JAPANESE);
+    Auction target =
+        createAuction(
+            createConsignment(card, createMember("포켓몬마스터민제")),
+            AuctionStatus.SCHEDULED,
+            1000L,
+            null);
+    createAuction(
+        createConsignment(card, createMember("다른판매자")), AuctionStatus.SCHEDULED, 2000L, null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "마스터민제").param("searchField", "SELLER"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].auctionId").value(target.getAuctionId()));
+  }
+
+  @Test
+  void searchField를_생략하면_경매명과_판매자까지_함께_훑는다() throws Exception {
+    // given
+    Card card = createCard("피카츄", "025/102", "Jungle", Language.KOREAN);
+    Auction byTitle =
+        createAuction(
+            createConsignment(card, createMember("allFieldSellerA")),
+            AuctionStatus.SCHEDULED,
+            1000L,
+            null,
+            "리자몽 기획전");
+    Auction bySeller =
+        createAuction(
+            createConsignment(card, createMember("리자몽수집가")), AuctionStatus.SCHEDULED, 2000L, null);
+    createAuction(
+        createConsignment(card, createMember("allFieldSellerC")),
+        AuctionStatus.SCHEDULED,
+        3000L,
+        null);
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽").param("sort", "PRICE_ASC"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].auctionId").value(byTitle.getAuctionId()))
+        .andExpect(jsonPath("$.items[1].auctionId").value(bySeller.getAuctionId()));
+  }
+
+  @Test
+  void 지원하지_않는_searchField면_400을_반환한다() throws Exception {
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("q", "리자몽").param("searchField", "SELLER_EMAIL"))
+        .andExpect(status().isBadRequest());
+  }
+
   private String extractCursor(String json) {
     JsonNode root = objectMapper.readTree(json);
     return root.get("cursor").asText();
@@ -242,12 +550,15 @@ class AuctionSearchIntegrationTest {
   }
 
   private Consignment createConsignment(Card card) {
-    Member seller = createMember("seller" + System.identityHashCode(card));
+    return createConsignment(card, createMember("seller" + System.identityHashCode(card)));
+  }
+
+  private Consignment createConsignment(Card card, Member seller) {
     Consignment consignment =
         Consignment.builder()
             .card(card)
             .sellerMember(seller)
-            .status(ConsignmentStatus.AUCTION_ONGOING)
+            .status(ConsignmentStatus.IN_AUCTION)
             .build();
     return consignmentJpaRepository.save(consignment);
   }
@@ -259,7 +570,7 @@ class AuctionSearchIntegrationTest {
             .cardNumber(cardNumber)
             .setName(setName)
             .language(language)
-            .rarity(Rarity.MINT)
+            .rarity(Rarity.RARE_HOLO)
             .imageUrl("https://image.example.com/" + cardNumber + ".png")
             .build();
     return cardJpaRepository.save(card);
@@ -272,8 +583,19 @@ class AuctionSearchIntegrationTest {
 
   private Auction createAuction(
       Consignment consignment, AuctionStatus status, Long startingPrice, LocalDateTime endedAt) {
+    return createAuction(consignment, status, startingPrice, endedAt, "테스트 제목");
+  }
+
+  private Auction createAuction(
+      Consignment consignment,
+      AuctionStatus status,
+      Long startingPrice,
+      LocalDateTime endedAt,
+      String title) {
     Auction auction =
         Auction.builder()
+            .title(title)
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().plusDays(1))
             .endedAt(endedAt)
@@ -287,6 +609,8 @@ class AuctionSearchIntegrationTest {
 
   private void createWatch(Auction auction, Member member) {
     watchJpaRepository.save(Watch.builder().auction(auction).member(member).build());
+    watchJpaRepository.flush();
+    auctionRepository.incrementWatchCountById(auction.getAuctionId());
   }
 
   private void createConsignmentImage(Consignment consignment, int order, String url) {

@@ -31,14 +31,18 @@ function SellerHome() {
   ];
 
   const {
-    data: liveProducts,
+    data: inAuctionProducts,
     isPending: isLiveLoading,
     isError: isLiveError,
   } = useQuery({
-    queryKey: ["consignments", "my", "AUCTION_ONGOING"],
+    queryKey: ["consignments", "my", "IN_AUCTION", "ONGOING"],
     queryFn: () =>
-      getMyConsignments({ status: "AUCTION_ONGOING" }).then((r) => r.items),
+      getMyConsignments({
+        status: "IN_AUCTION",
+        auctionStatus: "ONGOING",
+      }).then((r) => r.items),
   });
+  const liveProducts = inAuctionProducts;
 
   const {
     data: recentSales,
@@ -60,7 +64,7 @@ function SellerHome() {
         </div>
         <Button asChild className="self-start">
           <Link to="/seller/register">
-            <Plus /> 카드 등록
+            <Plus /> 상품 등록
           </Link>
         </Button>
       </div>
@@ -75,9 +79,7 @@ function SellerHome() {
             <span className="text-xs text-[var(--color-text-muted)]">
               {s.label}
             </span>
-            <span className="tabular text-2xl font-bold">
-              {s.value ?? "-"}
-            </span>
+            <span className="tabular text-2xl font-bold">{s.value ?? "-"}</span>
           </div>
         ))}
       </div>

@@ -3,6 +3,7 @@ package com.ootd.pickup.auction.dto.response;
 import com.ootd.pickup.auction.domain.Auction;
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentImage;
@@ -14,6 +15,8 @@ import java.util.List;
 public record AuctionDetailResponse(
     Long auctionId,
     Long consignmentId,
+    String title,
+    String description,
     GetCardDetailResponse card,
     String grade,
     AuctionStatus auctionStatus,
@@ -25,14 +28,20 @@ public record AuctionDetailResponse(
     long watchCount,
     boolean watched,
     String thumbnailUrl,
+    Long sellerId,
     String sellerNickname,
+    String sellerProfileImageUrl,
     CertificateResponse certificate,
     List<ConsignmentImageResponse> images,
-    String cardState,
+    CardState cardState,
     String majorDefect,
     Long bidIncrement,
     Long nextMinBid,
-    Long recommendedBid) {
+    Long recommendedBid,
+    // 조회자 본인이 이 경매의 낙찰자인지. 비로그인 상태거나 낙찰자가 아니면 false.
+    boolean myBidWon,
+    // 마스킹된 낙찰자 닉네임. 낙찰(WON) 상태가 아니면 null.
+    String winnerNicknameMasked) {
 
   public static AuctionDetailResponse of(
       Auction auction,
@@ -41,12 +50,16 @@ public record AuctionDetailResponse(
       long watchCount,
       boolean watched,
       Long currentPrice,
-      ImageUrlResolver imageUrlResolver) {
+      ImageUrlResolver imageUrlResolver,
+      boolean myBidWon,
+      String winnerNicknameMasked) {
     Consignment consignment = auction.getConsignment();
 
     return new AuctionDetailResponse(
         auction.getAuctionId(),
         consignment.getConsignmentId(),
+        auction.getTitle(),
+        auction.getDescription(),
         GetCardDetailResponse.from(consignment.getCard()),
         certificate.getGradeDisplay(),
         auction.getAuctionStatus(),
@@ -58,17 +71,21 @@ public record AuctionDetailResponse(
         watchCount,
         watched,
         resolveThumbnailUrl(images, imageUrlResolver),
+        consignment.getSellerMember().getMemberId(),
         consignment.getSellerMember().getNickname(),
+        imageUrlResolver.resolve(consignment.getSellerMember().getProfileImageObjectKey()),
         CertificateResponse.from(certificate),
         images.stream()
             .map(image -> ConsignmentImageResponse.from(image, imageUrlResolver))
             .toList(),
-        certificate.getGrade().getDisplayName(),
+        consignment.getCardState(),
         consignment.getMajorDefect(),
         auction.getBidIncrement(),
         nextMinBid(auction, currentPrice),
         // TODO: 입찰 이력 기반 추천 입찰가 도입 전까지 미제공
-        null);
+        null,
+        myBidWon,
+        winnerNicknameMasked);
   }
 
   private static String resolveThumbnailUrl(
@@ -78,8 +95,11 @@ public record AuctionDetailResponse(
 
   private static Long nextMinBid(Auction auction, Long currentPrice) {
     // 입찰 이력이 없으면 시작가부터, 있으면 현재가 + 최소 입찰 단위부터 입찰 가능하다.
+    // startingPrice에 상한이 없어 이론상 Long 덧셈이 넘칠 수 있다. 조용히 음수로 랩어라운드되어
+    // 잘못된 값을 200으로 내려보내는 것보다는, addExact로 예외를 던져 500 + Slack 알림으로
+    // 드러나게 하는 편이 안전하다.
     return currentPrice == null
         ? auction.getStartingPrice()
-        : currentPrice + auction.getBidIncrement();
+        : Math.addExact(currentPrice, auction.getBidIncrement());
   }
 }

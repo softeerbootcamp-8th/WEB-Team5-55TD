@@ -46,6 +46,7 @@ public interface ConsignmentApi {
                                   """
                         {
                           "cardId": 10,
+                          "cardState": "HIGH",
                           "majorDefect": "모서리에 약간의 마모",
                           "certificate": {
                             "serialNumber": "PSA-84213907",
@@ -79,10 +80,11 @@ public interface ConsignmentApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberId": 1,
+                              "cardState": "HIGH",
                               "majorDefect": "모서리에 약간의 마모",
                               "status": "REGISTERABLE",
                               "certificate": {
@@ -97,7 +99,7 @@ public interface ConsignmentApi {
                             """))),
         @ApiResponse(
             responseCode = "400",
-            description = "요청 값 검증 실패 (필수 값 누락, 이미지 2장 미만, 유효하지 않은 등급/감정기관 등)",
+            description = "요청 값 검증 실패 (필수 값 누락, 이미지 2장 미만, 주요 결함 255자 초과, 유효하지 않은 등급/감정기관 등)",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "401",
@@ -121,6 +123,8 @@ public interface ConsignmentApi {
       description =
           """
             내가 등록한 상품 목록을 판매 상태(status)로 필터링하여 조회합니다.
+            auctionStatus를 함께 전달하면 상품에 연결된 가장 최근 경매의 상태까지 일치하는 상품만 조회합니다.
+            예를 들어 경매 예정은 status=IN_AUCTION&auctionStatus=SCHEDULED로 조회합니다.
             상품 ID 내림차순으로 조회하며, 다음 페이지 조회 시 이전 응답의 cursor를 전달합니다.
             """,
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
@@ -151,12 +155,16 @@ public interface ConsignmentApi {
                                     "setName": "Base Set",
                                     "cardNumber": "4/102",
                                     "language": "일본어",
-                                    "rarity": "MINT",
+                                    "rarity": "레어 홀로",
                                     "imageUrl": "https://example.com/cards/10.png"
                                   },
                                   "sellerMemberId": 1,
+                                  "cardState": "HIGH",
                                   "majorDefect": "모서리에 약간의 마모",
                                   "status": "REGISTERABLE",
+                                  "auctionStatus": null,
+                                  "auctionStartedAt": null,
+                                  "auctionEndedAt": null,
                                   "certificate": {
                                     "certificateId": 200,
                                     "serialNumber": "PSA-84213907",
@@ -184,7 +192,8 @@ public interface ConsignmentApi {
 
   @Operation(
       summary = "상품 상세 조회",
-      description = "상품 ID로 상품 상세 정보를 조회합니다.",
+      description = "상품 ID로 내가 등록한 상품의 상세 정보를 조회합니다. 다른 셀러가 등록한 상품은 조회할 수 없습니다.",
+      security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {
         @ApiResponse(
             responseCode = "200",
@@ -205,12 +214,16 @@ public interface ConsignmentApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberNickname": "피카츄",
+                              "cardState": "HIGH",
                               "majorDefect": "모서리에 약간의 마모",
                               "status": "REGISTERABLE",
+                              "auctionStatus": null,
+                              "auctionStartedAt": null,
+                              "auctionEndedAt": null,
                               "certificate": {
                                 "certificateId": 200,
                                 "serialNumber": "PSA-84213907",
@@ -227,12 +240,21 @@ public interface ConsignmentApi {
                             }
                             """))),
         @ApiResponse(
+            responseCode = "401",
+            description = "인증이 필요함 (access-token 쿠키 없음/만료)",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
+            responseCode = "403",
+            description = "본인이 등록한 상품이 아님",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+        @ApiResponse(
             responseCode = "404",
             description = "상품을 찾을 수 없음",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<GetConsignmentDetailResponse> getConsignment(
-      @Parameter(description = "상품 ID", required = true) Long consignmentId);
+      @Parameter(description = "상품 ID", required = true) Long consignmentId,
+      @Parameter(hidden = true) Long sellerMemberId);
 
   @Operation(
       summary = "상품 정보 수정",
@@ -242,7 +264,7 @@ public interface ConsignmentApi {
             images는 수정 후 남길 최종 이미지 목록입니다. 기존 이미지는 consignmentImageId로 유지하고
             새 이미지는 temporaryObjectKey로 추가하며, 목록에서 빠진 기존 이미지는 삭제합니다.
             배열 순서가 최종 이미지 순서가 됩니다.
-            경매 신청 이후(AUCTION_SCHEDULED)/진행 중(AUCTION_ONGOING)/낙찰 완료(WON) 상태에서는 수정할 수 없습니다.
+            경매 신청 이후(IN_AUCTION)/낙찰 완료(SOLD) 상태에서는 수정할 수 없습니다.
             """,
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       requestBody =
@@ -257,6 +279,7 @@ public interface ConsignmentApi {
                               value =
                                   """
                         {
+                          "cardState": "HIGH",
                           "majorDefect": "모서리에 약간의 마모",
                           "certificate": {
                             "serialNumber": "PSA-84213907",
@@ -290,12 +313,16 @@ public interface ConsignmentApi {
                                 "setName": "Base Set",
                                 "cardNumber": "4/102",
                                 "language": "일본어",
-                                "rarity": "MINT",
+                                "rarity": "레어 홀로",
                                 "imageUrl": "https://example.com/cards/10.png"
                               },
                               "sellerMemberNickname": "피카츄",
+                              "cardState": "HIGH",
                               "majorDefect": "모서리에 약간의 마모",
                               "status": "REGISTERABLE",
+                              "auctionStatus": null,
+                              "auctionStartedAt": null,
+                              "auctionEndedAt": null,
                               "certificate": {
                                 "certificateId": 201,
                                 "serialNumber": "PSA-84213907",
@@ -313,7 +340,7 @@ public interface ConsignmentApi {
                             """))),
         @ApiResponse(
             responseCode = "400",
-            description = "요청 값 검증 실패 (이미지 2장 미만, 유효하지 않은 등급/감정기관 등)",
+            description = "요청 값 검증 실패 (이미지 2장 미만, 주요 결함 255자 초과, 유효하지 않은 등급/감정기관 등)",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "401",
@@ -339,8 +366,7 @@ public interface ConsignmentApi {
 
   @Operation(
       summary = "상품 삭제",
-      description =
-          "상품을 삭제합니다. 경매가 시작된 이후(AUCTION_SCHEDULED/AUCTION_ONGOING/WON) 상태의 상품은 삭제할 수 없습니다.",
+      description = "상품을 삭제합니다. 경매 신청 이후(IN_AUCTION/SOLD) 상태의 상품은 삭제할 수 없습니다.",
       security = @SecurityRequirement(name = SwaggerConfig.ACCESS_TOKEN_SECURITY_SCHEME),
       responses = {
         @ApiResponse(responseCode = "204", description = "상품 삭제 성공"),

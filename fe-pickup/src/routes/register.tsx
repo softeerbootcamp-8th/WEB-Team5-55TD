@@ -2,18 +2,27 @@ import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import {
+  isValidLoginId,
+  isValidNickname,
+  isValidPassword,
+  LOGIN_ID_GUIDE,
+  NICKNAME_GUIDE,
+  PASSWORD_GUIDE,
+} from "@/lib/member-policy";
 import type { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createMember } from "@/api/generated/member/member";
 import type { ExceptionResponse, MemberRequest } from "@/api/generated/model";
+import { Logo } from "@/components/logo";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
 });
 
-/** DESIGN.md · register.html — 아이디·닉네임·비밀번호 모두 4자 이상 */
+/** DESIGN.md · register.html — 아이디·닉네임·비밀번호 형식 검증 */
 function RegisterPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -24,10 +33,14 @@ function RegisterPage() {
   const passwordMismatch =
     passwordConfirm.length > 0 && password !== passwordConfirm;
 
+  const loginIdInvalid = username.length > 0 && !isValidLoginId(username);
+  const nicknameInvalid = nickname.length > 0 && !isValidNickname(nickname);
+  const passwordInvalid = password.length > 0 && !isValidPassword(password);
+
   const valid =
-    username.length >= 4 &&
-    nickname.length >= 4 &&
-    password.length >= 4 &&
+    isValidLoginId(username) &&
+    isValidNickname(nickname) &&
+    isValidPassword(password) &&
     password === passwordConfirm;
 
   const { mutate, isPending } = useMutation({
@@ -46,7 +59,7 @@ function RegisterPage() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid || isPending) return;
-    mutate({ loginId: username, nickname, password });
+    mutate({ loginId: username.trim(), nickname: nickname.trim(), password });
   };
 
   return (
@@ -56,7 +69,7 @@ function RegisterPage() {
     >
       <div className="flex flex-col gap-4">
         <Link to="/home" className="flex items-center gap-2 self-start">
-          <span className="inline-block size-6 rounded-[6px] bg-primary" />
+          <Logo role="buyer" className="size-6" />
           <span className="text-lg font-bold">PickUp</span>
         </Link>
         <div className="flex flex-col gap-1">
@@ -77,8 +90,17 @@ function RegisterPage() {
             id="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="아이디 (4자 이상)"
+            placeholder="아이디"
           />
+          <p
+            className={
+              loginIdInvalid
+                ? "text-xs text-[var(--color-danger)]"
+                : "text-xs text-[var(--color-text-muted)]"
+            }
+          >
+            {LOGIN_ID_GUIDE}
+          </p>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -89,8 +111,17 @@ function RegisterPage() {
             id="nickname"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder="닉네임 (4자 이상)"
+            placeholder="닉네임"
           />
+          <p
+            className={
+              nicknameInvalid
+                ? "text-xs text-[var(--color-danger)]"
+                : "text-xs text-[var(--color-text-muted)]"
+            }
+          >
+            {NICKNAME_GUIDE}
+          </p>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -102,8 +133,17 @@ function RegisterPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="비밀번호 (4자 이상)"
+            placeholder="비밀번호"
           />
+          <p
+            className={
+              passwordInvalid
+                ? "text-xs text-[var(--color-danger)]"
+                : "text-xs text-[var(--color-text-muted)]"
+            }
+          >
+            {PASSWORD_GUIDE}
+          </p>
         </div>
 
         <div className="flex flex-col gap-1.5">

@@ -6,7 +6,7 @@ import { formatDateTime, formatWon } from "@/lib/format";
 import { CardThumb } from "./card-thumb";
 import { StatusBadge } from "./status-badge";
 import { GradeBadge } from "./grade-badge";
-import { HeartButton, WatchButton } from "./heart-button";
+import { WatchButton } from "./heart-button";
 import { Countdown } from "./countdown";
 import { Price } from "./price";
 
@@ -37,18 +37,13 @@ export function AuctionCard({
           cardName={auction.cardName}
           grade={auction.grade}
           imageUrl={auction.thumbnailUrl}
+          shineOnGroupHover
         />
         <StatusBadge status={status} className="absolute top-2 left-2" />
-        {auction.watched == null ? (
-          <HeartButton
-            count={auction.watchCount}
-            defaultActive={isUpcoming && (auction.watchCount ?? 0) > 200}
-            className="absolute top-2 right-2"
-          />
-        ) : (
+        {status !== AuctionStatus.ENDED && (
           <WatchButton
             auctionId={auction.id}
-            watched={auction.watched}
+            watched={auction.watched ?? false}
             count={auction.watchCount}
             className="absolute top-2 right-2"
           />
@@ -60,8 +55,11 @@ export function AuctionCard({
           <GradeBadge grade={auction.grade} />
         </div>
         <h3 className="line-clamp-1 text-sm font-semibold">
-          {auction.cardName}
+          {auction.title ?? auction.cardName}
         </h3>
+        <p className="line-clamp-1 text-xs text-[var(--color-text-muted)]">
+          {auction.cardName}
+        </p>
 
         {isLive && (
           <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">

@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -36,6 +37,12 @@ public class Auction {
   @Column(name = "winning_bid_id")
   private Long winningBidId;
 
+  @Column(name = "title", nullable = false)
+  private String title;
+
+  @Column(name = "description")
+  private String description;
+
   @Column(name = "started_at", nullable = false)
   private LocalDateTime startedAt;
 
@@ -58,6 +65,12 @@ public class Auction {
   @Column(name = "winning_price")
   private Long winningPrice;
 
+  @Column(name = "watch_count", nullable = false)
+  private long watchCount;
+
+  @Column(name = "legacy_unreserved_bid", nullable = false)
+  private boolean legacyUnreservedBid;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -69,7 +82,9 @@ public class Auction {
       AuctionStatus auctionStatus,
       Long startingPrice,
       Long reservePrice,
-      Long bidIncrement) {
+      Long bidIncrement,
+      String title,
+      String description) {
     this.consignment = consignment;
     this.startedAt = startedAt;
     this.endedAt = endedAt;
@@ -77,19 +92,32 @@ public class Auction {
     this.startingPrice = startingPrice;
     this.reservePrice = reservePrice;
     this.bidIncrement = bidIncrement;
-    this.createdAt = LocalDateTime.now();
+    this.title = title;
+    this.description = description;
+    this.watchCount = 0L;
+    this.legacyUnreservedBid = false;
+    this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
   }
 
   public Long getRemainingSeconds() {
     if (auctionStatus != AuctionStatus.ONGOING || endedAt == null) {
       return null;
     }
-    return Math.max(Duration.between(LocalDateTime.now(), endedAt).getSeconds(), 0);
+    return Math.max(Duration.between(LocalDateTime.now(ZoneOffset.UTC), endedAt).getSeconds(), 0);
   }
 
   public void updateWinningBid(Long winningBidId, Long winningPrice) {
     this.winningBidId = winningBidId;
     this.winningPrice = winningPrice;
+  }
+
+  /** 조건부 갱신이 성공한 경우 기존 종료 시각에 마감 연장 시간을 더한다. */
+  public void extendEndAtBySoftCloseWindow() {
+    endedAt = endedAt.plus(AuctionSchedulePolicy.SOFT_CLOSE_WINDOW);
+  }
+
+  public void markBidReserved() {
+    this.legacyUnreservedBid = false;
   }
 
   public Long getCurrentPrice() {

@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
 
 import com.ootd.pickup.auction.domain.Auction;
+import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.response.WatchResponse;
 import com.ootd.pickup.auction.repository.auction.AuctionRepository;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.global.exception.ExceptionCode;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.member.domain.Member;
@@ -16,6 +18,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,6 +33,8 @@ class WatchServiceTest {
   @Mock private AuctionRepository auctionRepository;
 
   @Mock private WatchRepository watchRepository;
+
+  private static final Long SELLER_ID = 2L;
 
   private WatchService watchService;
 
@@ -61,6 +67,7 @@ class WatchServiceTest {
     assertThat(response.auctionId()).isEqualTo(100L);
     assertThat(response.createdAt()).isNotNull();
     then(watchRepository).should().flush();
+    then(auctionRepository).should().incrementWatchCountById(100L);
   }
 
   @Test
@@ -108,12 +115,47 @@ class WatchServiceTest {
   }
 
   @Test
+  void 판매자가_본인의_경매에_관심을_등록하면_예외가_발생한다() {
+    // given
+    given(memberManageService.getMemberById(SELLER_ID)).willReturn(createMember(SELLER_ID));
+    given(auctionRepository.findById(100L)).willReturn(Optional.of(createAuction(100L, SELLER_ID)));
+
+    // when & then
+    assertThatThrownBy(() -> watchService.registerWatch(SELLER_ID, 100L))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.AUCTION_SELLER_WATCH_FORBIDDEN.getMessage());
+    then(watchRepository).shouldHaveNoInteractions();
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = AuctionStatus.class,
+      names = {"WON", "PASSED"})
+  void 종료된_경매에_관심을_등록하면_예외가_발생한다(AuctionStatus status) {
+    // given
+    given(memberManageService.getMemberById(1L)).willReturn(createMember(1L));
+    given(auctionRepository.findById(100L))
+        .willReturn(Optional.of(createAuction(100L, SELLER_ID, status)));
+
+    // when & then
+    assertThatThrownBy(() -> watchService.registerWatch(1L, 100L))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.AUCTION_ENDED.getMessage());
+    then(watchRepository).shouldHaveNoInteractions();
+    then(auctionRepository).should(never()).incrementWatchCountById(anyLong());
+  }
+
+  @Test
   void 관심을_해제하면_회원과_경매가_일치하는_관심을_삭제한다() {
+    // given
+    given(watchRepository.deleteByMemberIdAndAuctionId(1L, 100L)).willReturn(1);
+
     // when
     watchService.deleteWatch(1L, 100L);
 
     // then
     then(watchRepository).should().deleteByMemberIdAndAuctionId(1L, 100L);
+    then(auctionRepository).should().decrementWatchCountById(100L);
   }
 
   @Test
@@ -126,6 +168,17 @@ class WatchServiceTest {
 
     // then
     then(watchRepository).should().deleteByMemberIdAndAuctionId(1L, 100L);
+    then(auctionRepository).should(never()).decrementWatchCountById(anyLong());
+  }
+
+  @Test
+  void 경매종료로_관심을_정리하면_해당_경매의_관심을_삭제한다() {
+    // when
+    watchService.deleteWatchesByAuctionId(100L);
+
+    // then
+    then(watchRepository).should().deleteByAuctionId(100L);
+    then(auctionRepository).should().resetWatchCountById(100L);
   }
 
   private Member createMember(Long memberId) {
@@ -135,7 +188,22 @@ class WatchServiceTest {
   }
 
   private Auction createAuction(Long auctionId) {
-    Auction auction = Auction.builder().build();
+    return createAuction(auctionId, SELLER_ID);
+  }
+
+  private Auction createAuction(Long auctionId, Long sellerId) {
+    return createAuction(auctionId, sellerId, AuctionStatus.SCHEDULED);
+  }
+
+  private Auction createAuction(Long auctionId, Long sellerId, AuctionStatus status) {
+    Consignment consignment = Consignment.builder().sellerMember(createMember(sellerId)).build();
+    Auction auction =
+        Auction.builder()
+            .consignment(consignment)
+            .auctionStatus(status)
+            .title("테스트 제목")
+            .description("테스트 설명")
+            .build();
     ReflectionTestUtils.setField(auction, "auctionId", auctionId);
     return auction;
   }

@@ -7,14 +7,22 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record UpdateMyProfileRequest(
-    @Size(min = 4, message = "닉네임은 4자 이상이어야 합니다.")
+    @Size(min = 2, max = 8, message = "닉네임은 2~8자여야 합니다.")
         @Pattern(regexp = ".*\\S.*", message = "닉네임은 공백일 수 없습니다.")
         String nickname,
-    @Size(min = 4, message = "현재 비밀번호는 4자 이상이어야 합니다.") String currentPassword,
-    @Size(min = 4, message = "비밀번호는 4자 이상이어야 합니다.")
-        @Pattern(regexp = ".*\\S.*", message = "비밀번호는 공백일 수 없습니다.")
+    String currentPassword,
+    @Pattern(
+            regexp =
+                "^(?:(?=.*[A-Za-z])(?=.*\\d)|(?=.*[A-Za-z])(?=.*[^A-Za-z\\d\\s])|(?=.*\\d)(?=.*[^A-Za-z\\d\\s]))\\S{8,16}$",
+            message = "비밀번호는 영문, 숫자, 특수문자 중 두 종류 이상을 조합한 8~16자여야 합니다.")
         String password,
     @Valid ProfileImageUpdateRequest profileImageUpdate) {
+
+  public UpdateMyProfileRequest {
+    if (nickname != null) {
+      nickname = nickname.strip();
+    }
+  }
 
   @AssertTrue(message = "수정할 회원 정보를 입력해야 합니다.")
   @JsonIgnore

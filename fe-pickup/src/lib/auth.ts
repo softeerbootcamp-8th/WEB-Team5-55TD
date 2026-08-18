@@ -43,6 +43,11 @@ export function useIsAuthenticated() {
   return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
+/** 훅 없이 동기적으로 로그인 여부를 확인한다 (라우트 loader 등 React 컴포넌트 외부용). */
+export function isAuthenticated() {
+  return getSnapshot();
+}
+
 export function useNickname() {
   return useSyncExternalStore(subscribe, getNicknameSnapshot, () => null);
 }

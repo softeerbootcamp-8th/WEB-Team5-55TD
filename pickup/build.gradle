@@ -33,11 +33,20 @@ dependencies {
     implementation 'at.favre.lib:bcrypt:0.10.2'
     implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    // Spring Boot 4.1 은 Spring Framework 7 을 쓰므로 Spring 6 대상인 ShedLock 6.x 는 호환되지 않는다.
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.7.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0'
     implementation platform('software.amazon.awssdk:bom:2.47.3')
     implementation 'software.amazon.awssdk:s3'
+    // spring-cloud-aws-starter-sqs 는 최신(3.4.0)이 Spring Boot 3.5 대상이라 Boot 4.1 에서 쓸 수 없다.
+    // S3 와 마찬가지로 SDK 를 직접 쓴다.
+    implementation 'software.amazon.awssdk:sqs'
     implementation 'software.amazon.awssdk:url-connection-client'
     implementation 'software.amazon.awssdk:sso'
     implementation 'software.amazon.awssdk:ssooidc'
+    implementation 'io.micrometer:micrometer-registry-statsd'
+
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
     runtimeOnly 'com.mysql:mysql-connector-j'
@@ -57,6 +66,9 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // 도메인의 LocalDateTime은 UTC 벽시계라는 규약이라, 테스트 JVM의 기본 타임존이 실행 환경(로컬/CI)마다
+    // 달라지면 H2가 계산하는 local datetime과 어긋난다. 실행 위치와 무관하게 UTC로 고정한다.
+    systemProperty 'user.timezone', 'UTC'
     finalizedBy tasks.jacocoTestReport
 }
 

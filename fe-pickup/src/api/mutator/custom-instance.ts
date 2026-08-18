@@ -36,7 +36,11 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 
 let refreshPromise: Promise<unknown> | null = null;
 
-function refreshAccessToken() {
+/**
+ * access-token 을 갱신한다. 진행 중인 갱신이 있으면 그 프로미스를 그대로 반환해
+ * 동시 호출(401 인터셉터 재시도 + 라우트 진입 시 선제 호출 등)이 중복 요청을 만들지 않게 한다.
+ */
+export function refreshAccessToken() {
   refreshPromise ??= axiosInstance.post("/auth/refresh").finally(() => {
     refreshPromise = null;
   });

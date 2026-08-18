@@ -105,4 +105,19 @@ class WatchControllerTest {
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.message").value(WATCH_ALREADY_EXISTS.getMessage()));
   }
+
+  @Test
+  void 판매자가_본인의_경매에_관심을_등록하면_403을_반환한다() throws Exception {
+    // given
+    given(watchService.registerWatch(1L, 100L))
+        .willThrow(new PickUpException(AUCTION_SELLER_WATCH_FORBIDDEN));
+
+    // when & then
+    mockMvc
+        .perform(
+            post("/auctions/{auctionId}/watch", 100L)
+                .requestAttr(AuthenticationAttributes.ATTRIBUTE_NAME, new Authentication(1L)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value(AUCTION_SELLER_WATCH_FORBIDDEN.getMessage()));
+  }
 }

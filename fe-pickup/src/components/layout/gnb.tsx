@@ -10,6 +10,7 @@ import {
   Repeat,
   Settings,
   User as UserIcon,
+  WalletCards,
 } from "lucide-react";
 import {
   useGetMyPointBalance,
@@ -19,6 +20,7 @@ import { formatPoint } from "@/lib/format";
 import { setAuthenticated, useIsAuthenticated, useNickname } from "@/lib/auth";
 import { logout } from "@/api/generated/authentication/authentication";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +43,7 @@ const NAV: Record<Role, NavItem[]> = {
     { label: "경매", to: "/auctions" },
     { label: "관심", to: "/watchlist" },
     { label: "입찰 / 낙찰 내역", to: "/bids" },
+    { label: "포인트", to: "/points" },
   ],
   seller: [
     { label: "PickUp 홈", to: "/seller" },
@@ -91,10 +94,7 @@ export function Gnb({ role }: { role: Role }) {
             to={role === "seller" ? "/seller" : "/home"}
             className="flex items-center gap-2 text-lg font-bold"
           >
-            <span
-              className="inline-block size-5 rounded-[6px] bg-primary"
-              aria-hidden
-            />
+            <Logo role={role} className="size-5" />
             PickUp
             {role === "seller" && (
               <span className="rounded-[var(--radius-pill)] bg-[var(--color-seller-weak)] px-2 py-0.5 text-xs font-medium text-[var(--color-seller)]">
@@ -110,10 +110,13 @@ export function Gnb({ role }: { role: Role }) {
                   key={item.to}
                   to={item.to}
                   activeOptions={{ exact: item.to === "/seller" }}
-                  className="rounded-[var(--radius-sm)] px-3 py-2 text-sm whitespace-nowrap text-[var(--color-text-sub)] transition-colors hover:text-foreground"
+                  className="relative rounded-[var(--radius-sm)] px-3 py-2 text-sm whitespace-nowrap text-[var(--color-text-sub)] transition-colors hover:text-foreground"
                   activeProps={{
+                    // rounded-[var(--radius-sm)]에 걸린 inset box-shadow는 바닥 모서리 라운드를
+                    // 따라 양 끝이 말려 올라가 보인다(] 를 90도 돌린 모양). 부모 라운드에
+                    // 영향받지 않는 별도의 pill 인디케이터(after)로 대체.
                     className:
-                      "text-foreground font-semibold [box-shadow:inset_0_-2px_0_var(--primary)]",
+                      "text-foreground font-semibold after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary after:content-['']",
                   }}
                 >
                   {item.label}
@@ -135,13 +138,16 @@ export function Gnb({ role }: { role: Role }) {
                 <DropdownMenuLabel>{nickname} 님</DropdownMenuLabel>
                 <div className="flex items-center justify-between px-3 py-1.5">
                   <span className="text-xs text-[var(--color-text-muted)]">
-                    보유 포인트
+                    사용 가능 포인트
                   </span>
                   <span className="tabular text-sm font-semibold text-primary">
                     {pointBalanceLabel}
                   </span>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => navigate({ to: "/points" })}>
+                  <WalletCards /> 포인트 / 거래내역
+                </DropdownMenuItem>
                 {role === "buyer" ? (
                   <>
                     <DropdownMenuItem
@@ -217,13 +223,18 @@ export function Gnb({ role }: { role: Role }) {
                 <DropdownMenuLabel>{nickname} 님</DropdownMenuLabel>
                 <div className="flex items-center justify-between px-3 py-1.5">
                   <span className="text-xs text-[var(--color-text-muted)]">
-                    보유 포인트
+                    사용 가능 포인트
                   </span>
                   <span className="tabular text-sm font-semibold text-primary">
                     {pointBalanceLabel}
                   </span>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/points">
+                    <WalletCards /> 포인트 / 거래내역
+                  </Link>
+                </DropdownMenuItem>
                 {items.map((item) => (
                   <DropdownMenuItem key={item.to} asChild>
                     <Link

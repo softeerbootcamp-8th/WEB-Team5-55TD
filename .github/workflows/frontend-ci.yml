@@ -2,6 +2,7 @@ name: Frontend CI
 
 on:
   pull_request:
+    types: [opened, reopened, synchronize, edited]
     branches:
       - develop
       - main
@@ -35,7 +36,7 @@ defaults:
 
 jobs:
   build:
-    name: Lint & Build
+    name: Lint, Test & Build
     runs-on: ubuntu-latest
 
     permissions:
@@ -75,6 +76,53 @@ jobs:
         id: lint
         run: pnpm lint
 
+      - name: Test & coverage
+        id: test
+        run: pnpm test:coverage
+
+      - name: Compute test coverage
+        id: coverage
+        if: always()
+        run: |
+          python3 <<'PYEOF'
+          import json
+          import os
+          import sys
+
+          report_path = "coverage/coverage-summary.json"
+          output_path = os.environ["GITHUB_OUTPUT"]
+
+          if not os.path.isfile(report_path):
+              with open(output_path, "a") as f:
+                  f.write("coverage_available=false\n")
+              sys.exit(0)
+
+          try:
+              summary = json.load(open(report_path))
+              total = summary["total"]
+          except (OSError, ValueError, KeyError, TypeError):
+              with open(output_path, "a") as f:
+                  f.write("coverage_available=false\n")
+              sys.exit(0)
+
+          with open(output_path, "a") as f:
+              f.write("coverage_available=true\n")
+              for key in ("lines", "branches", "functions", "statements"):
+                  metric = total[key]
+                  f.write(f"{key}_percent={metric['pct']:.2f}\n")
+                  f.write(f"{key}_covered={metric['covered']}\n")
+                  f.write(f"{key}_total={metric['total']}\n")
+          PYEOF
+
+      - name: Upload test coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fe-coverage
+          path: fe-pickup/coverage
+          if-no-files-found: ignore
+          retention-days: 7
+
       # CloudFront Function 은 로컬에서 실행할 방법이 없어(공식 에뮬레이터 없음)
       # 잘못 고쳐도 배포 전에는 드러나지 않는다. 실제 배포되는 파일을 그대로
       # 불러와 검증한다. /api 접두사 제거 규칙은 Vite 프록시에도 같은 로직이
@@ -92,6 +140,7 @@ jobs:
           # CloudFront 가 /api/* 를 백엔드로 넘기므로 상대 경로면 충분하다.
           # Vite 는 이 값을 번들에 문자열로 박아 넣는다 — 런타임 변경 불가.
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api' }}
+          VITE_KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID }}
         run: pnpm build
 
       - name: Determine failed step
@@ -110,6 +159,9 @@ jobs:
           elif [ "${{ steps.lint.outcome }}" = "failure" ]; then
             FAILED_STEP="ESLint"
             FAILED_REASON="lint 규칙 위반이 있습니다. 로컬에서 pnpm lint:fix 로 자동 수정할 수 있습니다."
+          elif [ "${{ steps.test.outcome }}" = "failure" ]; then
+            FAILED_STEP="Frontend 테스트 · 커버리지 측정"
+            FAILED_REASON="Vitest 테스트가 실패했습니다. 커버리지는 기준 미달로 CI를 실패시키지 않으며 Slack 알림으로만 전달됩니다."
           elif [ "${{ steps.edge-functions.outcome }}" = "failure" ]; then
             FAILED_STEP="CloudFront 함수 검증"
             FAILED_REASON="edge 함수 동작이 기대와 다릅니다. 로그의 표에서 어느 케이스가 어긋났는지 확인하세요 (fe-pickup/deploy/ 아래 파일)."
@@ -124,14 +176,14 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Notify Slack on success
-        if: success()
+        if: ${{ success() && steps.coverage.outputs.coverage_available == 'true' }}
         uses: slackapi/slack-github-action@v2.0.0
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
           payload: |
             channel: pickup-cicd
-            text: "Frontend CI 성공: ${{ github.repository }}@${{ github.sha }}"
+            text: "Frontend CI 성공 (라인 커버리지 ${{ steps.coverage.outputs.lines_percent }}%, 브랜치 커버리지 ${{ steps.coverage.outputs.branches_percent }}%): ${{ github.repository }}@${{ github.sha }}"
             blocks:
               - type: header
                 text:
@@ -149,7 +201,39 @@ jobs:
                   - type: mrkdwn
                     text: "*실행자*\n${{ github.actor }}"
                   - type: mrkdwn
-                    text: "*검사 항목*\nESLint · rewrite 규칙 · 타입 검사 · 빌드"
+                    text: "*라인 커버리지*\n${{ steps.coverage.outputs.lines_percent }}% (${{ steps.coverage.outputs.lines_covered }}/${{ steps.coverage.outputs.lines_total }})"
+                  - type: mrkdwn
+                    text: "*브랜치 커버리지*\n${{ steps.coverage.outputs.branches_percent }}% (${{ steps.coverage.outputs.branches_covered }}/${{ steps.coverage.outputs.branches_total }})"
+                  - type: mrkdwn
+                    text: "*검사 항목*\nESLint · Vitest 테스트/커버리지 알림 · rewrite 규칙 · 타입 검사 · 빌드"
+              - type: context
+                elements:
+                  - type: mrkdwn
+                    text: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|워크플로 실행 로그 보기>"
+
+      - name: Notify Slack on success (coverage unavailable)
+        if: ${{ success() && steps.coverage.outputs.coverage_available != 'true' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_CICD_BOT_TOKEN }}
+          payload: |
+            channel: pickup-cicd
+            text: "Frontend CI 성공 (커버리지 리포트 없음): ${{ github.repository }}@${{ github.sha }}"
+            blocks:
+              - type: header
+                text:
+                  type: plain_text
+                  text: "✅ Frontend CI 테스트 통과"
+                  emoji: true
+              - type: section
+                fields:
+                  - type: mrkdwn
+                    text: "*저장소*\n${{ github.repository }}"
+                  - type: mrkdwn
+                    text: "*브랜치*\n${{ github.ref_name }}"
+                  - type: mrkdwn
+                    text: "*커버리지*\n리포트를 찾을 수 없습니다."
               - type: context
                 elements:
                   - type: mrkdwn
@@ -182,6 +266,10 @@ jobs:
                     text: "*실행자*\n${{ github.actor }}"
                   - type: mrkdwn
                     text: "*실패 단계*\n${{ steps.failure-info.outputs.failed_step }}"
+                  - type: mrkdwn
+                    text: "*라인 커버리지*\n${{ steps.coverage.outputs.coverage_available == 'true' && format('{0}% ({1}/{2})', steps.coverage.outputs.lines_percent, steps.coverage.outputs.lines_covered, steps.coverage.outputs.lines_total) || '측정 불가' }}"
+                  - type: mrkdwn
+                    text: "*브랜치 커버리지*\n${{ steps.coverage.outputs.coverage_available == 'true' && format('{0}% ({1}/{2})', steps.coverage.outputs.branches_percent, steps.coverage.outputs.branches_covered, steps.coverage.outputs.branches_total) || '측정 불가' }}"
               - type: section
                 text:
                   type: mrkdwn

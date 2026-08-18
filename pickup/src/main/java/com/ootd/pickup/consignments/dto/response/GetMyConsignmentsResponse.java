@@ -1,27 +1,47 @@
 package com.ootd.pickup.consignments.dto.response;
 
+import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.auction.repository.auction.AuctionSummary;
 import com.ootd.pickup.cards.dto.response.GetCardDetailResponse;
+import com.ootd.pickup.consignments.domain.CardState;
 import com.ootd.pickup.consignments.domain.Certificate;
 import com.ootd.pickup.consignments.domain.Consignment;
 import com.ootd.pickup.consignments.domain.ConsignmentStatus;
+import java.time.LocalDateTime;
 
 public record GetMyConsignmentsResponse(
     Long consignmentId,
     Long auctionId,
+    String auctionTitle,
     GetCardDetailResponse card,
     Long sellerMemberId,
+    CardState cardState,
     String majorDefect,
     ConsignmentStatus status,
-    CertificateResponse certificate) {
+    AuctionStatus auctionStatus,
+    LocalDateTime auctionStartedAt,
+    LocalDateTime auctionEndedAt,
+    CertificateResponse certificate,
+    String thumbnailUrl) {
   public static GetMyConsignmentsResponse fromEntity(
-      Consignment consignment, Long sellerMemberId, Certificate certificate, Long auctionId) {
+      Consignment consignment,
+      Long sellerMemberId,
+      Certificate certificate,
+      AuctionSummary auctionSummary,
+      String thumbnailUrl) {
     return new GetMyConsignmentsResponse(
         consignment.getConsignmentId(),
-        auctionId,
+        auctionSummary == null ? null : auctionSummary.auctionId(),
+        auctionSummary == null ? null : auctionSummary.title(),
         GetCardDetailResponse.from(consignment.getCard()),
         sellerMemberId,
+        consignment.getCardState(),
         consignment.getMajorDefect(),
         consignment.getStatus(),
-        CertificateResponse.from(certificate));
+        auctionSummary == null ? null : auctionSummary.auctionStatus(),
+        auctionSummary == null ? null : auctionSummary.startedAt(),
+        auctionSummary == null ? null : auctionSummary.endedAt(),
+        CertificateResponse.from(certificate),
+        thumbnailUrl);
   }
 }

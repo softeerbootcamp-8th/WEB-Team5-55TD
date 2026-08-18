@@ -47,7 +47,7 @@ public interface WatchApi {
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
         @ApiResponse(
             responseCode = "409",
-            description = "이미 관심 등록한 경매",
+            description = "이미 관심 등록했거나 종료된 경매",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
       })
   ResponseEntity<WatchResponse> registerWatch(

@@ -12,10 +12,23 @@ spring:
     open-in-view: false
 
 
+scheduler:
+  # 테스트에서는 주기 작업을 띄우지 않는다. H2 에는 shedlock 테이블이 없고(엔티티가 아니라
+  # ddl-auto 로 만들어지지 않는다), 1초마다 도는 작업이 다른 테스트의 데이터를 건드린다.
+  # 전이 로직 자체는 AuctionScheduler 빈의 메서드를 직접 호출해 검증한다.
+  enabled: false
+
+management:
+  # 테스트에서 실제 Datadog Agent로 UDP를 전송하지 않는다.
+  statsd:
+    metrics:
+      export:
+        enabled: false
+
 auth:
   token:
     issuer: pickup-test
-    secret: ${JWT_TEST_SECRET:zbXk82Pja7kPR3Pe684ZMsxM8LldVy8//HITTkv3XsE=}
+    secret: ${JWT_TEST_SECRET:ZHVtbXktand0LXRlc3Qtc2VjcmV0LWRvLW5vdC11c2UtaW4tcHJvZA==}
     access-token-ttl: 15m
   cookie:
     secure: true

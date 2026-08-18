@@ -24,6 +24,10 @@ public enum ExceptionCode {
       ClientExceptionCode.CERTIFICATE_SERIAL_NUMBER_ALREADY_EXISTS,
       "이미 등록된 인증서 일련번호입니다."),
   MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.MEMBER_NOT_FOUND, "회원을 찾을 수 없습니다."),
+  CONSIGNMENT_READ_OWNER_MISMATCH(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.CONSIGNMENT_READ_OWNER_MISMATCH,
+      "본인이 등록한 상품만 조회할 수 있습니다."),
   CONSIGNMENT_MODIFY_OWNER_MISMATCH(
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.CONSIGNMENT_MODIFY_OWNER_MISMATCH,
@@ -44,8 +48,10 @@ public enum ExceptionCode {
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_PASSWORD, "비밀번호가 일치하지 않습니다."),
   INVALID_REFRESH_TOKEN(
       HttpStatus.UNAUTHORIZED, ClientExceptionCode.INVALID_REFRESH_TOKEN, "유효하지 않은 리프레시 토큰입니다."),
+  KAKAO_AUTHENTICATION_FAILED(
+      HttpStatus.UNAUTHORIZED, ClientExceptionCode.KAKAO_AUTHENTICATION_FAILED, "카카오 인증에 실패했습니다."),
   REFRESH_TOKEN_STORE_UNAVAILABLE(
-      HttpStatus.UNAUTHORIZED,
+      HttpStatus.INTERNAL_SERVER_ERROR,
       ClientExceptionCode.REFRESH_TOKEN_STORE_UNAVAILABLE,
       "일시적으로 토큰을 갱신할 수 없습니다. 다시 로그인해 주세요."),
   CONSIGNMENT_NOT_REGISTERABLE(
@@ -60,6 +66,10 @@ public enum ExceptionCode {
       HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_AUCTION_STATUS, "유효하지 않은 경매 상태입니다."),
   INVALID_AUCTION_SORT(
       HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_AUCTION_SORT, "유효하지 않은 정렬 기준입니다."),
+  INVALID_AUCTION_SEARCH_FIELD(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.INVALID_AUCTION_SEARCH_FIELD,
+      "유효하지 않은 검색 조건입니다."),
   INVALID_CURSOR(HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CURSOR, "유효하지 않은 커서 값입니다."),
   AUCTION_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.AUCTION_NOT_FOUND, "경매를 찾을 수 없습니다."),
   FEATURED_AUCTION_NOT_FOUND(
@@ -68,6 +78,10 @@ public enum ExceptionCode {
       "대표로 보여줄 진행 중인 경매가 없습니다."),
   WATCH_ALREADY_EXISTS(
       HttpStatus.CONFLICT, ClientExceptionCode.WATCH_ALREADY_EXISTS, "이미 관심 등록한 경매입니다."),
+  AUCTION_SELLER_WATCH_FORBIDDEN(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.AUCTION_SELLER_WATCH_FORBIDDEN,
+      "판매자는 본인의 경매에 관심 등록할 수 없습니다."),
   AUCTION_NOT_STARTED(
       HttpStatus.CONFLICT, ClientExceptionCode.AUCTION_NOT_STARTED, "아직 시작되지 않은 경매입니다."),
   AUCTION_ENDED(HttpStatus.CONFLICT, ClientExceptionCode.AUCTION_ENDED, "이미 종료된 경매입니다."),
@@ -75,11 +89,17 @@ public enum ExceptionCode {
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.AUCTION_SELLER_BID_FORBIDDEN,
       "판매자는 본인의 경매에 입찰할 수 없습니다."),
+  ENDED_AUCTION_BIDS_SELLER_ONLY(
+      HttpStatus.FORBIDDEN,
+      ClientExceptionCode.ENDED_AUCTION_BIDS_SELLER_ONLY,
+      "종료된 경매의 입찰 내역은 판매자만 조회할 수 있습니다."),
   OUTBID_EXISTS(HttpStatus.CONFLICT, ClientExceptionCode.OUTBID_EXISTS, "이미 더 높은 입찰이 존재합니다."),
   BELOW_MIN_INCREMENT(
       HttpStatus.CONFLICT,
       ClientExceptionCode.BELOW_MIN_INCREMENT,
       "현재가에서 최소 입찰 단위 이상 높게 입찰해야 합니다."),
+  BID_REQUEST_NOT_FOUND(
+      HttpStatus.NOT_FOUND, ClientExceptionCode.BID_REQUEST_NOT_FOUND, "입찰 요청을 찾을 수 없습니다."),
   CONSIGNMENT_DELETE_OWNER_MISMATCH(
       HttpStatus.FORBIDDEN,
       ClientExceptionCode.CONSIGNMENT_DELETE_OWNER_MISMATCH,
@@ -123,7 +143,28 @@ public enum ExceptionCode {
   INVALID_CONSIGNMENT_STATUS(
       HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_CONSIGNMENT_STATUS, "유효하지 않은 상품 상태입니다."),
   INVALID_PAGE_SIZE(
-      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다.");
+      HttpStatus.BAD_REQUEST, ClientExceptionCode.INVALID_PAGE_SIZE, "size는 1 이상이어야 합니다."),
+  POINT_NOT_FOUND(HttpStatus.NOT_FOUND, ClientExceptionCode.POINT_NOT_FOUND, "포인트 정보를 찾을 수 없습니다."),
+  INSUFFICIENT_BID_LIMIT(
+      HttpStatus.CONFLICT, ClientExceptionCode.INSUFFICIENT_BID_LIMIT, "보유 포인트가 입찰 금액보다 적습니다."),
+  STARTING_PRICE_EXCEEDS_RESERVE_PRICE(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.STARTING_PRICE_EXCEEDS_RESERVE_PRICE,
+      "희망 시작가는 최소 희망 낙찰가보다 클 수 없습니다."),
+  STARTING_PRICE_TOO_LARGE(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.STARTING_PRICE_TOO_LARGE,
+      "입력한 시작가가 너무 커서 처리할 수 없습니다."),
+  INVALID_CHARGE_AMOUNT(
+      HttpStatus.BAD_REQUEST,
+      ClientExceptionCode.INVALID_CHARGE_AMOUNT,
+      "충전 금액은 100,000 이상 10,000,000 이하여야 합니다."),
+  MEMBER_ALREADY_WITHDRAWN(
+      HttpStatus.CONFLICT, ClientExceptionCode.MEMBER_ALREADY_WITHDRAWN, "이미 탈퇴한 회원입니다."),
+  MEMBER_WITHDRAW_NOT_ALLOWED(
+      HttpStatus.CONFLICT,
+      ClientExceptionCode.MEMBER_WITHDRAW_NOT_ALLOWED,
+      "진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
 
   private final HttpStatus httpStatus;
   private final ClientExceptionCode clientExceptionCode;

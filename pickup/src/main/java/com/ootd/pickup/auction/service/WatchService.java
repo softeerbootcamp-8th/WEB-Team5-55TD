@@ -32,17 +32,36 @@ public class WatchService {
             .findById(auctionId)
             .orElseThrow(() -> new PickUpException(AUCTION_NOT_FOUND));
 
+    if (auction.getConsignment().getSellerMember().getMemberId().equals(memberId)) {
+      throw new PickUpException(AUCTION_SELLER_WATCH_FORBIDDEN);
+    }
+    if (auction.getAuctionStatus().isTerminal()) {
+      throw new PickUpException(AUCTION_ENDED);
+    }
+
+    Watch watch;
     try {
-      Watch watch = watchRepository.save(Watch.builder().member(member).auction(auction).build());
+      watch = watchRepository.save(Watch.builder().member(member).auction(auction).build());
       watchRepository.flush();
-      return WatchResponse.from(watch);
     } catch (DataIntegrityViolationException exception) {
       throw new PickUpException(WATCH_ALREADY_EXISTS);
     }
+
+    auctionRepository.incrementWatchCountById(auctionId);
+    return WatchResponse.from(watch);
   }
 
   @Transactional
   public void deleteWatch(Long memberId, Long auctionId) {
-    watchRepository.deleteByMemberIdAndAuctionId(memberId, auctionId);
+    int deletedCount = watchRepository.deleteByMemberIdAndAuctionId(memberId, auctionId);
+    if (deletedCount > 0) {
+      auctionRepository.decrementWatchCountById(auctionId);
+    }
+  }
+
+  @Transactional
+  public void deleteWatchesByAuctionId(Long auctionId) {
+    watchRepository.deleteByAuctionId(auctionId);
+    auctionRepository.resetWatchCountById(auctionId);
   }
 }

@@ -1,0 +1,45 @@
+## dd-java-agent(JMXFetch)용 Spring WebSocket 지표 수집 설정.
+##
+## 설치 경로: /opt/datadog/jmx/websocket.yaml (deploy.sh 가 배포마다 설치한다)
+##
+## 고칠 때 알아야 할 것
+##
+## - 파일명을 바꾸면 deploy/datadog.env 의 DD_JMXFETCH_CONFIG 도 함께 바꾼다.
+## - RealtimeWebSocketJmxMetrics 가 Spring 기본 통계를 숫자형 MBean attribute 로 노출한다.
+## - deploy.sh 가 bean 이름 com.ootd.pickup.websocket:name=RealtimeWebSocketMetrics 로
+##   이 파일을 식별한다.
+init_config:
+  is_jmx: true
+
+instances:
+  - name: pickup-websocket
+    jvm_direct: true
+    collect_default_jvm_metrics: false
+    conf:
+      - include:
+          bean: com.ootd.pickup.websocket:name=RealtimeWebSocketMetrics
+          attribute:
+            CurrentSessions:
+              alias: pickup.websocket.sessions.current
+              metric_type: gauge
+            TotalSessions:
+              alias: pickup.websocket.sessions.total
+              metric_type: counter
+            ConnectFailureSessions:
+              alias: pickup.websocket.sessions.connect_failures
+              metric_type: counter
+            SendLimitExceededSessions:
+              alias: pickup.websocket.sessions.send_limit_exceeded
+              metric_type: counter
+            TransportErrorSessions:
+              alias: pickup.websocket.sessions.transport_errors
+              metric_type: counter
+            StompConnectCount:
+              alias: pickup.websocket.stomp.connect
+              metric_type: counter
+            StompConnectedCount:
+              alias: pickup.websocket.stomp.connected
+              metric_type: counter
+            StompDisconnectCount:
+              alias: pickup.websocket.stomp.disconnect
+              metric_type: counter

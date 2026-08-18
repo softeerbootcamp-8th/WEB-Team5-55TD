@@ -9,7 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getMyConsignments } from "@/api/consignments";
-import type { ApiConsignmentStatus, ConsignmentSummary } from "@/api/consignments";
+import type {
+  ApiConsignmentStatus,
+  ConsignmentSummary,
+} from "@/api/consignments";
 import { ProductStatus } from "@/lib/types";
 import { PRODUCT_STATUS_META } from "@/lib/status";
 
@@ -32,20 +35,18 @@ export const Route = createFileRoute("/seller/products/")({
   component: ProductListPage,
 });
 
-async function fetchAllByStatus(status: ApiConsignmentStatus) {
+async function fetchAllByStatus(
+  status: ApiConsignmentStatus,
+  auctionStatus?: "SCHEDULED" | "ONGOING",
+) {
   const items: ConsignmentSummary[] = [];
   let cursor: number | undefined;
   do {
-    const page = await getMyConsignments({ status, cursor });
+    const page = await getMyConsignments({ status, auctionStatus, cursor });
     items.push(...page.items);
     cursor = page.hasNext ? page.cursor : undefined;
   } while (cursor !== undefined);
   return items;
-}
-
-async function fetchByStatuses(statuses: ApiConsignmentStatus[]) {
-  const pages = await Promise.all(statuses.map(fetchAllByStatus));
-  return pages.flat();
 }
 
 /** DESIGN.md · product list.html — 등록 가능 / 경매 예정 / 판매 완료 (검수·반려 없음) */
@@ -56,19 +57,20 @@ function ProductListPage() {
 
   const registerableQuery = useQuery({
     queryKey: ["consignments", "my", "REGISTERABLE"],
-    queryFn: () => fetchByStatuses(["REGISTERABLE"]),
+    // 유찰(재신청 가능)도 이제 REGISTERABLE 하나로 합쳐져 함께 내려온다.
+    queryFn: () => fetchAllByStatus("REGISTERABLE"),
   });
   const upcomingQuery = useQuery({
-    queryKey: ["consignments", "my", "AUCTION_SCHEDULED"],
-    queryFn: () => fetchByStatuses(["AUCTION_SCHEDULED"]),
+    queryKey: ["consignments", "my", "IN_AUCTION", "SCHEDULED"],
+    queryFn: () => fetchAllByStatus("IN_AUCTION", "SCHEDULED"),
   });
   const ongoingQuery = useQuery({
-    queryKey: ["consignments", "my", "AUCTION_ONGOING"],
-    queryFn: () => fetchByStatuses(["AUCTION_ONGOING"]),
+    queryKey: ["consignments", "my", "IN_AUCTION", "ONGOING"],
+    queryFn: () => fetchAllByStatus("IN_AUCTION", "ONGOING"),
   });
   const soldQuery = useQuery({
-    queryKey: ["consignments", "my", "WON"],
-    queryFn: () => fetchByStatuses(["WON"]),
+    queryKey: ["consignments", "my", "SOLD"],
+    queryFn: () => fetchAllByStatus("SOLD"),
   });
 
   const registerable = registerableQuery.data ?? [];
@@ -87,7 +89,7 @@ function ProductListPage() {
         </div>
         <Button asChild className="self-start">
           <Link to="/seller/register">
-            <Plus /> 카드 등록
+            <Plus /> 상품 등록
           </Link>
         </Button>
       </div>
@@ -184,18 +186,25 @@ function ProductGrid({
             <div className="flex flex-col gap-2 px-1">
               <GradeBadge grade={p.grade} />
               <h3 className="line-clamp-1 text-sm font-semibold">
-                {p.cardName}
+                {p.auctionTitle ?? p.cardName}
               </h3>
+              {p.auctionTitle && (
+                <span className="line-clamp-1 text-xs text-[var(--color-text-muted)]">
+                  {p.cardName}
+                </span>
+              )}
               <span className="tabular text-xs text-[var(--color-text-muted)]">
                 인증서 {p.grade?.serial}
               </span>
               <Button size="sm" variant="secondary" asChild className="mt-1">
-                {p.auctionId ? (
+                {p.auctionId && p.status !== ProductStatus.REAPPLICABLE ? (
                   <Link
                     to="/seller/auctions/$auctionId"
                     params={{ auctionId: p.auctionId }}
                   >
-                    {p.status === ProductStatus.SOLD ? "낙찰 상세" : "경매 상세"}
+                    {p.status === ProductStatus.SOLD
+                      ? "낙찰 상세"
+                      : "경매 상세"}
                   </Link>
                 ) : (
                   <Link

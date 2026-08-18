@@ -15,12 +15,14 @@ import com.ootd.pickup.auction.domain.Watch;
 import com.ootd.pickup.auction.dto.request.GetMyWatchesRequest;
 import com.ootd.pickup.auction.dto.response.AuctionListItemResponse;
 import com.ootd.pickup.auction.repository.watch.WatchRepository;
+import com.ootd.pickup.auth.service.AuthService;
 import com.ootd.pickup.bid.domain.Bid;
 import com.ootd.pickup.bid.domain.BidStatus;
 import com.ootd.pickup.bid.dto.request.GetMyBidsRequest;
 import com.ootd.pickup.bid.dto.request.GetMyWinsRequest;
 import com.ootd.pickup.bid.dto.response.MyBidListItemResponse;
 import com.ootd.pickup.bid.repository.BidRepository;
+import com.ootd.pickup.bid.service.BidService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.domain.Language;
 import com.ootd.pickup.cards.domain.Rarity;
@@ -31,6 +33,7 @@ import com.ootd.pickup.consignments.domain.ConsignmentStatus;
 import com.ootd.pickup.consignments.domain.Grade;
 import com.ootd.pickup.consignments.repository.certificate.CertificateRepository;
 import com.ootd.pickup.consignments.repository.consignmentImage.ConsignmentImageRepository;
+import com.ootd.pickup.consignments.service.ConsignmentService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.images.service.ImageUrlResolver;
@@ -44,7 +47,11 @@ import com.ootd.pickup.member.dto.ProfileImageUpdateRequest;
 import com.ootd.pickup.member.dto.UpdateMyProfileRequest;
 import com.ootd.pickup.member.repository.MemberRepository;
 import com.ootd.pickup.point.domain.Point;
+import com.ootd.pickup.point.domain.PointTransaction;
+import com.ootd.pickup.point.dto.request.GetPointTransactionsRequest;
+import com.ootd.pickup.point.dto.response.PointTransactionItemResponse;
 import com.ootd.pickup.point.repository.PointRepository;
+import com.ootd.pickup.point.repository.PointTransactionRepository;
 import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -68,6 +75,8 @@ class MemberServiceTest {
 
   @Mock private PointRepository pointRepository;
 
+  @Mock private PointTransactionRepository pointTransactionRepository;
+
   @Mock private ImageUrlResolver imageUrlResolver;
 
   @Mock private BidRepository bidRepository;
@@ -77,6 +86,12 @@ class MemberServiceTest {
   @Mock private WatchRepository watchRepository;
 
   @Mock private ConsignmentImageRepository consignmentImageRepository;
+
+  @Mock private ConsignmentService consignmentService;
+
+  @Mock private BidService bidService;
+
+  @Mock private AuthService authService;
 
   @InjectMocks private MemberService memberService;
 
@@ -160,6 +175,20 @@ class MemberServiceTest {
     assertThat(response.loginId()).isEqualTo("pickup-user");
     assertThat(response.nickname()).isEqualTo("픽업회원");
     assertThat(response.profileImageUrl()).isNull();
+    assertThat(response.oauthProvider()).isNull();
+  }
+
+  @Test
+  void 소셜_가입_회원을_조회하면_가입_제공자를_반환한다() {
+    // given
+    Member member = Member.createOAuth("KAKAO", "12345", "kakao_12345", null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when
+    MyProfileResponse response = memberService.getMyProfile(1L);
+
+    // then
+    assertThat(response.oauthProvider()).isEqualTo("KAKAO");
   }
 
   @Test
@@ -177,6 +206,21 @@ class MemberServiceTest {
     assertThat(response.nickname()).isEqualTo("라이츄회원");
     assertThat(response.loginId()).isEqualTo("pickup-user");
     assertThat(readPasswordHash(member)).isEqualTo("password-hash");
+  }
+
+  @Test
+  void 소셜_가입_회원이_닉네임을_수정해도_응답에_가입_제공자가_남는다() {
+    // given
+    Member member = Member.createOAuth("KAKAO", "12345", "kakao_12345", null);
+    UpdateMyProfileRequest request = new UpdateMyProfileRequest("픽업회원", null, null, null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(memberRepository.existsByNickname("픽업회원")).willReturn(false);
+
+    // when
+    MyProfileResponse response = memberService.updateMyProfile(1L, request, null).response();
+
+    // then
+    assertThat(response.oauthProvider()).isEqualTo("KAKAO");
   }
 
   @Test
@@ -293,6 +337,21 @@ class MemberServiceTest {
   }
 
   @Test
+  void 자신의_닉네임을_대소문자만_바꿔_수정하면_중복검사없이_변경된다() {
+    // given
+    Member member = Member.create("pickup-user", "password-hash", "PickupUser");
+    UpdateMyProfileRequest request = new UpdateMyProfileRequest("pickupuser", null, null, null);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when
+    MyProfileResponse response = memberService.updateMyProfile(1L, request, null).response();
+
+    // then
+    assertThat(response.nickname()).isEqualTo("pickupuser");
+    then(memberRepository).should(never()).existsByNickname(anyString());
+  }
+
+  @Test
   void 존재하는_회원의_포인트를_조회하면_잔액을_반환한다() {
     // given
     Point point = Point.create(1L);
@@ -303,6 +362,8 @@ class MemberServiceTest {
 
     // then
     assertThat(response.pointBalance()).isZero();
+    assertThat(response.reservedPointBalance()).isZero();
+    assertThat(response.availablePointBalance()).isZero();
   }
 
   @Test
@@ -313,7 +374,34 @@ class MemberServiceTest {
     // when & then
     assertThatThrownBy(() -> memberService.getMyPointBalance(1L))
         .isInstanceOf(PickUpException.class)
-        .hasMessage("회원을 찾을 수 없습니다.");
+        .hasMessage("포인트 정보를 찾을 수 없습니다.");
+  }
+
+  @Test
+  void 포인트_거래내역을_최신순_커서페이지로_조회한다() {
+    // given
+    Member member = Member.create("pickup-user", "password-hash", "픽업회원");
+    ReflectionTestUtils.setField(member, "memberId", 1L);
+    Auction auction = Auction.builder().title("테스트 제목").description("테스트 설명").build();
+    ReflectionTestUtils.setField(auction, "auctionId", 1L);
+    PointTransaction newest = PointTransaction.forAuctionPayout(member, 1_000L, 3_000L, auction);
+    PointTransaction next = PointTransaction.forAuctionPayment(member, 500L, 2_000L, auction);
+    ReflectionTestUtils.setField(newest, "pointTransactionId", 3L);
+    ReflectionTestUtils.setField(next, "pointTransactionId", 2L);
+    given(pointTransactionRepository.findAllByMemberId(1L, null, 2))
+        .willReturn(List.of(newest, next));
+
+    // when
+    CursorPageResponse<PointTransactionItemResponse, String> response =
+        memberService.getMyPointTransactions(1L, new GetPointTransactionsRequest(null, 1));
+
+    // then
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.cursor()).isEqualTo("3");
+    assertThat(response.items())
+        .singleElement()
+        .extracting(PointTransactionItemResponse::amount)
+        .isEqualTo(1_000L);
   }
 
   @Test
@@ -338,8 +426,6 @@ class MemberServiceTest {
     Certificate certificate = createCertificate(consignment, Grade.MINT, CertificationBody.PSA);
 
     given(bidRepository.findLastBidsByMemberId(1L, null, 21)).willReturn(List.of(lastBid));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
-        .willReturn(Map.of(10L, 11_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L)))
         .willReturn(List.of(certificate));
 
@@ -369,11 +455,11 @@ class MemberServiceTest {
     Card card = createCard();
     Consignment consignment = createConsignment(2L, card);
     Auction auction = createAuction(10L, consignment, AuctionStatus.ONGOING, 10_000L);
+    // 내 입찰(100L) 대신 다른 회원의 입찰(999L)이 현재 최고가로 등록된 상태를 시뮬레이션한다.
+    auction.updateWinningBid(999L, 12_000L);
     Bid lastBid = createBid(auction, member, 11_000L, BidStatus.OUTBID, 100L);
 
     given(bidRepository.findLastBidsByMemberId(1L, null, 21)).willReturn(List.of(lastBid));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
-        .willReturn(Map.of(10L, 12_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
 
     // when
@@ -400,8 +486,6 @@ class MemberServiceTest {
     Bid bidB = createBid(auctionB, member, 21_000L, BidStatus.HIGHEST, 100L);
 
     given(bidRepository.findLastBidsByMemberId(1L, null, 2)).willReturn(List.of(bidA, bidB));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
-        .willReturn(Map.of(10L, 11_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
 
     // when
@@ -449,8 +533,6 @@ class MemberServiceTest {
     Certificate certificate = createCertificate(consignment, Grade.NM, CertificationBody.CGC);
 
     given(bidRepository.findWonBidsByMemberId(1L, null, 21)).willReturn(List.of(wonBid));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(11L)))
-        .willReturn(Map.of(11L, 330_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L)))
         .willReturn(List.of(certificate));
 
@@ -462,6 +544,7 @@ class MemberServiceTest {
     assertThat(response.items()).hasSize(1);
     MyBidListItemResponse item = response.items().get(0);
     assertThat(item.auctionId()).isEqualTo(11L);
+    assertThat(item.title()).isEqualTo("테스트 제목");
     assertThat(item.status()).isEqualTo(BidStatus.WON);
     assertThat(item.auctionStatus()).isEqualTo(AuctionStatus.WON);
     assertThat(item.myBidPrice()).isEqualTo(330_000L);
@@ -481,8 +564,6 @@ class MemberServiceTest {
     Bid bidB = createBid(auctionB, member, 21_000L, BidStatus.WON, 100L);
 
     given(bidRepository.findWonBidsByMemberId(1L, null, 2)).willReturn(List.of(bidA, bidB));
-    given(bidRepository.findCurrentPricesByAuctionIds(List.of(10L)))
-        .willReturn(Map.of(10L, 11_000L));
     given(certificateRepository.findAllByConsignmentIds(List.of(2L))).willReturn(List.of());
 
     // when
@@ -525,6 +606,7 @@ class MemberServiceTest {
 
     AuctionListItemResponse item = response.items().get(0);
     assertThat(item.auctionId()).isEqualTo(10L);
+    assertThat(item.title()).isEqualTo("테스트 제목");
     assertThat(item.auctionStatus()).isEqualTo(AuctionStatus.SCHEDULED);
     assertThat(item.grade()).isEqualTo("PSA 9");
     assertThat(item.currentPrice()).isNull();
@@ -639,6 +721,75 @@ class MemberServiceTest {
     then(watchRepository).shouldHaveNoInteractions();
   }
 
+  @Test
+  void 탈퇴하면_회원_상태가_WITHDRAWN으로_전환된다() {
+    // given
+    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
+    writeMemberId(member, 1L);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(consignmentService.hasActiveConsignment(1L)).willReturn(false);
+    given(bidService.hasActiveBid(1L)).willReturn(false);
+
+    // when
+    memberService.withdrawMember(1L);
+
+    // then
+    assertThat(member.isWithdrawn()).isTrue();
+    assertThat(member.getLoginId()).isNull();
+    assertThat(member.getNickname()).isEqualTo("(탈퇴한 회원)#1");
+    assertThat(readPasswordHash(member)).isNull();
+    then(authService).should().revokeAllRefreshTokens(1L);
+  }
+
+  @Test
+  void 이미_탈퇴한_회원이_다시_탈퇴하면_예외가_발생한다() {
+    // given
+    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
+    writeMemberId(member, 1L);
+    member.withdraw();
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+
+    // when & then
+    assertThatThrownBy(() -> memberService.withdrawMember(1L))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("이미 탈퇴한 회원입니다.");
+    then(authService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 경매_예정_또는_진행_중인_상품을_등록해_두면_탈퇴할_수_없다() {
+    // given
+    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
+    writeMemberId(member, 1L);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(consignmentService.hasActiveConsignment(1L)).willReturn(true);
+
+    // when & then
+    assertThatThrownBy(() -> memberService.withdrawMember(1L))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
+    assertThat(member.isWithdrawn()).isFalse();
+    then(bidService).shouldHaveNoInteractions();
+    then(authService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void 최고_입찰_중인_경매가_있으면_탈퇴할_수_없다() {
+    // given
+    Member member = Member.create("pickup-user", hashPassword("password1234"), "픽업회원");
+    writeMemberId(member, 1L);
+    given(memberManageService.getMemberById(1L)).willReturn(member);
+    given(consignmentService.hasActiveConsignment(1L)).willReturn(false);
+    given(bidService.hasActiveBid(1L)).willReturn(true);
+
+    // when & then
+    assertThatThrownBy(() -> memberService.withdrawMember(1L))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage("진행 중인 경매 또는 입찰이 있어 탈퇴할 수 없습니다.");
+    assertThat(member.isWithdrawn()).isFalse();
+    then(authService).shouldHaveNoInteractions();
+  }
+
   private Watch createWatch(Long watchId, Member member, Auction auction) {
     Watch watch = Watch.builder().member(member).auction(auction).build();
     ReflectionTestUtils.setField(watch, "watchId", watchId);
@@ -657,7 +808,7 @@ class MemberServiceTest {
         .cardNumber("4/102")
         .setName("Base Set")
         .language(Language.JAPANESE)
-        .rarity(Rarity.MINT)
+        .rarity(Rarity.RARE_HOLO)
         .imageUrl("https://example.com/card.png")
         .build();
   }
@@ -667,7 +818,7 @@ class MemberServiceTest {
         Consignment.builder()
             .card(card)
             .sellerMember(createMember(999L))
-            .status(ConsignmentStatus.AUCTION_ONGOING)
+            .status(ConsignmentStatus.IN_AUCTION)
             .build();
     ReflectionTestUtils.setField(consignment, "consignmentId", consignmentId);
     return consignment;
@@ -677,6 +828,8 @@ class MemberServiceTest {
       Long auctionId, Consignment consignment, AuctionStatus status, Long startingPrice) {
     Auction auction =
         Auction.builder()
+            .title("테스트 제목")
+            .description("테스트 설명")
             .consignment(consignment)
             .startedAt(LocalDateTime.now().minusHours(1))
             .endedAt(LocalDateTime.now().plusHours(1))
@@ -689,16 +842,18 @@ class MemberServiceTest {
     return auction;
   }
 
+  /**
+   * bidStatus는 저장된 값이 아니라 auction.winningBidId/auctionStatus로 계산된다({@link Bid#getBidStatus()}).
+   * HIGHEST/WON을 시뮬레이션하려면 이 Bid를 Auction의 winningBid로 지정해야 하고, OUTBID는 그냥 지정하지 않으면(다른 누군가가
+   * winningBid로 남아 있으면) 자연히 성립한다.
+   */
   private Bid createBid(
       Auction auction, Member member, Long bidPrice, BidStatus bidStatus, Long bidId) {
     Bid bid = Bid.create(auction, member, bidPrice);
-    if (bidStatus == BidStatus.OUTBID) {
-      bid.outbid();
-    } else if (bidStatus == BidStatus.WON) {
-      // Bid 도메인에 WON 전환 뮤테이터가 아직 없어(경매 종료 배치 미구현) 테스트에서 직접 필드를 설정한다.
-      ReflectionTestUtils.setField(bid, "bidStatus", BidStatus.WON);
-    }
     ReflectionTestUtils.setField(bid, "bidId", bidId);
+    if (bidStatus != BidStatus.OUTBID) {
+      auction.updateWinningBid(bidId, bidPrice);
+    }
     return bid;
   }
 

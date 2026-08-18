@@ -1,48 +1,24 @@
 ## dd-java-agent(JMXFetch)용 HikariCP 커넥션 풀 지표 수집 설정.
 ##
-## 이 파일은 Datadog Agent 가 아니라 dd-java-agent 가 직접 읽는다.
-## /etc/datadog-agent/conf.d/ 아래에 두면 Agent 가 같은 파일을 별도 체크로
-## 로드하려다 JMX 연결 실패로 에러를 뿜으므로, Agent 설정 경로와 분리한다.
+## 설치 경로: /opt/datadog/jmx/hikaricp.yaml (deploy.sh 가 배포마다 설치한다)
 ##
-## EC2 설치 (1회):
-##   sudo mkdir -p /opt/datadog/jmx
-##   sudo cp hikaricp-jmx.yaml /opt/datadog/jmx/hikaricp.yaml
-##   sudo chmod 644 /opt/datadog/jmx/hikaricp.yaml   # 유닛의 User=ubuntu 가 읽어야 한다
+## 고칠 때 알아야 할 것
 ##
-## pickup.service 의 ExecStart 에 추가할 플래그 (-jar 앞에):
-##   -Ddd.jmxfetch.config.dir=/opt/datadog/jmx \
-##   -Ddd.jmxfetch.config=hikaricp.yaml \
-##   -Ddd.jmxfetch.check-period=15000 \
-##   -Ddd.jmxfetch.refresh-beans-period=60 \
-##   -Ddd.jmxfetch.initial-refresh-beans-period=15 \
-##
-## config.dir 과 config 를 나눠 쓰는 이유: jmxfetch 가 경로를
-## new File(confdDirectory, fileName) 으로 만든다. 둘 다 설정한 상태에서
-## config 에 절대경로를 주면 /opt/datadog/jmx/opt/datadog/... 로 붙는다.
-##
-## refresh-beans-period 의 기본값은 600초다. Hikari MBean 은 커넥션 풀 생성
-## 시점(부팅 직후)에 등록되므로, 그냥 두면 첫 데이터포인트가 최대 10분 뒤에
-## 나타난다.
-##
-## service / env / version 태그는 유닛에 이미 있는 -Ddd.service, -Ddd.env,
-## -Ddd.version 이 JMXFetch 전역 태그로 자동 병합되므로 여기에 적지 않는다.
-##
-## 전제: application.yml 의 spring.datasource.hikari.register-mbeans=true
-
+## - 파일명을 바꾸면 deploy/datadog.env 의 DD_JMXFETCH_CONFIG 도 함께 바꾼다.
+## - 이 파일은 Datadog Agent 가 아니라 dd-java-agent 가 직접 읽는다.
+##   /etc/datadog-agent/conf.d/ 아래에 두면 Agent 가 별도 체크로 로드하려다 실패한다.
+## - HikariCP 7 은 풀 이름을 type 값 안에 괄호로 넣으므로(type=Pool (pickup-pool))
+##   type 이 아니라 bean_regex 로 매칭한다. 캡처 그룹 $1 이 풀 이름이다.
+## - deploy.sh 가 alias: hikaricp.connections.active 로 이 파일을 식별한다.
+## - 전제: application.yml 의 spring.datasource.hikari.register-mbeans=true
 init_config:
   is_jmx: true
 
 instances:
   - name: pickup-hikaricp
-    # 같은 JVM 안에서 수집하므로 host/port 가 필요 없다.
     jvm_direct: true
-    # JVM 런타임 지표는 tracer 가 이미 보내므로 중복 수집을 막는다.
     collect_default_jvm_metrics: false
     conf:
-      # HikariCP 7 은 풀 이름을 type 값 안에 괄호로 넣는다.
-      #   com.zaxxer.hikari:type=Pool (pickup-pool)
-      # 따라서 `type: Pool` 로는 매칭되지 않아 bean_regex 를 쓴다.
-      # 캡처 그룹 $1 이 풀 이름이다.
       - include:
           domain: com.zaxxer.hikari
           bean_regex:
@@ -63,8 +39,6 @@ instances:
               alias: hikaricp.connections.pending
               metric_type: gauge
 
-      # 풀 설정값. DB_POOL_MAX_SIZE 가 환경변수라 알럿을 절대값이 아니라
-      # active / max 비율로 걸기 위해 함께 수집한다.
       - include:
           domain: com.zaxxer.hikari
           bean_regex:
@@ -77,22 +51,4 @@ instances:
               metric_type: gauge
             MinimumIdle:
               alias: hikaricp.connections.min
-              metric_type: gauge
-
-      # 요청 스레드가 DB/Redis I/O 대기로 고갈되는지 확인한다.
-      - include:
-          domain: Tomcat
-          bean_regex:
-            - 'Tomcat:type=ThreadPool,name="(.*)"'
-          tags:
-            connector: $1
-          attribute:
-            currentThreadsBusy:
-              alias: tomcat.threads.busy
-              metric_type: gauge
-            currentThreadCount:
-              alias: tomcat.threads.count
-              metric_type: gauge
-            maxThreads:
-              alias: tomcat.threads.max
               metric_type: gauge

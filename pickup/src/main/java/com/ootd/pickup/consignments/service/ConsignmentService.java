@@ -2,6 +2,8 @@ package com.ootd.pickup.consignments.service;
 
 import static com.ootd.pickup.global.exception.ExceptionCode.*;
 
+import com.ootd.pickup.auction.domain.AuctionStatus;
+import com.ootd.pickup.auction.repository.auction.AuctionSummary;
 import com.ootd.pickup.auction.service.AuctionManageService;
 import com.ootd.pickup.cards.domain.Card;
 import com.ootd.pickup.cards.service.CardManageService;
@@ -35,11 +37,13 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ConsignmentService {
@@ -69,6 +73,7 @@ public class ConsignmentService {
             Consignment.builder()
                 .card(card)
                 .sellerMember(sellerMember)
+                .cardState(request.cardState())
                 .majorDefect(request.majorDefect())
                 .status(ConsignmentStatus.REGISTERABLE)
                 .build());
@@ -91,26 +96,41 @@ public class ConsignmentService {
     }
     consignmentImageRepository.saveAll(images);
 
+    log.info(
+        "위탁 상품을 등록했습니다 - consignmentId={}, sellerMemberId={}, cardId={}",
+        consignment.getConsignmentId(),
+        sellerMemberId,
+        card.getCardId());
     return RegisterConsignmentResponse.of(consignment, certificate);
   }
 
-  public GetConsignmentDetailResponse getConsignment(Long consignmentId) {
+  public GetConsignmentDetailResponse getConsignment(Long consignmentId, Long sellerMemberId) {
     Consignment consignment =
         consignmentRepository
             .findConsignmentById(consignmentId)
             .orElseThrow(() -> new PickUpException(CONSIGNMENT_NOT_FOUND));
+
+    if (!consignment.getSellerMember().getMemberId().equals(sellerMemberId)) {
+      throw new PickUpException(CONSIGNMENT_READ_OWNER_MISMATCH);
+    }
 
     Certificate certificate = getCertificate(consignment);
 
     List<ConsignmentImage> images =
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment);
 
+    AuctionSummary auctionSummary =
+        auctionManageService
+            .findAuctionSummariesByConsignments(List.of(consignment))
+            .get(consignment.getConsignmentId());
+
     return GetConsignmentDetailResponse.of(
         consignment,
         certificate,
         images,
         consignment.getSellerMember().getNickname(),
-        imageUrlResolver);
+        imageUrlResolver,
+        auctionSummary);
   }
 
   @Transactional
@@ -139,6 +159,7 @@ public class ConsignmentService {
         CertificationBody.from(request.certificate().certificationBody());
 
     Certificate certificate = getCertificate(consignment);
+    consignment.updateCardState(request.cardState());
     consignment.updateMajorDefect(request.majorDefect());
     certificate.update(
         request.certificate().serialNumber(),
@@ -200,13 +221,18 @@ public class ConsignmentService {
       consignmentImageRepository.deleteAll(removedImages);
     }
     images = consignmentImageRepository.saveAll(images);
+    AuctionSummary auctionSummary =
+        auctionManageService
+            .findAuctionSummariesByConsignments(List.of(consignment))
+            .get(consignment.getConsignmentId());
     GetConsignmentDetailResponse response =
         GetConsignmentDetailResponse.of(
             consignment,
             certificate,
             images,
             consignment.getSellerMember().getNickname(),
-            imageUrlResolver);
+            imageUrlResolver,
+            auctionSummary);
     return new ConsignmentModificationResult(
         response, removedImages.stream().map(ConsignmentImage::getObjectKey).toList());
   }
@@ -215,10 +241,11 @@ public class ConsignmentService {
       Long sellerMemberId, GetMyConsignmentsRequest request) {
     request.validateSize();
     ConsignmentStatus status = ConsignmentStatus.from(request.status());
+    AuctionStatus auctionStatus = AuctionStatus.from(request.auctionStatus());
 
     List<Consignment> searchedConsignments =
-        consignmentRepository.findAllBySellerMemberIdAndStatusAndCursor(
-            sellerMemberId, status, request.cursor(), request.size() + 1);
+        consignmentRepository.findAllBySellerMemberIdAndStatusAndLatestAuctionStatusAndCursor(
+            sellerMemberId, status, auctionStatus, request.cursor(), request.size() + 1);
 
     boolean hasNext = searchedConsignments.size() > request.size();
     List<Consignment> consignments =
@@ -232,8 +259,10 @@ public class ConsignmentService {
                     certificate -> certificate.getConsignment().getConsignmentId(),
                     Function.identity()));
 
-    Map<Long, Long> auctionIdsByConsignmentId =
-        auctionManageService.findAuctionIdsByConsignments(consignments);
+    Map<Long, AuctionSummary> auctionSummariesByConsignmentId =
+        auctionManageService.findAuctionSummariesByConsignments(consignments);
+
+    Map<Long, String> thumbnailsByConsignmentId = resolveThumbnails(consignments);
 
     List<GetMyConsignmentsResponse> items =
         consignments.stream()
@@ -243,7 +272,8 @@ public class ConsignmentService {
                         consignment,
                         sellerMemberId,
                         certificatesByConsignmentId.get(consignment.getConsignmentId()),
-                        auctionIdsByConsignmentId.get(consignment.getConsignmentId())))
+                        auctionSummariesByConsignmentId.get(consignment.getConsignmentId()),
+                        thumbnailsByConsignmentId.get(consignment.getConsignmentId())))
             .toList();
 
     return CursorPageResponse.from(items, hasNext, nextCursor);
@@ -265,6 +295,12 @@ public class ConsignmentService {
       throw new PickUpException(CONSIGNMENT_NOT_DELETABLE);
     }
 
+    // REGISTERABLE은 신규 등록뿐 아니라 유찰 후 재등록 가능 상태도 포함한다. 후자는 과거 경매 행이
+    // FK로 이 상품을 여전히 참조하고 있어, 그대로 삭제하면 무결성 제약 위반(500)이 발생한다.
+    if (auctionManageService.hasAuctionHistory(consignment)) {
+      throw new PickUpException(CONSIGNMENT_NOT_DELETABLE);
+    }
+
     List<String> imageObjectKeys =
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment).stream()
             .map(ConsignmentImage::getObjectKey)
@@ -272,13 +308,38 @@ public class ConsignmentService {
     certificateRepository.deleteByConsignment(consignment);
     consignmentImageRepository.deleteAllByConsignment(consignment);
     consignmentRepository.deleteById(consignmentId);
+    log.info("위탁 상품을 삭제했습니다 - consignmentId={}, sellerMemberId={}", consignmentId, sellerMemberId);
     return imageObjectKeys;
+  }
+
+  /** 경매가 예정/진행 중인 상품을 셀러로 등록해 두면, 탈퇴 후 그 경매를 아무도 관리할 수 없게 되므로 탈퇴를 막는다. */
+  public boolean hasActiveConsignment(Long sellerMemberId) {
+    return consignmentRepository.existsBySellerMemberIdAndStatus(
+        sellerMemberId, ConsignmentStatus.IN_AUCTION);
   }
 
   private Certificate getCertificate(Consignment consignment) {
     return certificateRepository
         .findCertificateByConsignment(consignment)
         .orElseThrow(() -> new PickUpException(CERTIFICATE_NOT_FOUND));
+  }
+
+  private Map<Long, String> resolveThumbnails(List<Consignment> consignments) {
+    if (consignments.isEmpty()) {
+      return Map.of();
+    }
+
+    List<Long> consignmentIds = consignments.stream().map(Consignment::getConsignmentId).toList();
+    List<ConsignmentImage> images =
+        consignmentImageRepository.findAllByConsignmentIdsOrderByConsignmentIdAndImageOrder(
+            consignmentIds);
+
+    return images.stream()
+        .collect(
+            Collectors.toMap(
+                image -> image.getConsignment().getConsignmentId(),
+                image -> imageUrlResolver.resolve(image.getObjectKey()),
+                (first, second) -> first));
   }
 
   public record ConsignmentModificationResult(

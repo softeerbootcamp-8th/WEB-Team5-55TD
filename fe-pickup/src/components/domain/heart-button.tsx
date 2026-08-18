@@ -9,6 +9,7 @@ import { getGetMyWatchesQueryKey } from "@/api/generated/member/member";
 import type { ExceptionResponse } from "@/api/generated/model";
 import { useIsAuthenticated } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { applyWatchToAuctionCache, type WatchState } from "@/lib/watch-cache";
 
 /** 관심(하트) 버튼 (DESIGN.md §5.3). 카드 우상단 배치용. */
 export function HeartButton({
@@ -67,6 +68,15 @@ export function HeartButton({
   );
 }
 
+const CONFLICT_STATUS = 409;
+
+function isAlreadyWatchedError(error: unknown) {
+  return (
+    (error as AxiosError<ExceptionResponse>).response?.status ===
+    CONFLICT_STATUS
+  );
+}
+
 export function WatchButton({
   auctionId,
   watched,
@@ -106,33 +116,52 @@ export function WatchButton({
     );
   };
 
-  const refreshAuctions = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["auctions"] }),
-      queryClient.invalidateQueries({ queryKey: getGetMyWatchesQueryKey() }),
-    ]);
+  // 경매 목록은 즉시 다시 불러오지 않는다 — 인기순 정렬이 그 자리에서 바뀌어
+  // 방금 관심 등록한 카드가 다른 위치로 튀기 때문이다(OOTD-488). 캐시의 관심
+  // 상태만 갈아끼우고, 순서는 목록을 다시 열거나 창에 돌아올 때 갱신되게 둔다.
+  const refreshAuctions = async (state: WatchState) => {
+    queryClient.setQueriesData({ queryKey: ["auctions"] }, (data) =>
+      applyWatchToAuctionCache(data, auctionId, state),
+    );
+    queryClient.invalidateQueries({
+      queryKey: ["auctions"],
+      refetchType: "none",
+    });
+    await queryClient.invalidateQueries({
+      queryKey: getGetMyWatchesQueryKey(),
+    });
     await router.invalidate();
   };
 
   const toggleWatch = (nextActive: boolean) => {
-    setOptimisticWatch({
-      active: nextActive,
-      count:
-        watchCount == null
-          ? undefined
-          : Math.max(0, watchCount + (nextActive ? 1 : -1)),
-    });
+    const previousState: WatchState = {
+      watched: active,
+      watchCount,
+    };
+    const nextCount =
+      watchCount == null
+        ? undefined
+        : Math.max(0, watchCount + (nextActive ? 1 : -1));
+    setOptimisticWatch({ active: nextActive, count: nextCount });
 
     const mutation = nextActive ? registerMutation : deleteMutation;
+    let failed = false;
     mutation.mutate(
       { auctionId: Number(auctionId) },
       {
         onError: (error) => {
+          // 등록 중복(409)은 서버에 이미 관심이 등록된 상태라 화면과 어긋나지 않는다.
+          if (nextActive && isAlreadyWatchedError(error)) return;
+          failed = true;
           setOptimisticWatch(null);
           handleError(error);
         },
         onSettled: async () => {
-          await refreshAuctions();
+          await refreshAuctions(
+            failed
+              ? previousState
+              : { watched: nextActive, watchCount: nextCount },
+          );
           setOptimisticWatch(null);
         },
       },
