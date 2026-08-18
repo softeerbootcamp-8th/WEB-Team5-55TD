@@ -185,7 +185,38 @@ describe("입찰 금액 + 버튼", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /최소 입찰 단위/ }));
 
-    expect(screen.getByPlaceholderText(/이상/)).toHaveValue("11000");
+    expect(screen.getByPlaceholderText(/이상/)).toHaveValue("11,000");
+  });
+
+  it("입력한_금액에_3자리_콤마를_다시_매긴다", async () => {
+    await renderLivePage();
+    const input = screen.getByPlaceholderText(/이상/);
+
+    fireEvent.change(input, { target: { value: "1234567" } });
+    expect(input).toHaveValue("1,234,567");
+
+    // 아무 자리에나 찍은 콤마도 제자리로 돌아온다.
+    fireEvent.change(input, { target: { value: "1,2,3,4,5,6,7" } });
+    expect(input).toHaveValue("1,234,567");
+
+    // 숫자가 아닌 문자는 들어가지 않는다.
+    fireEvent.change(input, { target: { value: "12a34" } });
+    expect(input).toHaveValue("1,234");
+  });
+
+  it("콤마가_붙은_금액도_그대로_입찰에_쓴다", async () => {
+    await renderLivePage();
+
+    fireEvent.change(screen.getByPlaceholderText(/이상/), {
+      target: { value: "1,2,3,4,5,6" },
+    });
+    expect(screen.getByPlaceholderText(/이상/)).toHaveValue("123,456");
+
+    fireEvent.click(screen.getByRole("button", { name: "입찰하기" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "입찰하기" }));
+
+    expect(mutate).toHaveBeenCalledWith(123456, expect.anything());
   });
 
   it("입력값이_없으면_현재가에_최소_입찰_단위를_더한_값으로_채운다", async () => {
@@ -193,7 +224,7 @@ describe("입찰 금액 + 버튼", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /최소 입찰 단위/ }));
 
-    expect(screen.getByPlaceholderText(/이상/)).toHaveValue("10500");
+    expect(screen.getByPlaceholderText(/이상/)).toHaveValue("10,500");
   });
 });
 
