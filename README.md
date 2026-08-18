@@ -24,8 +24,7 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 ### 🔎 경매 탐색 (구매자)
 * 카드명 검색과 경매 상태·가격·마감 시간 기준의 필터 및 정렬을 통해 원하는 경매를 빠르게 찾을 수 있습니다.
 * 경매 상세 화면에서는 카드 실물 이미지, 감정 등급, 현재가, 다음 최소 입찰가와 판매자 정보를 확인하고, 관심 경매로 등록해 다시 모아볼 수 있습니다.
-<img width="1000" alt="asdf" src="https://github.com/user-attachments/assets/b6b9afd3-7025-47fa-9b99-49065e0b1581" />
-
+<img width="800" height="450" alt="경매조회1111" src="https://github.com/user-attachments/assets/f5b5ac04-11f0-44e0-839a-f7f0dfb910d8" />
 
 
 ### ⏳ 실시간 경매 (구매자)
@@ -42,7 +41,9 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 ### ⚡️ 경매 등록 (셀러)
 * 판매자는 카드 검색을 통해 상품을 선택하고, 카드 상태와 주요 결함, 감정 정보를 입력해 상품을 등록할 수 있습니다.
 * 등록된 상품은 경매 이름과 설명, 시작일시를 포함하여 경매 신청할 수 있으며, 시작일시 + 7일간 경매가 진행됩니다.
-<img width="1000" alt="경매 등록" src="https://github.com/user-attachments/assets/257cabe4-cce7-445b-84a0-2ab4bfa8aab4" />
+  
+https://github.com/user-attachments/assets/8e83bb98-1f53-499c-b123-beca6a1ca01f
+
 
 ## 🛠️ 기술 스택
 | 구분 | 사용 기술 |
