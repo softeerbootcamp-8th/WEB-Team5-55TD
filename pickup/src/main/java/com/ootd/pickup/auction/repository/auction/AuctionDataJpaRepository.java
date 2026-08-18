@@ -129,6 +129,9 @@ public class AuctionDataJpaRepository implements AuctionRepository {
         .fetchJoin()
         .join(consignment.card, card)
         .fetchJoin()
+        // 목록 항목이 판매자 닉네임을 함께 내려주므로 같이 가져온다(N+1 방지).
+        .join(consignment.sellerMember, member)
+        .fetchJoin()
         .where(
             keywordMatches(q, searchField),
             statusIn(statuses),
