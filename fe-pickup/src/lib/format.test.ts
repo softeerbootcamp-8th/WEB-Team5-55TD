@@ -1,4 +1,6 @@
 import {
+  caretPositionAfterDigits,
+  formatAmountInput,
   formatWon,
   formatWonCompact,
   formatPoint,
@@ -55,6 +57,30 @@ describe("format utilities", () => {
       expect(formatDate("2026-07-20")).toBe("2026.07.20");
     }
     process.env.TZ = originalTimeZone;
+  });
+
+  it("입력 중인 금액에 3자리 콤마를 다시 매긴다", () => {
+    expect(formatAmountInput("")).toBe("");
+    expect(formatAmountInput("1234567")).toBe("1,234,567");
+    // 아무 자리에나 찍힌 콤마도 제자리로 돌아온다.
+    expect(formatAmountInput("1,2,3,4,5,6,7")).toBe("1,234,567");
+    expect(formatAmountInput("12,34")).toBe("1,234");
+    // 숫자가 아닌 문자는 버린다.
+    expect(formatAmountInput("1a2b3원")).toBe("123");
+    expect(formatAmountInput("abc")).toBe("");
+    expect(formatAmountInput("000")).toBe("0");
+    expect(formatAmountInput("007")).toBe("7");
+    // 자릿수가 커도 값이 뭉개지지 않는다.
+    expect(formatAmountInput("9007199254740993")).toBe("9,007,199,254,740,993");
+  });
+
+  it("콤마가 끼어도 커서가 같은 숫자 뒤에 남는다", () => {
+    expect(caretPositionAfterDigits("1,234", 0)).toBe(0);
+    expect(caretPositionAfterDigits("1,234", 1)).toBe(1);
+    // "12" 까지 입력한 뒤라면 콤마 다음 자리에 커서가 있어야 한다.
+    expect(caretPositionAfterDigits("1,234", 2)).toBe(3);
+    expect(caretPositionAfterDigits("1,234", 4)).toBe(5);
+    expect(caretPositionAfterDigits("1,234", 9)).toBe(5);
   });
 
   it("formats relative times at each boundary", () => {
