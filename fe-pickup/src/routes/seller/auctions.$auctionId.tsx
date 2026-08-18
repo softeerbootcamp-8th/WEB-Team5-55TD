@@ -36,7 +36,6 @@ import {
   type AuctionBidsSnapshot,
 } from "@/lib/auction-live-state";
 import { dedupeBidsByBidder } from "@/lib/bids";
-import { formatDateTime } from "@/lib/format";
 import { AuctionStatus } from "@/lib/types";
 
 const AUCTION_STATUS_POLLING_INTERVAL_MILLIS = 15_000;
@@ -115,7 +114,7 @@ function SellerAuctionPage() {
 
   // 진행 중인 경매만 실시간으로 지켜본다 — 종료된 경매는 갱신될 일이 없다.
   const isLive = auction.status === AuctionStatus.LIVE;
-  // 아직 시작 전인 경매는 종료까지 남은 시간을 세어봐야 의미가 없다. 시작 시각을 보여준다.
+  // 아직 시작 전인 경매는 종료까지 남은 시간을 세어봐야 의미가 없다. 시작까지 남은 시간을 센다.
   const isUpcoming = auction.status === AuctionStatus.UPCOMING;
   const refreshAuction = useCallback(() => {
     void queryClient.invalidateQueries({
@@ -257,12 +256,14 @@ function SellerAuctionPage() {
               </div>
               <div className="flex flex-col items-start gap-0.5">
                 <span className="text-xs text-[var(--color-text-muted)]">
-                  {isUpcoming ? "시작 시각" : "남은 시간"}
+                  {isUpcoming ? "시작까지 남은 시간" : "남은 시간"}
                 </span>
                 {isUpcoming ? (
-                  <span className="tabular text-base font-semibold">
-                    {formatDateTime(auction.startsAt)}
-                  </span>
+                  <Countdown
+                    to={auction.startsAt}
+                    className="text-base"
+                    onEnd={refreshAuction}
+                  />
                 ) : endsAt ? (
                   <Countdown
                     to={endsAt}
