@@ -5,7 +5,7 @@
 
 ### 피카! 맘에 드는 포켓몬 카드를 픽업!
 PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카드를 실시간 경매로 거래하는 플랫폼입니다.<br/>
-구매자는 카드의 감정 등급과 실물 이미지를 확인하고 실시간으로 입찰하며, 셀러는 상품 등록부터 경매 신청과 판매 결과까지 관리할 수 있습니다.
+구매자는 카드의 감정 등급과 실물 이미지를 확인하고 실시간으로 입찰하며, 판매자는 상품 등록부터 경매 신청과 판매 결과까지 관리할 수 있습니다.
 
 <p>
 <a href="https://pick-up.store"><img src="https://img.shields.io/badge/PickUp_바로가기-000000?style=for-the-badge&logoColor=white" alt="PickUp_바로가기" /></a>
@@ -20,7 +20,7 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 ---
 
 ## 📋 주요 기능
-포켓몬 트레이딩 카드 중고 경매 서비스, PickUp은 크게 **구매자**와 **셀러** 두 역할을 중심으로 기능이 구성되어 있습니다.
+포켓몬 트레이딩 카드 중고 경매 서비스, PickUp은 크게 **구매자**와 **판매자** 두 역할을 중심으로 기능이 구성되어 있습니다.
 
 <a href="https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%EC%9A%94%EA%B5%AC%EC%82%AC%ED%95%AD-%EB%AA%85%EC%84%B8%EC%84%9C"><img src="https://img.shields.io/badge/요구사항_명세서-000000?style=for-the-badge&logo=notion&logoColor=white" alt="Notion" /></a>
 <a href="https://www.figma.com/design/X8rBmtMD8DAyKOjz07tRpA/Softeer5-55TD?node-id=695-16&t=wfNI2q41VfiC9uWy-1"><img src="https://img.shields.io/badge/와이어프레임-000000?style=for-the-badge&logo=figma&logoColor=white" alt="Figma" /></a>
@@ -41,7 +41,7 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 <img width="1000" alt="point screen" src="https://github.com/user-attachments/assets/909aa7d3-3865-4255-8b51-002232971758" />
 
 
-### ⚡️ 경매 등록 (셀러)
+### ⚡️ 경매 등록 (판매자)
 * 판매자는 카드 검색을 통해 상품을 선택하고, 카드 상태와 주요 결함, 감정 정보를 입력해 상품을 등록할 수 있습니다.
 * 등록된 상품은 경매 이름과 설명, 시작일시를 포함하여 경매 신청할 수 있으며, 시작일시 + 7일간 경매가 진행됩니다.
 
