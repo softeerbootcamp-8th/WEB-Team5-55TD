@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type KeyboardEvent,
 } from "react";
 import {
   createFileRoute,
@@ -189,6 +190,19 @@ function LiveAuctionPage() {
     const value = Number(normalized);
     return Number.isSafeInteger(value) ? value : null;
   })();
+
+  const onAmountKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    // 콤마는 3자리마다 화면에 붙여주는 표기라, 사용자가 직접 찍지는 못하게 막는다.
+    // 숫자 외 글자도 같이 막는다. 단축키·Backspace 같은 조작 키는 그대로 통과시킨다.
+    const isTypingCharacter =
+      event.key.length === 1 &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey;
+    if (isTypingCharacter && !/\d/.test(event.key)) {
+      event.preventDefault();
+    }
+  };
 
   const onAmountChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { value, selectionStart } = event.target;
@@ -618,6 +632,7 @@ function LiveAuctionPage() {
                 ref={amountInputRef}
                 inputMode="numeric"
                 value={amount}
+                onKeyDown={onAmountKeyDown}
                 onChange={onAmountChange}
                 placeholder={`${minNext.toLocaleString("ko-KR")} 이상`}
                 className="tabular"

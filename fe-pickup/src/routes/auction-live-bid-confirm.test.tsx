@@ -204,6 +204,19 @@ describe("입찰 금액 + 버튼", () => {
     expect(input).toHaveValue("1,234");
   });
 
+  it("콤마나_문자는_직접_입력되지_않는다", async () => {
+    await renderLivePage();
+    const input = screen.getByPlaceholderText(/이상/);
+
+    // preventDefault 되면 fireEvent 가 false 를 돌려준다.
+    expect(fireEvent.keyDown(input, { key: "," })).toBe(false);
+    expect(fireEvent.keyDown(input, { key: "a" })).toBe(false);
+    // 숫자와 조작 키는 그대로 통과한다.
+    expect(fireEvent.keyDown(input, { key: "1" })).toBe(true);
+    expect(fireEvent.keyDown(input, { key: "Backspace" })).toBe(true);
+    expect(fireEvent.keyDown(input, { key: "v", metaKey: true })).toBe(true);
+  });
+
   it("콤마가_붙은_금액도_그대로_입찰에_쓴다", async () => {
     await renderLivePage();
 
