@@ -73,7 +73,7 @@ https://github.com/user-attachments/assets/8e83bb98-1f53-499c-b123-beca6a1ca01f
 
 ### 시스템 아키텍처
 <div align="center">
-<img width="1000" alt="시스템아키텍처" src="https://github.com/user-attachments/assets/519ba7af-6770-4f9c-b9f0-522072c993e9" />
+<img width="1000" alt="시스템아키텍처" src="https://github.com/user-attachments/assets/ffed1002-ab67-4411-bf4f-d4532973e0f2" />
 </div>
 
 ## 👥 팀원 소개
