@@ -67,6 +67,8 @@ https://github.com/user-attachments/assets/8e83bb98-1f53-499c-b123-beca6a1ca01f
 - [경매 상태 전이 방식 선정과 초 단위 폴링](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%5B%EA%B0%95%EB%AF%BC%EC%A0%9C%5D-%EA%B2%BD%EB%A7%A4-%EC%83%81%ED%83%9C-%EC%A0%84%EC%9D%B4-%EB%B0%A9%EC%8B%9D-%EC%84%A0%EC%A0%95%EA%B3%BC-%EC%B4%88-%EB%8B%A8%EC%9C%84-%ED%8F%B4%EB%A7%81)
 ## 💻 설계
 ### ERD
+[ERD 더 자세히 보기](https://www.erdcloud.com/d/ajAty877EnEgo39Ga)
+<img width="1000" alt="ERD 사진" src="https://github.com/user-attachments/assets/0ab6464b-74e7-4069-abaf-2c534992281c" />
 
 
 ### 시스템 아키텍처
