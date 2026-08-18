@@ -28,7 +28,7 @@ management:
 auth:
   token:
     issuer: pickup-test
-    secret: ${JWT_TEST_SECRET}
+    secret: ${JWT_TEST_SECRET:ZHVtbXktand0LXRlc3Qtc2VjcmV0LWRvLW5vdC11c2UtaW4tcHJvZA==}
     access-token-ttl: 15m
   cookie:
     secure: true

@@ -4,18 +4,10 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
-import com.ootd.pickup.auction.domain.AuctionStatus;
-import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
-import com.ootd.pickup.bid.event.BidRequestCreatedMessageQueueEvent;
-import com.ootd.pickup.global.event.DomainEvent;
-import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.event.EventType;
-import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
 import com.ootd.pickup.global.observability.SQSEventConsumerMetrics;
 import com.ootd.pickup.global.observability.SQSEventConsumerMetrics.BatchOutcome;
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,69 +23,42 @@ import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * {@code receiveMessage}/{@code deleteMessageBatch} 호출 형태와, 그룹 처리 결과에 따라 삭제·배치 지표 기록이 갈리는지만
+ * 검증한다. 메시지를 이벤트로 되돌리는 로직은 {@link SQSMessageDispatcherTest}, 그룹별 병렬 처리와 메시지 단위 지표는 {@link
+ * SQSGroupBatchProcessorTest}에서 검증한다.
+ */
 class SQSEventConsumerTest {
 
   private static final String QUEUE_URL =
       "https://sqs.ap-northeast-2.amazonaws.com/123456789012/pickup-event.fifo";
 
   private SqsClient eventSqsClient;
-  private ObjectMapper objectMapper;
-  private RecordingHandler auctionEndedHandler;
+  private SQSGroupBatchProcessor batchProcessor;
   private SQSEventConsumerMetrics sqsEventConsumerMetrics;
 
-  /** 받은 이벤트를 모아두고, 지정한 이벤트에서만 실패하는 핸들러. */
-  private static final class RecordingHandler
-      implements EventHandler<AuctionEndedMessageQueueEvent> {
-
-    private final List<AuctionEndedMessageQueueEvent> received = new ArrayList<>();
-    private String failingEventId;
-
-    @Override
-    public Class<AuctionEndedMessageQueueEvent> eventClass() {
-      return AuctionEndedMessageQueueEvent.class;
-    }
-
-    @Override
-    public void handle(AuctionEndedMessageQueueEvent event) {
-      if (event.eventId().equals(failingEventId)) {
-        throw new IllegalStateException("핸들러 장애");
-      }
-      received.add(event);
-    }
-  }
-
-  private static final class RecordingBidHandler
-      implements EventHandler<BidRequestCreatedMessageQueueEvent> {
-
-    @Override
-    public Class<BidRequestCreatedMessageQueueEvent> eventClass() {
-      return BidRequestCreatedMessageQueueEvent.class;
-    }
-
-    @Override
-    public void handle(BidRequestCreatedMessageQueueEvent event) {}
-  }
-
   @BeforeEach
-  void 소비할_큐와_핸들러를_준비한다() {
+  void 소비할_큐를_준비한다() {
     eventSqsClient = mock(SqsClient.class);
-    objectMapper = JsonMapper.builder().findAndAddModules().build();
-    auctionEndedHandler = new RecordingHandler();
+    batchProcessor = mock(SQSGroupBatchProcessor.class);
     sqsEventConsumerMetrics = mock(SQSEventConsumerMetrics.class);
     given(eventSqsClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
         .willReturn(DeleteMessageBatchResponse.builder().build());
   }
 
-  @SafeVarargs
-  private SQSEventConsumer consumerWith(EventHandler<? extends DomainEvent>... handlers) {
+  private SQSEventConsumer consumer() {
     SQSProperties properties =
         new SQSProperties(
-            QUEUE_URL, "ap-northeast-2", Duration.ofSeconds(20), Duration.ofSeconds(30), 10);
+            QUEUE_URL,
+            "ap-northeast-2",
+            null,
+            Duration.ofSeconds(20),
+            Duration.ofSeconds(30),
+            10,
+            4);
     return new SQSEventConsumer(
-        eventSqsClient, properties, objectMapper, sqsEventConsumerMetrics, List.of(handlers));
+        eventSqsClient, properties, batchProcessor, sqsEventConsumerMetrics);
   }
 
   @Test
@@ -102,7 +67,7 @@ class SQSEventConsumerTest {
     givenMessages();
 
     // when
-    consumerWith(auctionEndedHandler).consumeOnce();
+    consumer().consumeOnce();
 
     // then
     ArgumentCaptor<ReceiveMessageRequest> captor =
@@ -116,12 +81,12 @@ class SQSEventConsumerTest {
   }
 
   @Test
-  void 되돌릴_타입과_그룹을_알_수_있도록_속성을_함께_요청한다() {
+  void 되돌릴_타입과_그룹과_재전달_여부를_알_수_있도록_속성을_함께_요청한다() {
     // given — 요청하지 않으면 응답에 실리지 않는다
     givenMessages();
 
     // when
-    consumerWith(auctionEndedHandler).consumeOnce();
+    consumer().consumeOnce();
 
     // then
     ArgumentCaptor<ReceiveMessageRequest> captor =
@@ -135,35 +100,71 @@ class SQSEventConsumerTest {
   }
 
   @Test
-  void 메시지와_배치_처리시간을_성공으로_기록한다() {
+  void 그룹_처리_결과로_받은_메시지를_큐에서_지운다() {
     // given
-    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
+    Message message = message("message-1");
+    givenMessages(message);
+    given(batchProcessor.process(anyList())).willReturn(List.of(message));
 
     // when
-    consumerWith(auctionEndedHandler).consumeOnce();
+    consumer().consumeOnce();
 
     // then
-    then(sqsEventConsumerMetrics)
-        .should()
-        .recordMessageDuration(eq("AUCTION_ENDED"), eq(true), any(Duration.class));
+    assertThat(deletedMessageIds()).containsExactly("message-1");
+  }
+
+  @Test
+  void 그룹_처리_결과가_비어있으면_삭제를_요청하지_않는다() {
+    // given — 실패했거나 핸들러가 없어 결과에서 빠진 메시지는 삭제하면 안 된다
+    givenMessages(message("message-1"));
+    given(batchProcessor.process(anyList())).willReturn(List.of());
+
+    // when
+    consumer().consumeOnce();
+
+    // then
+    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+  }
+
+  @Test
+  void 받은_메시지가_없으면_그룹_처리기를_부르지_않는다() {
+    // given
+    givenMessages();
+
+    // when
+    consumer().consumeOnce();
+
+    // then
+    then(batchProcessor).should(never()).process(anyList());
+    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+  }
+
+  @Test
+  void 배치가_모두_처리되고_삭제도_성공하면_성공으로_기록한다() {
+    // given
+    Message message = message("message-1");
+    givenMessages(message);
+    given(batchProcessor.process(anyList())).willReturn(List.of(message));
+
+    // when
+    consumer().consumeOnce();
+
+    // then
     then(sqsEventConsumerMetrics)
         .should()
         .recordBatch(eq(BatchOutcome.SUCCESS), eq(1), any(Duration.class));
   }
 
   @Test
-  void 메시지_처리에_실패하면_메시지와_배치를_실패로_기록한다() {
+  void 그룹_처리_결과가_비어있으면_배치를_실패로_기록한다() {
     // given
-    auctionEndedHandler.failingEventId = "event-1";
-    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
+    givenMessages(message("message-1"));
+    given(batchProcessor.process(anyList())).willReturn(List.of());
 
     // when
-    consumerWith(auctionEndedHandler).consumeOnce();
+    consumer().consumeOnce();
 
     // then
-    then(sqsEventConsumerMetrics)
-        .should()
-        .recordMessageDuration(eq("AUCTION_ENDED"), eq(false), any(Duration.class));
     then(sqsEventConsumerMetrics)
         .should()
         .recordBatch(eq(BatchOutcome.FAILURE), eq(1), any(Duration.class));
@@ -172,13 +173,12 @@ class SQSEventConsumerTest {
   @Test
   void 일부_메시지만_처리되면_배치를_부분실패로_기록한다() {
     // given
-    auctionEndedHandler.failingEventId = "event-1";
-    givenMessages(
-        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
-        message("message-2", "AUCTION:2048", auctionEndedEvent("event-2", 2048L)));
+    Message consumedMessage = message("message-1");
+    givenMessages(consumedMessage, message("message-2"));
+    given(batchProcessor.process(anyList())).willReturn(List.of(consumedMessage));
 
     // when
-    consumerWith(auctionEndedHandler).consumeOnce();
+    consumer().consumeOnce();
 
     // then
     then(sqsEventConsumerMetrics)
@@ -187,42 +187,11 @@ class SQSEventConsumerTest {
   }
 
   @Test
-  void 두_번째_이상_받은_메시지는_재전달로_기록한다() {
-    // given
-    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L), "2"));
-
-    // when
-    consumerWith(auctionEndedHandler).consumeOnce();
-
-    // then
-    then(sqsEventConsumerMetrics).should().recordRedelivery("AUCTION_ENDED");
-  }
-
-  @Test
-  void 입찰과_경매종료_메시지를_서로_다른_사건종류로_기록한다() {
-    // given
-    BidRequestCreatedMessageQueueEvent bidRequestCreatedEvent =
-        new BidRequestCreatedMessageQueueEvent(
-            "event-2", 30L, 2048L, 40L, 50000L, LocalDateTime.of(2026, 8, 5, 9, 30));
-    givenMessages(
-        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
-        message("message-2", "AUCTION:2048", bidRequestCreatedEvent));
-
-    // when
-    consumerWith(auctionEndedHandler, new RecordingBidHandler()).consumeOnce();
-
-    // then
-    then(sqsEventConsumerMetrics)
-        .should()
-        .recordMessageDuration(eq("AUCTION_ENDED"), eq(true), any(Duration.class));
-    then(sqsEventConsumerMetrics)
-        .should()
-        .recordMessageDuration(eq("BID_REQUEST_CREATED"), eq(true), any(Duration.class));
-  }
-
-  @Test
   void 메시지_삭제에_실패하면_배치를_부분실패로_기록한다() {
     // given
+    Message message = message("message-1");
+    givenMessages(message);
+    given(batchProcessor.process(anyList())).willReturn(List.of(message));
     given(eventSqsClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
         .willReturn(
             DeleteMessageBatchResponse.builder()
@@ -233,10 +202,9 @@ class SQSEventConsumerTest {
                         .senderFault(false)
                         .build())
                 .build());
-    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
 
     // when
-    consumerWith(auctionEndedHandler).consumeOnce();
+    consumer().consumeOnce();
 
     // then
     then(sqsEventConsumerMetrics)
@@ -245,181 +213,31 @@ class SQSEventConsumerTest {
   }
 
   @Test
-  void eventType_속성이_가리키는_타입으로_본문을_되돌린다() {
+  void 두_번째_이상_받은_메시지는_재전달로_기록한다() {
     // given
-    AuctionEndedMessageQueueEvent event = auctionEndedEvent("event-1", 1024L);
-    givenMessages(message("message-1", "AUCTION:1024", event));
+    Message message = message("message-1", "2");
+    givenMessages(message);
+    given(batchProcessor.process(anyList())).willReturn(List.of(message));
 
     // when
-    consumerWith(auctionEndedHandler).consumeOnce();
+    consumer().consumeOnce();
 
     // then
-    assertThat(auctionEndedHandler.received).hasSize(1);
-    assertThat(auctionEndedHandler.received.getFirst()).isEqualTo(event);
+    then(sqsEventConsumerMetrics).should().recordRedelivery("AUCTION_ENDED");
   }
 
   @Test
-  void 타입이_맞는_핸들러_전부에게_넘긴다() {
+  void 처음_받은_메시지는_재전달로_기록하지_않는다() {
     // given
-    RecordingHandler another = new RecordingHandler();
-    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
+    Message message = message("message-1", "1");
+    givenMessages(message);
+    given(batchProcessor.process(anyList())).willReturn(List.of(message));
 
     // when
-    consumerWith(auctionEndedHandler, another).consumeOnce();
+    consumer().consumeOnce();
 
     // then
-    assertThat(auctionEndedHandler.received).hasSize(1);
-    assertThat(another.received).hasSize(1);
-  }
-
-  @Test
-  void 처리에_성공한_메시지를_큐에서_지운다() {
-    // given
-    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
-
-    // when
-    consumerWith(auctionEndedHandler).consumeOnce();
-
-    // then
-    assertThat(deletedMessageIds()).containsExactly("message-1");
-  }
-
-  @Test
-  void 핸들러가_실패한_메시지는_지우지_않는다() {
-    // given — 지우면 처리되지 않은 이벤트가 사라진다
-    auctionEndedHandler.failingEventId = "event-1";
-    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
-
-    // when
-    consumerWith(auctionEndedHandler).consumeOnce();
-
-    // then
-    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
-  }
-
-  @Test
-  void 처리할_핸들러가_없는_메시지는_지우지_않는다() {
-    // given — 조용히 버리면 유실이 허용되지 않는 이벤트가 사라진다. 재전달을 거쳐 DLQ 로 보낸다
-    givenMessages(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
-
-    // when
-    consumerWith().consumeOnce();
-
-    // then
-    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
-  }
-
-  @Test
-  void 되돌릴_수_없는_메시지는_지우지_않는다() {
-    // given — 본문이 깨져 있으면 재시도해도 낫지 않으므로 DLQ 로 보내야 한다
-    Message broken =
-        Message.builder()
-            .messageId("message-1")
-            .receiptHandle("receipt-1")
-            .body("깨진 본문")
-            .messageAttributes(eventTypeAttribute())
-            .attributes(Map.of(MessageSystemAttributeName.MESSAGE_GROUP_ID, "AUCTION:1"))
-            .build();
-    givenMessages(broken);
-
-    // when
-    consumerWith(auctionEndedHandler).consumeOnce();
-
-    // then
-    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
-  }
-
-  @Test
-  void eventType_속성이_없는_메시지는_지우지_않는다() {
-    // given — 되돌릴 타입을 알 수 없다. 지우면 이벤트가 사라지므로 DLQ 로 보내야 한다
-    Message noAttribute =
-        Message.builder()
-            .messageId("message-1")
-            .receiptHandle("receipt-1")
-            .body(objectMapper.writeValueAsString(auctionEndedEvent("event-1", 1024L)))
-            .attributes(Map.of(MessageSystemAttributeName.MESSAGE_GROUP_ID, "AUCTION:1024"))
-            .build();
-    givenMessages(noAttribute);
-
-    // when
-    consumerWith(auctionEndedHandler).consumeOnce();
-
-    // then
-    assertThat(auctionEndedHandler.received).isEmpty();
-    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
-  }
-
-  @Test
-  void 아는_eventType이_아닌_메시지는_지우지_않는다() {
-    // given — 상수 이름이 바뀌었거나 다른 버전이 보낸 메시지다. 재시도해도 낫지 않으므로 DLQ 로 보낸다
-    Message unknownType =
-        Message.builder()
-            .messageId("message-1")
-            .receiptHandle("receipt-1")
-            .body(objectMapper.writeValueAsString(auctionEndedEvent("event-1", 1024L)))
-            .messageAttributes(
-                Map.of(
-                    "eventType",
-                    MessageAttributeValue.builder()
-                        .dataType("String")
-                        .stringValue("AUCTION_VAPORIZED")
-                        .build()))
-            .attributes(Map.of(MessageSystemAttributeName.MESSAGE_GROUP_ID, "AUCTION:1024"))
-            .build();
-    givenMessages(unknownType);
-
-    // when
-    consumerWith(auctionEndedHandler).consumeOnce();
-
-    // then
-    assertThat(auctionEndedHandler.received).isEmpty();
-    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
-  }
-
-  @Test
-  void 같은_그룹의_앞선_메시지가_실패하면_뒤_메시지를_처리하지_않는다() {
-    // given — 계속 처리하면 앞 이벤트가 재전달돼 다시 처리될 때 순서가 역전된다
-    auctionEndedHandler.failingEventId = "event-1";
-    givenMessages(
-        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
-        message("message-2", "AUCTION:1024", auctionEndedEvent("event-2", 1024L)));
-
-    // when
-    consumerWith(auctionEndedHandler).consumeOnce();
-
-    // then
-    assertThat(auctionEndedHandler.received).isEmpty();
-    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
-  }
-
-  @Test
-  void 다른_그룹의_실패는_영향을_주지_않는다() {
-    // given — 경매가 다르면 FIFO 그룹도 달라 순서를 함께 지킬 필요가 없다
-    auctionEndedHandler.failingEventId = "event-1";
-    givenMessages(
-        message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)),
-        message("message-2", "AUCTION:2048", auctionEndedEvent("event-2", 2048L)));
-
-    // when
-    consumerWith(auctionEndedHandler).consumeOnce();
-
-    // then
-    assertThat(auctionEndedHandler.received)
-        .extracting(AuctionEndedMessageQueueEvent::eventId)
-        .containsExactly("event-2");
-    assertThat(deletedMessageIds()).containsExactly("message-2");
-  }
-
-  @Test
-  void 받은_메시지가_없으면_삭제를_요청하지_않는다() {
-    // given
-    givenMessages();
-
-    // when
-    consumerWith(auctionEndedHandler).consumeOnce();
-
-    // then
-    then(eventSqsClient).should(never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+    then(sqsEventConsumerMetrics).should(never()).recordRedelivery(any());
   }
 
   private void givenMessages(Message... messages) {
@@ -434,51 +252,30 @@ class SQSEventConsumerTest {
     return captor.getValue().entries().stream().map(DeleteMessageBatchRequestEntry::id).toList();
   }
 
-  private Message message(String messageId, String messageGroupId, Object event) {
-    return message(messageId, messageGroupId, event, "1");
+  private Message message(String messageId) {
+    return message(messageId, "1");
   }
 
-  private Message message(
-      String messageId, String messageGroupId, Object event, String approximateReceiveCount) {
+  private Message message(String messageId, String approximateReceiveCount) {
     return Message.builder()
         .messageId(messageId)
         .receiptHandle("receipt-" + messageId)
-        .body(objectMapper.writeValueAsString(event))
-        .messageAttributes(eventTypeAttribute(((DomainEvent) event).eventType()))
+        .messageAttributes(eventTypeAttribute())
         .attributes(
             Map.of(
                 MessageSystemAttributeName.MESSAGE_GROUP_ID,
-                messageGroupId,
+                "group-" + messageId,
                 MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT,
                 approximateReceiveCount))
         .build();
   }
 
   private Map<String, MessageAttributeValue> eventTypeAttribute() {
-    return eventTypeAttribute(EventType.AUCTION_ENDED);
-  }
-
-  private Map<String, MessageAttributeValue> eventTypeAttribute(EventType eventType) {
     return Map.of(
         "eventType",
-        MessageAttributeValue.builder().dataType("String").stringValue(eventType.name()).build());
-  }
-
-  private AuctionEndedMessageQueueEvent auctionEndedEvent(String eventId, Long auctionId) {
-    return new AuctionEndedMessageQueueEvent(
-        eventId,
-        auctionId,
-        10L,
-        20L,
-        10000L,
-        30000L,
-        40L,
-        50L,
-        50000L,
-        AuctionStatus.WON,
-        LocalDateTime.of(2026, 8, 5, 9, 0),
-        LocalDateTime.of(2026, 8, 5, 10, 0),
-        LocalDateTime.of(2026, 8, 1, 9, 0),
-        LocalDateTime.of(2026, 8, 5, 10, 0));
+        MessageAttributeValue.builder()
+            .dataType("String")
+            .stringValue(EventType.AUCTION_ENDED.name())
+            .build());
   }
 }
