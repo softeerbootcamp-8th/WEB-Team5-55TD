@@ -907,6 +907,26 @@ class ConsignmentServiceTest {
   }
 
   @Test
+  void 유찰_이력이_있는_REGISTERABLE_상품을_삭제하면_예외가_발생한다() {
+    // given
+    Long sellerMemberId = 1L;
+    Long consignmentId = 100L;
+    Consignment consignment =
+        createConsignment(consignmentId, createCard(10L), ConsignmentStatus.REGISTERABLE);
+    given(consignmentRepository.findByIdForUpdate(consignmentId))
+        .willReturn(Optional.of(consignment));
+    given(auctionManageService.hasAuctionHistory(consignment)).willReturn(true);
+
+    // when & then
+    assertThatThrownBy(() -> consignmentService.deleteConsignment(consignmentId, sellerMemberId))
+        .isInstanceOf(PickUpException.class)
+        .hasMessage(ExceptionCode.CONSIGNMENT_NOT_DELETABLE.getMessage());
+    then(certificateRepository).shouldHaveNoInteractions();
+    then(consignmentImageRepository).shouldHaveNoInteractions();
+    then(consignmentRepository).should(never()).deleteById(any());
+  }
+
+  @Test
   void 존재하지_않는_상품을_삭제하면_예외가_발생한다() {
     // given
     Long notExistConsignmentId = 999L;
