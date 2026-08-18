@@ -93,6 +93,11 @@ public class AuctionDataJpaRepository implements AuctionRepository {
   }
 
   @Override
+  public boolean existsByConsignment(Consignment targetConsignment) {
+    return auctionJpaRepository.existsByConsignment(targetConsignment);
+  }
+
+  @Override
   public Optional<Auction> findByIdWithConsignmentAndCard(Long auctionId) {
     return Optional.ofNullable(
         queryFactory

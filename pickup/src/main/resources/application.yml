@@ -88,6 +88,13 @@ scheduler:
   outbox:
     enabled: ${SCHEDULER_OUTBOX_ENABLED:false}
     fixed-delay: ${SCHEDULER_OUTBOX_FIXED_DELAY:200ms}
+  outbox-cleanup:
+    enabled: ${SCHEDULER_OUTBOX_CLEANUP_ENABLED:false}
+    # OutboxEventCleanupScheduler가 zone="Asia/Seoul"을 명시하므로 이 값은 한국시간(KST) 기준이다.
+    cron: ${SCHEDULER_OUTBOX_CLEANUP_CRON:0 0 4 * * *}
+    retention-days: ${SCHEDULER_OUTBOX_CLEANUP_RETENTION_DAYS:14}
+    batch-size: ${SCHEDULER_OUTBOX_CLEANUP_BATCH_SIZE:500}
+    max-deletes-per-run: ${SCHEDULER_OUTBOX_CLEANUP_MAX_DELETES_PER_RUN:50000}
   card-sync:
     enabled: ${SCHEDULER_CARD_SYNC_ENABLED:true}
     cron: ${SCHEDULER_CARD_SYNC_CRON:0 0 */6 * * *}

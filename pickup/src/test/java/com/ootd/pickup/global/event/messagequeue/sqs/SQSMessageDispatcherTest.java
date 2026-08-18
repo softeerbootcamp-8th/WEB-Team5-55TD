@@ -131,6 +131,57 @@ class SQSMessageDispatcherTest {
         .isInstanceOf(IllegalArgumentException.class);
   }
 
+  @Test
+  void 아는_eventType이면_이름을_지표_태그로_돌려준다() {
+    // given
+    Message message = message(auctionEndedEvent("event-1", 1024L));
+
+    // when
+    String tag = SQSMessageDispatcher.eventTypeTag(message);
+
+    // then
+    assertThat(tag).isEqualTo("AUCTION_ENDED");
+  }
+
+  @Test
+  void eventType_속성이_없으면_UNKNOWN을_지표_태그로_돌려준다() {
+    // given
+    Message noAttribute =
+        Message.builder()
+            .messageId("message-1")
+            .body(objectMapper.writeValueAsString(auctionEndedEvent("event-1", 1024L)))
+            .build();
+
+    // when
+    String tag = SQSMessageDispatcher.eventTypeTag(noAttribute);
+
+    // then
+    assertThat(tag).isEqualTo("UNKNOWN");
+  }
+
+  @Test
+  void 아는_eventType이_아니면_UNKNOWN을_지표_태그로_돌려준다() {
+    // given
+    Message unknownType =
+        Message.builder()
+            .messageId("message-1")
+            .body(objectMapper.writeValueAsString(auctionEndedEvent("event-1", 1024L)))
+            .messageAttributes(
+                Map.of(
+                    "eventType",
+                    MessageAttributeValue.builder()
+                        .dataType("String")
+                        .stringValue("AUCTION_VAPORIZED")
+                        .build()))
+            .build();
+
+    // when
+    String tag = SQSMessageDispatcher.eventTypeTag(unknownType);
+
+    // then
+    assertThat(tag).isEqualTo("UNKNOWN");
+  }
+
   private Message message(Object event) {
     return Message.builder()
         .messageId("message-1")

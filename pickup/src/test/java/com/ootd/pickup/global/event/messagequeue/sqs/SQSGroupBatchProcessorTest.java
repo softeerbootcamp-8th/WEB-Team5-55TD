@@ -1,11 +1,14 @@
 package com.ootd.pickup.global.event.messagequeue.sqs;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.*;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.global.event.EventHandler;
 import com.ootd.pickup.global.event.EventType;
+import com.ootd.pickup.global.observability.SQSEventConsumerMetrics;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,10 +31,12 @@ class SQSGroupBatchProcessorTest {
 
   private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
   private ExecutorService groupExecutor;
+  private SQSEventConsumerMetrics sqsEventConsumerMetrics;
 
   @BeforeEach
   void 실행기를_준비한다() {
     groupExecutor = Executors.newFixedThreadPool(4);
+    sqsEventConsumerMetrics = mock(SQSEventConsumerMetrics.class);
   }
 
   @AfterEach
@@ -99,7 +104,7 @@ class SQSGroupBatchProcessorTest {
   private SQSGroupBatchProcessor processorWith(
       EventHandler<AuctionEndedMessageQueueEvent> handler) {
     SQSMessageDispatcher dispatcher = new SQSMessageDispatcher(objectMapper, List.of(handler));
-    return new SQSGroupBatchProcessor(dispatcher, groupExecutor);
+    return new SQSGroupBatchProcessor(dispatcher, sqsEventConsumerMetrics, groupExecutor);
   }
 
   @Test
@@ -114,6 +119,39 @@ class SQSGroupBatchProcessorTest {
 
     // then
     assertThat(consumed).extracting(Message::messageId).containsExactly("message-1");
+  }
+
+  @Test
+  void 처리에_성공한_메시지는_성공으로_지표를_기록한다() {
+    // given
+    RecordingHandler handler = new RecordingHandler();
+    List<Message> messages =
+        List.of(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
+
+    // when
+    processorWith(handler).process(messages);
+
+    // then
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordMessageDuration(eq("AUCTION_ENDED"), eq(true), any(Duration.class));
+  }
+
+  @Test
+  void 핸들러가_실패한_메시지는_실패로_지표를_기록한다() {
+    // given
+    RecordingHandler handler = new RecordingHandler();
+    handler.failingEventId = "event-1";
+    List<Message> messages =
+        List.of(message("message-1", "AUCTION:1024", auctionEndedEvent("event-1", 1024L)));
+
+    // when
+    processorWith(handler).process(messages);
+
+    // then
+    then(sqsEventConsumerMetrics)
+        .should()
+        .recordMessageDuration(eq("AUCTION_ENDED"), eq(false), any(Duration.class));
   }
 
   @Test

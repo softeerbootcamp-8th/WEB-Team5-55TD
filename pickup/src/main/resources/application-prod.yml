@@ -18,6 +18,8 @@ image:
 scheduler:
   outbox:
     enabled: ${SCHEDULER_OUTBOX_ENABLED:true}
+  outbox-cleanup:
+    enabled: ${SCHEDULER_OUTBOX_CLEANUP_ENABLED:true}
 
 event:
   sqs:

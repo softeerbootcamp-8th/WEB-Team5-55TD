@@ -28,6 +28,9 @@ public class SQSMessageDispatcher {
   /** {@link SQSMessageQueueSender}가 싣는 속성 이름. 양쪽이 같아야 한다. */
   static final String EVENT_TYPE_ATTRIBUTE = "eventType";
 
+  /** 알 수 없는 값 자체를 태그로 쓰면 지표 카디널리티가 늘어나므로 하나의 유한 값으로 합친다. */
+  private static final String UNKNOWN_EVENT_TYPE = "UNKNOWN";
+
   /** 적재 시점과 같은 매퍼여야 한다. 날짜 형식 하나만 달라도 왕복이 깨진다. */
   private final ObjectMapper objectMapper;
 
@@ -95,5 +98,18 @@ public class SQSMessageDispatcher {
     }
     EventType eventType = EventType.valueOf(attribute.stringValue());
     return objectMapper.readValue(message.body(), eventType.messageQueueEventClass());
+  }
+
+  /** 지표 태그로 쓸 이벤트 타입을 구한다. 속성이 없거나 아는 {@link EventType}이 아니면 {@value #UNKNOWN_EVENT_TYPE}을 돌려준다. */
+  static String eventTypeTag(Message message) {
+    MessageAttributeValue attribute = message.messageAttributes().get(EVENT_TYPE_ATTRIBUTE);
+    if (attribute == null || attribute.stringValue() == null) {
+      return UNKNOWN_EVENT_TYPE;
+    }
+    try {
+      return EventType.valueOf(attribute.stringValue()).name();
+    } catch (IllegalArgumentException exception) {
+      return UNKNOWN_EVENT_TYPE;
+    }
   }
 }

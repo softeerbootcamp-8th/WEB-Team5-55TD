@@ -1,5 +1,7 @@
 package com.ootd.pickup.global.event.messagequeue.sqs;
 
+import com.ootd.pickup.global.observability.SQSEventConsumerMetrics;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,6 +36,7 @@ public class SQSGroupBatchProcessor {
   private static final Marker CRITICAL_MARKER = MarkerFactory.getMarker("CRITICAL");
 
   private final SQSMessageDispatcher dispatcher;
+  private final SQSEventConsumerMetrics sqsEventConsumerMetrics;
 
   /** 배치 안에서 서로 다른 메시지 그룹을 동시에 처리하는 데 쓴다. 그룹 안 순서는 이 실행기와 무관하게 호출 순서로 지킨다. */
   private final ExecutorService groupExecutor;
@@ -77,10 +80,13 @@ public class SQSGroupBatchProcessor {
   private List<Message> processGroup(List<Message> messages) {
     List<Message> consumed = new ArrayList<>();
     for (Message message : messages) {
+      long startNanos = System.nanoTime();
+      boolean success = true;
       try {
         dispatcher.dispatch(message);
         consumed.add(message);
       } catch (RuntimeException exception) {
+        success = false;
         log.error(
             CRITICAL_MARKER,
             "SQS 이벤트 처리에 실패했습니다 - messageId={}, messageGroupId={}",
@@ -88,6 +94,11 @@ public class SQSGroupBatchProcessor {
             message.attributes().get(MessageSystemAttributeName.MESSAGE_GROUP_ID),
             exception);
         break;
+      } finally {
+        sqsEventConsumerMetrics.recordMessageDuration(
+            SQSMessageDispatcher.eventTypeTag(message),
+            success,
+            Duration.ofNanos(System.nanoTime() - startNanos));
       }
     }
     return consumed;
