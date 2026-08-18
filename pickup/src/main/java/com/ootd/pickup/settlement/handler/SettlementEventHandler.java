@@ -5,8 +5,10 @@ import static com.ootd.pickup.auction.domain.AuctionStatus.WON;
 
 import com.ootd.pickup.auction.event.AuctionEndedMessageQueueEvent;
 import com.ootd.pickup.global.event.EventHandler;
+import com.ootd.pickup.global.observability.SettlementHandlerMetrics;
 import com.ootd.pickup.point.service.PointReservationService;
 import com.ootd.pickup.settlement.service.SettlementService;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
@@ -26,7 +28,12 @@ import org.springframework.stereotype.Component;
  * 제약에 걸려 {@link DataIntegrityViolationException}과 함께 트랜잭션 전체가 롤백된다({@link SettlementService} 참고). 이
  * 중 정산 멱등성 제약({@code uk_settlement_auction_member_type}) 위반만 다른 인스턴스가 이미 같은 정산을 끝냈다는 신호로 해석한다.
  * 트랜잭션이 이미 안전하게 롤백된 이 시점(트랜잭션 경계 밖)에서 잡아 정상 소비로 처리한다. 다른 무결성 제약 위반까지 중복 정산으로 간주하면 데이터 오류가 성공으로 오인되어
- * 메시지가 삭제되므로 그대로 다시 던진다.
+ * 메시지가 삭제되므로 그대로 다시 던진다. 여기서 잡지 않으면 {@code SQSEventConsumer}가 이를 알 수 없는 실패로 보고 error 로그(Slack
+ * 알림)를 남기고 메시지 그룹을 막아, 자기 치유되는 경합인데도 소음과 지연을 만든다.
+ *
+ * <p>처리 소요 시간을 {@link SettlementHandlerMetrics}로 기록한다. SQS {@code visibility-timeout}(현재 30초)이 이
+ * 시간보다 길어야 하는데, 그 값이 이 핸들러가 없던 시절 실측 없이 임의로 정해진 값이라({@code docs/SQS_가시성_타임아웃_실측_실행_계획.md}), 재산정에 쓸
+ * 실제 처리 시간 분포가 필요하다.
  */
 @Slf4j
 @Component
@@ -36,8 +43,12 @@ public class SettlementEventHandler implements EventHandler<AuctionEndedMessageQ
   private static final String SETTLEMENT_IDEMPOTENCY_CONSTRAINT =
       "uk_settlement_auction_member_type";
 
+  /** 이 시간을 넘긴 개별 이벤트는 원인 분석을 위해 로그에 남긴다. 잠정값 — 실측 후 조정한다. */
+  private static final long SLOW_THRESHOLD_MILLIS = 5_000L;
+
   private final SettlementService settlementService;
   private final PointReservationService pointReservationService;
+  private final SettlementHandlerMetrics settlementHandlerMetrics;
 
   @Override
   public Class<AuctionEndedMessageQueueEvent> eventClass() {
@@ -51,6 +62,20 @@ public class SettlementEventHandler implements EventHandler<AuctionEndedMessageQ
         event.eventId(),
         event.auctionId(),
         event.auctionStatus());
+
+    long startNanos = System.nanoTime();
+    boolean success = true;
+    try {
+      dispatch(event);
+    } catch (RuntimeException exception) {
+      success = false;
+      throw exception;
+    } finally {
+      recordDuration(event, success, startNanos);
+    }
+  }
+
+  private void dispatch(AuctionEndedMessageQueueEvent event) {
     if (event.auctionStatus() == PASSED) {
       pointReservationService.releaseForPassedAuction(event.auctionId());
       return;
@@ -83,5 +108,19 @@ public class SettlementEventHandler implements EventHandler<AuctionEndedMessageQ
       cause = cause.getCause();
     }
     return false;
+  }
+
+  private void recordDuration(
+      AuctionEndedMessageQueueEvent event, boolean success, long startNanos) {
+    Duration elapsed = Duration.ofNanos(System.nanoTime() - startNanos);
+    settlementHandlerMetrics.recordDuration(event.auctionStatus(), success, elapsed);
+
+    if (elapsed.toMillis() > SLOW_THRESHOLD_MILLIS) {
+      log.warn(
+          "정산 이벤트 처리가 느립니다 - auctionId={}, auctionStatus={}, elapsedMillis={}",
+          event.auctionId(),
+          event.auctionStatus(),
+          elapsed.toMillis());
+    }
   }
 }

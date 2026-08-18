@@ -11,6 +11,9 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 <a href="https://pick-up.store"><img src="https://img.shields.io/badge/PickUp_바로가기-000000?style=for-the-badge&logoColor=white" alt="PickUp_바로가기" /></a>
 <a href="https://artistic-emery-094.notion.site/Softeer8th-55TD-39d2861022fb80ba9396fa43a9fcdece"><img src="https://img.shields.io/badge/팀_노션-000000?style=for-the-badge&logo=notion&logoColor=white" alt="Notion" /></a>
 <a href="https://app.notion.com/p/39e2861022fb80c4bc11fd5c37e23650?v=39f2861022fb80c78030000cd935ebb2&source=copy_link"><img src="https://img.shields.io/badge/데일리스크럼-181717?style=for-the-badge&logo=notion&logoColor=white" alt="데일리스크럼" /></a>
+<a href="https://softeer5.atlassian.net/jira/software/projects/OOTD/boards/1/backlog">
+  <img src="https://img.shields.io/badge/JIRA_백로그-0052CC?style=for-the-badge&logo=jira&logoColor=white" alt="JIRA 백로그" />
+</a>
 </p>
 </div>
 
@@ -24,8 +27,7 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 ### 🔎 경매 탐색 (구매자)
 * 카드명 검색과 경매 상태·가격·마감 시간 기준의 필터 및 정렬을 통해 원하는 경매를 빠르게 찾을 수 있습니다.
 * 경매 상세 화면에서는 카드 실물 이미지, 감정 등급, 현재가, 다음 최소 입찰가와 판매자 정보를 확인하고, 관심 경매로 등록해 다시 모아볼 수 있습니다.
-<img width="1000" alt="asdf" src="https://github.com/user-attachments/assets/b6b9afd3-7025-47fa-9b99-49065e0b1581" />
-
+<img width="1000" alt="경매조회1111" src="https://github.com/user-attachments/assets/f5b5ac04-11f0-44e0-839a-f7f0dfb910d8" />
 
 
 ### ⏳ 실시간 경매 (구매자)
@@ -42,7 +44,9 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 ### ⚡️ 경매 등록 (셀러)
 * 판매자는 카드 검색을 통해 상품을 선택하고, 카드 상태와 주요 결함, 감정 정보를 입력해 상품을 등록할 수 있습니다.
 * 등록된 상품은 경매 이름과 설명, 시작일시를 포함하여 경매 신청할 수 있으며, 시작일시 + 7일간 경매가 진행됩니다.
-<img width="1000" alt="경매 등록" src="https://github.com/user-attachments/assets/257cabe4-cce7-445b-84a0-2ab4bfa8aab4" />
+
+https://github.com/user-attachments/assets/8e83bb98-1f53-499c-b123-beca6a1ca01f
+
 
 ## 🛠️ 기술 스택
 | 구분 | 사용 기술 |
@@ -66,11 +70,13 @@ PickUp은 인증기관의 감정 정보를 기반으로 중고 포켓몬 TCG 카
 - [경매 상태 전이 방식 선정과 초 단위 폴링](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%5B%EA%B0%95%EB%AF%BC%EC%A0%9C%5D-%EA%B2%BD%EB%A7%A4-%EC%83%81%ED%83%9C-%EC%A0%84%EC%9D%B4-%EB%B0%A9%EC%8B%9D-%EC%84%A0%EC%A0%95%EA%B3%BC-%EC%B4%88-%EB%8B%A8%EC%9C%84-%ED%8F%B4%EB%A7%81)
 ## 💻 설계
 ### ERD
+[ERD 더 자세히 보기](https://www.erdcloud.com/d/ajAty877EnEgo39Ga)
+<img width="1000" alt="ERD 사진" src="https://github.com/user-attachments/assets/0ab6464b-74e7-4069-abaf-2c534992281c" />
 
 
 ### 시스템 아키텍처
 <div align="center">
-<img width="1000" alt="시스템아키텍처" src="https://github.com/user-attachments/assets/519ba7af-6770-4f9c-b9f0-522072c993e9" />
+<img width="1000" alt="시스템아키텍처" src="https://github.com/user-attachments/assets/ffed1002-ab67-4411-bf4f-d4532973e0f2" />
 </div>
 
 ## 👥 팀원 소개

@@ -17,6 +17,8 @@ public interface AuctionRepository {
 
   Optional<Auction> findByIdForUpdate(Long auctionId);
 
+  boolean existsByConsignment(Consignment consignment);
+
   boolean extendEndAtIfClosingSoon(Auction auction, LocalDateTime bidAt);
 
   int incrementWatchCountById(Long auctionId);

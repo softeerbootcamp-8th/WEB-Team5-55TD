@@ -295,6 +295,12 @@ public class ConsignmentService {
       throw new PickUpException(CONSIGNMENT_NOT_DELETABLE);
     }
 
+    // REGISTERABLE은 신규 등록뿐 아니라 유찰 후 재등록 가능 상태도 포함한다. 후자는 과거 경매 행이
+    // FK로 이 상품을 여전히 참조하고 있어, 그대로 삭제하면 무결성 제약 위반(500)이 발생한다.
+    if (auctionManageService.hasAuctionHistory(consignment)) {
+      throw new PickUpException(CONSIGNMENT_NOT_DELETABLE);
+    }
+
     List<String> imageObjectKeys =
         consignmentImageRepository.findAllByConsignmentOrderByImageOrderAsc(consignment).stream()
             .map(ConsignmentImage::getObjectKey)
