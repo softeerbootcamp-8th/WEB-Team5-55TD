@@ -61,11 +61,12 @@ https://github.com/user-attachments/assets/8e83bb98-1f53-499c-b123-beca6a1ca01f
 > 자세한 내용은 팀 WIKI에서 확인하실 수 있습니다.
 <p>
 <a href="https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki"><img src="https://img.shields.io/badge/WIKI_바로가기-000000?style=for-the-badge&logoColor=white" alt="WIKI_바로가기" /></a>
-
-- [WebSocket STOMP로 실시간 입찰 전달하기](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%5B%EC%B1%84%EC%A3%BC%ED%98%81%5D-WebSocket%EA%B3%BC-STOMP%EB%A5%BC-%ED%99%9C%EC%9A%A9%ED%95%9C-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EC%9E%85%EC%B0%B0-%EA%B5%AC%EC%A1%B0)
-- [메시지 큐로 동시 입찰 요청을 안전하게 처리하기](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%EB%A9%94%EC%8B%9C%EC%A7%80-%ED%81%90%EB%A1%9C-%EB%8F%99%EC%8B%9C-%EC%9E%85%EC%B0%B0-%EC%9A%94%EC%B2%AD%EC%9D%84-%EC%95%88%EC%A0%84%ED%95%98%EA%B2%8C-%EC%B2%98%EB%A6%AC%ED%95%98%EA%B8%B0)
-- [이벤트 기반 통신으로 정산을 견고하게 처리하기](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%EC%9D%B4%EB%B2%A4%ED%8A%B8-%EA%B8%B0%EB%B0%98-%ED%86%B5%EC%8B%A0%EC%9C%BC%EB%A1%9C-%EC%A0%95%EC%82%B0%EC%9D%84-%EA%B2%AC%EA%B3%A0%ED%95%98%EA%B2%8C-%EC%B2%98%EB%A6%AC%ED%95%98%EA%B8%B0)
+  
 - [경매 상태 전이 방식 선정과 초 단위 폴링](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%5B%EA%B0%95%EB%AF%BC%EC%A0%9C%5D-%EA%B2%BD%EB%A7%A4-%EC%83%81%ED%83%9C-%EC%A0%84%EC%9D%B4-%EB%B0%A9%EC%8B%9D-%EC%84%A0%EC%A0%95%EA%B3%BC-%EC%B4%88-%EB%8B%A8%EC%9C%84-%ED%8F%B4%EB%A7%81)
+- [메시지 큐로 동시 입찰 요청을 안전하게 처리하기](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%EB%A9%94%EC%8B%9C%EC%A7%80-%ED%81%90%EB%A1%9C-%EB%8F%99%EC%8B%9C-%EC%9E%85%EC%B0%B0-%EC%9A%94%EC%B2%AD%EC%9D%84-%EC%95%88%EC%A0%84%ED%95%98%EA%B2%8C-%EC%B2%98%EB%A6%AC%ED%95%98%EA%B8%B0)
+- [WebSocket STOMP로 실시간 입찰 전달하기](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%5B%EC%B1%84%EC%A3%BC%ED%98%81%5D-WebSocket%EA%B3%BC-STOMP%EB%A5%BC-%ED%99%9C%EC%9A%A9%ED%95%9C-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EC%9E%85%EC%B0%B0-%EA%B5%AC%EC%A1%B0)
+- [이벤트 기반 통신으로 정산을 견고하게 처리하기](https://github.com/softeerbootcamp-8th/WEB-Team5-55TD/wiki/%EC%9D%B4%EB%B2%A4%ED%8A%B8-%EA%B8%B0%EB%B0%98-%ED%86%B5%EC%8B%A0%EC%9C%BC%EB%A1%9C-%EC%A0%95%EC%82%B0%EC%9D%84-%EA%B2%AC%EA%B3%A0%ED%95%98%EA%B2%8C-%EC%B2%98%EB%A6%AC%ED%95%98%EA%B8%B0)
+  
 ## 💻 설계
 ### ERD
 [ERD 더 자세히 보기](https://www.erdcloud.com/d/ajAty877EnEgo39Ga)
