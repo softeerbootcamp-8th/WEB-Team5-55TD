@@ -905,7 +905,7 @@ class AuctionServiceTest {
   }
 
   @Test
-  void 낙찰된_경매를_조회하면_마스킹된_낙찰자_닉네임이_반환된다() {
+  void 낙찰된_경매를_조회하면_낙찰자_닉네임이_반환된다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.SOLD, null);
     Auction auction =
@@ -932,11 +932,11 @@ class AuctionServiceTest {
     AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
 
     // then
-    assertThat(response.winnerNicknameMasked()).isEqualTo("닉***임");
+    assertThat(response.winnerNickname()).isEqualTo("닉네임");
   }
 
   @Test
-  void 유찰된_경매를_조회하면_winnerNicknameMasked가_null이다() {
+  void 유찰된_경매를_조회하면_winnerNickname이_null이다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.SOLD, null);
     Auction auction =
@@ -959,11 +959,11 @@ class AuctionServiceTest {
     AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
 
     // then
-    assertThat(response.winnerNicknameMasked()).isNull();
+    assertThat(response.winnerNickname()).isNull();
   }
 
   @Test
-  void 진행중인_경매를_조회하면_winnerNicknameMasked가_null이다() {
+  void 진행중인_경매를_조회하면_winnerNickname이_null이다() {
     // given
     Consignment consignment = createConsignment(100L, 1L, ConsignmentStatus.IN_AUCTION, null);
     Auction auction =
@@ -982,7 +982,7 @@ class AuctionServiceTest {
     AuctionDetailResponse response = auctionService.getAuctionDetail(null, 1L);
 
     // then
-    assertThat(response.winnerNicknameMasked()).isNull();
+    assertThat(response.winnerNickname()).isNull();
   }
 
   @Test

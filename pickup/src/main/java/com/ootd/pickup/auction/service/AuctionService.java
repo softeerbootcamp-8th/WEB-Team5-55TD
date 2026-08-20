@@ -27,7 +27,6 @@ import com.ootd.pickup.consignments.service.CertificateManageService;
 import com.ootd.pickup.global.dto.response.CursorPageResponse;
 import com.ootd.pickup.global.exception.PickUpException;
 import com.ootd.pickup.global.util.CursorPageSize;
-import com.ootd.pickup.global.util.NicknameMasker;
 import com.ootd.pickup.images.service.ImageUrlResolver;
 import java.util.List;
 import java.util.Map;
@@ -198,7 +197,7 @@ public class AuctionService {
             .getOrDefault(auctionId, WatchSummary.EMPTY);
     Optional<Bid> winningBid = findWinningBid(auction);
     boolean myBidWon = resolveMyBidWon(winningBid, viewerMemberId);
-    String winnerNicknameMasked = resolveWinnerNicknameMasked(winningBid);
+    String winnerNickname = resolveWinnerNickname(winningBid);
 
     return AuctionDetailResponse.of(
         auction,
@@ -209,7 +208,7 @@ public class AuctionService {
         auction.getCurrentPrice(),
         imageUrlResolver,
         myBidWon,
-        winnerNicknameMasked);
+        winnerNickname);
   }
 
   /**
@@ -233,9 +232,9 @@ public class AuctionService {
         .orElse(false);
   }
 
-  /** 낙찰자의 마스킹된 닉네임을 계산한다. 낙찰 입찰이 없으면 null. */
-  private String resolveWinnerNicknameMasked(Optional<Bid> winningBid) {
-    return winningBid.map(bid -> NicknameMasker.mask(bid.getMember().getNickname())).orElse(null);
+  /** 낙찰자 닉네임을 계산한다. 낙찰 입찰이 없으면 null. */
+  private String resolveWinnerNickname(Optional<Bid> winningBid) {
+    return winningBid.map(bid -> bid.getMember().getNickname()).orElse(null);
   }
 
   private Consignment getConsignment(Long consignmentId) {
