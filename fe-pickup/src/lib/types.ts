@@ -32,12 +32,13 @@ export interface AuctionSummary {
   startsAt?: string;
   watchCount?: number;
   watched?: boolean;
+  /** 경매 목록 응답에도 함께 내려온다. */
+  sellerNickname?: string;
 }
 
 export type AuctionDetail = AuctionSummary & {
   description?: string;
   sellerId?: string;
-  sellerNickname?: string;
   sellerProfileImageUrl?: string;
   minBidUnit?: number;
   images?: string[];

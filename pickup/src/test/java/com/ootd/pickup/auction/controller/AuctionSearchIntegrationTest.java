@@ -363,6 +363,21 @@ class AuctionSearchIntegrationTest {
   }
 
   @Test
+  void 목록_항목에_판매자_닉네임이_포함된다() throws Exception {
+    // given
+    Consignment consignment = createConsignment();
+    Auction auction = createAuction(consignment, AuctionStatus.SCHEDULED, 1000L, null);
+    String sellerNickname = consignment.getSellerMember().getNickname();
+
+    // when & then
+    mockMvc
+        .perform(get("/auctions").param("status", "SCHEDULED"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].auctionId").value(auction.getAuctionId()))
+        .andExpect(jsonPath("$.items[0].sellerNickname").value(sellerNickname));
+  }
+
+  @Test
   void sellerId로_필터링하면_해당_판매자의_경매만_조회된다() throws Exception {
     // given
     Consignment sellerAConsignment = createConsignment();

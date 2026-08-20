@@ -40,8 +40,8 @@ public record AuctionDetailResponse(
     Long recommendedBid,
     // 조회자 본인이 이 경매의 낙찰자인지. 비로그인 상태거나 낙찰자가 아니면 false.
     boolean myBidWon,
-    // 마스킹된 낙찰자 닉네임. 낙찰(WON) 상태가 아니면 null.
-    String winnerNicknameMasked) {
+    // 낙찰자 닉네임. 낙찰(WON) 상태가 아니면 null.
+    String winnerNickname) {
 
   public static AuctionDetailResponse of(
       Auction auction,
@@ -52,7 +52,7 @@ public record AuctionDetailResponse(
       Long currentPrice,
       ImageUrlResolver imageUrlResolver,
       boolean myBidWon,
-      String winnerNicknameMasked) {
+      String winnerNickname) {
     Consignment consignment = auction.getConsignment();
 
     return new AuctionDetailResponse(
@@ -85,7 +85,7 @@ public record AuctionDetailResponse(
         // TODO: 입찰 이력 기반 추천 입찰가 도입 전까지 미제공
         null,
         myBidWon,
-        winnerNicknameMasked);
+        winnerNickname);
   }
 
   private static String resolveThumbnailUrl(

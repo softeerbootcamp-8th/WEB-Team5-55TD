@@ -135,6 +135,7 @@ class PointReservationServiceTest {
     assertThat(point.getReservedBalance()).isZero();
     assertThat(point.getAvailableBalance()).isEqualTo(20_000L);
     assertThat(reservation.getReservationStatus().name()).isEqualTo("RELEASED");
+    then(pointReservationRepository).should().findByAuctionIdForUpdate(1L);
   }
 
   private Auction createAuction(Long auctionId) {

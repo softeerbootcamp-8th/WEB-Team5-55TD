@@ -37,8 +37,8 @@ function AuctionEndPage() {
   const headline = iWon
     ? "축하합니다!"
     : sold
-      ? auction.winnerNicknameMasked
-        ? `${auction.winnerNicknameMasked}님 낙찰!`
+      ? auction.winnerNickname
+        ? `${auction.winnerNickname}님 낙찰!`
         : "낙찰자가 결정되었습니다"
       : "유찰되었습니다";
   const description = iWon

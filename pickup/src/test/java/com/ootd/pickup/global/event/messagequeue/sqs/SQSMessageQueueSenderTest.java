@@ -7,7 +7,6 @@ import static org.mockito.BDDMockito.*;
 import com.ootd.pickup.global.event.AggregateType;
 import com.ootd.pickup.global.event.EventType;
 import com.ootd.pickup.global.event.messagequeue.outbox.RelayedOutboxEvent;
-import com.ootd.pickup.global.event.messagequeue.sqs.config.SQSProperties;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +30,13 @@ class SQSMessageQueueSenderTest {
     eventSqsClient = mock(SqsClient.class);
     SQSProperties properties =
         new SQSProperties(
-            QUEUE_URL, "ap-northeast-2", Duration.ofSeconds(20), Duration.ofSeconds(30), 10);
+            QUEUE_URL,
+            "ap-northeast-2",
+            null,
+            Duration.ofSeconds(20),
+            Duration.ofSeconds(30),
+            10,
+            4);
     sqsMessageQueueSender = new SQSMessageQueueSender(eventSqsClient, properties);
   }
 

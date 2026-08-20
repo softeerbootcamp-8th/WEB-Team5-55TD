@@ -19,6 +19,15 @@ const toastSuccess = vi.fn();
 const toastError = vi.fn();
 const getBidRequestResult = vi.fn();
 
+// "preview" 입찰 목록 조회 결과. REST 폴링/재조회로 목록이 갱신되는 상황을 재현할 수 있도록
+// 테스트에서 직접 바꿀 수 있는 배열로 둔다. 기본값은 조회자 본인이 현재 최고 입찰자인 상태.
+let previewBidItems: Array<{
+  id: string;
+  nickname: string;
+  amount: number;
+  isMine: boolean;
+}> = [{ id: "5", nickname: "me", amount: 10000, isMine: true }];
+
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
     options,
@@ -36,18 +45,12 @@ vi.mock("@tanstack/react-query", () => ({
     isPending: false,
   }),
   useInfiniteQuery: (options: { queryKey: unknown[] }) => {
-    // "preview" 입찰 목록 조회에서, 조회자 본인이 현재 최고 입찰자인 상태를 시뮬레이션한다.
+    // "preview" 입찰 목록 조회. 매 렌더마다 현재 previewBidItems 값을 그대로 반영해,
+    // 테스트에서 REST 재조회로 목록이 바뀌는 상황(폴링, 창 포커스 등)을 재현할 수 있게 한다.
     if (options.queryKey.includes("preview")) {
       return {
         data: {
-          pages: [
-            {
-              items: [
-                { id: "5", nickname: "me", amount: 10000, isMine: true },
-              ],
-              hasNext: false,
-            },
-          ],
+          pages: [{ items: previewBidItems, hasNext: false }],
         },
         isPending: false,
         hasNextPage: false,
@@ -120,6 +123,7 @@ describe("실시간 경매 추월 알림", () => {
       bidPrice: 10500,
       status: "PENDING",
     });
+    previewBidItems = [{ id: "5", nickname: "me", amount: 10000, isMine: true }];
   });
 
   it("내가_최고_입찰자였다가_다른_회원에게_추월당하면_알림을_보여준다", async () => {
@@ -141,6 +145,41 @@ describe("실시간 경매 추월 알림", () => {
         description: expect.stringContaining("10,500"),
       }),
     );
+  });
+
+  it("추월당한_뒤_예전_내_입찰이_목록에_남아있어도_같은_추월에_대해_알림을_반복하지_않는다", async () => {
+    // 추월당하면(1번 알림) 내 예전 입찰(id 5)은 더 이상 최상단이 아니지만, 최근 목록 조회
+    // 범위 안에는 여전히 남아있을 수 있다(폴링, 창 포커스 재조회 등). 이 상태에서 또 다른
+    // 회원이 다시 입찰해도, 나는 이미 선두를 잃은 상태이므로 알림이 또 뜨면 안 된다.
+    const { Route } = await import("@/routes/_buyer/auctions/$auctionId/live");
+    const Component = Route.options.component as ComponentType;
+    const { rerender } = render(<Component />);
+
+    act(() => {
+      onBidUpdated?.({
+        latestBid: { bidId: 6, nickname: "다른회원", bidPrice: 10500 },
+        currentPrice: 10500,
+        endedAt: null,
+      });
+    });
+    expect(toastWarning).toHaveBeenCalledTimes(1);
+
+    // REST 재조회 결과: 추월한 입찰(6)이 최상단이고, 내 예전 입찰(5)은 목록에 남아있을 뿐 선두가 아니다.
+    previewBidItems = [
+      { id: "6", nickname: "다른회원", amount: 10500, isMine: false },
+      { id: "5", nickname: "me", amount: 10000, isMine: true },
+    ];
+    rerender(<Component />);
+
+    act(() => {
+      onBidUpdated?.({
+        latestBid: { bidId: 7, nickname: "또다른회원", bidPrice: 11000 },
+        currentPrice: 11000,
+        endedAt: null,
+      });
+    });
+
+    expect(toastWarning).toHaveBeenCalledTimes(1);
   });
 
   it("다른_탭이나_기기에서_낸_내_입찰은_추월_알림을_띄우지_않는다", async () => {

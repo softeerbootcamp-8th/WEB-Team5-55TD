@@ -120,3 +120,30 @@ export function minBidUnit(startPrice: number): number {
 
 /** 경매 희망 시작가 하한 (DESIGN.md §6). 서버의 CreateAuctionRequest 검증과 같은 값이어야 한다. */
 export const MINIMUM_STARTING_PRICE = 1_000;
+
+/**
+ * 입력 중인 금액 문자열을 3자리 콤마 표기로 정규화한다.
+ *
+ * 숫자가 아닌 문자는 버리므로 사용자가 아무 자리에나 찍은 콤마도 제자리로 돌아온다.
+ * 자릿수가 많아도 정확해야 하므로 Number 로 바꾸지 않고 문자열에서 끊는다.
+ */
+export function formatAmountInput(value: string): string {
+  const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/** 정규화된 금액 문자열에서 앞에서부터 숫자 digitCount 개를 지난 커서 위치를 구한다. */
+export function caretPositionAfterDigits(
+  formatted: string,
+  digitCount: number,
+): number {
+  if (digitCount <= 0) return 0;
+  let seen = 0;
+  for (let index = 0; index < formatted.length; index += 1) {
+    if (/\d/.test(formatted[index])) {
+      seen += 1;
+      if (seen === digitCount) return index + 1;
+    }
+  }
+  return formatted.length;
+}

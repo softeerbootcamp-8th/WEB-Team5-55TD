@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import {
   createFileRoute,
   Link,
@@ -54,7 +62,11 @@ import {
   setSkipBidConfirm,
   shouldSkipBidConfirm,
 } from "@/lib/bid-confirm-preference";
-import { formatWon } from "@/lib/format";
+import {
+  caretPositionAfterDigits,
+  formatAmountInput,
+  formatWon,
+} from "@/lib/format";
 import { AuctionStatus } from "@/lib/types";
 import {
   mergeLatestBid,
@@ -138,6 +150,9 @@ function LiveAuctionPage() {
     endsAt: auction.endsAt,
   });
   const [amount, setAmount] = useState("");
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  // 콤마를 다시 매기면 문자열 길이가 바뀌어 커서가 끝으로 튄다. 다시 놓을 자리를 적어둔다.
+  const amountCaretRef = useRef<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dontShowConfirmAgain, setDontShowConfirmAgain] = useState(false);
   const [fail, setFail] = useState<string | null>(null);
@@ -176,8 +191,37 @@ function LiveAuctionPage() {
     return Number.isSafeInteger(value) ? value : null;
   })();
 
+  const onAmountKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    // 콤마는 3자리마다 화면에 붙여주는 표기라, 사용자가 직접 찍지는 못하게 막는다.
+    // 숫자 외 글자도 같이 막는다. 단축키·Backspace 같은 조작 키는 그대로 통과시킨다.
+    const isTypingCharacter =
+      event.key.length === 1 &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey;
+    if (isTypingCharacter && !/\d/.test(event.key)) {
+      event.preventDefault();
+    }
+  };
+
+  const onAmountChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { value, selectionStart } = event.target;
+    const caret = selectionStart ?? value.length;
+    // 커서 앞의 숫자 개수를 기준으로 잡아두면 콤마가 끼거나 빠져도 같은 자리로 돌아온다.
+    amountCaretRef.current = value.slice(0, caret).replace(/\D/g, "").length;
+    setAmount(formatAmountInput(value));
+  };
+
+  useLayoutEffect(() => {
+    const digitCount = amountCaretRef.current;
+    if (digitCount === null) return;
+    amountCaretRef.current = null;
+    const caret = caretPositionAfterDigits(amount, digitCount);
+    amountInputRef.current?.setSelectionRange(caret, caret);
+  }, [amount]);
+
   const onIncrementClick = () => {
-    setAmount(String((rawAmount ?? currentPrice) + minUnit));
+    setAmount(formatAmountInput(String((rawAmount ?? currentPrice) + minUnit)));
   };
 
   // 실시간 입찰 목록 — 개수 제한 없이 최신순으로 이어서 불러온다(스크롤 페이지네이션).
@@ -212,9 +256,8 @@ function LiveAuctionPage() {
     queryFn: () => getAuctionBids(auction.id, { size: BID_MODAL_SIZE }),
     enabled: allBidsOpen && !isEnded,
   });
-  const latestBidId = previewBidItems[0]
-    ? Number(previewBidItems[0].id)
-    : undefined;
+  const topPreviewBid = previewBidItems[0];
+  const latestBidId = topPreviewBid ? Number(topPreviewBid.id) : undefined;
 
   // 실시간 화면에서 추월당했는지 판단하려면 "내 최고 입찰가"를 알아야 한다.
   // 페이지를 새로 열었을 때는 입찰 내역에서, 직접 입찰했을 때는 그 결과에서 채운다.
@@ -222,18 +265,19 @@ function LiveAuctionPage() {
   // 방금 접수한 입찰 요청의 id. 성공 브로드캐스트가 이 id와 일치하면 "내 요청"으로 판단해
   // 성공 토스트를 띄운다 — 이 화면은 서버로부터 자신의 memberId를 알 방법이 없다.
   const pendingBidRequestIdRef = useRef<number | null>(null);
-  // 목록에서 "내가 이미 남긴 가장 최근 입찰"을 찾는다 — 전체 최신 입찰(topPreviewBid)이
-  // 아니라 내 입찰만 봐야, 새로고침 시점에 이미 다른 회원에게 추월당한 상태여도(즉 내가
-  // 최상단이 아니어도) 내 최고 입찰가를 놓치지 않는다.
-  const myPreviewBid = previewBidItems.find((bid) => bid.isMine);
+  // 목록 최상단(=현재 최고가)이 내 입찰일 때만 "내가 선두"라고 무장한다. 최근 목록 안에서
+  // 내 입찰을 찾는 방식은 쓰지 않는다 — 이미 추월당해 ref가 null로 초기화된 뒤에도, 폴링이나
+  // 창 포커스로 목록이 다시 조회될 때마다 그 목록에 남아있는 예전(이미 밀린) 내 입찰로 ref가
+  // 재무장되어, 그다음 새 입찰이 들어올 때마다 같은 추월 상황에 대해 "추월당했습니다" 알림이
+  // 중복으로 뜨는 버그가 있었다. 최상단 여부로 제한하면 선두를 잃은 동안에는 재무장되지 않는다.
   useEffect(() => {
-    if (myPreviewBid) {
+    if (topPreviewBid?.isMine) {
       myHighestBidRef.current = {
-        bidId: Number(myPreviewBid.id),
-        price: myPreviewBid.amount,
+        bidId: Number(topPreviewBid.id),
+        price: topPreviewBid.amount,
       };
     }
-  }, [myPreviewBid]);
+  }, [topPreviewBid]);
 
   const refreshSnapshot = useCallback(() => {
     void queryClient.invalidateQueries({
@@ -585,9 +629,11 @@ function LiveAuctionPage() {
             </div>
             <div className="flex gap-2">
               <Input
+                ref={amountInputRef}
                 inputMode="numeric"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onKeyDown={onAmountKeyDown}
+                onChange={onAmountChange}
                 placeholder={`${minNext.toLocaleString("ko-KR")} 이상`}
                 className="tabular"
                 disabled={isMyAuction}
@@ -607,7 +653,9 @@ function LiveAuctionPage() {
                 className="shrink-0"
               >
                 <span aria-hidden="true">+</span>
-                <span className="sr-only">현재 최소 입찰 단위 {formatWon(minUnit)} 추가</span>
+                <span className="sr-only">
+                  현재 최소 입찰 단위 {formatWon(minUnit)} 추가
+                </span>
               </Button>
               <Button
                 onClick={onBidClick}
@@ -631,7 +679,9 @@ function LiveAuctionPage() {
                   type="button"
                   size="sm"
                   variant="secondary"
-                  onClick={() => setAmount(String(recommended))}
+                  onClick={() =>
+                    setAmount(formatAmountInput(String(recommended)))
+                  }
                   disabled={isMyAuction}
                 >
                   {formatWon(recommended)}

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 function auctionOf(
   won: boolean,
   myBidWon: boolean,
-  winnerNicknameMasked?: string,
+  winnerNickname?: string,
 ) {
   return {
     id: "1",
@@ -15,7 +15,7 @@ function auctionOf(
     myBidWon,
     currentPrice: 12000,
     thumbnailUrl: undefined,
-    winnerNicknameMasked,
+    winnerNickname,
   };
 }
 
@@ -34,7 +34,7 @@ vi.mock("@tanstack/react-router", () => ({
 
 describe("경매 종료 라우트", () => {
   it("조회자 본인이 낙찰자면 축하합니다와 카드명 문구를 표시한다", async () => {
-    auction = auctionOf(true, true, "닉***임");
+    auction = auctionOf(true, true, "닉네임");
     const { Route } = await import("@/routes/_buyer/auctions/$auctionId/end");
     const Component = Route.options.component as React.ComponentType;
     render(<Component />);
@@ -46,12 +46,12 @@ describe("경매 종료 라우트", () => {
   });
 
   it("다른 회원이 낙찰자면 닉네임님 낙찰을 헤드라인에 표시한다", async () => {
-    auction = auctionOf(true, false, "닉***임");
+    auction = auctionOf(true, false, "닉네임");
     const { Route } = await import("@/routes/_buyer/auctions/$auctionId/end");
     const Component = Route.options.component as React.ComponentType;
     render(<Component />);
     expect(
-      screen.getByRole("heading", { name: "닉***임님 낙찰!" }),
+      screen.getByRole("heading", { name: "닉네임님 낙찰!" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "축하합니다!" }),

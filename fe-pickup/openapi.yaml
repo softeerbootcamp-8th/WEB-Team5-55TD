@@ -2625,7 +2625,7 @@ components:
           format: int64
         myBidWon:
           type: boolean
-        winnerNicknameMasked:
+        winnerNickname:
           type: string
     GetAuctionBidsRequest:
       type: object
@@ -2645,6 +2645,8 @@ components:
           type: integer
           format: int64
         title:
+          type: string
+        sellerNickname:
           type: string
         card:
           $ref: "#/components/schemas/GetCardDetailResponse"

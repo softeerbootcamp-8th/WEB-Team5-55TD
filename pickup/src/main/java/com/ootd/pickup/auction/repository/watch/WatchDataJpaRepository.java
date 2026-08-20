@@ -4,6 +4,7 @@ import static com.ootd.pickup.auction.domain.QAuction.auction;
 import static com.ootd.pickup.auction.domain.QWatch.*;
 import static com.ootd.pickup.cards.domain.QCard.card;
 import static com.ootd.pickup.consignments.domain.QConsignment.consignment;
+import static com.ootd.pickup.member.domain.QMember.member;
 
 import com.ootd.pickup.auction.domain.AuctionStatus;
 import com.ootd.pickup.auction.domain.Watch;
@@ -123,6 +124,8 @@ public class WatchDataJpaRepository implements WatchRepository {
         .join(auction.consignment, consignment)
         .fetchJoin()
         .join(consignment.card, card)
+        .fetchJoin()
+        .join(consignment.sellerMember, member)
         .fetchJoin()
         .where(
             watch.member.memberId.eq(memberId),

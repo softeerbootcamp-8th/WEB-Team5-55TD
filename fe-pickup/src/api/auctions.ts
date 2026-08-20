@@ -20,6 +20,7 @@ interface AuctionListItemResponse {
   auctionId: number;
   consignmentId: number;
   title?: string;
+  sellerNickname?: string | null;
   card: CardResponse;
   grade?: string | null;
   auctionStatus: ApiAuctionStatus;
@@ -49,8 +50,8 @@ export interface AuctionDetailView extends AuctionDetail {
   won: boolean;
   /** 조회자 본인이 이 경매의 낙찰자인지. */
   myBidWon: boolean;
-  /** 마스킹된 낙찰자 닉네임. 낙찰 상태가 아니면 undefined. */
-  winnerNicknameMasked?: string;
+  /** 낙찰자 닉네임. 낙찰 상태가 아니면 undefined. */
+  winnerNickname?: string;
 }
 
 export type AuctionSort =
@@ -109,6 +110,7 @@ function toSummary(item: AuctionListItemResponse): AuctionSummary {
     title: item.title,
     cardName: item.card.cardName,
     thumbnailUrl: item.thumbnailUrl ?? item.card.imageUrl ?? undefined,
+    sellerNickname: item.sellerNickname ?? undefined,
     status: toUiStatus(item.auctionStatus),
     grade: parseGrade(item.grade),
     currentPrice: item.currentPrice ?? undefined,
@@ -241,7 +243,7 @@ interface AuctionDetailResponse extends AuctionListItemResponse {
   majorDefect?: string | null;
   bidIncrement?: number | null;
   myBidWon?: boolean;
-  winnerNicknameMasked?: string | null;
+  winnerNickname?: string | null;
 }
 
 function isListItem(value: unknown): value is AuctionListItemResponse {
@@ -293,7 +295,7 @@ function toDetail(item: AuctionDetailResponse): AuctionDetailView {
     inspectedAt: item.certificate?.inspectedAt ?? undefined,
     won: item.auctionStatus === "WON",
     myBidWon: item.myBidWon ?? false,
-    winnerNicknameMasked: item.winnerNicknameMasked ?? undefined,
+    winnerNickname: item.winnerNickname ?? undefined,
   };
 }
 
@@ -301,7 +303,6 @@ function detailFromListItem(item: AuctionListItemResponse): AuctionDetailView {
   const summary = toSummary(item);
   return {
     ...summary,
-    sellerNickname: "",
     minBidUnit: minBidUnit(item.startingPrice),
     // thumbnailUrl 과 card.imageUrl 이 같은 값일 수 있어 중복을 제거한다.
     images: [

@@ -4,6 +4,7 @@ import static com.ootd.pickup.global.event.messagequeue.outbox.QOutboxEventEntit
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Limit;
@@ -75,5 +76,47 @@ public class OutboxEventRepository {
                 .execute();
     entityManager.clear();
     return updated;
+  }
+
+  /**
+   * 발행 완료 후 보존 기간이 지난 행의 식별자를, 오래된 순으로 지정한 건수만큼 조회한다.
+   *
+   * <p>{@code published=false}인 행은 조건에서 제외한다. 발행에 계속 실패해 남은 행(poison message)까지 지우면 아직 큐에 들어가지 않은
+   * 이벤트가 유실된다. 삭제를 건수로 나누기 위한 조회라 {@link #deleteByIdIn}과 항상 짝을 이뤄 쓰인다.
+   *
+   * @param threshold 이 시각보다 이전에 발생한(occurredAt 기준) 이벤트만 조회한다
+   * @param limit 한 번에 조회할 최대 건수
+   * @return 지울 대상 식별자 목록. 없으면 빈 목록
+   */
+  @Transactional(readOnly = true)
+  public List<String> findAllByPublishedTrueAndCreatedAtBefore(
+      LocalDateTime threshold, Limit limit) {
+    return queryFactory
+        .select(outboxEventEntity.id)
+        .from(outboxEventEntity)
+        .where(outboxEventEntity.published.isTrue(), outboxEventEntity.createdAt.before(threshold))
+        .orderBy(outboxEventEntity.createdAt.asc())
+        .limit(limit.max())
+        .fetch();
+  }
+
+  /**
+   * 식별자로 지정한 행을 지운다.
+   *
+   * <p>한 번에 몰아 지우지 않고 {@link #findIdsByPublishedTrueAndCreatedAtBefore}가 건넨 배치만큼만 지우기 위한 메서드다. 배치가
+   * 작아야 한 트랜잭션이 락/undo log를 오래 붙잡지 않는다.
+   *
+   * @param ids 지울 행의 식별자 목록
+   * @return 지워진 건수
+   */
+  @Transactional
+  public int deleteByIdIn(List<String> ids) {
+    if (ids.isEmpty()) {
+      return 0;
+    }
+    int deleted =
+        (int) queryFactory.delete(outboxEventEntity).where(outboxEventEntity.id.in(ids)).execute();
+    entityManager.clear();
+    return deleted;
   }
 }

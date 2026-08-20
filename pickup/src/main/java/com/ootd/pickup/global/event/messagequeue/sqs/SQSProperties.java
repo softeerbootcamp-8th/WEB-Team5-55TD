@@ -1,4 +1,4 @@
-package com.ootd.pickup.global.event.messagequeue.sqs.config;
+package com.ootd.pickup.global.event.messagequeue.sqs;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -17,20 +17,26 @@ import org.springframework.validation.annotation.Validated;
  * @param queueUrl 큐 URL. <b>{@code .fifo} 로 끝나야 한다</b> — {@code MessageGroupId} 와 {@code
  *     MessageDeduplicationId} 는 FIFO 큐에만 있는 값이라, 표준 큐를 가리키면 전송이 매번 거부된다
  * @param region 큐가 있는 리전
+ * @param endpoint SQS 호환 서버의 접속 주소. 비어 있으면(운영·개발 기본값) SDK 가 {@code region} 으로 실제 AWS 주소를 계산해서 쓴다.
+ *     LocalStack 처럼 다른 서버를 보게 하려는 로컬 전용 값이라, 비어 있지 않으면 더미 정적 자격 증명도 함께 쓴다
  * @param waitTime 롱 폴링 대기 시간. <b>1초 미만은 거부한다</b> — 0이면 빈 응답이 즉시 돌아와 폴링 루프가 쉬지 않고 돌면서 SQS 호출 수와 요금이
  *     함께 늘어난다
  * @param visibilityTimeout 받아간 메시지가 다른 소비자에게 다시 보이지 않는 시간. <b>핸들러 처리 시간보다 길어야 한다</b> — 짧으면 처리 중인
  *     메시지가 다시 전달되어 같은 이벤트가 동시에 두 번 처리된다. 1초 미만은 거부한다
  * @param maxMessages 한 번에 받아올 최대 메시지 수
+ * @param concurrency 한 배치 안에서 서로 다른 메시지 그룹을 동시에 처리할 스레드 수. 그룹 안 순서는 그대로 지키고, 그룹 사이에서만 병렬로 처리해 한 그룹의
+ *     장애·지연이 다른 그룹을 기다리게 하지 않는다
  */
 @Validated
 @ConfigurationProperties(prefix = "event.sqs")
 public record SQSProperties(
     @NotBlank String queueUrl,
     @NotBlank String region,
+    String endpoint,
     @NotNull Duration waitTime,
     @NotNull Duration visibilityTimeout,
-    @Min(1) @Max(10) int maxMessages) {
+    @Min(1) @Max(10) int maxMessages,
+    @Min(1) int concurrency) {
 
   /**
    * 두 시간 값의 하한.

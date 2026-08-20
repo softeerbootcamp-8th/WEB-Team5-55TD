@@ -32,6 +32,10 @@ public class PointReservationService {
   /**
    * 입찰 예약에 필요한 {@code PointReservation}/{@code Point} 행을 잠그고 잔액이 충분한지 검증한다.
    *
+   * <p>호출자는 이 메서드보다 먼저 같은 경매의 {@code Auction} 행을 쓰기 락으로 잠가야 한다. 예약이 없는 첫 입찰의 동시 생성은 이 상위 락으로 직렬화한다.
+   * 기존 예약은 Repository가 예약 식별자를 먼저 확인한 뒤 실제 행에만 쓰기 락을 획득하므로, 정산·유찰 해제처럼 {@code Auction} 락을 사용하지 않는
+   * 변경 경로와도 같은 예약 행을 동시에 수정하지 않는다.
+   *
    * <p>{@link #reserveHighestBid}에서 같은 행을 다시 잠그지 않도록, 여기서 잠근 엔티티를 {@link PreparedBidReservation}에
    * 담아 반환한다. 잔액 검증을 {@code Bid} insert 이전에 끝냄으로써 잔액 부족으로 실패하는 입찰이 불필요한 insert-then-rollback을 하지 않게
    * 한다.

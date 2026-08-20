@@ -45,6 +45,22 @@ describe("AuctionCard", () => {
     expect(screen.getByText(price)).toBeInTheDocument();
   });
 
+  it("판매자 닉네임을 표시한다", async () => {
+    const { AuctionCard } = await import("./auction-card");
+    render(
+      <AuctionCard
+        auction={{ ...base, status: "LIVE", sellerNickname: "카드왕" }}
+      />,
+    );
+    expect(screen.getByText("판매자 · 카드왕")).toBeInTheDocument();
+  });
+
+  it("판매자 닉네임이 없으면 판매자 줄을 그리지 않는다", async () => {
+    const { AuctionCard } = await import("./auction-card");
+    render(<AuctionCard auction={{ ...base, status: "LIVE" }} />);
+    expect(screen.queryByText(/판매자 ·/)).not.toBeInTheDocument();
+  });
+
   it("입찰자가 없던 종료 경매는 유찰로 표시한다", async () => {
     const { AuctionCard } = await import("./auction-card");
     render(<AuctionCard auction={{ ...base, status: "ENDED" }} />);
